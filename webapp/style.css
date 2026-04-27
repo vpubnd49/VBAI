@@ -76,6 +76,7 @@ body {
   min-height: 100vh;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
 }
 
 /* Ambient Background */
@@ -441,6 +442,21 @@ body {
   color: var(--pine-400);
 }
 
+/* Footer */
+.app-footer {
+  text-align: center; padding: 28px 16px 20px; margin-top: 32px;
+  border-top: 1px solid var(--border-subtle);
+}
+.footer-line {
+  font-size: 0.72rem; color: var(--text-muted); font-weight: 500;
+  line-height: 1.8; letter-spacing: 0.5px;
+}
+.footer-link {
+  color: var(--pine-400); text-decoration: none; font-weight: 700;
+  transition: color 0.2s ease;
+}
+.footer-link:hover { color: var(--pine-300); text-decoration: underline; }
+
 /* Responsive */
 @media (max-width: 768px) {
   /* Sidebar & Layout */
@@ -449,14 +465,24 @@ body {
   .main-content { margin-left: 0; }
   
   /* Typography */
-  .hero-title { font-size: 1.8rem; }
+  .hero-title { font-size: 1.5rem; }
+  .hero-sub { font-size: 0.82rem; }
   .page-title { font-size: 1.3rem; }
+  .dashboard-hero { padding: 20px 12px 16px; }
+  
+  /* Stats compact 2x2 */
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+  .stat-card { padding: 14px; }
+  .stat-value { font-size: 1.4rem; }
+  .stat-icon { font-size: 1.2rem; margin-bottom: 4px; }
   
   /* Layout constraints */
-  .page-content { padding: 16px; }
+  .page-content { padding: 12px; }
   .form-grid { grid-template-columns: 1fr; gap: 16px; }
   .form-group.span-2 { grid-column: span 1; }
-  .modules-grid { grid-template-columns: 1fr; }
+  .modules-grid { grid-template-columns: 1fr; gap: 12px; }
+  .module-card { padding: 20px; }
+  .module-icon { width: 42px; height: 42px; margin-bottom: 10px; }
   
   /* Components */
   .steps-bar { 
@@ -466,6 +492,7 @@ body {
   .step-indicator { padding: 8px 12px; }
   .btn-row { flex-direction: column; gap: 12px; }
   .btn-row .btn { width: 100%; justify-content: center; }
+  .section-card { padding: 16px; }
   
   /* Preview Section */
   .preview-container { 
@@ -473,6 +500,9 @@ body {
   }
   .preview-header-table td { font-size: 11pt !important; }
   .preview-header-table td div { font-size: inherit !important; }
+  
+  /* Footer */
+  .app-footer { padding: 20px 12px 16px; margin-top: 20px; }
 }
 
 /* Page transitions */

@@ -63,6 +63,11 @@ export function renderDashboard(container, navigateTo) {
         <div class="module-badge">Tạo mới • Phân tích • Chỉnh sửa</div>
       </div>
     </div>
+
+    <footer class="app-footer">
+      <div class="footer-line">Ver 1.0 — Lâm Đồng</div>
+      <div class="footer-line">PHÁT TRIỂN BỞI: <a href="https://www.facebook.com/haichau2404" target="_blank" rel="noopener" class="footer-link">TRƯƠNG HẢI CHÂU</a></div>
+    </footer>
   `;
 
   // Module card clicks
