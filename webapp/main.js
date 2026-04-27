@@ -78,16 +78,38 @@ function renderPage(page) {
 
 // ============ INIT ============
 function init() {
-  // Nav clicks
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', () => navigateTo(item.dataset.page));
+  // Sidebar toggle logic
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const toggleBtn = document.getElementById('toggle-sidebar');
+
+  function closeMobileSidebar() {
+    sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    if (window.innerWidth <= 768) {
+      sidebar.classList.toggle('open');
+      if (overlay) overlay.classList.toggle('active');
+    } else {
+      sidebar.classList.toggle('collapsed');
+      state.sidebarOpen = !sidebar.classList.contains('collapsed');
+    }
   });
 
-  // Sidebar toggle
-  document.getElementById('toggle-sidebar').addEventListener('click', () => {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('collapsed');
-    state.sidebarOpen = !sidebar.classList.contains('collapsed');
+  if (overlay) {
+    overlay.addEventListener('click', closeMobileSidebar);
+  }
+
+  // Nav clicks
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      navigateTo(item.dataset.page);
+      if (window.innerWidth <= 768) {
+        closeMobileSidebar();
+      }
+    });
   });
 
   // Clock

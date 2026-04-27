@@ -105,9 +105,17 @@ body {
   background: rgba(13, 38, 26, 0.7); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   border-right: 1px solid var(--border-subtle);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0; z-index: 10;
+  flex-shrink: 0; z-index: 100;
 }
 .sidebar.collapsed { transform: translateX(-100%); position: absolute; }
+
+.sidebar-overlay {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 90;
+  backdrop-filter: blur(4px); opacity: 0; pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.sidebar-overlay.active { opacity: 1; pointer-events: auto; }
+
 
 .sidebar-header { padding: 20px 18px; border-bottom: 1px solid var(--border-subtle); }
 .logo { display: flex; align-items: center; gap: 12px; }
@@ -273,7 +281,7 @@ body {
   padding: 10px 16px; border-radius: var(--radius-md);
   font-size: 0.8rem; font-weight: 500; color: var(--text-muted);
   cursor: pointer; transition: all 0.3s ease; border: none; background: transparent;
-  font-family: inherit;
+  font-family: inherit; white-space: nowrap;
 }
 .step-indicator.active {
   background: linear-gradient(135deg, rgba(82,183,136,0.2), rgba(123,104,174,0.1));
@@ -435,13 +443,36 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
+  /* Sidebar & Layout */
   .sidebar { position: fixed; transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }
-  .form-grid { grid-template-columns: 1fr; }
+  .main-content { margin-left: 0; }
+  
+  /* Typography */
+  .hero-title { font-size: 1.8rem; }
+  .page-title { font-size: 1.3rem; }
+  
+  /* Layout constraints */
+  .page-content { padding: 16px; }
+  .form-grid { grid-template-columns: 1fr; gap: 16px; }
   .form-group.span-2 { grid-column: span 1; }
   .modules-grid { grid-template-columns: 1fr; }
-  .page-content { padding: 16px; }
-  .preview-container { padding: 20px; }
+  
+  /* Components */
+  .steps-bar { 
+    overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; 
+    -webkit-overflow-scrolling: touch;
+  }
+  .step-indicator { padding: 8px 12px; }
+  .btn-row { flex-direction: column; gap: 12px; }
+  .btn-row .btn { width: 100%; justify-content: center; }
+  
+  /* Preview Section */
+  .preview-container { 
+    padding: 20px 16px; font-size: 12pt; min-height: 400px;
+  }
+  .preview-header-table td { font-size: 11pt !important; }
+  .preview-header-table td div { font-size: inherit !important; }
 }
 
 /* Page transitions */
