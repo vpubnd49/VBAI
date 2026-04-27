@@ -1,0 +1,27 @@
+{
+    "loai_van_ban": "cong_van",
+    "co_quan_chu_quan": "",
+    "co_quan_ban_hanh": "BO TAI CHINH",
+    "don_vi_soan_thao": "TCCB",
+    "so_ky_hieu": "So:      /BTC-TCCB",
+    "ngay_thang": {
+        "ngay": "",
+        "thang": "",
+        "nam": "2026"
+    },
+    "trich_yeu": "V/v cu dai dien tham gia To cong tac ve Du an \"Dau tu xay dung Tru so moi cua Bo Ngoai giao tai khu Ngoai giao doan Van Phuc, phuong Ngoc Ha, TP Ha Noi\"",
+    "kinh_gui": [
+        "Bo Ngoai giao"
+    ],
+    "noi_dung": "Phuc dap Cong van so 1243/BNG-QTTV ngay 27/02/2026 cua Bo Ngoai giao gui Bo Tai chinh ve viec cu Lanh dao Bo tham gia To cong tac ve Du an \"Dau tu xay dung Tru so moi cua Bo Ngoai giao tai khu Ngoai giao doan Van Phuc, phuong Ngoc Ha, Thanh pho Ha Noi\", Bo Tai chinh cu ong Do Thanh Trung, Thu truong Bo Tai chinh tham gia To cong tac neu tren.\nDe nghi Bo Ngoai giao tong hop./.",
+    "cap_ky": "TM",
+    "chuc_vu_ky": "BO TRUONG",
+    "nguoi_ky": "Nguyen Van Thang",
+    "noi_nhan": [
+        "Nhu tren",
+        "Thu truong Do Thanh Trung",
+        "Vu PTHT; VPB",
+        "Luu: VT, TCCB (6b)"
+    ],
+    "output_path": "03_output/test_cong_van.docx"
+}

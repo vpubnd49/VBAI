@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VBAI — Trợ Lý Soạn Văn Bản Hành Chính AI</title>
+  <meta name="description" content="Ứng dụng soạn văn bản hành chính chuẩn NĐ30 và văn bản Đảng chuẩn HD36 bằng AI. Tạo file DOCX tự động, xử lý PDF, hỗ trợ đầy đủ thể thức." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Ambient background -->
+    <div class="ambient-bg">
+      <div class="ambient-orb orb-1"></div>
+      <div class="ambient-orb orb-2"></div>
+      <div class="ambient-orb orb-3"></div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <nav id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <path d="M4 7C4 5.34 5.34 4 7 4h14c1.66 0 3 1.34 3 3v14c0 1.66-1.34 3-3 3H7c-1.66 0-3-1.34-3-3V7z" fill="url(#logo-grad)" opacity="0.9"/>
+              <path d="M9 10h10M9 14h7M9 18h4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+              <defs>
+                <linearGradient id="logo-grad" x1="4" y1="4" x2="24" y2="24">
+                  <stop stop-color="#2d6a4f"/>
+                  <stop offset="1" stop-color="#7b68ae"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="logo-text">
+            <span class="logo-name">VBAI</span>
+            <span class="logo-sub">Soạn Văn Bản AI</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-menu">
+        <button class="nav-item active" data-page="dashboard" id="nav-dashboard">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect x="2" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="11" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="2" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          <span>Tổng quan</span>
+        </button>
+
+        <div class="nav-section-label">Soạn Văn Bản</div>
+
+        <button class="nav-item" data-page="vb-dang" id="nav-vb-dang">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 2l1.9 5.8H18l-4.9 3.6 1.9 5.8L10 13.6l-4.9 3.6 1.9-5.8L2 7.8h6.1L10 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+          <span>VB Đảng (HD36)</span>
+        </button>
+
+        <button class="nav-item" data-page="vb-nd30" id="nav-vb-nd30">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M5 3h10c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M7 7h6M7 10h4M7 13h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          <span>VB Hành Chính (NĐ30)</span>
+        </button>
+
+        <div class="nav-section-label">Công Cụ</div>
+
+        <button class="nav-item" data-page="pdf-tool" id="nav-pdf-tool">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M5 2h7l5 5v11a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2z" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M12 2v5h5" stroke="currentColor" stroke-width="1.5"/>
+            <text x="5.5" y="15" font-size="6" font-weight="700" fill="currentColor">PDF</text>
+          </svg>
+          <span>Xử lý PDF</span>
+        </button>
+
+        <button class="nav-item" data-page="docx-tool" id="nav-docx-tool">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M5 2h7l5 5v11a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2z" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M12 2v5h5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M7 11h6M7 14h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          <span>Tạo DOCX</span>
+        </button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="version-badge">v1.0 • Đà Lạt Edition</div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="main-content" class="main-content">
+      <!-- Header bar -->
+      <header class="top-bar">
+        <button id="toggle-sidebar" class="btn-icon" aria-label="Toggle Sidebar">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div class="breadcrumb" id="breadcrumb">
+          <span class="breadcrumb-item">Tổng quan</span>
+        </div>
+        <div class="top-bar-actions">
+          <div class="dalat-time" id="dalat-clock"></div>
+        </div>
+      </header>
+
+      <!-- Page content area -->
+      <div id="page-content" class="page-content">
+        <!-- Dynamic content loaded here -->
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>

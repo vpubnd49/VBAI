@@ -1,0 +1,38 @@
+{
+    "loai_van_ban": "quyet_dinh",
+    "co_quan_chu_quan": "",
+    "co_quan_ban_hanh": "BO TAI CHINH",
+    "don_vi_soan_thao": "TCCB",
+    "so_ky_hieu": "So:      /QD-BTC",
+    "ngay_thang": {
+        "ngay": "",
+        "thang": "",
+        "nam": "2026"
+    },
+    "trich_yeu": "Ve viec cu doan can bo di cong tac tai Han Quoc",
+    "can_cu": [
+        "Nghi dinh so 29/2025/ND-CP ngay 20 thang 02 nam 2025 cua Chinh phu quy dinh chuc nang, nhiem vu, quyen han va co cau to chuc cua Bo Tai chinh",
+        "Quyet dinh so 1528/QD-BTC ngay 10 thang 6 nam 2024 cua Bo truong Bo Tai chinh ve phan cong nhiem vu trong Ban Lanh dao Bo"
+    ],
+    "theo_de_nghi": "Vu truong Vu To chuc can bo",
+    "cac_dieu": [
+        {
+            "noi_dung": "Cu doan can bo cua Bo Tai chinh di cong tac tai Han Quoc tu ngay 15 den ngay 20 thang 04 nam 2026 gom cac thanh vien theo danh sach dinh kem."
+        },
+        {
+            "noi_dung": "Kinh phi chuyen di thuc hien theo quy dinh hien hanh."
+        },
+        {
+            "noi_dung": "Quyet dinh nay co hieu luc ke tu ngay ky. Chanh Van phong Bo, Vu truong Vu To chuc can bo va cac ca nhan co ten tai Dieu 1 chiu trach nhiem thi hanh Quyet dinh nay./."
+        }
+    ],
+    "cap_ky": "KT",
+    "chuc_vu_ky": "THU TRUONG",
+    "nguoi_ky": "Do Thanh Trung",
+    "noi_nhan": [
+        "Nhu Dieu 3",
+        "Bo truong (de bao cao)",
+        "Luu: VT, TCCB"
+    ],
+    "output_path": "03_output/test_quyet_dinh.docx"
+}
