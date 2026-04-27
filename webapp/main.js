@@ -20,7 +20,7 @@ function updateClock() {
   const el = document.getElementById('dalat-clock');
   if (!el) return;
   const now = new Date();
-  el.textContent = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • Đà Lạt';
+  el.textContent = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • Lâm Đồng';
 }
 setInterval(updateClock, 1000);
 
