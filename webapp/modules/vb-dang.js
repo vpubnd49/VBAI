@@ -25,7 +25,7 @@ const BODY_SP = { before:120, after:120, line:360, lineRule:LineRuleType.EXACT }
 let formState = { step: 1 };
 
 export function renderVBDang(container) {
-  formState = { step: 1, loai_van_ban: 'nghi_quyet', co_quan_cap_tren: '', co_quan_ban_hanh: '', so_ky_hieu: '', dia_danh: 'Hà Nội', ngay: '', thang: '', nam: '2026', trich_yeu: '', noi_dung: '', quyen_han_ky: 'T/M', chuc_vu_ky: '', nguoi_ky: '', noi_nhan: '', kinh_gui: '', can_cu: '' };
+  formState = { step: 1, loai_van_ban: 'nghi_quyet', co_quan_cap_tren: '', co_quan_ban_hanh: '', so_ky_hieu: '', dia_danh: 'Hà Nội', ngay: '', thang: '', nam: '2026', trich_yeu: '', noi_dung: '', quyen_han_ky: 'Ký trực tiếp', chuc_vu_ky: '', nguoi_ky: '', noi_nhan: '', kinh_gui: '', can_cu: '', dong_chuc_danh_1:'', dong_chuc_danh_2:'', dong_chuc_danh_3:'' };
   renderStep(container);
 }
 
@@ -93,17 +93,36 @@ function renderStep3(sc, container) {
     <div class="section-title">📝 Bước 3: Nội dung & Chữ ký</div>
     <div class="form-grid">
       ${isCongVan ? `<div class="form-group span-2"><label class="form-label">Kính gửi</label><input class="form-input" id="f-kg" value="${s.kinh_gui}" placeholder="Ban Bí thư Trung ương Đảng (mỗi CQ cách nhau dấu ;)"></div>` : ''}
-      <div class="form-group span-2"><label class="form-label">Căn cứ (mỗi dòng 1 căn cứ)</label><textarea class="form-textarea" id="f-cc" rows="3" placeholder="Căn cứ Điều lệ Đảng...">${s.can_cu}</textarea></div>
-      <div class="form-group span-2"><label class="form-label">Nội dung văn bản <span class="required">*</span></label><textarea class="form-textarea" id="f-nd" rows="8" placeholder="Nhập nội dung văn bản...">${s.noi_dung}</textarea></div>
-      <div class="form-group"><label class="form-label">Quyền hạn ký</label>
-        <select class="form-select" id="f-qhk"><option ${s.quyen_han_ky==='T/M'?'selected':''}>T/M</option><option ${s.quyen_han_ky==='K/T'?'selected':''}>K/T</option><option ${s.quyen_han_ky==='T/L'?'selected':''}>T/L</option></select></div>
-      <div class="form-group"><label class="form-label">Chức vụ ký</label><input class="form-input" id="f-cvk" value="${s.chuc_vu_ky}" placeholder="BÍ THƯ"></div>
-      <div class="form-group"><label class="form-label">Người ký <span class="required">*</span></label><input class="form-input" id="f-nk" value="${s.nguoi_ky}" placeholder="Nguyễn Văn A"></div>
-      <div class="form-group"><label class="form-label">Nơi nhận (mỗi dòng 1 nơi)</label><textarea class="form-textarea" id="f-nn" rows="3" placeholder="Các chi bộ trực thuộc&#10;Lưu VP">${s.noi_nhan}</textarea></div>
-    </div>
-    <div class="btn-row"><button class="btn btn-secondary" id="btn-back3">← Quay lại</button><button class="btn btn-primary" id="btn-next3">Xem trước & Tải →</button></div>
+    <div class="form-group span-2"><label class="form-label">Căn cứ (mỗi dòng 1 căn cứ)</label><textarea class="form-textarea" id="f-cc" rows="3" placeholder="Căn cứ Điều lệ Đảng...">${s.can_cu}</textarea></div>
+    <div class="form-group span-2"><label class="form-label">Nội dung văn bản <span class="required">*</span></label><textarea class="form-textarea" id="f-nd" rows="8" placeholder="Nhập nội dung văn bản...">${s.noi_dung}</textarea></div>
+    <div class="form-group span-2"><label class="form-label">Nơi nhận (mỗi dòng 1 nơi)</label><textarea class="form-textarea" id="f-nn" rows="3" placeholder="Các chi bộ trực thuộc&#10;Lưu VP">${s.noi_nhan}</textarea></div>
+  </div>
+
+  <div class="section-title" style="margin-top: 24px; display: flex; align-items: center; gap: 8px;">
+    <div style="background: #e8f5e9; color: #2e7d32; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">✍️</div>
+    3. THẨM QUYỀN KÝ
+  </div>
+  <div class="form-grid" style="border: 1px solid #e0e0e0; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+    <div class="form-group span-2"><label class="form-label">Người ký <span class="required">*</span></label><input class="form-input" id="f-nk" value="${s.nguoi_ky}" placeholder="VD: Nguyễn Văn A"></div>
+    <div class="form-group"><label class="form-label">Chức vụ</label><input class="form-input" id="f-cvk" value="${s.chuc_vu_ky}" placeholder="VD: BÍ THƯ"></div>
+    <div class="form-group"><label class="form-label">Chế độ ký</label><select class="form-select" id="f-qhk">
+      <option ${s.quyen_han_ky==='Ký trực tiếp'?'selected':''}>Ký trực tiếp</option>
+      <option ${s.quyen_han_ky==='TM. (Thay mặt)'?'selected':''}>TM. (Thay mặt)</option>
+      <option ${s.quyen_han_ky==='KT. (Ký thay)'?'selected':''}>KT. (Ký thay)</option>
+      <option ${s.quyen_han_ky==='TL. (Thừa lệnh)'?'selected':''}>TL. (Thừa lệnh)</option>
+      <option ${s.quyen_han_ky==='TU. (Thừa ủy quyền)'?'selected':''}>TU. (Thừa ủy quyền)</option>
+      <option ${s.quyen_han_ky==='Q. (Quyền)'?'selected':''}>Q. (Quyền)</option>
+    </select></div>
+    
+    <div class="span-2" style="margin-top: 16px; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: #7f8c8d; text-transform: uppercase;">DÒNG CHỨC DANH (TỐI ĐA 3 DÒNG)</div>
+    <div class="form-group span-2"><label class="form-label">Dòng 1</label><input class="form-input" id="fdcd1" value="${s.dong_chuc_danh_1}" placeholder="VD: T/M BAN THƯỜNG VỤ"></div>
+    <div class="form-group span-2"><label class="form-label">Dòng 2</label><input class="form-input" id="fdcd2" value="${s.dong_chuc_danh_2}" placeholder="VD: K/T BÍ THƯ"></div>
+    <div class="form-group span-2"><label class="form-label">Dòng 3</label><input class="form-input" id="fdcd3" value="${s.dong_chuc_danh_3}" placeholder="VD: PHÓ BÍ THƯ"></div>
+  </div>
+
+  <div class="btn-row"><button class="btn btn-secondary" id="btn-back3">← Quay lại</button><button class="btn btn-primary" id="btn-next3">Xem trước & Tải →</button></div>
   `;
-  const save = () => { if(isCongVan) s.kinh_gui=sc.querySelector('#f-kg')?.value||''; s.can_cu=sc.querySelector('#f-cc').value; s.noi_dung=sc.querySelector('#f-nd').value; s.quyen_han_ky=sc.querySelector('#f-qhk').value; s.chuc_vu_ky=sc.querySelector('#f-cvk').value; s.nguoi_ky=sc.querySelector('#f-nk').value; s.noi_nhan=sc.querySelector('#f-nn').value; };
+  const save = () => { if(isCongVan) s.kinh_gui=sc.querySelector('#f-kg')?.value||''; s.can_cu=sc.querySelector('#f-cc').value; s.noi_dung=sc.querySelector('#f-nd').value; s.quyen_han_ky=sc.querySelector('#f-qhk').value; s.chuc_vu_ky=sc.querySelector('#f-cvk').value; s.nguoi_ky=sc.querySelector('#f-nk').value; s.noi_nhan=sc.querySelector('#f-nn').value; s.dong_chuc_danh_1=sc.querySelector('#fdcd1').value; s.dong_chuc_danh_2=sc.querySelector('#fdcd2').value; s.dong_chuc_danh_3=sc.querySelector('#fdcd3').value; };
   sc.querySelector('#btn-back3').addEventListener('click', () => { save(); s.step=2; renderStep(container); });
   sc.querySelector('#btn-next3').addEventListener('click', () => { save(); if(!s.noi_dung){showToast('Vui lòng nhập nội dung','error');return;} s.step=4; renderStep(container); });
 }
@@ -111,7 +130,6 @@ function renderStep3(sc, container) {
 function renderStep4(sc, container) {
   const s = formState;
   const tenLoai = LOAI_VB[s.loai_van_ban] || '';
-  const quyenHanFull = `${s.quyen_han_ky} ${s.co_quan_ban_hanh}`;
   sc.innerHTML = `
     <div class="section-title">👁️ Bước 4: Xem trước & Tải file</div>
     <div class="preview-container">
@@ -141,8 +159,9 @@ function renderStep4(sc, container) {
           ${(s.noi_nhan||'').split('\n').filter(l=>l.trim()).map(l=>`<div style="font-size:11pt">- ${l.trim()}</div>`).join('')}
         </td>
         <td style="width:52%;text-align:center;vertical-align:top">
-          <div class="preview-bold">${quyenHanFull}</div>
-          <div>${s.chuc_vu_ky}</div>
+          ${s.dong_chuc_danh_1?`<div class="preview-bold">${s.dong_chuc_danh_1}</div>`:''}
+          ${s.dong_chuc_danh_2?`<div class="preview-bold">${s.dong_chuc_danh_2}</div>`:''}
+          ${s.dong_chuc_danh_3?`<div class="preview-bold">${s.dong_chuc_danh_3}</div>`:''}
           <br><br><br><br>
           <div class="preview-bold">${s.nguoi_ky}</div>
         </td>
@@ -193,8 +212,9 @@ async function generateDangDocx(s) {
     (s.noi_nhan||'').split('\n').filter(l=>l.trim()).forEach(n => noiNhanCh.push(new Paragraph({spacing:{after:0},children:[new TextRun({text:'- '+n.trim(),font:LAYOUT.FONT,size:24})]})));
 
     const sigCh = [];
-    sigCh.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:`${s.quyen_han_ky} ${s.co_quan_ban_hanh}`,font:LAYOUT.FONT,size:28,bold:true})]}));
-    if(s.chuc_vu_ky) sigCh.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.chuc_vu_ky,font:LAYOUT.FONT,size:28})]}));
+    if(s.dong_chuc_danh_1) sigCh.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.dong_chuc_danh_1,font:LAYOUT.FONT,size:28,bold:true})]}));
+    if(s.dong_chuc_danh_2) sigCh.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.dong_chuc_danh_2,font:LAYOUT.FONT,size:28,bold:true})]}));
+    if(s.dong_chuc_danh_3) sigCh.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.dong_chuc_danh_3,font:LAYOUT.FONT,size:28,bold:true})]}));
     for(let i=0;i<4;i++) sigCh.push(new Paragraph({spacing:{after:0},children:[new TextRun({text:'',font:LAYOUT.FONT,size:28})]}));
     sigCh.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.nguoi_ky,font:LAYOUT.FONT,size:28,bold:true})]}));
 

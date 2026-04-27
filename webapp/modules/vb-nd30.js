@@ -20,7 +20,7 @@ const BS = {before:120,after:0,line:340,lineRule:LineRuleType.AT_LEAST};
 let fs = {};
 
 export function renderVBND30(container) {
-  fs = { step:1, loai_van_ban:'thong_bao', co_quan_chu_quan:'', co_quan_ban_hanh:'', so_ky_hieu:'', dia_danh:'Hà Nội', ngay:'',thang:'',nam:'2026', trich_yeu:'', noi_dung:'', quyen_han_ky:'TL.', chuc_vu_ky:'', nguoi_ky:'', noi_nhan:'', kinh_gui:'', can_cu:'' };
+  fs = { step:1, loai_van_ban:'thong_bao', co_quan_chu_quan:'', co_quan_ban_hanh:'', so_ky_hieu:'', dia_danh:'Hà Nội', ngay:'',thang:'',nam:'2026', trich_yeu:'', noi_dung:'', quyen_han_ky:'Ký trực tiếp', chuc_vu_ky:'', nguoi_ky:'', noi_nhan:'', kinh_gui:'', can_cu:'', dong_chuc_danh_1:'', dong_chuc_danh_2:'', dong_chuc_danh_3:'' };
   doRender(container);
 }
 
@@ -61,12 +61,33 @@ function renderS3(sc,c) {
     ${isCV?`<div class="form-group span-2"><label class="form-label">Kính gửi</label><input class="form-input" id="fkg" value="${fs.kinh_gui}" placeholder="Các đơn vị thuộc Bộ (cách nhau dấu ;)"></div>`:''}
     <div class="form-group span-2"><label class="form-label">Căn cứ</label><textarea class="form-textarea" id="fcc" rows="3">${fs.can_cu}</textarea></div>
     <div class="form-group span-2"><label class="form-label">Nội dung <span class="required">*</span></label><textarea class="form-textarea" id="fnd" rows="8">${fs.noi_dung}</textarea></div>
-    <div class="form-group"><label class="form-label">Quyền hạn ký</label><select class="form-select" id="fqh"><option ${fs.quyen_han_ky==='TM.'?'selected':''}>TM.</option><option ${fs.quyen_han_ky==='KT.'?'selected':''}>KT.</option><option ${fs.quyen_han_ky==='TL.'?'selected':''}>TL.</option></select></div>
-    <div class="form-group"><label class="form-label">Chức vụ</label><input class="form-input" id="fcv" value="${fs.chuc_vu_ky}" placeholder="VỤ TRƯỞNG"></div>
-    <div class="form-group"><label class="form-label">Người ký <span class="required">*</span></label><input class="form-input" id="fnk" value="${fs.nguoi_ky}"></div>
-    <div class="form-group"><label class="form-label">Nơi nhận</label><textarea class="form-textarea" id="fnn" rows="3">${fs.noi_nhan}</textarea></div>
-  </div><div class="btn-row"><button class="btn btn-secondary" id="bb">← Quay lại</button><button class="btn btn-primary" id="bn">Xem trước →</button></div>`;
-  const sv=()=>{if(isCV)fs.kinh_gui=sc.querySelector('#fkg')?.value||'';fs.can_cu=sc.querySelector('#fcc').value;fs.noi_dung=sc.querySelector('#fnd').value;fs.quyen_han_ky=sc.querySelector('#fqh').value;fs.chuc_vu_ky=sc.querySelector('#fcv').value;fs.nguoi_ky=sc.querySelector('#fnk').value;fs.noi_nhan=sc.querySelector('#fnn').value};
+    <div class="form-group span-2"><label class="form-label">Nơi nhận</label><textarea class="form-textarea" id="fnn" rows="3">${fs.noi_nhan}</textarea></div>
+  </div>
+  
+  <div class="section-title" style="margin-top: 24px; display: flex; align-items: center; gap: 8px;">
+    <div style="background: #e8f5e9; color: #2e7d32; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">✍️</div>
+    3. THẨM QUYỀN KÝ
+  </div>
+  <div class="form-grid" style="border: 1px solid #e0e0e0; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+    <div class="form-group span-2"><label class="form-label">Người ký <span class="required">*</span></label><input class="form-input" id="fnk" value="${fs.nguoi_ky}" placeholder="VD: Nguyễn Văn A"></div>
+    <div class="form-group"><label class="form-label">Chức vụ</label><input class="form-input" id="fcv" value="${fs.chuc_vu_ky}" placeholder="VD: Chủ tịch"></div>
+    <div class="form-group"><label class="form-label">Chế độ ký</label><select class="form-select" id="fqh">
+      <option ${fs.quyen_han_ky==='Ký trực tiếp'?'selected':''}>Ký trực tiếp</option>
+      <option ${fs.quyen_han_ky==='TM. (Thay mặt)'?'selected':''}>TM. (Thay mặt)</option>
+      <option ${fs.quyen_han_ky==='KT. (Ký thay)'?'selected':''}>KT. (Ký thay)</option>
+      <option ${fs.quyen_han_ky==='TL. (Thừa lệnh)'?'selected':''}>TL. (Thừa lệnh)</option>
+      <option ${fs.quyen_han_ky==='TU. (Thừa ủy quyền)'?'selected':''}>TU. (Thừa ủy quyền)</option>
+      <option ${fs.quyen_han_ky==='Q. (Quyền)'?'selected':''}>Q. (Quyền)</option>
+    </select></div>
+    
+    <div class="span-2" style="margin-top: 16px; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: #7f8c8d; text-transform: uppercase;">DÒNG CHỨC DANH (TỐI ĐA 3 DÒNG)</div>
+    <div class="form-group span-2"><label class="form-label">Dòng 1</label><input class="form-input" id="fdcd1" value="${fs.dong_chuc_danh_1}" placeholder="VD: TM. ỦY BAN NHÂN DÂN"></div>
+    <div class="form-group span-2"><label class="form-label">Dòng 2</label><input class="form-input" id="fdcd2" value="${fs.dong_chuc_danh_2}" placeholder="VD: KT. CHỦ TỊCH"></div>
+    <div class="form-group span-2"><label class="form-label">Dòng 3</label><input class="form-input" id="fdcd3" value="${fs.dong_chuc_danh_3}" placeholder="VD: PHÓ CHỦ TỊCH"></div>
+  </div>
+  
+  <div class="btn-row"><button class="btn btn-secondary" id="bb">← Quay lại</button><button class="btn btn-primary" id="bn">Xem trước →</button></div>`;
+  const sv=()=>{if(isCV)fs.kinh_gui=sc.querySelector('#fkg')?.value||'';fs.can_cu=sc.querySelector('#fcc').value;fs.noi_dung=sc.querySelector('#fnd').value;fs.quyen_han_ky=sc.querySelector('#fqh').value;fs.chuc_vu_ky=sc.querySelector('#fcv').value;fs.nguoi_ky=sc.querySelector('#fnk').value;fs.noi_nhan=sc.querySelector('#fnn').value;fs.dong_chuc_danh_1=sc.querySelector('#fdcd1').value;fs.dong_chuc_danh_2=sc.querySelector('#fdcd2').value;fs.dong_chuc_danh_3=sc.querySelector('#fdcd3').value;};
   sc.querySelector('#bb').onclick=()=>{sv();fs.step=2;doRender(c)};
   sc.querySelector('#bn').onclick=()=>{sv();if(!fs.noi_dung){showToast('Nhập nội dung','error');return}fs.step=4;doRender(c)};
 }
@@ -82,7 +103,7 @@ function renderS4(sc,c) {
       ${fs.noi_dung.split('\n').filter(l=>l.trim()).map(l=>`<div class="preview-body">${l.trim()}</div>`).join('')}
       <table class="preview-header-table" style="margin-top:24pt"><tr>
         <td style="width:45%;vertical-align:top"><div style="font-weight:bold;font-style:italic;font-size:12pt">Nơi nhận:</div>${(fs.noi_nhan||'').split('\n').filter(l=>l.trim()).map(l=>`<div style="font-size:11pt">- ${l.trim()}</div>`).join('')}</td>
-        <td style="width:55%;text-align:center"><div class="preview-bold">${fs.quyen_han_ky} ${fs.co_quan_chu_quan||fs.co_quan_ban_hanh}</div><div class="preview-bold">${fs.chuc_vu_ky}</div><br><br><br><br><div class="preview-bold">${fs.nguoi_ky}</div></td>
+        <td style="width:55%;text-align:center">${fs.dong_chuc_danh_1?`<div class="preview-bold">${fs.dong_chuc_danh_1}</div>`:''}${fs.dong_chuc_danh_2?`<div class="preview-bold">${fs.dong_chuc_danh_2}</div>`:''}${fs.dong_chuc_danh_3?`<div class="preview-bold">${fs.dong_chuc_danh_3}</div>`:''}<br><br><br><br><div class="preview-bold">${fs.nguoi_ky}</div></td>
       </tr></table>
     </div>
     <div class="btn-row" style="justify-content:center;margin-top:24px"><button class="btn btn-secondary" id="bb">← Chỉnh sửa</button><button class="btn btn-success" id="bd">⬇ Tải file .DOCX</button></div>`;
@@ -114,8 +135,10 @@ async function genND30() {
     // Signature
     const nn=[new Paragraph({spacing:{after:0},children:[new TextRun({text:'Nơi nhận:',font:L.FONT,size:24,bold:true,italics:true})]})];
     (fs.noi_nhan||'').split('\n').filter(l=>l.trim()).forEach(n=>nn.push(new Paragraph({spacing:{after:0},children:[new TextRun({text:'- '+n.trim(),font:L.FONT,size:22})]})));
-    const sg=[new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:`${fs.quyen_han_ky} ${fs.co_quan_chu_quan||fs.co_quan_ban_hanh}`,font:L.FONT,size:28,bold:true})]})];
-    if(fs.chuc_vu_ky)sg.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.chuc_vu_ky,font:L.FONT,size:28,bold:true})]}));
+    const sg=[];
+    if (fs.dong_chuc_danh_1) sg.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.dong_chuc_danh_1,font:L.FONT,size:28,bold:true})]}));
+    if (fs.dong_chuc_danh_2) sg.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.dong_chuc_danh_2,font:L.FONT,size:28,bold:true})]}));
+    if (fs.dong_chuc_danh_3) sg.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.dong_chuc_danh_3,font:L.FONT,size:28,bold:true})]}));
     for(let i=0;i<4;i++)sg.push(new Paragraph({spacing:{after:0},children:[new TextRun({text:'',font:L.FONT,size:28})]}));
     sg.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.nguoi_ky,font:L.FONT,size:28,bold:true})]}));
     ch.push(new Paragraph({spacing:{before:240},children:[]}));
