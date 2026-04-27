@@ -55,7 +55,7 @@ function renderStep1(sc, container) {
     <div class="form-grid">
       <div class="form-group span-2">
         <label class="form-label">Loại văn bản <span class="required">*</span></label>
-        <select class="form-select" id="f-loai">${Object.entries(LOAI_VB).map(([k,v])=>`<option value="${k}" ${formState.loai_van_ban===k?'selected':''}>${v} (${k})</option>`).join('')}</select>
+        <select class="form-select" id="f-loai">${Object.entries(LOAI_VB).map(([k,v])=>`<option value="${k}" ${formState.loai_van_ban===k?'selected':''}>${v}</option>`).join('')}</select>
       </div>
     </div>
     <div class="btn-row"><button class="btn btn-primary" id="btn-next1">Tiếp theo →</button></div>
