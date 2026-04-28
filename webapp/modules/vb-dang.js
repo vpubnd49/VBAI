@@ -35,7 +35,7 @@ function renderStep(container) {
   container.innerHTML = `
     <div class="page-header">
       <div class="page-title">📜 Soạn Văn Bản Đảng (HD36)</div>
-      <div class="page-subtitle">Chuẩn Hướng dẫn 36-HD/VPTW — ${LOAI_VB[s.loai_van_ban] || ''}</div>
+      <div class="page-subtitle">Chuẩn Hướng dẫn 36-HD/VPTW</div>
     </div>
     <div class="steps-bar">
       ${[1,2,3,4].map(i => `<button class="step-indicator ${s.step===i?'active':s.step>i?'completed':''}" data-step="${i}"><span class="step-num">${s.step>i?'✓':i}</span><span>${['Loại VB','Thông tin','Nội dung','Xem & Tải'][i-1]}</span></button>`).join('')}
