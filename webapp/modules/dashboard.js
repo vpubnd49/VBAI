@@ -68,7 +68,7 @@ export function renderDashboard(container, navigateTo) {
       <div class="footer-line">Ver 1.0 - Văn phòng UBND tỉnh Lâm Đồng</div>
       <div class="footer-line">PHÁT TRIỂN BỞI: <a href="https://www.facebook.com/haichau2404" target="_blank" rel="noopener" class="footer-link">TRƯƠNG HẢI CHÂU</a></div>
       <div class="footer-line" style="margin-top: 12px;">
-        <img src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fvbai-app-798522156920.asia-southeast1.run.app&count_bg=%23e6a200&title_bg=%231a3d2b&icon=&icon_color=%23E7E7E7&title=L%C6%B0%E1%BB%A3t+truy+c%E1%BA%ADp&edge_flat=true" alt="Hits" style="height: 24px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+        <img src="https://komarev.com/ghpvc/?username=vpubnd49-vbai&label=LƯỢT+TRUY+CẬP&color=e6a200&style=flat" alt="Hits" style="height: 24px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
       </div>
     </footer>
   `;
