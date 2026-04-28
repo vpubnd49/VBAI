@@ -1,3 +1,5 @@
+import { renderChatUI } from "./chat-assistant.js";
+
 /**
  * Dashboard Module — Landing page with stats and module cards
  */
@@ -30,6 +32,9 @@ export function renderDashboard(container, navigateTo) {
         <div class="stat-label">Chuẩn thể thức</div>
       </div>
     </div>
+
+    <!-- Chat Assistant Panel (Full-width) -->
+    <div id="chat-assistant-container" style="margin: 0 0 32px 0;"></div>
 
     <h2 style="font-size: 1rem; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Chọn Công Cụ</h2>
     <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">Bắt đầu soạn văn bản hoặc xử lý tài liệu</p>
@@ -73,8 +78,13 @@ export function renderDashboard(container, navigateTo) {
     </footer>
   `;
 
+  // Render Chat UI
+  const chatContainer = container.querySelector('#chat-assistant-container');
+  renderChatUI(chatContainer);
+
   // Module card clicks
   container.querySelectorAll('.module-card').forEach(card => {
     card.addEventListener('click', () => navigateTo(card.dataset.page));
   });
 }
+
