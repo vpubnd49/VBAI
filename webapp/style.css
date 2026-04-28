@@ -28,6 +28,10 @@
   --rose-500: #c97b84;
   --rose-400: #d4a0a7;
   --rose-300: #e8c8cc;
+  --daquy-600: #c28800;
+  --daquy-500: #e6a200;
+  --daquy-400: #fbbc04;
+  --daquy-300: #ffd766;
 
   /* Semantic */
   --bg-primary: #0f1a14;
@@ -47,6 +51,7 @@
   --accent-mist: var(--mist-600);
   --accent-earth: var(--earth-500);
   --accent-rose: var(--rose-500);
+  --accent-daquy: var(--daquy-500);
   --success: #52b788;
   --warning: #c99a6b;
   --danger: #e07070;
@@ -198,7 +203,7 @@ body {
 }
 .hero-title {
   font-family: 'Inter', -apple-system, sans-serif; font-size: 2.2rem; font-weight: 800;
-  background: linear-gradient(135deg, var(--pine-400), var(--mist-400), var(--earth-400));
+  background: linear-gradient(135deg, var(--pine-400), var(--daquy-400), var(--mist-400));
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text; margin-bottom: 8px; letter-spacing: -0.5px;
 }
@@ -317,6 +322,39 @@ body {
 }
 .form-label .required { color: var(--danger); }
 
+/* Professional Panels */
+.panel-group {
+  background: rgba(26, 61, 43, 0.2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  backdrop-filter: blur(12px);
+}
+.panel-header {
+  background: rgba(13, 38, 26, 0.6);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--daquy-400);
+  letter-spacing: 0.5px;
+}
+.panel-header-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  background: rgba(251, 188, 4, 0.15);
+  color: var(--daquy-400);
+  font-size: 1.1rem;
+}
+.panel-body {
+  padding: 24px;
+}
+
 .form-input, .form-select, .form-textarea {
   width: 100%; padding: 10px 14px; border-radius: var(--radius-md);
   background: var(--bg-input); border: 1px solid var(--border-subtle);
@@ -359,10 +397,11 @@ body {
 .btn-secondary:hover { background: var(--bg-card-hover); color: var(--text-primary); border-color: var(--border-default); }
 
 .btn-accent {
-  background: linear-gradient(135deg, var(--mist-700), var(--mist-600));
-  color: #fff;
+  background: linear-gradient(135deg, var(--daquy-500), var(--daquy-600));
+  color: #111;
+  box-shadow: 0 4px 15px rgba(251, 188, 4, 0.3);
 }
-.btn-accent:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-accent:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(251, 188, 4, 0.4); }
 
 .btn-success {
   background: linear-gradient(135deg, var(--pine-600), var(--pine-500));

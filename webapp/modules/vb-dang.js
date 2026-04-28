@@ -68,18 +68,42 @@ function renderStep1(sc, container) {
 function renderStep2(sc, container) {
   const s = formState;
   sc.innerHTML = `
-    <div class="section-title">🏛️ Bước 2: Thông tin cơ quan & ký hiệu</div>
-    <div class="form-grid">
-      <div class="form-group"><label class="form-label">Cơ quan cấp trên</label><input class="form-input" id="f-cqct" value="${s.co_quan_cap_tren}" placeholder="VD: ĐẢNG BỘ"></div>
-      <div class="form-group"><label class="form-label">Cơ quan ban hành <span class="required">*</span></label><input class="form-input" id="f-cqbh" value="${s.co_quan_ban_hanh}" placeholder="VD: ĐẢNG ỦY"></div>
-      <div class="form-group"><label class="form-label">Số ký hiệu</label><input class="form-input" id="f-sokh" value="${s.so_ky_hieu}" placeholder="VD: Số 15-NQ/HU"></div>
-      <div class="form-group"><label class="form-label">Địa danh</label><input class="form-input" id="f-dd" value="${s.dia_danh}"></div>
-      <div class="form-group"><label class="form-label">Ngày</label><input class="form-input" id="f-ngay" value="${s.ngay}" placeholder="15"></div>
-      <div class="form-group"><label class="form-label">Tháng / Năm</label>
-        <div style="display:flex;gap:8px"><input class="form-input" id="f-thang" value="${s.thang}" placeholder="03" style="flex:1"><input class="form-input" id="f-nam" value="${s.nam}" placeholder="2026" style="flex:1"></div>
+    <div class="panel-group">
+      <div class="panel-header">
+        <div class="panel-header-icon">🏛️</div>
+        Định danh cơ quan
       </div>
-      <div class="form-group span-2"><label class="form-label">Trích yếu nội dung <span class="required">*</span></label><input class="form-input" id="f-ty" value="${s.trich_yeu}" placeholder="VD: về công tác cán bộ năm 2026"></div>
+      <div class="panel-body form-grid">
+        <div class="form-group"><label class="form-label">Cơ quan cấp trên</label><input class="form-input" id="f-cqct" value="${s.co_quan_cap_tren}" placeholder="VD: ĐẢNG BỘ"></div>
+        <div class="form-group"><label class="form-label">Cơ quan ban hành <span class="required">*</span></label><input class="form-input" id="f-cqbh" value="${s.co_quan_ban_hanh}" placeholder="VD: ĐẢNG ỦY"></div>
+      </div>
     </div>
+
+    <div class="panel-group">
+      <div class="panel-header">
+        <div class="panel-header-icon">🕒</div>
+        Thời gian & Ký hiệu
+      </div>
+      <div class="panel-body form-grid">
+        <div class="form-group"><label class="form-label">Số ký hiệu</label><input class="form-input" id="f-sokh" value="${s.so_ky_hieu}" placeholder="VD: Số 15-NQ/HU"></div>
+        <div class="form-group"><label class="form-label">Địa danh</label><input class="form-input" id="f-dd" value="${s.dia_danh}"></div>
+        <div class="form-group"><label class="form-label">Ngày</label><input class="form-input" id="f-ngay" value="${s.ngay}" placeholder="15"></div>
+        <div class="form-group"><label class="form-label">Tháng / Năm</label>
+          <div style="display:flex;gap:8px"><input class="form-input" id="f-thang" value="${s.thang}" placeholder="03" style="flex:1"><input class="form-input" id="f-nam" value="${s.nam}" placeholder="2026" style="flex:1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-group">
+      <div class="panel-header">
+        <div class="panel-header-icon">📄</div>
+        Nội dung cốt lõi
+      </div>
+      <div class="panel-body form-grid full">
+        <div class="form-group"><label class="form-label">Trích yếu nội dung <span class="required">*</span></label><input class="form-input" id="f-ty" value="${s.trich_yeu}" placeholder="VD: về công tác cán bộ năm 2026"></div>
+      </div>
+    </div>
+    
     <div class="btn-row"><button class="btn btn-secondary" id="btn-back2">← Quay lại</button><button class="btn btn-primary" id="btn-next2">Tiếp theo →</button></div>
   `;
   const save = () => { s.co_quan_cap_tren=sc.querySelector('#f-cqct').value; s.co_quan_ban_hanh=sc.querySelector('#f-cqbh').value; s.so_ky_hieu=sc.querySelector('#f-sokh').value; s.dia_danh=sc.querySelector('#f-dd').value; s.ngay=sc.querySelector('#f-ngay').value; s.thang=sc.querySelector('#f-thang').value; s.nam=sc.querySelector('#f-nam').value; s.trich_yeu=sc.querySelector('#f-ty').value; };
@@ -91,35 +115,42 @@ function renderStep3(sc, container) {
   const s = formState;
   const isCongVan = s.loai_van_ban === 'cong_van';
   sc.innerHTML = `
-    <div class="section-title">📝 Bước 3: Nội dung & Chữ ký</div>
-    <div class="form-grid">
-      ${isCongVan ? `<div class="form-group span-2"><label class="form-label">Kính gửi</label><input class="form-input" id="f-kg" value="${s.kinh_gui}" placeholder="Ban Bí thư Trung ương Đảng (mỗi CQ cách nhau dấu ;)"></div>` : ''}
-    <div class="form-group span-2"><label class="form-label">Căn cứ (mỗi dòng 1 căn cứ)</label><textarea class="form-textarea" id="f-cc" rows="3" placeholder="Căn cứ Điều lệ Đảng...">${s.can_cu}</textarea></div>
-    <div class="form-group span-2"><label class="form-label">Nội dung văn bản <span class="required">*</span></label><textarea class="form-textarea" id="f-nd" rows="8" placeholder="Nhập nội dung văn bản...">${s.noi_dung}</textarea></div>
-    <div class="form-group span-2"><label class="form-label">Nơi nhận (mỗi dòng 1 nơi)</label><textarea class="form-textarea" id="f-nn" rows="3" placeholder="Các chi bộ trực thuộc&#10;Lưu VP">${s.noi_nhan}</textarea></div>
-  </div>
+    <div class="panel-group">
+      <div class="panel-header">
+        <div class="panel-header-icon">📝</div>
+        Nội dung & Thông tin phụ
+      </div>
+      <div class="panel-body form-grid full">
+        ${isCongVan ? `<div class="form-group"><label class="form-label">Kính gửi</label><input class="form-input" id="f-kg" value="${s.kinh_gui}" placeholder="Ban Bí thư Trung ương Đảng (mỗi CQ cách nhau dấu ;)"></div>` : ''}
+        <div class="form-group"><label class="form-label">Căn cứ (mỗi dòng 1 căn cứ)</label><textarea class="form-textarea" id="f-cc" rows="3" placeholder="Căn cứ Điều lệ Đảng...">${s.can_cu}</textarea></div>
+        <div class="form-group"><label class="form-label">Nội dung văn bản <span class="required">*</span></label><textarea class="form-textarea" id="f-nd" rows="8" placeholder="Nhập nội dung văn bản...">${s.noi_dung}</textarea></div>
+        <div class="form-group"><label class="form-label">Nơi nhận (mỗi dòng 1 nơi)</label><textarea class="form-textarea" id="f-nn" rows="3" placeholder="Các chi bộ trực thuộc&#10;Lưu VP">${s.noi_nhan}</textarea></div>
+      </div>
+    </div>
 
-  <div class="section-title" style="margin-top: 24px; display: flex; align-items: center; gap: 8px;">
-    <div style="background: #e8f5e9; color: #2e7d32; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">✍️</div>
-    3. THẨM QUYỀN KÝ
-  </div>
-  <div class="form-grid" style="border: 1px solid #e0e0e0; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
-    <div class="form-group span-2"><label class="form-label">Người ký <span class="required">*</span></label><input class="form-input" id="f-nk" value="${s.nguoi_ky}" placeholder="VD: Nguyễn Văn A"></div>
-    <div class="form-group"><label class="form-label">Chức vụ</label><input class="form-input" id="f-cvk" value="${s.chuc_vu_ky}" placeholder="VD: BÍ THƯ"></div>
-    <div class="form-group"><label class="form-label">Chế độ ký</label><select class="form-select" id="f-qhk">
-      <option ${s.quyen_han_ky==='Ký trực tiếp'?'selected':''}>Ký trực tiếp</option>
-      <option ${s.quyen_han_ky==='TM. (Thay mặt)'?'selected':''}>TM. (Thay mặt)</option>
-      <option ${s.quyen_han_ky==='KT. (Ký thay)'?'selected':''}>KT. (Ký thay)</option>
-      <option ${s.quyen_han_ky==='TL. (Thừa lệnh)'?'selected':''}>TL. (Thừa lệnh)</option>
-      <option ${s.quyen_han_ky==='TU. (Thừa ủy quyền)'?'selected':''}>TU. (Thừa ủy quyền)</option>
-      <option ${s.quyen_han_ky==='Q. (Quyền)'?'selected':''}>Q. (Quyền)</option>
-    </select></div>
-    
-    <div class="span-2" style="margin-top: 16px; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: #7f8c8d; text-transform: uppercase;">DÒNG CHỨC DANH (TỐI ĐA 3 DÒNG)</div>
-    <div class="form-group span-2"><label class="form-label">Dòng 1</label><input class="form-input" id="fdcd1" value="${s.dong_chuc_danh_1}" placeholder="VD: T/M BAN THƯỜNG VỤ"></div>
-    <div class="form-group span-2"><label class="form-label">Dòng 2</label><input class="form-input" id="fdcd2" value="${s.dong_chuc_danh_2}" placeholder="VD: K/T BÍ THƯ"></div>
-    <div class="form-group span-2"><label class="form-label">Dòng 3</label><input class="form-input" id="fdcd3" value="${s.dong_chuc_danh_3}" placeholder="VD: PHÓ BÍ THƯ"></div>
-  </div>
+    <div class="panel-group">
+      <div class="panel-header">
+        <div class="panel-header-icon">✍️</div>
+        Thẩm Quyền Ký
+      </div>
+      <div class="panel-body form-grid">
+        <div class="form-group span-2"><label class="form-label">Người ký <span class="required">*</span></label><input class="form-input" id="f-nk" value="${s.nguoi_ky}" placeholder="VD: Nguyễn Văn A"></div>
+        <div class="form-group"><label class="form-label">Chức vụ</label><input class="form-input" id="f-cvk" value="${s.chuc_vu_ky}" placeholder="VD: BÍ THƯ"></div>
+        <div class="form-group"><label class="form-label">Chế độ ký</label><select class="form-select" id="f-qhk">
+          <option ${s.quyen_han_ky==='Ký trực tiếp'?'selected':''}>Ký trực tiếp</option>
+          <option ${s.quyen_han_ky==='TM. (Thay mặt)'?'selected':''}>TM. (Thay mặt)</option>
+          <option ${s.quyen_han_ky==='KT. (Ký thay)'?'selected':''}>KT. (Ký thay)</option>
+          <option ${s.quyen_han_ky==='TL. (Thừa lệnh)'?'selected':''}>TL. (Thừa lệnh)</option>
+          <option ${s.quyen_han_ky==='TU. (Thừa ủy quyền)'?'selected':''}>TU. (Thừa ủy quyền)</option>
+          <option ${s.quyen_han_ky==='Q. (Quyền)'?'selected':''}>Q. (Quyền)</option>
+        </select></div>
+        
+        <div class="span-2" style="margin-top: 16px; margin-bottom: 8px; font-weight: 700; font-size: 0.8rem; color: var(--daquy-500); text-transform: uppercase;">Dòng chức danh (Tối đa 3 dòng)</div>
+        <div class="form-group span-2"><label class="form-label">Dòng 1</label><input class="form-input" id="fdcd1" value="${s.dong_chuc_danh_1}" placeholder="VD: T/M BAN THƯỜNG VỤ"></div>
+        <div class="form-group span-2"><label class="form-label">Dòng 2</label><input class="form-input" id="fdcd2" value="${s.dong_chuc_danh_2}" placeholder="VD: K/T BÍ THƯ"></div>
+        <div class="form-group span-2"><label class="form-label">Dòng 3</label><input class="form-input" id="fdcd3" value="${s.dong_chuc_danh_3}" placeholder="VD: PHÓ BÍ THƯ"></div>
+      </div>
+    </div>
 
   <div class="btn-row"><button class="btn btn-secondary" id="btn-back3">← Quay lại</button><button class="btn btn-primary" id="btn-next3">Xem trước & Tải →</button></div>
   `;
