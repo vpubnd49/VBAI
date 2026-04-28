@@ -69,8 +69,8 @@ function renderStep2(sc, container) {
   sc.innerHTML = `
     <div class="section-title">🏛️ Bước 2: Thông tin cơ quan & ký hiệu</div>
     <div class="form-grid">
-      <div class="form-group"><label class="form-label">Cơ quan cấp trên</label><input class="form-input" id="f-cqct" value="${s.co_quan_cap_tren}" placeholder="VD: ĐẢNG BỘ TỈNH HÀ GIANG"></div>
-      <div class="form-group"><label class="form-label">Cơ quan ban hành <span class="required">*</span></label><input class="form-input" id="f-cqbh" value="${s.co_quan_ban_hanh}" placeholder="VD: HUYỆN UỶ ĐỒNG VĂN"></div>
+      <div class="form-group"><label class="form-label">Cơ quan cấp trên</label><input class="form-input" id="f-cqct" value="${s.co_quan_cap_tren}" placeholder="VD: ĐẢNG BỘ"></div>
+      <div class="form-group"><label class="form-label">Cơ quan ban hành <span class="required">*</span></label><input class="form-input" id="f-cqbh" value="${s.co_quan_ban_hanh}" placeholder="VD: ĐẢNG ỦY"></div>
       <div class="form-group"><label class="form-label">Số ký hiệu</label><input class="form-input" id="f-sokh" value="${s.so_ky_hieu}" placeholder="VD: Số 15-NQ/HU"></div>
       <div class="form-group"><label class="form-label">Địa danh</label><input class="form-input" id="f-dd" value="${s.dia_danh}"></div>
       <div class="form-group"><label class="form-label">Ngày</label><input class="form-input" id="f-ngay" value="${s.ngay}" placeholder="15"></div>

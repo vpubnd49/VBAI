@@ -42,8 +42,8 @@ function renderS1(sc,c) {
 
 function renderS2(sc,c) {
   sc.innerHTML=`<div class="section-title">🏛️ Thông tin cơ quan</div><div class="form-grid">
-    <div class="form-group"><label class="form-label">CQ chủ quản</label><input class="form-input" id="f1" value="${fs.co_quan_chu_quan}" placeholder="BỘ TÀI CHÍNH"></div>
-    <div class="form-group"><label class="form-label">CQ ban hành <span class="required">*</span></label><input class="form-input" id="f2" value="${fs.co_quan_ban_hanh}" placeholder="VỤ TỔ CHỨC CÁN BỘ"></div>
+    <div class="form-group"><label class="form-label">CQ chủ quản</label><input class="form-input" id="f1" value="${fs.co_quan_chu_quan}" placeholder="UBND"></div>
+    <div class="form-group"><label class="form-label">CQ ban hành <span class="required">*</span></label><input class="form-input" id="f2" value="${fs.co_quan_ban_hanh}" placeholder="VĂN PHÒNG"></div>
     <div class="form-group"><label class="form-label">Số ký hiệu</label><input class="form-input" id="f3" value="${fs.so_ky_hieu}" placeholder="Số: /TB-TCCB"></div>
     <div class="form-group"><label class="form-label">Địa danh</label><input class="form-input" id="f4" value="${fs.dia_danh}"></div>
     <div class="form-group"><label class="form-label">Ngày</label><input class="form-input" id="f5" value="${fs.ngay}" placeholder="17"></div>
