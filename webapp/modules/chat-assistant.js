@@ -6,12 +6,12 @@ import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 let chatModel = null;
 let chatHistory = [];
 
-export function initChat(apiKey) {
+export function initChat(apiKey, modelName = "gemini-1.5-flash-latest") {
   if (!apiKey) return null;
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     chatModel = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: modelName,
       systemInstruction: "Bạn là Trợ Lý Pháp Lý VBAI, một chuyên gia về hệ thống văn bản quy phạm pháp luật Việt Nam (Luật, Nghị định, Thông tư) và các quy định của Đảng (HD36). Hãy trả lời chuyên nghiệp, chính xác, ngắn gọn nhưng đầy đủ. Trích dẫn rõ Điều, Khoản nếu có thể. Luôn sử dụng tiếng Việt.",
     });
     return true;
@@ -47,14 +47,15 @@ export async function sendMessage(text, onChunk) {
 
 export function renderChatUI(container) {
   const apiKey = localStorage.getItem('vbai_gemini_key') || '';
+  const savedModel = localStorage.getItem('vbai_gemini_model') || 'gemini-1.5-flash-latest';
   
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
       <div class="panel-header">
         <div class="panel-header-icon">⚖️</div>
-        Trợ Lý Tra Cứu Pháp Luật (Gemini AI)
+        Trợ Lý Tra Cứu Pháp Luật (AI Studio)
         <div style="flex:1"></div>
-        <button id="chat-settings-btn" class="btn-icon" title="Cấu hình API Key" style="width:28px; height:28px; font-size:0.8rem">⚙️</button>
+        <button id="chat-settings-btn" class="btn-icon" title="Cấu hình" style="width:28px; height:28px; font-size:0.8rem">⚙️</button>
       </div>
       <div class="panel-body">
         <div id="chat-messages" class="chat-messages-area">
@@ -62,7 +63,7 @@ export function renderChatUI(container) {
         </div>
         
         <div class="chat-input-wrapper">
-          <input type="text" id="chat-input" placeholder="Nhập câu hỏi tra cứu (ví dụ: Quy định về ký thay trong NĐ30...)" class="form-input chat-input-field">
+          <input type="text" id="chat-input" placeholder="Nhập câu hỏi tra cứu..." class="form-input chat-input-field">
           <button id="chat-send-btn" class="btn btn-primary chat-send-btn">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10l15-7.5L10 10l7.5 7.5L2.5 10z" fill="currentColor"/></svg>
           </button>
@@ -70,14 +71,27 @@ export function renderChatUI(container) {
       </div>
     </div>
 
-    <!-- API Key Modal (Simple) -->
+    <!-- API Key Modal (Updated) -->
     <div id="key-modal" class="modal-overlay" style="display:none">
-      <div class="modal-content panel-group" style="max-width:400px; margin: 100px auto">
-        <div class="panel-header">Cấu hình Gemini API Key (Miễn phí)</div>
+      <div class="modal-content panel-group" style="max-width:420px; margin: 100px auto">
+        <div class="panel-header">Cấu hình Trợ Lý AI</div>
         <div class="panel-body">
-          <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px">Lấy Key miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--daquy-400)">Google AI Studio</a></p>
-          <input type="password" id="api-key-input" class="form-input" value="${apiKey}" placeholder="Dán API Key vào đây...">
-          <div class="btn-row" style="margin-top:16px">
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">Google AI Studio API Key</label>
+            <input type="password" id="api-key-input" class="form-input" value="${apiKey}" placeholder="Dán API Key vào đây...">
+            <p style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">Lấy Key miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--daquy-400)">Google AI Studio</a></p>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">Chọn Model (Gemini)</label>
+            <select id="model-select" class="form-input">
+              <option value="gemini-1.5-flash-latest" ${savedModel==='gemini-1.5-flash-latest'?'selected':''}>Gemini 1.5 Flash (Nhanh - Miễn phí)</option>
+              <option value="gemini-1.5-pro-latest" ${savedModel==='gemini-1.5-pro-latest'?'selected':''}>Gemini 1.5 Pro (Thông minh - Cần Key Pro)</option>
+              <option value="gemini-pro" ${savedModel==='gemini-pro'?'selected':''}>Gemini 1.0 Pro (Cũ)</option>
+            </select>
+          </div>
+          
+          <div class="btn-row" style="margin-top:20px">
             <button id="save-key-btn" class="btn btn-primary">Lưu cấu hình</button>
             <button id="close-modal-btn" class="btn btn-secondary">Đóng</button>
           </div>
@@ -87,7 +101,7 @@ export function renderChatUI(container) {
   `;
 
   // Init if key exists
-  if (apiKey) initChat(apiKey);
+  if (apiKey) initChat(apiKey, savedModel);
 
   const input = container.querySelector('#chat-input');
   const sendBtn = container.querySelector('#chat-send-btn');
@@ -95,6 +109,7 @@ export function renderChatUI(container) {
   const settingsBtn = container.querySelector('#chat-settings-btn');
   const keyModal = container.querySelector('#key-modal');
   const apiKeyInput = container.querySelector('#api-key-input');
+  const modelSelect = container.querySelector('#model-select');
 
   const addMsg = (text, role) => {
     const div = document.createElement('div');
@@ -135,12 +150,14 @@ export function renderChatUI(container) {
   container.querySelector('#close-modal-btn').onclick = () => keyModal.style.display = 'none';
   container.querySelector('#save-key-btn').onclick = () => {
     const key = apiKeyInput.value.trim();
+    const model = modelSelect.value;
     localStorage.setItem('vbai_gemini_key', key);
-    if(initChat(key)) {
-      alert("Đã lưu API Key thành công!");
+    localStorage.setItem('vbai_gemini_model', model);
+    if(initChat(key, model)) {
+      alert("Đã lưu cấu hình thành công!");
       keyModal.style.display = 'none';
     } else {
-      alert("Key không hợp lệ!");
+      alert("Lỗi khi khởi tạo Model!");
     }
   };
 }
