@@ -20,7 +20,8 @@ const BS = {before:120,after:0,line:340,lineRule:LineRuleType.AT_LEAST};
 let fs = {};
 
 export function renderVBND30(container) {
-  fs = { step:1, loai_van_ban:'thong_bao', co_quan_chu_quan:'', co_quan_ban_hanh:'', so_ky_hieu:'', dia_danh:'Hà Nội', ngay:'',thang:'',nam:'2026', trich_yeu:'', noi_dung:'', quyen_han_ky:'Ký trực tiếp', chuc_vu_ky:'', nguoi_ky:'', noi_nhan:'', kinh_gui:'', can_cu:'', dong_chuc_danh_1:'', dong_chuc_danh_2:'', dong_chuc_danh_3:'' };
+  const now = new Date();
+  fs = { step:1, loai_van_ban:'thong_bao', co_quan_chu_quan:'', co_quan_ban_hanh:'', so_ky_hieu:'', dia_danh:'Lâm Đồng', ngay:String(now.getDate()).padStart(2, '0'),thang:String(now.getMonth() + 1).padStart(2, '0'),nam:String(now.getFullYear()), trich_yeu:'', noi_dung:'', quyen_han_ky:'Ký trực tiếp', chuc_vu_ky:'', nguoi_ky:'', noi_nhan:'', kinh_gui:'', can_cu:'', dong_chuc_danh_1:'', dong_chuc_danh_2:'', dong_chuc_danh_3:'' };
   doRender(container);
 }
 

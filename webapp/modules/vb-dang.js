@@ -25,7 +25,8 @@ const BODY_SP = { before:120, after:120, line:360, lineRule:LineRuleType.EXACT }
 let formState = { step: 1 };
 
 export function renderVBDang(container) {
-  formState = { step: 1, loai_van_ban: 'nghi_quyet', co_quan_cap_tren: '', co_quan_ban_hanh: '', so_ky_hieu: '', dia_danh: 'Hà Nội', ngay: '', thang: '', nam: '2026', trich_yeu: '', noi_dung: '', quyen_han_ky: 'Ký trực tiếp', chuc_vu_ky: '', nguoi_ky: '', noi_nhan: '', kinh_gui: '', can_cu: '', dong_chuc_danh_1:'', dong_chuc_danh_2:'', dong_chuc_danh_3:'' };
+  const now = new Date();
+  formState = { step: 1, loai_van_ban: 'nghi_quyet', co_quan_cap_tren: '', co_quan_ban_hanh: '', so_ky_hieu: '', dia_danh: 'Lâm Đồng', ngay: String(now.getDate()).padStart(2, '0'), thang: String(now.getMonth() + 1).padStart(2, '0'), nam: String(now.getFullYear()), trich_yeu: '', noi_dung: '', quyen_han_ky: 'Ký trực tiếp', chuc_vu_ky: '', nguoi_ky: '', noi_nhan: '', kinh_gui: '', can_cu: '', dong_chuc_danh_1:'', dong_chuc_danh_2:'', dong_chuc_danh_3:'' };
   renderStep(container);
 }
 
