@@ -47,7 +47,7 @@ export async function sendMessage(text, onChunk) {
 
 export function renderChatUI(container) {
   const apiKey = localStorage.getItem('vbai_gemini_key') || '';
-  const savedModel = localStorage.getItem('vbai_gemini_model') || 'gemini-1.5-flash-latest';
+  const savedModel = localStorage.getItem('vbai_gemini_model') || 'gemini-3.0-flash';
   
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -85,9 +85,10 @@ export function renderChatUI(container) {
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">Chọn Model (Gemini)</label>
             <select id="model-select" class="form-input">
-              <option value="gemini-1.5-flash-latest" ${savedModel==='gemini-1.5-flash-latest'?'selected':''}>Gemini 1.5 Flash (Nhanh - Miễn phí)</option>
-              <option value="gemini-1.5-pro-latest" ${savedModel==='gemini-1.5-pro-latest'?'selected':''}>Gemini 1.5 Pro (Thông minh - Cần Key Pro)</option>
-              <option value="gemini-pro" ${savedModel==='gemini-pro'?'selected':''}>Gemini 1.0 Pro (Cũ)</option>
+              <option value="gemini-3.0-flash" ${savedModel==='gemini-3.0-flash'?'selected':''}>Gemini 3 Flash (Mới nhất - Khuyên dùng)</option>
+              <option value="gemini-2.0-flash" ${savedModel==='gemini-2.0-flash'?'selected':''}>Gemini 2.0 Flash</option>
+              <option value="gemini-1.5-flash-latest" ${savedModel==='gemini-1.5-flash-latest'?'selected':''}>Gemini 1.5 Flash</option>
+              <option value="gemini-1.5-pro-latest" ${savedModel==='gemini-1.5-pro-latest'?'selected':''}>Gemini 1.5 Pro</option>
             </select>
           </div>
           
