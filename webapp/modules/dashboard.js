@@ -11,32 +11,9 @@ export function renderDashboard(container, navigateTo) {
     </div>
 
     <div class="dashboard-container-grid">
-      <!-- Left Column: Stats & Tools -->
-      <div class="dashboard-left-col">
-        <div class="stats-row grid-2x2">
-          <div class="stat-card">
-            <div class="stat-icon">📜</div>
-            <div class="stat-value">14</div>
-            <div class="stat-label">Loại VB Đảng (HD36)</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">📋</div>
-            <div class="stat-value">20+</div>
-            <div class="stat-label">Loại VB Hành Chính (NĐ30)</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">⚡</div>
-            <div class="stat-value">3s</div>
-            <div class="stat-label">Thời gian tạo VB</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">✅</div>
-            <div class="stat-value">100%</div>
-            <div class="stat-label">Chuẩn thể thức</div>
-          </div>
-        </div>
-
-        <section>
+        <!-- Left Column: Tools -->
+        <div class="dashboard-left-col">
+          <section>
           <h2 style="font-size: 1rem; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Chọn Công Cụ</h2>
           <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">Bắt đầu soạn văn bản hoặc xử lý tài liệu</p>
 
