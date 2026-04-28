@@ -6,7 +6,7 @@ import { GoogleGenAI } from "https://esm.run/@google/genai";
 
 let aiClient = null;
 let chatSession = null;
-let currentModelName = "gemini-3.0-flash";
+let currentModelName = "gemini-3.1-flash-lite-preview";
 
 const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên gia tư vấn pháp luật Việt Nam hàng đầu. 
 
@@ -35,7 +35,7 @@ const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên
 - Ưu tiên cung cấp thông tin từ năm 2024-2026
 - Nếu chưa đủ thông tin, hãy đề xuất người dùng kiểm tra trực tiếp tại các trang web chính thống`;
 
-export function initChat(apiKey, modelName = "gemini-3.0-flash") {
+export function initChat(apiKey, modelName = "gemini-3.1-flash-lite-preview") {
   if (!apiKey) return null;
   try {
     aiClient = new GoogleGenAI({ apiKey });
@@ -73,7 +73,7 @@ export async function sendMessage(text, onChunk) {
 
 export function renderChatUI(container) {
   const apiKey = localStorage.getItem('vbai_gemini_key') || '';
-  const savedModel = localStorage.getItem('vbai_gemini_model') || 'gemini-3.0-flash';
+  const savedModel = localStorage.getItem('vbai_gemini_model') || 'gemini-3.1-flash-lite-preview';
   
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -111,10 +111,10 @@ export function renderChatUI(container) {
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">Chọn Model</label>
             <select id="model-select" class="form-input">
-              <option value="gemini-3.0-flash" ${savedModel==='gemini-3.0-flash'?'selected':''}>Gemini 3 Flash (Khuyên dùng)</option>
+              <option value="gemini-3.1-flash-lite-preview" ${savedModel==='gemini-3.1-flash-lite-preview'?'selected':''}>Gemini 3.1 Flash Lite (Mới nhất)</option>
+              <option value="gemini-2.5-flash" ${savedModel==='gemini-2.5-flash'?'selected':''}>Gemini 2.5 Flash (Ổn định)</option>
+              <option value="gemini-2.5-pro" ${savedModel==='gemini-2.5-pro'?'selected':''}>Gemini 2.5 Pro (Thông minh nhất)</option>
               <option value="gemini-2.0-flash" ${savedModel==='gemini-2.0-flash'?'selected':''}>Gemini 2.0 Flash</option>
-              <option value="gemini-1.5-flash-latest" ${savedModel==='gemini-1.5-flash-latest'?'selected':''}>Gemini 1.5 Flash</option>
-              <option value="gemini-1.5-pro-latest" ${savedModel==='gemini-1.5-pro-latest'?'selected':''}>Gemini 1.5 Pro</option>
             </select>
           </div>
 
