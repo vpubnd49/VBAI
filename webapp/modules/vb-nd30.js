@@ -4,6 +4,19 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType, Header, PageNumber } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from '../main.js';
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
+  authDomain: "vbai-a1729.firebaseapp.com",
+  projectId: "vbai-a1729",
+  storageBucket: "vbai-a1729.firebasestorage.app",
+  messagingSenderId: "691819234622",
+  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
+  measurementId: "G-XLHHMNXRND"
+};
+
 
 const LOAI_VB = {
   nghi_quyet:'NGHỊ QUYẾT', quyet_dinh:'QUYẾT ĐỊNH', chi_thi:'CHỈ THỊ',
@@ -182,8 +195,19 @@ async function genND30() {
     ch.push(new Table({width:{size:L.CW,type:WidthType.DXA},borders:BN,columnWidths:[4300,4771],rows:[new TableRow({children:[new TableCell({borders:BN,width:{size:4300,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:nn}),new TableCell({borders:BN,width:{size:4771,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:sg})]})]}));
     const doc=new Document({styles:{default:{document:{run:{font:L.FONT,size:28}}}},sections:[{properties:{titlePage:true,page:{size:L.PAGE,margin:L.MARGIN}},children:ch}]});
     const blob=await Packer.toBlob(doc);
-    saveAs(blob,`${fs.loai_van_ban}_nd30.docx`);
-    showToast('✓ Đã tải file NĐ30 thành công!');
+    saveAs(blob,`${fs.loai_van_ban}_hc_nd30.docx`);
+    showToast('✓ Đã tải file DOCX thành công!');
+    
+    // Log to Firestore
+    try {
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      addDoc(collection(db, 'search_logs'), {
+        query: `[Tạo VB Hành Chính NĐ30] ${LOAI_VB[fs.loai_van_ban]} - ${fs.trich_yeu}`,
+        model: "Local DOCX Generator",
+        timestamp: serverTimestamp()
+      }).catch(e => console.warn(e));
+    } catch(e) {}
   } catch(e){console.error(e);showToast('Lỗi: '+e.message,'error');}
 }
 export function handleVBND30Action(){}

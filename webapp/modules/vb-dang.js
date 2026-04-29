@@ -4,6 +4,19 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType, UnderlineType, Header, PageNumber } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from '../main.js';
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
+  authDomain: "vbai-a1729.firebaseapp.com",
+  projectId: "vbai-a1729",
+  storageBucket: "vbai-a1729.firebasestorage.app",
+  messagingSenderId: "691819234622",
+  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
+  measurementId: "G-XLHHMNXRND"
+};
+
 
 const LOAI_VB = {
   nghi_quyet: 'NGHỊ QUYẾT', chi_thi: 'CHỈ THỊ', ket_luan: 'KẾT LUẬN',
@@ -257,6 +270,17 @@ async function generateDangDocx(s) {
     const blob = await Packer.toBlob(doc);
     saveAs(blob, `${s.loai_van_ban}_dang_hd36.docx`);
     showToast('✓ Đã tải file DOCX thành công!');
+    
+    // Log to Firestore
+    try {
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      addDoc(collection(db, 'search_logs'), {
+        query: `[Tạo VB Đảng HD36] ${LOAI_VB[s.loai_van_ban]} - ${s.trich_yeu}`,
+        model: "Local DOCX Generator",
+        timestamp: serverTimestamp()
+      }).catch(e => console.warn(e));
+    } catch(e) {}
   } catch(e) { console.error(e); showToast('Lỗi tạo file: '+e.message, 'error'); }
 }
 
