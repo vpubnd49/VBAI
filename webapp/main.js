@@ -8,6 +8,7 @@ import { renderVBDang, handleVBDangAction } from './modules/vb-dang.js';
 import { renderVBND30, handleVBND30Action } from './modules/vb-nd30.js';
 import { renderPdfTool } from './modules/pdf-tool.js';
 import { renderDocxTool } from './modules/docx-tool.js';
+import { renderAdminPanel } from './modules/admin-panel.js';
 
 // ============ STATE ============
 const state = {
@@ -47,6 +48,7 @@ const PAGE_TITLES = {
   'vb-nd30': 'Văn Bản Hành Chính (NĐ30)',
   'pdf-tool': 'Xử lý PDF',
   'docx-tool': 'Tạo DOCX',
+  'admin-panel': 'Quản Trị Hệ Thống',
 };
 
 function navigateTo(page) {
@@ -72,12 +74,32 @@ function renderPage(page) {
     case 'vb-nd30': renderVBND30(container); break;
     case 'pdf-tool': renderPdfTool(container); break;
     case 'docx-tool': renderDocxTool(container); break;
+    case 'admin-panel': 
+      if (localStorage.getItem('vbai_admin') === 'true') {
+        renderAdminPanel(container);
+      } else {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔒</div><div class="empty-text">Bạn không có quyền truy cập</div></div>';
+      }
+      break;
     default: container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏔️</div><div class="empty-text">Trang không tồn tại</div></div>';
   }
 }
 
 // ============ INIT ============
 function init() {
+  // Check admin url param
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('admin') === 'true') {
+    localStorage.setItem('vbai_admin', 'true');
+    // Remove query param without reloading
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  if (localStorage.getItem('vbai_admin') === 'true') {
+    const adminBtn = document.getElementById('nav-admin-panel');
+    if (adminBtn) adminBtn.style.display = 'flex';
+  }
+
   // Sidebar toggle logic
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebar-overlay');

@@ -3,6 +3,19 @@
  * Uses @google/genai SDK with Google Search Grounding for real-time legal data
  */
 import { GoogleGenAI } from "https://esm.run/@google/genai";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
+  authDomain: "vbai-a1729.firebaseapp.com",
+  projectId: "vbai-a1729",
+  storageBucket: "vbai-a1729.firebasestorage.app",
+  messagingSenderId: "691819234622",
+  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
+  measurementId: "G-XLHHMNXRND"
+};
+
 
 let aiClient = null;
 let chatSession = null;
@@ -63,6 +76,19 @@ export async function sendMessage(text, onChunk) {
       },
     });
 
+    // Log query to Firestore (fire and forget)
+    try {
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      addDoc(collection(db, 'search_logs'), {
+        query: text,
+        model: currentModelName,
+        timestamp: serverTimestamp()
+      }).catch(err => console.warn("Log Err:", err));
+    } catch (e) {
+      console.warn("Firebase Log Exception:", e);
+    }
+
     const fullText = response.text || "";
     if (onChunk) onChunk(fullText);
     return fullText;
@@ -82,7 +108,7 @@ export function renderChatUI(container) {
         <div class="panel-header-icon">⚖️</div>
         Trợ Lý Tra Cứu Pháp Luật (AI + Google Search)
         <div style="flex:1"></div>
-        <button id="chat-settings-btn" class="btn-icon" title="Cấu hình" style="width:28px; height:28px; font-size:0.8rem">⚙️</button>
+        <button id="chat-settings-btn" class="btn-icon" title="Cấu hình" style="display: ${localStorage.getItem('vbai_admin') === 'true' ? 'block' : 'none'}; width:28px; height:28px; font-size:0.8rem">⚙️</button>
       </div>
       <div class="panel-body">
         <div id="chat-messages" class="chat-messages-area">
