@@ -170,6 +170,9 @@ async function genND30() {
     lc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.co_quan_ban_hanh,font:L.FONT,size:26,bold:true})]}));
     lc.push(new Paragraph({spacing:{before:20,after:80},border:{top:{style:BorderStyle.SINGLE,size:2,color:'000000',space:1}},indent:{left:1500,right:1500}}));
     lc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.so_ky_hieu||'Số: /...',font:L.FONT,size:26})]}));
+    if(fs.loai_van_ban==='cong_van' && fs.trich_yeu) {
+      lc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:100},children:[new TextRun({text:'V/v '+fs.trich_yeu,font:L.FONT,size:24})]}));
+    }
     rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:'CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM',font:L.FONT,size:26,bold:true})]}));
     rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:'Độc lập - Tự do - Hạnh phúc',font:L.FONT,size:28,bold:true})]}));
     rc.push(new Paragraph({spacing:{before:20,after:0},border:{top:{style:BorderStyle.SINGLE,size:2,color:'000000',space:1}},indent:{left:1100,right:1100}}));

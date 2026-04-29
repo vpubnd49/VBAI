@@ -230,6 +230,9 @@ async function generateDangDocx(s) {
     leftCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.co_quan_ban_hanh,font:LAYOUT.FONT,size:28,bold:true})]}));
     leftCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:40,after:80},children:[new TextRun({text:'*',font:LAYOUT.FONT,size:28})]}));
     leftCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.so_ky_hieu||'Số      -/...',font:LAYOUT.FONT,size:28})]}));
+    if(s.loai_van_ban==='cong_van' && s.trich_yeu) {
+      leftCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:100},children:[new TextRun({text:'V/v '+s.trich_yeu,font:LAYOUT.FONT,size:24})]}));
+    }
 
     const rightCells = [];
     rightCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:'ĐẢNG CỘNG SẢN VIỆT NAM',font:LAYOUT.FONT,size:30,bold:true})]}));
