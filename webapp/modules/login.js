@@ -20,16 +20,7 @@ export function renderLogin(container) {
     <div class="login-wrapper">
       <div class="login-card">
         <div class="login-logo">
-          <svg width="40" height="40" viewBox="0 0 28 28" fill="none" style="margin: 0 auto 10px auto;">
-            <path d="M4 7C4 5.34 5.34 4 7 4h14c1.66 0 3 1.34 3 3v14c0 1.66-1.34 3-3 3H7c-1.66 0-3-1.34-3-3V7z" fill="url(#logo-grad-login)" opacity="0.9"/>
-            <path d="M9 10h10M9 14h7M9 18h4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
-            <defs>
-              <linearGradient id="logo-grad-login" x1="4" y1="4" x2="24" y2="24">
-                <stop stop-color="#2d6a4f"/>
-                <stop offset="1" stop-color="#7b68ae"/>
-              </linearGradient>
-            </defs>
-          </svg>
+          <img src="/vbai_logo.png" alt="VBAI Logo" style="width: 80px; height: 80px; margin: 0 auto 15px auto; display: block; border-radius: 12px;">
           <h2>Đăng nhập vào VBAI</h2>
         </div>
         
