@@ -1,5 +1,5 @@
 import { renderChatUI } from "./chat-assistant.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 /**
@@ -78,7 +78,7 @@ export function renderDashboard(container, navigateTo) {
   };
 
   try {
-    const app = initializeApp(firebaseConfig);
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getDatabase(app);
     const visitsRef = ref(db, 'visits/total');
 
@@ -92,16 +92,12 @@ export function renderDashboard(container, navigateTo) {
       console.warn("Firebase Read Error:", error);
     });
 
-    // 2. Increment count if it's a new session
-    if (isNewSession) {
-      runTransaction(visitsRef, (currentVisits) => {
-        return (currentVisits || 0) + 1;
-      }).then(() => {
-        sessionStorage.setItem(SESSION_KEY, '1');
-      }).catch((error) => {
-        console.warn("Firebase Transaction Error:", error);
-      });
-    }
+    // 2. Increment count on load
+    runTransaction(visitsRef, (currentVisits) => {
+      return (currentVisits || 0) + 1;
+    }).catch((error) => {
+      console.warn("Firebase Transaction Error:", error);
+    });
   } catch (error) {
     console.warn("Firebase Init Error:", error);
     // Ultimate Fallback
