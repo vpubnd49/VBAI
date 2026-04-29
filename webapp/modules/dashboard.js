@@ -52,7 +52,9 @@ export function renderDashboard(container, navigateTo) {
       <div class="footer-line">Ver 1.0 - Văn phòng UBND tỉnh Lâm Đồng</div>
       <div class="footer-line">PHÁT TRIỂN BỞI: <a href="https://www.facebook.com/haichau2404" target="_blank" rel="noopener" class="footer-link">TRƯƠNG HẢI CHÂU</a></div>
       <div class="footer-line" style="margin-top: 8px;">
-        <img src="https://komarev.com/ghpvc/?username=vpubnd49-vbai&label=LƯỢT+TRUY+CẬP&color=e6a200&style=flat" alt="Hits" style="height: 18px; opacity: 0.9; vertical-align: middle;">
+        <a href="https://hitscounter.dev" target="_blank" rel="noopener">
+          <img src="https://hitscounter.dev/counter/counter.svg?url=https://vbai-app-798522156920.asia-southeast1.run.app&label=L%C6%AF%E1%BB%A2T%20TRUY%20C%E1%BA%ACP&color=e6a200&labelColor=1a3a2a&icon=eye&edge_flat=true" alt="Lượt truy cập" style="height: 22px; opacity: 0.95; vertical-align: middle;">
+        </a>
       </div>
     </footer>
   `;
