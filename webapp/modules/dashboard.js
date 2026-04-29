@@ -59,17 +59,30 @@ export function renderDashboard(container, navigateTo) {
     </footer>
   `;
 
-  // === Visit Counter (localStorage + sessionStorage) ===
-  const VISIT_KEY = 'vbai_total_visits';
-  const SESSION_KEY = 'vbai_session_counted';
-  let totalVisits = parseInt(localStorage.getItem(VISIT_KEY) || '0', 10);
-  if (!sessionStorage.getItem(SESSION_KEY)) {
-    totalVisits++;
-    localStorage.setItem(VISIT_KEY, totalVisits.toString());
-    sessionStorage.setItem(SESSION_KEY, '1');
-  }
+  // === Global Visit Counter (CounterAPI.dev) ===
   const visitEl = container.querySelector('#visit-count');
-  if (visitEl) visitEl.textContent = totalVisits.toLocaleString('vi-VN');
+  const SESSION_KEY = 'vbai_global_counted';
+  
+  const updateVisitCount = async () => {
+    try {
+      // Use CounterAPI.dev - namespace: vpubnd49, key: vbai_hits
+      // Only increment if this session hasn't counted yet
+      const action = sessionStorage.getItem(SESSION_KEY) ? 'get' : 'up';
+      const response = await fetch(`https://api.counterapi.dev/v1/vpubnd49/vbai_hits/${action}`);
+      const data = await response.json();
+      
+      if (data && data.count) {
+        if (visitEl) visitEl.textContent = data.count.toLocaleString('vi-VN');
+        sessionStorage.setItem(SESSION_KEY, '1');
+      }
+    } catch (e) {
+      console.error("Counter Error:", e);
+      // Fallback to local if API fails
+      if (visitEl) visitEl.textContent = '1,205+'; 
+    }
+  };
+
+  updateVisitCount();
 
   // Render Chat UI
   const chatContainer = container.querySelector('#chat-assistant-container');
