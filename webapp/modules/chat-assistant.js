@@ -4,7 +4,7 @@
  */
 import { GoogleGenAI } from "https://esm.run/@google/genai";
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
@@ -98,8 +98,7 @@ export async function sendMessage(text, onChunk) {
   }
 }
 
-export function renderChatUI(container) {
-  const apiKey = localStorage.getItem('vbai_gemini_key') || '';
+export async function renderChatUI(container) {
   const savedModel = localStorage.getItem('vbai_gemini_model') || 'gemini-3.1-flash-lite-preview';
   
   container.innerHTML = `
@@ -159,9 +158,6 @@ export function renderChatUI(container) {
     </div>
   `;
 
-  // Init if key exists
-  if (apiKey) initChat(apiKey, savedModel);
-
   const input = container.querySelector('#chat-input');
   const sendBtn = container.querySelector('#chat-send-btn');
   const msgsArea = container.querySelector('#chat-messages');
@@ -169,6 +165,24 @@ export function renderChatUI(container) {
   const keyModal = container.querySelector('#key-modal');
   const apiKeyInput = container.querySelector('#api-key-input');
   const modelSelect = container.querySelector('#model-select');
+
+  // Khởi tạo Firebase và tải API Key
+  let apiKey = '';
+  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  const db = getFirestore(app);
+
+  try {
+    const configDoc = await getDoc(doc(db, 'config', 'system'));
+    if (configDoc.exists()) {
+      apiKey = configDoc.data().gemini_api_key || '';
+      if(apiKeyInput) apiKeyInput.value = apiKey;
+    }
+  } catch (e) {
+    console.warn("Lỗi tải API Key:", e);
+  }
+
+  // Init if key exists
+  if (apiKey) initChat(apiKey, savedModel);
 
   const addMsg = (text, role) => {
     const div = document.createElement('div');
@@ -211,16 +225,22 @@ export function renderChatUI(container) {
   
   settingsBtn.onclick = () => keyModal.style.display = 'block';
   container.querySelector('#close-modal-btn').onclick = () => keyModal.style.display = 'none';
-  container.querySelector('#save-key-btn').onclick = () => {
+  container.querySelector('#save-key-btn').onclick = async () => {
     const key = apiKeyInput.value.trim();
     const model = modelSelect.value;
-    localStorage.setItem('vbai_gemini_key', key);
     localStorage.setItem('vbai_gemini_model', model);
-    if(initChat(key, model)) {
-      alert("Đã lưu cấu hình thành công!");
-      keyModal.style.display = 'none';
-    } else {
-      alert("Lỗi khi khởi tạo Model!");
+    
+    try {
+      await setDoc(doc(db, 'config', 'system'), { gemini_api_key: key }, { merge: true });
+      if(initChat(key, model)) {
+        alert("Đã lưu cấu hình lên Server thành công!");
+        keyModal.style.display = 'none';
+      } else {
+        alert("Lỗi khi khởi tạo Model!");
+      }
+    } catch (e) {
+      console.error("Lưu cấu hình lỗi:", e);
+      alert("Lỗi lưu cấu hình lên Server: " + e.message);
     }
   };
 }
