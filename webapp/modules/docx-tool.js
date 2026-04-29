@@ -4,6 +4,19 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from '../main.js';
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
+  authDomain: "vbai-a1729.firebaseapp.com",
+  projectId: "vbai-a1729",
+  storageBucket: "vbai-a1729.firebasestorage.app",
+  messagingSenderId: "691819234622",
+  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
+  measurementId: "G-XLHHMNXRND"
+};
+
 
 export function renderDocxTool(container) {
   container.innerHTML = `
@@ -85,6 +98,18 @@ export function renderDocxTool(container) {
       const blob = await Packer.toBlob(doc);
       saveAs(blob, `${title.replace(/[^a-zA-Z0-9À-ỹ]/g, '_')}.docx`);
       showToast('✓ Đã tạo file DOCX!');
+
+      // Log to Firestore
+      try {
+        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        const db = getFirestore(app);
+        addDoc(collection(db, 'search_logs'), {
+          query: `[Tạo DOCX Nhanh] Tiêu đề: ${title}`,
+          model: "Local DOCX Generator",
+          timestamp: serverTimestamp()
+        }).catch(e => console.warn(e));
+      } catch(e) {}
+
     } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
   });
 
@@ -109,5 +134,17 @@ async function analyzeDocx(file, container) {
     container.querySelector('#docx-analysis').style.display = 'block';
     container.querySelector('#docx-xml-content').textContent = formatted;
     showToast(`✓ Đã phân tích: ${file.name}`);
+
+    // Log to Firestore
+    try {
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      addDoc(collection(db, 'search_logs'), {
+        query: `[Phân tích XML DOCX] Tên file: ${file.name}`,
+        model: "Local DOCX Parser",
+        timestamp: serverTimestamp()
+      }).catch(e => console.warn(e));
+    } catch(e) {}
+
   } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
 }

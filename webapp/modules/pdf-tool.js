@@ -2,6 +2,19 @@
  * PDF Tool Module — Upload & extract text from PDF
  */
 import { showToast } from '../main.js';
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
+  authDomain: "vbai-a1729.firebaseapp.com",
+  projectId: "vbai-a1729",
+  storageBucket: "vbai-a1729.firebasestorage.app",
+  messagingSenderId: "691819234622",
+  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
+  measurementId: "G-XLHHMNXRND"
+};
+
 
 export function renderPdfTool(container) {
   container.innerHTML = `
@@ -71,6 +84,18 @@ async function handlePdf(file, container) {
     container.querySelector('#pdf-copy-btn').addEventListener('click', () => {
       navigator.clipboard.writeText(fullText).then(() => showToast('Đã copy nội dung!')).catch(() => showToast('Không thể copy', 'error'));
     });
+
+    // Log to Firestore
+    try {
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      addDoc(collection(db, 'search_logs'), {
+        query: `[Xử lý PDF] Trích xuất file: ${file.name} (${pdf.numPages} trang)`,
+        model: "Local PDF Extractor",
+        timestamp: serverTimestamp()
+      }).catch(e => console.warn(e));
+    } catch(e) {}
+
   } catch (e) {
     console.error(e);
     zone.innerHTML = `<div class="upload-icon">❌</div><div class="upload-text">Lỗi xử lý: ${e.message}</div>`;
