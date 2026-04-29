@@ -130,7 +130,7 @@ export async function renderChatUI(container) {
         <div class="panel-body">
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">Google AI Studio API Key</label>
-            <input type="password" id="api-key-input" class="form-input" value="${apiKey}" placeholder="Dán API Key vào đây...">
+            <input type="password" id="api-key-input" class="form-input" value="" placeholder="Dán API Key vào đây...">
             <p style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">Lấy Key miễn phí tại <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--daquy-400)">Google AI Studio</a></p>
           </div>
 
