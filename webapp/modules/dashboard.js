@@ -59,30 +59,56 @@ export function renderDashboard(container, navigateTo) {
     </footer>
   `;
 
-  // === Global Visit Counter (CounterAPI.dev) ===
+  // === Global Visit Counter (Robust Multi-Fallback) ===
   const visitEl = container.querySelector('#visit-count');
-  const SESSION_KEY = 'vbai_global_counted';
-  
-  const updateVisitCount = async () => {
-    try {
-      // Use CounterAPI.dev - namespace: vpubnd49, key: vbai_hits
-      // Only increment if this session hasn't counted yet
-      const action = sessionStorage.getItem(SESSION_KEY) ? 'get' : 'up';
-      const response = await fetch(`https://api.counterapi.dev/v1/vpubnd49/vbai_hits/${action}`);
-      const data = await response.json();
-      
-      if (data && data.count) {
-        if (visitEl) visitEl.textContent = data.count.toLocaleString('vi-VN');
-        sessionStorage.setItem(SESSION_KEY, '1');
-      }
-    } catch (e) {
-      console.error("Counter Error:", e);
-      // Fallback to local if API fails
-      if (visitEl) visitEl.textContent = '1,205+'; 
-    }
+  const SESSION_KEY = 'vbai_session_v2';
+  const LOCAL_KEY = 'vbai_local_count';
+  const isNewSession = !sessionStorage.getItem(SESSION_KEY);
+
+  const fetchWithTimeout = (url, ms = 5000) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeout));
   };
 
-  updateVisitCount();
+  const updateCounter = async () => {
+    // Strategy 1: CounterAPI.dev
+    try {
+      const action = isNewSession ? 'up' : 'get';
+      const res = await fetchWithTimeout(`https://api.counterapi.dev/v1/vpubnd49-vbai/visits/${action}`);
+      const data = await res.json();
+      if (data && typeof data.count === 'number' && data.count > 0) {
+        if (visitEl) visitEl.textContent = data.count.toLocaleString('vi-VN');
+        localStorage.setItem(LOCAL_KEY, data.count.toString());
+        sessionStorage.setItem(SESSION_KEY, '1');
+        return;
+      }
+    } catch (e) { console.warn('CounterAPI primary failed:', e.message); }
+
+    // Strategy 2: CounterAPI.dev alternative namespace
+    try {
+      const action = isNewSession ? 'up' : 'get';
+      const res = await fetchWithTimeout(`https://api.counterapi.dev/v1/vbai-app/page-hits/${action}`);
+      const data = await res.json();
+      if (data && typeof data.count === 'number' && data.count > 0) {
+        if (visitEl) visitEl.textContent = data.count.toLocaleString('vi-VN');
+        localStorage.setItem(LOCAL_KEY, data.count.toString());
+        sessionStorage.setItem(SESSION_KEY, '1');
+        return;
+      }
+    } catch (e) { console.warn('CounterAPI backup failed:', e.message); }
+
+    // Strategy 3: Local fallback (always works)
+    let localCount = parseInt(localStorage.getItem(LOCAL_KEY) || '0', 10);
+    if (isNewSession) {
+      localCount++;
+      localStorage.setItem(LOCAL_KEY, localCount.toString());
+    }
+    sessionStorage.setItem(SESSION_KEY, '1');
+    if (visitEl) visitEl.textContent = localCount > 0 ? localCount.toLocaleString('vi-VN') : '1';
+  };
+
+  updateCounter();
 
   // Render Chat UI
   const chatContainer = container.querySelector('#chat-assistant-container');
