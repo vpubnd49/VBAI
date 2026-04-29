@@ -1,6 +1,6 @@
 import { renderChatUI } from "./chat-assistant.js";
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getFirestore, doc, onSnapshot, setDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 /**
  * Dashboard Module — Landing page with stats and module cards
@@ -61,43 +61,49 @@ export function renderDashboard(container, navigateTo) {
     </footer>
   `;
 
-  // === Global Visit Counter (Firebase Realtime Database) ===
+  // === Global Visit Counter (Firebase Firestore) ===
   const visitEl = container.querySelector('#visit-count');
-  const SESSION_KEY = 'vbai_session_fb';
+  const SESSION_KEY = 'vbai_session_firestore';
   const isNewSession = !sessionStorage.getItem(SESSION_KEY);
 
   // Initialize Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
     authDomain: "vbai-a1729.firebaseapp.com",
-    databaseURL: "https://vbai-a1729-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "vbai-a1729",
     storageBucket: "vbai-a1729.firebasestorage.app",
     messagingSenderId: "691819234622",
-    appId: "1:691819234622:web:d34caa7684c1949a5c986f"
+    appId: "1:691819234622:web:d34caa7684c1949a5c986f",
+    measurementId: "G-XLHHMNXRND"
   };
 
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const db = getDatabase(app);
-    const visitsRef = ref(db, 'visits/total');
+    const db = getFirestore(app);
+    const visitDocRef = doc(db, 'stats', 'visits');
 
     // 1. Listen for real-time updates (everyone sees the same number instantly)
-    onValue(visitsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data && visitEl) {
-        visitEl.textContent = data.toLocaleString('vi-VN');
+    onSnapshot(visitDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.count && visitEl) {
+          visitEl.textContent = data.count.toLocaleString('vi-VN');
+        }
       }
     }, (error) => {
-      console.warn("Firebase Read Error:", error);
+      console.warn("Firestore Read Error:", error);
     });
 
-    // 2. Increment count on load
-    runTransaction(visitsRef, (currentVisits) => {
-      return (currentVisits || 0) + 1;
-    }).catch((error) => {
-      console.warn("Firebase Transaction Error:", error);
-    });
+    // 2. Increment count if it's a new session using Atomic Increment
+    if (isNewSession) {
+      setDoc(visitDocRef, { count: increment(1) }, { merge: true })
+        .then(() => {
+          sessionStorage.setItem(SESSION_KEY, '1');
+        })
+        .catch((error) => {
+          console.warn("Firestore Increment Error:", error);
+        });
+    }
   } catch (error) {
     console.warn("Firebase Init Error:", error);
     // Ultimate Fallback
