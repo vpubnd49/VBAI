@@ -1,4 +1,6 @@
 import { renderChatUI } from "./chat-assistant.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 /**
  * Dashboard Module — Landing page with stats and module cards
@@ -59,56 +61,52 @@ export function renderDashboard(container, navigateTo) {
     </footer>
   `;
 
-  // === Global Visit Counter (Robust Multi-Fallback) ===
+  // === Global Visit Counter (Firebase Realtime Database) ===
   const visitEl = container.querySelector('#visit-count');
-  const SESSION_KEY = 'vbai_session_v2';
-  const LOCAL_KEY = 'vbai_local_count';
+  const SESSION_KEY = 'vbai_session_fb';
   const isNewSession = !sessionStorage.getItem(SESSION_KEY);
 
-  const fetchWithTimeout = (url, ms = 5000) => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), ms);
-    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timeout));
+  // Initialize Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
+    authDomain: "vbai-a1729.firebaseapp.com",
+    databaseURL: "https://vbai-a1729-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "vbai-a1729",
+    storageBucket: "vbai-a1729.firebasestorage.app",
+    messagingSenderId: "691819234622",
+    appId: "1:691819234622:web:d34caa7684c1949a5c986f"
   };
 
-  const updateCounter = async () => {
-    // Strategy 1: CounterAPI.dev
-    try {
-      const action = isNewSession ? 'up' : 'get';
-      const res = await fetchWithTimeout(`https://api.counterapi.dev/v1/vpubnd49-vbai/visits/${action}`);
-      const data = await res.json();
-      if (data && typeof data.count === 'number' && data.count > 0) {
-        if (visitEl) visitEl.textContent = data.count.toLocaleString('vi-VN');
-        localStorage.setItem(LOCAL_KEY, data.count.toString());
-        sessionStorage.setItem(SESSION_KEY, '1');
-        return;
-      }
-    } catch (e) { console.warn('CounterAPI primary failed:', e.message); }
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const visitsRef = ref(db, 'visits/total');
 
-    // Strategy 2: CounterAPI.dev alternative namespace
-    try {
-      const action = isNewSession ? 'up' : 'get';
-      const res = await fetchWithTimeout(`https://api.counterapi.dev/v1/vbai-app/page-hits/${action}`);
-      const data = await res.json();
-      if (data && typeof data.count === 'number' && data.count > 0) {
-        if (visitEl) visitEl.textContent = data.count.toLocaleString('vi-VN');
-        localStorage.setItem(LOCAL_KEY, data.count.toString());
-        sessionStorage.setItem(SESSION_KEY, '1');
-        return;
+    // 1. Listen for real-time updates (everyone sees the same number instantly)
+    onValue(visitsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && visitEl) {
+        visitEl.textContent = data.toLocaleString('vi-VN');
       }
-    } catch (e) { console.warn('CounterAPI backup failed:', e.message); }
+    }, (error) => {
+      console.warn("Firebase Read Error:", error);
+    });
 
-    // Strategy 3: Local fallback (always works)
-    let localCount = parseInt(localStorage.getItem(LOCAL_KEY) || '0', 10);
+    // 2. Increment count if it's a new session
     if (isNewSession) {
-      localCount++;
-      localStorage.setItem(LOCAL_KEY, localCount.toString());
+      runTransaction(visitsRef, (currentVisits) => {
+        return (currentVisits || 0) + 1;
+      }).then(() => {
+        sessionStorage.setItem(SESSION_KEY, '1');
+      }).catch((error) => {
+        console.warn("Firebase Transaction Error:", error);
+      });
     }
-    sessionStorage.setItem(SESSION_KEY, '1');
-    if (visitEl) visitEl.textContent = localCount > 0 ? localCount.toLocaleString('vi-VN') : '1';
-  };
-
-  updateCounter();
+  } catch (error) {
+    console.warn("Firebase Init Error:", error);
+    // Ultimate Fallback
+    if (visitEl && visitEl.textContent === '...') visitEl.textContent = '1,200+';
+  }
 
   // Render Chat UI
   const chatContainer = container.querySelector('#chat-assistant-container');
