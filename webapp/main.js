@@ -111,7 +111,7 @@ function init() {
     if (user) {
       window.currentUser = user;
       loginOverlay.style.display = 'none';
-      mainApp.style.display = 'block';
+      mainApp.style.display = 'flex';
       
       // Update breadcrumb with user info
       document.querySelector('.top-bar-actions').innerHTML = `
