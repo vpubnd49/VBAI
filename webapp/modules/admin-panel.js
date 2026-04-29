@@ -12,7 +12,9 @@ const firebaseConfig = {
 };
 
 let allLogs = [];
+let allUsers = [];
 let currentPage = 1;
+let currentUsersPage = 1;
 const ITEMS_PER_PAGE = 10;
 
 export function renderAdminPanel(container) {
@@ -75,6 +77,11 @@ export function renderAdminPanel(container) {
             <tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Đang tải dữ liệu...</td></tr>
           </tbody>
         </table>
+        <div id="users-pagination-controls" style="display:none; justify-content:center; align-items:center; padding:12px; gap:16px; background:var(--bg-secondary); border-top:1px solid var(--border-color)">
+          <button id="users-prev-page-btn" class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:0.8rem">⬅️ Trước</button>
+          <span id="users-page-indicator" style="font-size:0.85rem; font-weight:500">Trang 1 / 1</span>
+          <button id="users-next-page-btn" class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:0.8rem">Tiếp ➡️</button>
+        </div>
       </div>
     </div>
   `;
@@ -92,6 +99,15 @@ export function renderAdminPanel(container) {
   container.querySelector('#next-page-btn').addEventListener('click', () => {
     const totalPages = Math.ceil(allLogs.length / ITEMS_PER_PAGE);
     if (currentPage < totalPages) { currentPage++; renderPage(container); }
+  });
+
+  container.querySelector('#users-prev-page-btn').addEventListener('click', () => {
+    if (currentUsersPage > 1) { currentUsersPage--; renderUsersPage(container); }
+  });
+  
+  container.querySelector('#users-next-page-btn').addEventListener('click', () => {
+    const totalPages = Math.ceil(allUsers.length / ITEMS_PER_PAGE);
+    if (currentUsersPage < totalPages) { currentUsersPage++; renderUsersPage(container); }
   });
   
   container.querySelector('#delete-all-logs-btn').addEventListener('click', async () => {
@@ -219,32 +235,59 @@ async function loadUsers(container) {
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
-    const q = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
+    const q = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(500));
     const snapshot = await getDocs(q);
     
-    if (snapshot.empty) {
-      tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Chưa có tài khoản nào.</td></tr>';
-      return;
-    }
-
-    let html = '';
+    allUsers = [];
     snapshot.forEach(doc => {
-      const data = doc.data();
-      const createdStr = data.createdAt ? data.createdAt.toDate().toLocaleString('vi-VN') : '-';
-      const loginStr = data.lastLogin ? data.lastLogin.toDate().toLocaleString('vi-VN') : '-';
-      
-      html += `
-        <tr style="border-bottom:1px solid var(--border-color)">
-          <td style="padding:12px; font-weight:500">${escapeHtml(data.email)}</td>
-          <td style="padding:12px">${escapeHtml(data.displayName)}</td>
-          <td style="padding:12px; color:var(--text-secondary)">${createdStr}</td>
-          <td style="padding:12px; color:var(--text-secondary)">${loginStr}</td>
-        </tr>
-      `;
+      allUsers.push({ id: doc.id, data: doc.data() });
     });
-    tbody.innerHTML = html;
+
+    currentUsersPage = 1;
+    renderUsersPage(container);
   } catch (error) {
     console.error("Error loading users:", error);
     tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:#ef4444">Lỗi tải dữ liệu người dùng.</td></tr>';
   }
+}
+
+function renderUsersPage(container) {
+  const tbody = container.querySelector('#users-table-body');
+  const paginationCtrl = container.querySelector('#users-pagination-controls');
+
+  if (allUsers.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Chưa có tài khoản nào.</td></tr>';
+    paginationCtrl.style.display = 'none';
+    return;
+  }
+
+  const totalPages = Math.ceil(allUsers.length / ITEMS_PER_PAGE);
+  if (currentUsersPage > totalPages) currentUsersPage = totalPages;
+  if (currentUsersPage < 1) currentUsersPage = 1;
+
+  const startIndex = (currentUsersPage - 1) * ITEMS_PER_PAGE;
+  const pageUsers = allUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  let html = '';
+  pageUsers.forEach(item => {
+    const data = item.data;
+    const createdStr = data.createdAt ? data.createdAt.toDate().toLocaleString('vi-VN') : '-';
+    const loginStr = data.lastLogin ? data.lastLogin.toDate().toLocaleString('vi-VN') : '-';
+    
+    html += `
+      <tr style="border-bottom:1px solid var(--border-color)">
+        <td style="padding:12px; font-weight:500">${escapeHtml(data.email)}</td>
+        <td style="padding:12px">${escapeHtml(data.displayName)}</td>
+        <td style="padding:12px; color:var(--text-secondary)">${createdStr}</td>
+        <td style="padding:12px; color:var(--text-secondary)">${loginStr}</td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+
+  // Update pagination UI
+  paginationCtrl.style.display = 'flex';
+  container.querySelector('#users-page-indicator').textContent = `Trang ${currentUsersPage} / ${totalPages}`;
+  container.querySelector('#users-prev-page-btn').disabled = currentUsersPage === 1;
+  container.querySelector('#users-next-page-btn').disabled = currentUsersPage === totalPages;
 }
