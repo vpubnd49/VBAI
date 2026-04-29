@@ -83,6 +83,7 @@ export async function sendMessage(text, onChunk) {
       addDoc(collection(db, 'search_logs'), {
         query: text,
         model: currentModelName,
+        userEmail: window.currentUser?.email || 'Unknown',
         timestamp: serverTimestamp()
       }).catch(err => console.warn("Log Err:", err));
     } catch (e) {

@@ -137,6 +137,7 @@ async function handlePdf(file, container) {
         addDoc(collection(db, 'search_logs'), {
           query: `[OCR PDF] Quét ảnh Scan: ${file.name} (${limitPages} trang)`,
           model: "Gemini 2.5 Flash OCR",
+          userEmail: window.currentUser?.email || 'Unknown',
           timestamp: serverTimestamp()
         }).catch(e => console.warn(e));
 
@@ -159,6 +160,7 @@ async function handlePdf(file, container) {
       addDoc(collection(db, 'search_logs'), {
         query: `[Xử lý PDF] Trích xuất file: ${file.name} (${pdf.numPages} trang)`,
         model: "Local PDF Extractor",
+        userEmail: window.currentUser?.email || 'Unknown',
         timestamp: serverTimestamp()
       }).catch(e => console.warn(e));
     } catch(e) {}

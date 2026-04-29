@@ -278,6 +278,7 @@ async function generateDangDocx(s) {
       addDoc(collection(db, 'search_logs'), {
         query: `[Tạo VB Đảng HD36] ${LOAI_VB[s.loai_van_ban]} - ${s.trich_yeu}`,
         model: "Local DOCX Generator",
+        userEmail: window.currentUser?.email || 'Unknown',
         timestamp: serverTimestamp()
       }).catch(e => console.warn(e));
     } catch(e) {}

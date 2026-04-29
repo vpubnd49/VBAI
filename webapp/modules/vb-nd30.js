@@ -205,6 +205,7 @@ async function genND30() {
       addDoc(collection(db, 'search_logs'), {
         query: `[Tạo VB Hành Chính NĐ30] ${LOAI_VB[fs.loai_van_ban]} - ${fs.trich_yeu}`,
         model: "Local DOCX Generator",
+        userEmail: window.currentUser?.email || 'Unknown',
         timestamp: serverTimestamp()
       }).catch(e => console.warn(e));
     } catch(e) {}

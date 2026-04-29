@@ -106,6 +106,7 @@ export function renderDocxTool(container) {
         addDoc(collection(db, 'search_logs'), {
           query: `[Tạo DOCX Nhanh] Tiêu đề: ${title}`,
           model: "Local DOCX Generator",
+          userEmail: window.currentUser?.email || 'Unknown',
           timestamp: serverTimestamp()
         }).catch(e => console.warn(e));
       } catch(e) {}
@@ -142,6 +143,7 @@ async function analyzeDocx(file, container) {
       addDoc(collection(db, 'search_logs'), {
         query: `[Phân tích XML DOCX] Tên file: ${file.name}`,
         model: "Local DOCX Parser",
+        userEmail: window.currentUser?.email || 'Unknown',
         timestamp: serverTimestamp()
       }).catch(e => console.warn(e));
     } catch(e) {}

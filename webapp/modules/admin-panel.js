@@ -35,13 +35,14 @@ export function renderAdminPanel(container) {
           <thead>
             <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color); text-align:left">
               <th style="padding:12px; width:140px">Thời gian</th>
-              <th style="padding:12px">Câu hỏi của người dùng</th>
-              <th style="padding:12px; width:200px">Model xử lý</th>
-              <th style="padding:12px; width:80px; text-align:right">Thao tác</th>
+              <th style="padding:12px">Người dùng</th>
+              <th style="padding:12px">Thao tác / Câu hỏi</th>
+              <th style="padding:12px; width:150px">Model xử lý</th>
+              <th style="padding:12px; width:80px; text-align:right">Hành động</th>
             </tr>
           </thead>
           <tbody id="logs-table-body">
-            <tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Đang tải dữ liệu...</td></tr>
+            <tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Đang tải dữ liệu...</td></tr>
           </tbody>
         </table>
         <div id="pagination-controls" style="display:none; justify-content:center; align-items:center; padding:12px; gap:16px; background:var(--bg-secondary); border-top:1px solid var(--border-color)">
@@ -51,11 +52,38 @@ export function renderAdminPanel(container) {
         </div>
       </div>
     </div>
+
+    <!-- USERS PANEL -->
+    <div class="panel-group">
+      <div class="panel-header">
+        <div class="panel-header-icon">👥</div>
+        Danh sách Tài khoản Hệ thống
+        <div style="flex:1"></div>
+        <button id="refresh-users-btn" class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:0.8rem">Làm mới</button>
+      </div>
+      <div class="panel-body" style="padding:0; overflow-x:auto">
+        <table style="width:100%; border-collapse: collapse; font-size:0.85rem">
+          <thead>
+            <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color); text-align:left">
+              <th style="padding:12px">Email</th>
+              <th style="padding:12px">Tên hiển thị</th>
+              <th style="padding:12px; width:180px">Ngày tham gia</th>
+              <th style="padding:12px; width:180px">Đăng nhập cuối</th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body">
+            <tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Đang tải dữ liệu...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   `;
 
   loadLogs(container);
+  loadUsers(container);
 
   container.querySelector('#refresh-logs-btn').addEventListener('click', () => loadLogs(container));
+  container.querySelector('#refresh-users-btn').addEventListener('click', () => loadUsers(container));
   
   container.querySelector('#prev-page-btn').addEventListener('click', () => {
     if (currentPage > 1) { currentPage--; renderPage(container); }
@@ -139,6 +167,7 @@ function renderPage(container) {
     html += `
       <tr style="border-bottom:1px solid var(--border-color)">
         <td style="padding:12px; color:var(--text-secondary)">${timeStr}</td>
+        <td style="padding:12px; color:var(--daquy-500); font-weight:500">${escapeHtml(data.userEmail || 'Khách vãng lai')}</td>
         <td style="padding:12px; font-weight:500; color:var(--text-primary)">${escapeHtml(data.query)}</td>
         <td style="padding:12px; color:var(--text-muted)"><span class="module-badge" style="display:inline-block">${escapeHtml(data.model || 'Unknown')}</span></td>
         <td style="padding:12px; text-align:right">
@@ -183,4 +212,39 @@ function escapeHtml(unsafe) {
          .replace(/>/g, "&gt;")
          .replace(/"/g, "&quot;")
          .replace(/'/g, "&#039;");
+}
+
+async function loadUsers(container) {
+  const tbody = container.querySelector('#users-table-body');
+  try {
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    const db = getFirestore(app);
+    const q = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(100));
+    const snapshot = await getDocs(q);
+    
+    if (snapshot.empty) {
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Chưa có tài khoản nào.</td></tr>';
+      return;
+    }
+
+    let html = '';
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const createdStr = data.createdAt ? data.createdAt.toDate().toLocaleString('vi-VN') : '-';
+      const loginStr = data.lastLogin ? data.lastLogin.toDate().toLocaleString('vi-VN') : '-';
+      
+      html += `
+        <tr style="border-bottom:1px solid var(--border-color)">
+          <td style="padding:12px; font-weight:500">${escapeHtml(data.email)}</td>
+          <td style="padding:12px">${escapeHtml(data.displayName)}</td>
+          <td style="padding:12px; color:var(--text-secondary)">${createdStr}</td>
+          <td style="padding:12px; color:var(--text-secondary)">${loginStr}</td>
+        </tr>
+      `;
+    });
+    tbody.innerHTML = html;
+  } catch (error) {
+    console.error("Error loading users:", error);
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:#ef4444">Lỗi tải dữ liệu người dùng.</td></tr>';
+  }
 }

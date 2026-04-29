@@ -9,6 +9,20 @@ import { renderVBND30, handleVBND30Action } from './modules/vb-nd30.js';
 import { renderPdfTool } from './modules/pdf-tool.js';
 import { renderDocxTool } from './modules/docx-tool.js';
 import { renderAdminPanel } from './modules/admin-panel.js';
+import { renderLogin } from './modules/login.js';
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
+  authDomain: "vbai-a1729.firebaseapp.com",
+  projectId: "vbai-a1729",
+  storageBucket: "vbai-a1729.firebasestorage.app",
+  messagingSenderId: "691819234622",
+  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
+  measurementId: "G-XLHHMNXRND"
+};
+
 
 // ============ STATE ============
 const state = {
@@ -87,11 +101,46 @@ function renderPage(page) {
 
 // ============ INIT ============
 function init() {
+  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  const auth = getAuth(app);
+
+  onAuthStateChanged(auth, (user) => {
+    const loginOverlay = document.getElementById('login-overlay');
+    const mainApp = document.getElementById('app');
+    
+    if (user) {
+      window.currentUser = user;
+      loginOverlay.style.display = 'none';
+      mainApp.style.display = 'block';
+      
+      // Update breadcrumb with user info
+      document.querySelector('.top-bar-actions').innerHTML = `
+        <div style="font-size:0.85rem; font-weight:500; color:var(--text-secondary); margin-right:16px;">
+          ${user.email}
+        </div>
+        <div class="dalat-time" id="dalat-clock"></div>
+      `;
+      updateClock();
+
+      if (state.currentPage === 'dashboard') renderPage('dashboard');
+    } else {
+      window.currentUser = null;
+      mainApp.style.display = 'none';
+      loginOverlay.style.display = 'block';
+      renderLogin(loginOverlay);
+    }
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    signOut(auth).then(() => {
+      showToast('Đã đăng xuất');
+    });
+  });
+
   // Check admin url param
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('admin') === 'true') {
     localStorage.setItem('vbai_admin', 'true');
-    // Remove query param without reloading
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 
