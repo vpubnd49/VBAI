@@ -52,12 +52,24 @@ export function renderDashboard(container, navigateTo) {
       <div class="footer-line">Ver 1.0 - Văn phòng UBND tỉnh Lâm Đồng</div>
       <div class="footer-line">PHÁT TRIỂN BỞI: <a href="https://www.facebook.com/haichau2404" target="_blank" rel="noopener" class="footer-link">TRƯƠNG HẢI CHÂU</a></div>
       <div class="footer-line" style="margin-top: 8px;">
-        <a href="https://hitscounter.dev" target="_blank" rel="noopener">
-          <img src="https://hitscounter.dev/counter/counter.svg?url=https://vbai-app-798522156920.asia-southeast1.run.app&label=L%C6%AF%E1%BB%A2T%20TRUY%20C%E1%BA%ACP&color=e6a200&labelColor=1a3a2a&icon=eye&edge_flat=true" alt="Lượt truy cập" style="height: 22px; opacity: 0.95; vertical-align: middle;">
-        </a>
+        <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(230,162,0,0.15); padding:4px 12px; border-radius:20px; border:1px solid rgba(230,162,0,0.3); font-size:0.7rem; color:var(--daquy-400)">
+          👁 LƯỢT TRUY CẬP: <strong id="visit-count" style="font-size:0.8rem">...</strong>
+        </span>
       </div>
     </footer>
   `;
+
+  // === Visit Counter (localStorage + sessionStorage) ===
+  const VISIT_KEY = 'vbai_total_visits';
+  const SESSION_KEY = 'vbai_session_counted';
+  let totalVisits = parseInt(localStorage.getItem(VISIT_KEY) || '0', 10);
+  if (!sessionStorage.getItem(SESSION_KEY)) {
+    totalVisits++;
+    localStorage.setItem(VISIT_KEY, totalVisits.toString());
+    sessionStorage.setItem(SESSION_KEY, '1');
+  }
+  const visitEl = container.querySelector('#visit-count');
+  if (visitEl) visitEl.textContent = totalVisits.toLocaleString('vi-VN');
 
   // Render Chat UI
   const chatContainer = container.querySelector('#chat-assistant-container');
