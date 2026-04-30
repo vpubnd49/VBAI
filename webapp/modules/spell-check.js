@@ -165,10 +165,10 @@ CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown mar
   // 3. Process batches
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
-    progressTextEl.innerText = \`Đang phân tích đoạn \${i * BATCH_SIZE + 1} đến \${Math.min((i + 1) * BATCH_SIZE, validParas.length)} / \${validParas.length}...\`;
+    progressTextEl.innerText = `Đang phân tích đoạn ${i * BATCH_SIZE + 1} đến ${Math.min((i + 1) * BATCH_SIZE, validParas.length)} / ${validParas.length}...`;
     
     let combinedText = "";
-    batch.forEach(p => combinedText += \`[ID:\${p.index}] \${p.text}\\n\`);
+    batch.forEach(p => combinedText += `[ID:${p.index}] ${p.text}\n`);
 
     try {
       const response = await aiClient.models.generateContent({
@@ -201,7 +201,7 @@ CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown mar
               original: err.original,
               suggestion: err.suggestion,
               reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
-              message: \`"\${err.original}" → "\${err.suggestion}"\`
+              message: `"${err.original}" → "${err.suggestion}"`
             });
             found = true;
             break;
@@ -220,7 +220,7 @@ CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown mar
                 original: p.text.substring(pos, pos + err.original.length),
                 suggestion: err.suggestion,
                 reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
-                message: \`"\${err.original}" → "\${err.suggestion}"\`
+                message: `"${err.original}" → "${err.suggestion}"`
               });
               break;
             }
@@ -358,11 +358,11 @@ function renderChecked(el) {
       const before = html.substring(0, err.pos);
       const match = html.substring(err.pos, err.pos + err.length);
       const after = html.substring(err.pos + err.length);
-      html = before + `\u0000ERRSTART\u0000${match}\u0000ERRMID\u0000${err.suggestion}\u0000ERREND\u0000` + after;
+      html = before + `__ERRSTART__${match}__ERRMID__${err.suggestion}__ERREND__` + after;
     });
     html = escapeHtml(html);
-    html = html.replace(/\u0000ERRSTART\u0000/g, '<span class="sc-error" title="');
-    html = html.replace(/\u0000ERRMID\u0000/g, '">');
+    html = html.replace(/__ERRSTART__/g, '<span class="sc-error" title="');
+    html = html.replace(/__ERRMID__/g, '">');
     // This approach is tricky, let me rebuild
     // Simpler approach:
     let text = p.text;
