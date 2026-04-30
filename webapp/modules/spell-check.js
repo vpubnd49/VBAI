@@ -173,6 +173,7 @@ Yêu cầu QUAN TRỌNG:
 - Đầu câu hoặc sau dấu chấm (.) bắt buộc phải viết hoa.
 - Các chức danh và tổ chức phải viết hoa đúng:
   ${OFFICIAL_TITLES.join(', ')}
+- LƯU Ý: Tuyệt đối không đổi từ "Hội viên" thành "Ủy viên" (đây là hai khái niệm khác nhau trong văn bản hội).
 - TRẢ VỀ KẾT QUẢ DƯỚI DẠNG CHUỖI JSON ARRAY chứa các object có cấu trúc:
 [
   { "original": "câu hoặc từ bị sai trích chính xác từ văn bản gốc", "suggestion": "câu/từ đã sửa", "reason": "lý do sửa" }
@@ -205,31 +206,24 @@ CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown tic
       // Map AI errors back to exact paragraph and position
       for (const err of aiErrors) {
         if (!err.original || !err.suggestion) continue;
-        
-        // Find which paragraph in this batch contains the 'original' text
-        let found = false;
+        if (err.original === err.suggestion) continue;
+
+        // Escape regex special chars
+        const escapedOriginal = err.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(?<=\\s|^|\\p{P})${escapedOriginal}(?=\\s|$|\\p{P})`, 'gui');
+
         for (const p of batch) {
-          const pos = p.text.indexOf(err.original);
-          if (pos !== -1) {
-            errors.push({
-              type: 'spelling_ai',
-              paraIdx: p.index,
-              pos: pos,
-              length: err.original.length,
-              original: err.original,
-              suggestion: err.suggestion,
-              reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
-              message: `"${err.original}" → "${err.suggestion}"`
-            });
-            found = true;
-            break;
-          }
-        }
-        // Fallback: Case insensitive search if exact match fails
-        if (!found) {
-          for (const p of batch) {
-            const pos = p.text.toLowerCase().indexOf(err.original.toLowerCase());
-            if (pos !== -1) {
+          let match;
+          // Reset regex state
+          regex.lastIndex = 0;
+          
+          while ((match = regex.exec(p.text)) !== null) {
+            const pos = match.index;
+            // Prevent duplicate or overlapping errors
+            const isOverlap = errors.some(e => e.paraIdx === p.index && 
+              ((pos >= e.pos && pos < e.pos + e.length) || (e.pos >= pos && e.pos < pos + err.original.length)));
+            
+            if (!isOverlap) {
               errors.push({
                 type: 'spelling_ai',
                 paraIdx: p.index,
@@ -240,7 +234,6 @@ CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown tic
                 reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
                 message: `"${err.original}" → "${err.suggestion}"`
               });
-              break;
             }
           }
         }
