@@ -66,6 +66,14 @@ function navigateTo(page) {
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.page === page);
   });
+
+  // Nếu đang ở Dashboard mà bấm Tổng quan thì F5 (theo yêu cầu user)
+  if (state.currentPage === 'dashboard' && page === 'dashboard' && !window.firstLoad) {
+    window.location.reload();
+    return;
+  }
+  window.firstLoad = false;
+
   // Update breadcrumb
   document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[page] || page}</span>`;
   // Render page
@@ -179,6 +187,18 @@ function init() {
     });
   });
 
+  // Logo click = Home / Refresh
+  const logo = document.getElementById('logo-refresh');
+  if (logo) {
+    logo.addEventListener('click', () => {
+      if (state.currentPage === 'dashboard') {
+        window.location.reload();
+      } else {
+        navigateTo('dashboard');
+      }
+    });
+  }
+
   // Version
   const versionEl = document.getElementById('app-version');
   if (versionEl) versionEl.textContent = state.version;
@@ -187,6 +207,7 @@ function init() {
   updateClock();
 
   // Initial render
+  window.firstLoad = true;
   renderPage('dashboard');
 }
 
