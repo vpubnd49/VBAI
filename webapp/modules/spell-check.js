@@ -208,6 +208,15 @@ CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown tic
         if (!err.original || !err.suggestion) continue;
         if (err.original === err.suggestion) continue;
 
+        // BẢO VỆ ĐẶC BIỆT: Không được lẫn lộn giữa Hội viên và Ủy viên
+        const lowOrig = err.original.toLowerCase();
+        const lowSugg = err.suggestion.toLowerCase();
+        if ((lowOrig.includes('hội viên') && lowSugg.includes('ủy viên')) ||
+            (lowOrig.includes('ủy viên') && lowSugg.includes('hội viên'))) {
+          console.warn("Blocked AI suggestion swapping Hội viên/Ủy viên:", err);
+          continue;
+        }
+
         // Escape regex special chars
         const escapedOriginal = err.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`(?<=\\s|^|\\p{P})${escapedOriginal}(?=\\s|$|\\p{P})`, 'gui');

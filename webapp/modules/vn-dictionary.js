@@ -278,6 +278,7 @@ export const WHITELIST = [
   'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',
   'ĐẢNG CỘNG SẢN VIỆT NAM',
   'Độc lập', 'Tự do', 'Hạnh phúc',
+  'Hội viên', 'Ủy viên', 'Hiệp hội',
   // Viết tắt đơn vị tỉnh Lâm Đồng (trích xuất từ 235 file mẫu)
   'SNV', 'STP', 'CAT', 'CCHC', 'KTTH', 'KGVX',
   'TTHC', 'DVCTT', 'PAR INDEX', 'SIPAS', 'PAPI',
