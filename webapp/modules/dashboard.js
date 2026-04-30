@@ -59,7 +59,7 @@ export function renderDashboard(container, navigateTo) {
     </section>
 
     <footer class="app-footer">
-      <div class="footer-line">Phiên bản v1.2.6 (Đà Lạt Edition) — Văn phòng UBND tỉnh Lâm Đồng</div>
+      <div class="footer-line">Phiên bản v1.2.6 — Văn phòng UBND tỉnh Lâm Đồng</div>
       <div class="footer-line">PHÁT TRIỂN BỞI: <a href="https://www.facebook.com/haichau2404" target="_blank" rel="noopener" class="footer-link">TRƯƠNG HẢI CHÂU</a></div>
       <div class="footer-line" style="margin-top: 8px;">
         <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(230,162,0,0.15); padding:4px 12px; border-radius:20px; border:1px solid rgba(230,162,0,0.3); font-size:0.7rem; color:var(--daquy-400)">

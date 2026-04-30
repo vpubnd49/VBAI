@@ -21,7 +21,7 @@ import { firebaseConfig } from './firebase-config.js';
 const state = {
   currentPage: 'dashboard',
   sidebarOpen: true,
-  version: 'v1.2.6 (Đà Lạt Edition)'
+  version: 'v1.2.6'
 };
 
 // ============ CLOCK ============
