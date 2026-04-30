@@ -7,15 +7,7 @@ import { showToast } from '../main.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
-  authDomain: "vbai-a1729.firebaseapp.com",
-  projectId: "vbai-a1729",
-  storageBucket: "vbai-a1729.firebasestorage.app",
-  messagingSenderId: "691819234622",
-  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
-  measurementId: "G-XLHHMNXRND"
-};
+import { firebaseConfig } from '../firebase-config.js';
 
 
 const LOAI_VB = {
@@ -126,7 +118,7 @@ function renderStep2(sc, container) {
 
 function renderStep3(sc, container) {
   const s = formState;
-  const isCongVan = s.loai_van_ban === 'cong_van';
+  const isKG = s.loai_van_ban === 'cong_van' || s.loai_van_ban === 'to_trinh' || s.loai_van_ban === 'bao_cao';
   sc.innerHTML = `
     <div class="panel-group">
       <div class="panel-header">
@@ -134,7 +126,7 @@ function renderStep3(sc, container) {
         Nội dung & Thông tin phụ
       </div>
       <div class="panel-body form-grid full">
-        ${isCongVan ? `<div class="form-group"><label class="form-label">Kính gửi</label><input class="form-input" id="f-kg" value="${s.kinh_gui}" placeholder="Ban Bí thư Trung ương Đảng (mỗi CQ cách nhau dấu ;)"></div>` : ''}
+        ${isKG ? `<div class="form-group"><label class="form-label">Kính gửi</label><input class="form-input" id="f-kg" value="${s.kinh_gui}" placeholder="Các đơn vị/cá nhân nhận (cách nhau dấu ;)"></div>` : ''}
         <div class="form-group"><label class="form-label">Căn cứ (mỗi dòng 1 căn cứ)</label><textarea class="form-textarea" id="f-cc" rows="3" placeholder="Căn cứ Điều lệ Đảng...">${s.can_cu}</textarea></div>
         <div class="form-group"><label class="form-label">Nội dung văn bản <span class="required">*</span></label><textarea class="form-textarea" id="f-nd" rows="8" placeholder="Nhập nội dung văn bản...">${s.noi_dung}</textarea></div>
         <div class="form-group"><label class="form-label">Nơi nhận (mỗi dòng 1 nơi)</label><textarea class="form-textarea" id="f-nn" rows="3" placeholder="Các chi bộ trực thuộc&#10;Lưu VP">${s.noi_nhan}</textarea></div>
@@ -167,7 +159,7 @@ function renderStep3(sc, container) {
 
   <div class="btn-row"><button class="btn btn-secondary" id="btn-back3">← Quay lại</button><button class="btn btn-primary" id="btn-next3">Xem trước & Tải →</button></div>
   `;
-  const save = () => { if(isCongVan) s.kinh_gui=sc.querySelector('#f-kg')?.value||''; s.can_cu=sc.querySelector('#f-cc').value; s.noi_dung=sc.querySelector('#f-nd').value; s.quyen_han_ky=sc.querySelector('#f-qhk').value; s.chuc_vu_ky=sc.querySelector('#f-cvk').value; s.nguoi_ky=sc.querySelector('#f-nk').value; s.noi_nhan=sc.querySelector('#f-nn').value; s.dong_chuc_danh_1=sc.querySelector('#fdcd1').value; s.dong_chuc_danh_2=sc.querySelector('#fdcd2').value; s.dong_chuc_danh_3=sc.querySelector('#fdcd3').value; };
+  const save = () => { const el=sc.querySelector('#f-kg'); if(el) s.kinh_gui=el.value; s.can_cu=sc.querySelector('#f-cc').value; s.noi_dung=sc.querySelector('#f-nd').value; s.quyen_han_ky=sc.querySelector('#f-qhk').value; s.chuc_vu_ky=sc.querySelector('#f-cvk').value; s.nguoi_ky=sc.querySelector('#f-nk').value; s.noi_nhan=sc.querySelector('#f-nn').value; s.dong_chuc_danh_1=sc.querySelector('#fdcd1').value; s.dong_chuc_danh_2=sc.querySelector('#fdcd2').value; s.dong_chuc_danh_3=sc.querySelector('#fdcd3').value; };
   sc.querySelector('#btn-back3').addEventListener('click', () => { save(); s.step=2; renderStep(container); });
   sc.querySelector('#btn-next3').addEventListener('click', () => { save(); if(!s.noi_dung){showToast('Vui lòng nhập nội dung','error');return;} s.step=4; renderStep(container); });
 }
@@ -197,6 +189,7 @@ function renderStep4(sc, container) {
         <div class="preview-center preview-bold" style="font-size:14pt">${s.trich_yeu}</div>
         <div class="preview-separator">-----</div>
       `:''}
+      ${s.kinh_gui?`<div class="preview-center" style="margin-top:8pt;margin-bottom:8pt">Kính gửi: ${s.kinh_gui}</div>`:''}
       ${s.can_cu ? s.can_cu.split('\n').filter(l=>l.trim()).map(l=>`<div class="preview-body">- ${l.trim()}</div>`).join('') : ''}
       ${s.noi_dung.split('\n').filter(l=>l.trim()).map(l=>`<div class="preview-body">${l.trim()}</div>`).join('')}
       <table class="preview-header-table" style="margin-top:24pt"><tr>
@@ -247,6 +240,10 @@ async function generateDangDocx(s) {
     if(s.loai_van_ban.toLowerCase()!=='cong_van' && LOAI_VB[s.loai_van_ban]) {
       children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},children:[new TextRun({text:LOAI_VB[s.loai_van_ban],font:LAYOUT.FONT,size:32,bold:true})]}));
       if(s.trich_yeu) { children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.trich_yeu,font:LAYOUT.FONT,size:28,bold:true})]})); children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:60,after:120},children:[new TextRun({text:'-----',font:LAYOUT.FONT,size:28})]})); }
+    }
+    // Kinh gui
+    if(s.kinh_gui) {
+      children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:240,after:240},children:[new TextRun({text:'Kính gửi: '+s.kinh_gui,font:LAYOUT.FONT,size:28})]}));
     }
 
     // Can cu

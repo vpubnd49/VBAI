@@ -67,15 +67,7 @@ export function renderDashboard(container, navigateTo) {
   const isNewSession = !sessionStorage.getItem(SESSION_KEY);
 
   // Initialize Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
-    authDomain: "vbai-a1729.firebaseapp.com",
-    projectId: "vbai-a1729",
-    storageBucket: "vbai-a1729.firebasestorage.app",
-    messagingSenderId: "691819234622",
-    appId: "1:691819234622:web:d34caa7684c1949a5c986f",
-    measurementId: "G-XLHHMNXRND"
-  };
+import { firebaseConfig } from '../firebase-config.js';
 
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

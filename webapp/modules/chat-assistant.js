@@ -6,15 +6,7 @@ import { GoogleGenAI } from "https://esm.run/@google/genai";
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
-  authDomain: "vbai-a1729.firebaseapp.com",
-  projectId: "vbai-a1729",
-  storageBucket: "vbai-a1729.firebasestorage.app",
-  messagingSenderId: "691819234622",
-  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
-  measurementId: "G-XLHHMNXRND"
-};
+import { firebaseConfig } from '../firebase-config.js';
 
 
 let aiClient = null;

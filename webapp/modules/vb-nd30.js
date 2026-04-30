@@ -7,15 +7,7 @@ import { showToast } from '../main.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
-  authDomain: "vbai-a1729.firebaseapp.com",
-  projectId: "vbai-a1729",
-  storageBucket: "vbai-a1729.firebasestorage.app",
-  messagingSenderId: "691819234622",
-  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
-  measurementId: "G-XLHHMNXRND"
-};
+import { firebaseConfig } from '../firebase-config.js';
 
 
 const LOAI_VB = {
@@ -97,7 +89,7 @@ function renderS2(sc,c) {
 }
 
 function renderS3(sc,c) {
-  const isCV=fs.loai_van_ban==='cong_van';
+  const isKG=fs.loai_van_ban==='cong_van'||fs.loai_van_ban==='to_trinh'||fs.loai_van_ban==='bao_cao';
   sc.innerHTML=`
     <div class="panel-group">
       <div class="panel-header">
@@ -105,7 +97,7 @@ function renderS3(sc,c) {
         Nội dung & Thông tin phụ
       </div>
       <div class="panel-body form-grid full">
-        ${isCV?`<div class="form-group"><label class="form-label">Kính gửi</label><input class="form-input" id="fkg" value="${fs.kinh_gui}" placeholder="Các đơn vị thuộc Bộ (cách nhau dấu ;)"></div>`:''}
+        ${isKG?`<div class="form-group"><label class="form-label">Kính gửi</label><input class="form-input" id="fkg" value="${fs.kinh_gui}" placeholder="Các đơn vị/cá nhân nhận (cách nhau dấu ;)"></div>`:''}
         <div class="form-group"><label class="form-label">Căn cứ</label><textarea class="form-textarea" id="fcc" rows="3">${fs.can_cu}</textarea></div>
         <div class="form-group"><label class="form-label">Nội dung <span class="required">*</span></label><textarea class="form-textarea" id="fnd" rows="8">${fs.noi_dung}</textarea></div>
         <div class="form-group"><label class="form-label">Nơi nhận</label><textarea class="form-textarea" id="fnn" rows="3">${fs.noi_nhan}</textarea></div>
@@ -137,7 +129,7 @@ function renderS3(sc,c) {
     </div>
   
   <div class="btn-row"><button class="btn btn-secondary" id="bb">← Quay lại</button><button class="btn btn-primary" id="bn">Xem trước →</button></div>`;
-  const sv=()=>{if(isCV)fs.kinh_gui=sc.querySelector('#fkg')?.value||'';fs.can_cu=sc.querySelector('#fcc').value;fs.noi_dung=sc.querySelector('#fnd').value;fs.quyen_han_ky=sc.querySelector('#fqh').value;fs.chuc_vu_ky=sc.querySelector('#fcv').value;fs.nguoi_ky=sc.querySelector('#fnk').value;fs.noi_nhan=sc.querySelector('#fnn').value;fs.dong_chuc_danh_1=sc.querySelector('#fdcd1').value;fs.dong_chuc_danh_2=sc.querySelector('#fdcd2').value;fs.dong_chuc_danh_3=sc.querySelector('#fdcd3').value;};
+  const sv=()=>{const el=sc.querySelector('#fkg');if(el)fs.kinh_gui=el.value;fs.can_cu=sc.querySelector('#fcc').value;fs.noi_dung=sc.querySelector('#fnd').value;fs.quyen_han_ky=sc.querySelector('#fqh').value;fs.chuc_vu_ky=sc.querySelector('#fcv').value;fs.nguoi_ky=sc.querySelector('#fnk').value;fs.noi_nhan=sc.querySelector('#fnn').value;fs.dong_chuc_danh_1=sc.querySelector('#fdcd1').value;fs.dong_chuc_danh_2=sc.querySelector('#fdcd2').value;fs.dong_chuc_danh_3=sc.querySelector('#fdcd3').value;};
   sc.querySelector('#bb').onclick=()=>{sv();fs.step=2;doRender(c)};
   sc.querySelector('#bn').onclick=()=>{sv();if(!fs.noi_dung){showToast('Nhập nội dung','error');return}fs.step=4;doRender(c)};
 }
@@ -150,6 +142,7 @@ function renderS4(sc,c) {
         <td style="width:60%;text-align:center"><div style="font-size:13pt;font-weight:bold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div style="font-size:14pt;font-weight:bold">Độc lập - Tự do - Hạnh phúc</div><div style="border-top:1px solid #000;width:50%;margin:4px auto"></div><div style="font-style:italic">${fs.dia_danh}, ngày ${fs.ngay||'...'} tháng ${fs.thang||'...'} năm ${fs.nam}</div></td>
       </tr></table>
       ${fs.loai_van_ban.toLowerCase()!=='cong_van'?`<div class="preview-center preview-bold" style="font-size:14pt;margin-top:16pt">${LOAI_VB[fs.loai_van_ban]||''}</div><div class="preview-center preview-bold">${fs.trich_yeu}</div><div class="preview-separator">_______________</div>`:''}
+      ${fs.kinh_gui?`<div class="preview-center" style="margin-top:8pt;margin-bottom:8pt">Kính gửi: ${fs.kinh_gui}</div>`:''}
       ${fs.noi_dung.split('\n').filter(l=>l.trim()).map(l=>`<div class="preview-body">${l.trim()}</div>`).join('')}
       <table class="preview-header-table" style="margin-top:24pt"><tr>
         <td style="width:45%;vertical-align:top"><div style="font-weight:bold;font-style:italic;font-size:12pt">Nơi nhận:</div>${(fs.noi_nhan||'').split('\n').filter(l=>l.trim()).map(l=>`<div style="font-size:11pt">- ${l.trim()}</div>`).join('')}</td>
@@ -183,6 +176,10 @@ async function genND30() {
     if(fs.loai_van_ban.toLowerCase()!=='cong_van'&&LOAI_VB[fs.loai_van_ban]) {
       ch.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},children:[new TextRun({text:LOAI_VB[fs.loai_van_ban],font:L.FONT,size:28,bold:true})]}));
       if(fs.trich_yeu) {ch.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.trich_yeu,font:L.FONT,size:28,bold:true})]}));ch.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:60,after:120},children:[new TextRun({text:'_______________',font:L.FONT,size:28})]}));}
+    }
+    // Kinh gui
+    if(fs.kinh_gui) {
+      ch.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:240,after:240},children:[new TextRun({text:'Kính gửi: '+fs.kinh_gui,font:L.FONT,size:28})]}));
     }
     // Body
     fs.noi_dung.split('\n').filter(l=>l.trim()).forEach(l=>ch.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:BS,indent:{firstLine:567},children:[new TextRun({text:l.trim(),font:L.FONT,size:28})]})));
