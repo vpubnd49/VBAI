@@ -21,6 +21,7 @@ import { firebaseConfig } from './firebase-config.js';
 const state = {
   currentPage: 'dashboard',
   sidebarOpen: true,
+  version: 'v1.2.6 (Đà Lạt Edition)'
 };
 
 // ============ CLOCK ============
@@ -177,6 +178,10 @@ function init() {
       }
     });
   });
+
+  // Version
+  const versionEl = document.getElementById('app-version');
+  if (versionEl) versionEl.textContent = state.version;
 
   // Clock
   updateClock();
