@@ -1,0 +1,326 @@
+/**
+ * Spell Check & Format Validation Module
+ * Kiểm tra chính tả + thể thức VB theo NĐ30/HD36
+ */
+import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
+import { saveAs } from 'file-saver';
+import { showToast } from '../main.js';
+import { SPELLING_ERRORS } from './vn-dictionary.js';
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { firebaseConfig } from '../firebase-config.js';
+
+let checkState = { file: null, fileName: '', paragraphs: [], errors: [], docType: 'unknown', formatErrors: [], xmlDoc: null, rawXml: '' };
+
+export function renderSpellCheck(container) {
+  checkState = { file: null, fileName: '', paragraphs: [], errors: [], docType: 'unknown', formatErrors: [], xmlDoc: null, rawXml: '' };
+  container.innerHTML = `
+    <div class="page-header">
+      <div class="page-title">🔍 Kiểm Tra Văn Bản</div>
+      <div class="page-subtitle">Kiểm tra chính tả & thể thức theo NĐ30/HD36</div>
+    </div>
+    <div class="section-card">
+      <div class="section-title">📂 Tải file văn bản cần kiểm tra</div>
+      <div class="upload-zone" id="sc-drop-zone">
+        <div class="upload-icon">📄</div>
+        <div class="upload-text">Kéo thả hoặc nhấp để chọn file <strong>.docx</strong></div>
+        <div class="upload-hint">Chỉ hỗ trợ định dạng .docx (Open XML). Nếu bạn có file .doc, vui lòng chuyển sang .docx trước.</div>
+        <input type="file" id="sc-file-input" accept=".docx" style="display:none">
+      </div>
+    </div>
+    <div id="sc-results" style="display:none"></div>`;
+  const zone = container.querySelector('#sc-drop-zone');
+  const input = container.querySelector('#sc-file-input');
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--pine-500)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.style.borderColor = ''; if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0], container); });
+  input.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0], container); });
+}
+
+async function processFile(file, container) {
+  if (!file.name.endsWith('.docx')) { showToast('Chỉ hỗ trợ file .docx', 'error'); return; }
+  checkState.file = file;
+  checkState.fileName = file.name;
+  showToast('Đang phân tích văn bản...');
+  try {
+    const JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
+    const zip = await JSZip.loadAsync(file);
+    const docXml = await zip.file('word/document.xml')?.async('text');
+    if (!docXml) { showToast('Không đọc được nội dung file', 'error'); return; }
+    checkState.rawXml = docXml;
+    const parser = new DOMParser();
+    checkState.xmlDoc = parser.parseFromString(docXml, 'text/xml');
+    checkState.paragraphs = extractParagraphs(checkState.xmlDoc);
+    detectDocType(checkState);
+    checkState.errors = checkSpelling(checkState.paragraphs);
+    checkState.formatErrors = checkFormat(checkState);
+    renderResults(container);
+    logToFirestore(file.name, checkState.errors.length, checkState.formatErrors.length);
+  } catch (e) { console.error(e); showToast('Lỗi: ' + e.message, 'error'); }
+}
+
+function extractParagraphs(xmlDoc) {
+  const paragraphs = [];
+  const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const pNodes = xmlDoc.getElementsByTagNameNS(ns, 'p');
+  for (let i = 0; i < pNodes.length; i++) {
+    const p = pNodes[i];
+    const runs = p.getElementsByTagNameNS(ns, 'r');
+    let text = '';
+    const runDetails = [];
+    for (let j = 0; j < runs.length; j++) {
+      const tNodes = runs[j].getElementsByTagNameNS(ns, 't');
+      let runText = '';
+      for (let k = 0; k < tNodes.length; k++) runText += tNodes[k].textContent || '';
+      if (runText) {
+        const rPr = runs[j].getElementsByTagNameNS(ns, 'rPr')[0];
+        let bold = false, italic = false, size = 0, font = '';
+        if (rPr) {
+          bold = !!rPr.getElementsByTagNameNS(ns, 'b')[0];
+          italic = !!rPr.getElementsByTagNameNS(ns, 'i')[0];
+          const szEl = rPr.getElementsByTagNameNS(ns, 'sz')[0];
+          if (szEl) size = parseInt(szEl.getAttribute('w:val') || '0');
+          const fnEl = rPr.getElementsByTagNameNS(ns, 'rFonts')[0];
+          if (fnEl) font = fnEl.getAttribute('w:ascii') || fnEl.getAttribute('w:hAnsi') || '';
+        }
+        runDetails.push({ text: runText, bold, italic, size, font });
+        text += runText;
+      }
+    }
+    if (text.trim()) paragraphs.push({ text, runs: runDetails, index: i });
+  }
+  return paragraphs;
+}
+
+function detectDocType(state) {
+  const allText = state.paragraphs.map(p => p.text).join(' ');
+  if (allText.includes('ĐẢNG CỘNG SẢN VIỆT NAM')) state.docType = 'hd36';
+  else if (allText.includes('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM')) state.docType = 'nd30';
+  else state.docType = 'unknown';
+}
+
+function checkSpelling(paragraphs) {
+  const errors = [];
+  const dict = SPELLING_ERRORS;
+  paragraphs.forEach((p, pIdx) => {
+    const textLower = p.text.toLowerCase();
+    for (const [wrong, correct] of Object.entries(dict)) {
+      if (wrong === correct) continue;
+      const wLower = wrong.toLowerCase();
+      let searchIdx = 0;
+      while (true) {
+        const pos = textLower.indexOf(wLower, searchIdx);
+        if (pos === -1) break;
+        const before = pos > 0 ? textLower[pos - 1] : ' ';
+        const after = pos + wLower.length < textLower.length ? textLower[pos + wLower.length] : ' ';
+        if (/[\s,.\-;:!?()"'""''«»]/.test(before) || pos === 0) {
+          if (/[\s,.\-;:!?()"'""''«»]/.test(after) || pos + wLower.length === textLower.length) {
+            errors.push({ type: 'spelling', paraIdx: pIdx, pos, length: wrong.length, original: p.text.substring(pos, pos + wrong.length), suggestion: correct, message: `"${p.text.substring(pos, pos + wrong.length)}" → "${correct}"` });
+          }
+        }
+        searchIdx = pos + 1;
+      }
+    }
+  });
+  return errors;
+}
+
+function checkFormat(state) {
+  const errors = [];
+  const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const xmlDoc = state.xmlDoc;
+  // Check page margins
+  const sectPr = xmlDoc.getElementsByTagNameNS(ns, 'sectPr');
+  if (sectPr.length > 0) {
+    const pgMar = sectPr[0].getElementsByTagNameNS(ns, 'pgMar')[0];
+    if (pgMar) {
+      const top = parseInt(pgMar.getAttribute('w:top') || '0');
+      const bottom = parseInt(pgMar.getAttribute('w:bottom') || '0');
+      const left = parseInt(pgMar.getAttribute('w:left') || '0');
+      const right = parseInt(pgMar.getAttribute('w:right') || '0');
+      if (state.docType === 'nd30') {
+        if (Math.abs(top - 1134) > 100) errors.push({ type: 'format', rule: 'NĐ30', message: `Lề trên sai: ${Math.round(top/56.7)}mm (chuẩn: 20mm)` });
+        if (Math.abs(bottom - 1134) > 100) errors.push({ type: 'format', rule: 'NĐ30', message: `Lề dưới sai: ${Math.round(bottom/56.7)}mm (chuẩn: 20mm)` });
+        if (Math.abs(left - 1701) > 100) errors.push({ type: 'format', rule: 'NĐ30', message: `Lề trái sai: ${Math.round(left/56.7)}mm (chuẩn: 30mm)` });
+        if (Math.abs(right - 1134) > 100) errors.push({ type: 'format', rule: 'NĐ30', message: `Lề phải sai: ${Math.round(right/56.7)}mm (chuẩn: 20mm)` });
+      } else if (state.docType === 'hd36') {
+        if (Math.abs(left - 1701) > 100) errors.push({ type: 'format', rule: 'HD36', message: `Lề trái sai: ${Math.round(left/56.7)}mm (chuẩn: 30mm)` });
+        if (Math.abs(right - 850) > 100) errors.push({ type: 'format', rule: 'HD36', message: `Lề phải sai: ${Math.round(right/56.7)}mm (chuẩn: 15mm)` });
+      }
+    }
+  }
+  // Check font
+  const allText = state.paragraphs.map(p => p.text).join(' ');
+  state.paragraphs.forEach(p => {
+    p.runs.forEach(r => {
+      if (r.font && r.font !== 'Times New Roman' && r.font !== '' && !r.font.startsWith('Symbol') && r.font !== 'Wingdings') {
+        const msg = `Font "${r.font}" không đúng chuẩn (phải dùng Times New Roman)`;
+        if (!errors.find(e => e.message === msg)) errors.push({ type: 'format', rule: state.docType === 'hd36' ? 'HD36' : 'NĐ30', message: msg });
+      }
+    });
+  });
+  // Check NĐ30 specific
+  if (state.docType === 'nd30') {
+    if (!allText.includes('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM')) errors.push({ type: 'format', rule: 'NĐ30', message: 'Thiếu Quốc hiệu "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM"' });
+    if (!allText.includes('Độc lập - Tự do - Hạnh phúc') && !allText.includes('Độc lập – Tự do – Hạnh phúc')) errors.push({ type: 'format', rule: 'NĐ30', message: 'Thiếu hoặc sai Tiêu ngữ "Độc lập - Tự do - Hạnh phúc"' });
+    if (!allText.includes('Nơi nhận')) errors.push({ type: 'format', rule: 'NĐ30', message: 'Thiếu phần "Nơi nhận"' });
+  }
+  // Check HD36 specific
+  if (state.docType === 'hd36') {
+    if (!allText.includes('ĐẢNG CỘNG SẢN VIỆT NAM')) errors.push({ type: 'format', rule: 'HD36', message: 'Thiếu tiêu đề "ĐẢNG CỘNG SẢN VIỆT NAM"' });
+    if (allText.includes('Độc lập - Tự do - Hạnh phúc')) errors.push({ type: 'format', rule: 'HD36', message: 'VB Đảng KHÔNG có tiêu ngữ "Độc lập - Tự do - Hạnh phúc"' });
+    if (allText.includes('TM.') || allText.includes('KT.') || allText.includes('TL.')) {
+      errors.push({ type: 'format', rule: 'HD36', message: 'VB Đảng dùng T/M, K/T, T/L (gạch chéo), KHÔNG dùng TM., KT., TL. (dấu chấm)' });
+    }
+    if (!allText.includes('*') && state.paragraphs.length > 3) {
+      const hasCQ = state.paragraphs.some(p => p.runs.some(r => r.bold) && p.text.length < 60);
+      if (hasCQ) errors.push({ type: 'format', rule: 'HD36', message: 'Có thể thiếu dấu sao (*) dưới tên cơ quan ban hành' });
+    }
+  }
+  return errors;
+}
+
+function renderResults(container) {
+  const results = container.querySelector('#sc-results');
+  results.style.display = 'block';
+  const totalErrors = checkState.errors.length + checkState.formatErrors.length;
+  const docLabel = checkState.docType === 'nd30' ? 'VB Hành Chính (NĐ30)' : checkState.docType === 'hd36' ? 'VB Đảng (HD36)' : 'Không xác định';
+  results.innerHTML = `
+    <div class="sc-summary-grid">
+      <div class="sc-summary-card"><div class="sc-summary-icon">📄</div><div class="sc-summary-info"><div class="sc-summary-value">${checkState.fileName}</div><div class="sc-summary-label">Loại: ${docLabel}</div></div></div>
+      <div class="sc-summary-card ${totalErrors === 0 ? 'sc-ok' : 'sc-warn'}"><div class="sc-summary-icon">${totalErrors === 0 ? '✅' : '⚠️'}</div><div class="sc-summary-info"><div class="sc-summary-value">${totalErrors}</div><div class="sc-summary-label">Tổng số lỗi</div></div></div>
+      <div class="sc-summary-card"><div class="sc-summary-icon">🔤</div><div class="sc-summary-info"><div class="sc-summary-value">${checkState.errors.length}</div><div class="sc-summary-label">Lỗi chính tả</div></div></div>
+      <div class="sc-summary-card"><div class="sc-summary-icon">📐</div><div class="sc-summary-info"><div class="sc-summary-value">${checkState.formatErrors.length}</div><div class="sc-summary-label">Lỗi thể thức</div></div></div>
+    </div>
+    ${checkState.formatErrors.length > 0 ? `
+    <div class="section-card" style="margin-top:20px">
+      <div class="section-title">📐 Lỗi thể thức ${docLabel}</div>
+      <div class="sc-format-errors">${checkState.formatErrors.map(e => `<div class="sc-format-item"><span class="sc-format-badge">${e.rule}</span><span>${e.message}</span></div>`).join('')}</div>
+    </div>` : ''}
+    <div class="section-card" style="margin-top:20px">
+      <div class="section-title">👁️ Xem trước — So sánh văn bản</div>
+      <div class="sc-preview-grid">
+        <div class="sc-preview-col"><div class="sc-preview-label">📄 Văn bản gốc</div><div class="sc-preview-box" id="sc-original"></div></div>
+        <div class="sc-preview-col"><div class="sc-preview-label">✅ Văn bản đã kiểm tra</div><div class="sc-preview-box" id="sc-checked"></div></div>
+      </div>
+    </div>
+    <div class="btn-row" style="justify-content:center;margin-top:24px">
+      <button class="btn btn-secondary" id="sc-btn-new">📂 Kiểm tra file khác</button>
+      <button class="btn btn-success" id="sc-btn-export">⬇ Tải file đã sửa (.docx)</button>
+      <button class="btn btn-primary" id="sc-btn-report">📋 Tải báo cáo lỗi (.docx)</button>
+    </div>`;
+  // Render previews
+  renderOriginal(container.querySelector('#sc-original'));
+  renderChecked(container.querySelector('#sc-checked'));
+  // Buttons
+  results.querySelector('#sc-btn-new').onclick = () => renderSpellCheck(container);
+  results.querySelector('#sc-btn-export').onclick = () => exportCorrected();
+  results.querySelector('#sc-btn-report').onclick = () => exportReport();
+}
+
+function renderOriginal(el) {
+  el.innerHTML = checkState.paragraphs.map(p => `<div class="sc-para">${escapeHtml(p.text)}</div>`).join('');
+}
+
+function renderChecked(el) {
+  el.innerHTML = checkState.paragraphs.map((p, pIdx) => {
+    const paraErrors = checkState.errors.filter(e => e.paraIdx === pIdx).sort((a, b) => b.pos - a.pos);
+    if (paraErrors.length === 0) return `<div class="sc-para">${escapeHtml(p.text)}</div>`;
+    let html = p.text;
+    // Apply highlights from end to start
+    const sorted = [...paraErrors].sort((a, b) => b.pos - a.pos);
+    sorted.forEach(err => {
+      const before = html.substring(0, err.pos);
+      const match = html.substring(err.pos, err.pos + err.length);
+      const after = html.substring(err.pos + err.length);
+      html = before + `\u0000ERRSTART\u0000${match}\u0000ERRMID\u0000${err.suggestion}\u0000ERREND\u0000` + after;
+    });
+    html = escapeHtml(html);
+    html = html.replace(/\u0000ERRSTART\u0000/g, '<span class="sc-error" title="');
+    html = html.replace(/\u0000ERRMID\u0000/g, '">');
+    // This approach is tricky, let me rebuild
+    // Simpler approach:
+    let text = p.text;
+    let result = '';
+    let lastIdx = 0;
+    const sortedAsc = [...paraErrors].sort((a, b) => a.pos - b.pos);
+    sortedAsc.forEach(err => {
+      result += escapeHtml(text.substring(lastIdx, err.pos));
+      result += `<span class="sc-error" title="Gợi ý: ${escapeHtml(err.suggestion)}">${escapeHtml(text.substring(err.pos, err.pos + err.length))}</span>`;
+      lastIdx = err.pos + err.length;
+    });
+    result += escapeHtml(text.substring(lastIdx));
+    return `<div class="sc-para">${result}</div>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function exportCorrected() {
+  try {
+    const children = [];
+    children.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: `File gốc: ${checkState.fileName}`, font: 'Times New Roman', size: 24, italics: true, color: '888888' })] }));
+    checkState.paragraphs.forEach((p, pIdx) => {
+      let text = p.text;
+      const paraErrors = checkState.errors.filter(e => e.paraIdx === pIdx).sort((a, b) => b.pos - a.pos);
+      paraErrors.forEach(err => {
+        text = text.substring(0, err.pos) + err.suggestion + text.substring(err.pos + err.length);
+      });
+      children.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { before: 60, after: 60 }, indent: { firstLine: 567 }, children: [new TextRun({ text, font: 'Times New Roman', size: 28 })] }));
+    });
+    const doc = new Document({ styles: { default: { document: { run: { font: 'Times New Roman', size: 28 } } } }, sections: [{ children }] });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `da_sua_${checkState.fileName}`);
+    showToast('✓ Đã tải file đã sửa!');
+  } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
+}
+
+async function exportReport() {
+  try {
+    const children = [];
+    children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 300 }, children: [new TextRun({ text: 'BÁO CÁO KIỂM TRA VĂN BẢN', font: 'Times New Roman', size: 32, bold: true })] }));
+    children.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: `File: ${checkState.fileName}`, font: 'Times New Roman', size: 28 })] }));
+    children.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: `Loại VB: ${checkState.docType === 'nd30' ? 'Hành chính (NĐ30)' : checkState.docType === 'hd36' ? 'Đảng (HD36)' : 'Không xác định'}`, font: 'Times New Roman', size: 28 })] }));
+    children.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: `Ngày kiểm tra: ${new Date().toLocaleDateString('vi-VN')}`, font: 'Times New Roman', size: 28 })] }));
+    if (checkState.errors.length > 0) {
+      children.push(new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: `I. LỖI CHÍNH TẢ (${checkState.errors.length} lỗi)`, font: 'Times New Roman', size: 28, bold: true })] }));
+      checkState.errors.forEach((err, i) => {
+        children.push(new Paragraph({ spacing: { after: 60 }, indent: { firstLine: 567 }, children: [
+          new TextRun({ text: `${i + 1}. `, font: 'Times New Roman', size: 28, bold: true }),
+          new TextRun({ text: `"${err.original}"`, font: 'Times New Roman', size: 28, color: 'FF0000' }),
+          new TextRun({ text: ` → "${err.suggestion}"`, font: 'Times New Roman', size: 28 }),
+        ] }));
+      });
+    }
+    if (checkState.formatErrors.length > 0) {
+      children.push(new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: `II. LỖI THỂ THỨC (${checkState.formatErrors.length} lỗi)`, font: 'Times New Roman', size: 28, bold: true })] }));
+      checkState.formatErrors.forEach((err, i) => {
+        children.push(new Paragraph({ spacing: { after: 60 }, indent: { firstLine: 567 }, children: [
+          new TextRun({ text: `${i + 1}. [${err.rule}] `, font: 'Times New Roman', size: 28, bold: true }),
+          new TextRun({ text: err.message, font: 'Times New Roman', size: 28 }),
+        ] }));
+      });
+    }
+    if (checkState.errors.length === 0 && checkState.formatErrors.length === 0) {
+      children.push(new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: 'Không phát hiện lỗi nào.', font: 'Times New Roman', size: 28, color: '008000' })] }));
+    }
+    const doc = new Document({ styles: { default: { document: { run: { font: 'Times New Roman', size: 28 } } } }, sections: [{ children }] });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `bao_cao_loi_${checkState.fileName}`);
+    showToast('✓ Đã tải báo cáo lỗi!');
+  } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
+}
+
+function logToFirestore(fileName, spellCount, formatCount) {
+  try {
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    const db = getFirestore(app);
+    addDoc(collection(db, 'search_logs'), {
+      query: `[Kiểm Tra VB] ${fileName} — ${spellCount} lỗi CT, ${formatCount} lỗi TT`,
+      model: "Spell Check Engine", userEmail: window.currentUser?.email || 'Unknown', timestamp: serverTimestamp()
+    }).catch(() => {});
+  } catch (e) {}
+}
