@@ -719,6 +719,12 @@ body {
   font-weight: 600; transition: background 0.2s;
 }
 .sc-error:hover { background: rgba(255, 0, 0, 0.3); }
+.sc-corrected {
+  background: rgba(0, 168, 80, 0.2); color: #007a3d; font-weight: 600;
+  padding: 1px 4px; border-radius: 3px; cursor: help;
+  border-bottom: 2px solid #00a850; transition: background 0.2s;
+}
+.sc-corrected:hover { background: rgba(0, 168, 80, 0.35); }
 
 @media (max-width: 768px) {
   .sc-summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }

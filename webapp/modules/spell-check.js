@@ -65,7 +65,20 @@ async function processFile(file, container) {
     const progressText = container.querySelector('#sc-progress-text');
     progressEl.style.display = 'block';
 
-    checkState.errors = await checkSpellingAI(checkState.paragraphs, progressText);
+    // Bước 1: Kiểm tra từ điển cục bộ (nhanh, chính xác)
+    progressText.innerText = 'Đang quét từ điển cục bộ...';
+    const localErrors = checkSpellingLocal(checkState.paragraphs);
+    
+    // Bước 2: Kiểm tra bằng AI (sâu hơn)
+    const aiErrors = await checkSpellingAI(checkState.paragraphs, progressText);
+    
+    // Bước 3: Kết hợp kết quả, ưu tiên local, loại bỏ trùng lặp
+    checkState.errors = [...localErrors];
+    aiErrors.forEach(ae => {
+      const isDuplicate = checkState.errors.some(le => le.paraIdx === ae.paraIdx && Math.abs(le.pos - ae.pos) < 5);
+      if (!isDuplicate) checkState.errors.push(ae);
+    });
+    
     checkState.formatErrors = checkFormat(checkState);
     
     progressEl.style.display = 'none';
@@ -232,8 +245,47 @@ CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown mar
     }
   }
 
-  progressTextEl.innerText = "Hoàn tất kiểm tra!";
+  progressTextEl.innerText = "Hoàn tất kiểm tra AI!";
   return errors;
+}
+
+/**
+ * Kiểm tra chính tả bằng từ điển cục bộ — nhanh và chính xác 100%
+ */
+function checkSpellingLocal(paragraphs) {
+  const localErrors = [];
+  const VN_WORD_CHARS = /[a-zA-Z0-9àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ]/;
+  
+  paragraphs.forEach(p => {
+    const lowerText = p.text.toLowerCase();
+    for (const [wrong, correct] of Object.entries(SPELLING_ERRORS)) {
+      if (wrong.toLowerCase() === correct.toLowerCase()) continue; // Skip identity mappings
+      const wrongLower = wrong.toLowerCase();
+      let searchFrom = 0;
+      while (true) {
+        const pos = lowerText.indexOf(wrongLower, searchFrom);
+        if (pos === -1) break;
+        searchFrom = pos + 1;
+        
+        // Kiểm tra word boundary
+        const prevChar = pos > 0 ? p.text[pos - 1] : ' ';
+        const nextChar = pos + wrong.length < p.text.length ? p.text[pos + wrong.length] : ' ';
+        if (VN_WORD_CHARS.test(prevChar) || VN_WORD_CHARS.test(nextChar)) continue;
+        
+        localErrors.push({
+          type: 'spelling_local',
+          paraIdx: p.index,
+          pos: pos,
+          length: wrong.length,
+          original: p.text.substring(pos, pos + wrong.length),
+          suggestion: correct,
+          reason: 'Lỗi chính tả (Từ điển VBAI)',
+          message: `"${p.text.substring(pos, pos + wrong.length)}" \u2192 "${correct}"`
+        });
+      }
+    }
+  });
+  return localErrors;
 }
 
 function checkFormat(state) {
@@ -288,6 +340,14 @@ function checkFormat(state) {
       if (hasCQ) errors.push({ type: 'format', rule: 'HD36', message: 'Có thể thiếu dấu sao (*) dưới tên cơ quan ban hành' });
     }
   }
+  
+  // Kiểm tra tính nhất quán: UBND vs Ủy ban nhân dân
+  const countUBND = (allText.match(/\bUBND\b/g) || []).length;
+  const countUyBan = (allText.match(/Ủy ban nhân dân/gi) || []).length;
+  if (countUBND > 0 && countUyBan > 0) {
+    errors.push({ type: 'format', rule: 'Nhất quán', message: `Phát hiện dùng lẫn lộn "Ủy ban nhân dân" (${countUyBan} lần) và "UBND" (${countUBND} lần). Nên viết đầy đủ lần đầu, sau đó dùng viết tắt.` });
+  }
+  
   return errors;
 }
 
@@ -344,34 +404,40 @@ function renderResults(container) {
 }
 
 function renderOriginal(el) {
-  el.innerHTML = checkState.paragraphs.map(p => `<div class="sc-para">${escapeHtml(p.text)}</div>`).join('');
-}
-
-function renderChecked(el) {
+  // Hiển thị văn bản GỐC: bôi đỏ các vị trí có lỗi
   el.innerHTML = checkState.paragraphs.map((p, pIdx) => {
-    const paraErrors = checkState.errors.filter(e => e.paraIdx === pIdx).sort((a, b) => b.pos - a.pos);
+    const paraErrors = checkState.errors.filter(e => e.paraIdx === pIdx);
     if (paraErrors.length === 0) return `<div class="sc-para">${escapeHtml(p.text)}</div>`;
-    let html = p.text;
-    // Apply highlights from end to start
-    const sorted = [...paraErrors].sort((a, b) => b.pos - a.pos);
-    sorted.forEach(err => {
-      const before = html.substring(0, err.pos);
-      const match = html.substring(err.pos, err.pos + err.length);
-      const after = html.substring(err.pos + err.length);
-      html = before + `__ERRSTART__${match}__ERRMID__${err.suggestion}__ERREND__` + after;
-    });
-    html = escapeHtml(html);
-    html = html.replace(/__ERRSTART__/g, '<span class="sc-error" title="');
-    html = html.replace(/__ERRMID__/g, '">');
-    // This approach is tricky, let me rebuild
-    // Simpler approach:
+    
     let text = p.text;
     let result = '';
     let lastIdx = 0;
     const sortedAsc = [...paraErrors].sort((a, b) => a.pos - b.pos);
     sortedAsc.forEach(err => {
       result += escapeHtml(text.substring(lastIdx, err.pos));
-      result += `<span class="sc-error" title="Gợi ý: ${escapeHtml(err.suggestion)}">${escapeHtml(text.substring(err.pos, err.pos + err.length))}</span>`;
+      // Bôi đỏ từ sai
+      result += `<span class="sc-error" title="${escapeHtml(err.reason)}: ${escapeHtml(err.suggestion)}">${escapeHtml(text.substring(err.pos, err.pos + err.length))}</span>`;
+      lastIdx = err.pos + err.length;
+    });
+    result += escapeHtml(text.substring(lastIdx));
+    return `<div class="sc-para">${result}</div>`;
+  }).join('');
+}
+
+function renderChecked(el) {
+  // Hiển thị văn bản ĐÃ SỬA: thay thế lỗi bằng gợi ý, highlight màu xanh
+  el.innerHTML = checkState.paragraphs.map((p, pIdx) => {
+    const paraErrors = checkState.errors.filter(e => e.paraIdx === pIdx);
+    if (paraErrors.length === 0) return `<div class="sc-para">${escapeHtml(p.text)}</div>`;
+    
+    let text = p.text;
+    let result = '';
+    let lastIdx = 0;
+    const sortedAsc = [...paraErrors].sort((a, b) => a.pos - b.pos);
+    sortedAsc.forEach(err => {
+      result += escapeHtml(text.substring(lastIdx, err.pos));
+      // Hiển thị từ ĐÃ SỬA (suggestion) với highlight xanh lá
+      result += `<span class="sc-corrected" title="G\u1ed1c: ${escapeHtml(err.original)}">${escapeHtml(err.suggestion)}</span>`;
       lastIdx = err.pos + err.length;
     });
     result += escapeHtml(text.substring(lastIdx));

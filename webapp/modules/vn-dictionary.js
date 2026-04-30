@@ -134,6 +134,38 @@ export const SPELLING_ERRORS = {
   'UB.ND': 'UBND',
   'HĐ.ND': 'HĐND',
   'BTC.CB': 'BTCCB',
+
+  // Lỗi đặc thù từ văn bản thực tế (user-reported)
+  'tình hìn': 'tình hình',
+  'tìn hình': 'tình hình',
+  'tình hìng': 'tình hình',
+  'chỉ sô': 'chỉ số',
+  'chỉ só': 'chỉ số',
+  'chi số': 'chỉ số',
+
+  // Lỗi hàng/hằng (rất phổ biến)
+  'hàng tuần': 'hằng tuần',
+  'hàng tháng': 'hằng tháng',
+  'hàng năm': 'hằng năm',
+  'hàng ngày': 'hằng ngày',
+  'hàng quý': 'hằng quý',
+
+  // Lỗi thiếu chữ phổ biến
+  'cải các': 'cải cách',
+  'hành chín': 'hành chính',
+  'hành chinh': 'hành chính',
+  'công chứ': 'công chức',
+  'viên chứ': 'viên chức',
+  'chức năn': 'chức năng',
+  'quy đình': 'quy định',
+  'quy địn': 'quy định',
+  'thực hiệ': 'thực hiện',
+  'phương phá': 'phương pháp',
+  'đáp ưn': 'đáp ứng',
+  'đáp ứn': 'đáp ứng',
+  'chỉ tiê': 'chỉ tiêu',
+  'tiêu chí': 'tiêu chí',
+  'kết quà': 'kết quả',
 };
 
 // Words that are correct but often flagged - whitelist
@@ -142,4 +174,8 @@ export const WHITELIST = [
   'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',
   'ĐẢNG CỘNG SẢN VIỆT NAM',
   'Độc lập', 'Tự do', 'Hạnh phúc',
+  // Viết tắt đơn vị tỉnh Lâm Đồng
+  'SNV', 'STP', 'CAT', 'CCHC', 'KTTH', 'KGVX',
+  'TTHC', 'DVCTT', 'PAR INDEX', 'SIPAS', 'PAPI',
+  'VPUB', 'BNV', 'TCVN',
 ];
