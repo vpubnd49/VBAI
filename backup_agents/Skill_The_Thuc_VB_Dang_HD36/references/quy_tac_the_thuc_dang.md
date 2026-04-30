@@ -77,7 +77,7 @@
 
 | Yếu tố | VB Đảng (HD36) | VB Hành chính (NĐ30) |
 |:---|:---|:---|
-| Góc phải | **ĐẢNG CỘNG SẢN VIỆT NAM** | CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM |
+| Góc phải | **ĐẢNG CỘNG SẢN VIỆT NAM** | CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM |
 | Cỡ chữ tiêu đề | **15** | 13 |
 | Gạch dưới tiêu đề | Bằng chiều dài tiêu đề | Bằng chiều dài tiêu ngữ |
 | Dưới CQ ban hành | **Dấu sao (*)** | Gạch ngang 1/3 |

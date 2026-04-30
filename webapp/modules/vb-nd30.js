@@ -146,10 +146,10 @@ function renderS4(sc,c) {
   sc.innerHTML=`<div class="section-title">👁️ Xem trước & Tải file</div>
     <div class="preview-container">
       <table class="preview-header-table"><tr>
-        <td style="width:40%;text-align:center">${fs.co_quan_chu_quan?`<div style="font-size:13pt">${fs.co_quan_chu_quan}</div>`:''}<div style="font-size:13pt;font-weight:bold">${fs.co_quan_ban_hanh}</div><div style="border-top:1px solid #000;width:30%;margin:4px auto"></div><div style="font-size:13pt">${fs.so_ky_hieu||'Số: /...'}</div></td>
-        <td style="width:60%;text-align:center"><div style="font-size:13pt;font-weight:bold">CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div style="font-size:14pt;font-weight:bold">Độc lập - Tự do - Hạnh phúc</div><div style="border-top:1px solid #000;width:50%;margin:4px auto"></div><div style="font-style:italic">${fs.dia_danh}, ngày ${fs.ngay||'...'} tháng ${fs.thang||'...'} năm ${fs.nam}</div></td>
+        <td style="width:40%;text-align:center">${fs.co_quan_chu_quan?`<div style="font-size:13pt">${fs.co_quan_chu_quan}</div>`:''}<div style="font-size:13pt;font-weight:bold">${fs.co_quan_ban_hanh}</div><div style="border-top:1px solid #000;width:30%;margin:4px auto"></div><div style="font-size:13pt">${fs.so_ky_hieu||'Số: /...'}</div>${fs.loai_van_ban.toLowerCase()==='cong_van'&&fs.trich_yeu.trim()?`<div style="font-size:11pt;margin-top:4pt">${fs.trich_yeu.trim().toLowerCase().startsWith('v/v')?'':'V/v '}${fs.trich_yeu.trim()}</div>`:''}</td>
+        <td style="width:60%;text-align:center"><div style="font-size:13pt;font-weight:bold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div style="font-size:14pt;font-weight:bold">Độc lập - Tự do - Hạnh phúc</div><div style="border-top:1px solid #000;width:50%;margin:4px auto"></div><div style="font-style:italic">${fs.dia_danh}, ngày ${fs.ngay||'...'} tháng ${fs.thang||'...'} năm ${fs.nam}</div></td>
       </tr></table>
-      ${fs.loai_van_ban!=='cong_van'?`<div class="preview-center preview-bold" style="font-size:14pt;margin-top:16pt">${LOAI_VB[fs.loai_van_ban]||''}</div><div class="preview-center preview-bold">${fs.trich_yeu}</div><div class="preview-separator">_______________</div>`:''}
+      ${fs.loai_van_ban.toLowerCase()!=='cong_van'?`<div class="preview-center preview-bold" style="font-size:14pt;margin-top:16pt">${LOAI_VB[fs.loai_van_ban]||''}</div><div class="preview-center preview-bold">${fs.trich_yeu}</div><div class="preview-separator">_______________</div>`:''}
       ${fs.noi_dung.split('\n').filter(l=>l.trim()).map(l=>`<div class="preview-body">${l.trim()}</div>`).join('')}
       <table class="preview-header-table" style="margin-top:24pt"><tr>
         <td style="width:45%;vertical-align:top"><div style="font-weight:bold;font-style:italic;font-size:12pt">Nơi nhận:</div>${(fs.noi_nhan||'').split('\n').filter(l=>l.trim()).map(l=>`<div style="font-size:11pt">- ${l.trim()}</div>`).join('')}</td>
@@ -170,16 +170,17 @@ async function genND30() {
     lc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.co_quan_ban_hanh,font:L.FONT,size:26,bold:true})]}));
     lc.push(new Paragraph({spacing:{before:20,after:80},border:{top:{style:BorderStyle.SINGLE,size:2,color:'000000',space:1}},indent:{left:1500,right:1500}}));
     lc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.so_ky_hieu||'Số: /...',font:L.FONT,size:26})]}));
-    if(fs.loai_van_ban==='cong_van' && fs.trich_yeu) {
-      lc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:100},children:[new TextRun({text:'V/v '+fs.trich_yeu,font:L.FONT,size:24})]}));
+    if(fs.loai_van_ban.toLowerCase()==='cong_van' && fs.trich_yeu.trim()) {
+      const ty = fs.trich_yeu.trim();
+      lc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:100},children:[new TextRun({text:(ty.toLowerCase().startsWith('v/v')?'':'V/v ')+ty,font:L.FONT,size:24})]}));
     }
-    rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:'CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM',font:L.FONT,size:26,bold:true})]}));
+    rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',font:L.FONT,size:26,bold:true})]}));
     rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:'Độc lập - Tự do - Hạnh phúc',font:L.FONT,size:28,bold:true})]}));
     rc.push(new Paragraph({spacing:{before:20,after:0},border:{top:{style:BorderStyle.SINGLE,size:2,color:'000000',space:1}},indent:{left:1100,right:1100}}));
     rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:`${fs.dia_danh}, ngày ${fs.ngay||'...'} tháng ${fs.thang||'...'} năm ${fs.nam}`,font:L.FONT,size:28,italics:true})]}));
     ch.push(new Table({width:{size:L.CW,type:WidthType.DXA},borders:BN,columnWidths:[3500,5571],rows:[new TableRow({children:[new TableCell({borders:BN,width:{size:3500,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:lc}),new TableCell({borders:BN,width:{size:5571,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:rc})]})]}));
     // Title
-    if(fs.loai_van_ban!=='cong_van'&&LOAI_VB[fs.loai_van_ban]) {
+    if(fs.loai_van_ban.toLowerCase()!=='cong_van'&&LOAI_VB[fs.loai_van_ban]) {
       ch.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},children:[new TextRun({text:LOAI_VB[fs.loai_van_ban],font:L.FONT,size:28,bold:true})]}));
       if(fs.trich_yeu) {ch.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:fs.trich_yeu,font:L.FONT,size:28,bold:true})]}));ch.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:60,after:120},children:[new TextRun({text:'_______________',font:L.FONT,size:28})]}));}
     }

@@ -189,7 +189,7 @@ function createHeader(data) {
             spacing: { after: 0 },
             children: [
                 new TextRun({
-                    text: 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',
+                    text: 'CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM',
                     font: LAYOUT.FONT, size: 26, bold: true, // 13pt
                 }),
             ],

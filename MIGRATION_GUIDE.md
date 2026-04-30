@@ -1,0 +1,54 @@
+# VBAI Migration & Deployment Guide
+
+This guide will help you redeploy the VBAI application on a new account (Firebase, Google Cloud, and GitHub).
+
+## 1. Firebase Configuration
+You need to create a new Firebase project and update the `firebaseConfig` in `webapp/main.js`.
+
+**Current Configuration:**
+```javascript
+const firebaseConfig = {
+  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
+  authDomain: "vbai-a1729.firebaseapp.com",
+  projectId: "vbai-a1729",
+  storageBucket: "vbai-a1729.firebasestorage.app",
+  messagingSenderId: "691819234622",
+  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
+  measurementId: "G-XLHHMNXRND"
+};
+```
+
+## 2. Google Cloud Platform (GCP)
+The application is deployed to **Google Cloud Run**.
+
+- **Project ID:** `alvb-app-83921`
+- **Service Name:** `vbai-app`
+- **Region:** `asia-southeast1`
+
+### Steps for New Account:
+1. Create a new GCP project.
+2. Enable Cloud Run API, Cloud Build API, and Artifact Registry.
+3. Create a Service Account with `Cloud Run Admin` and `Service Account User` roles.
+4. Generate a JSON key for this Service Account.
+
+## 3. GitHub Actions
+You must set up the following Secret in your new GitHub repository:
+
+- `GCP_SA_KEY`: The content of your new GCP Service Account JSON key.
+
+Update the `env` section in `.github/workflows/deploy.yml` with your new project details:
+```yaml
+env:
+  PROJECT_ID: [YOUR_NEW_PROJECT_ID]
+  SERVICE_NAME: vbai-app
+  REGION: asia-southeast1
+```
+
+## 4. Restoring Agents
+All agent logic is backed up in the `backup_agents/` folder.
+To restore:
+1. Copy the contents of `backup_agents/Skill_...` to their respective directories in the project root.
+2. Ensure `node_modules` are installed in the `webapp` folder (`npm install`).
+
+## 5. Security Note
+A backup of the current `github-sa-key.json` is located in `backup_agents/github-sa-key.json`. **Do not commit this file to public repositories.**

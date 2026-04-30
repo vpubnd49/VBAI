@@ -184,6 +184,7 @@ function renderStep4(sc, container) {
           <div style="font-size:13pt;font-weight:bold">${s.co_quan_ban_hanh}</div>
           <div style="font-size:13pt">*</div>
           <div style="font-size:13pt">${s.so_ky_hieu || 'Số      -/...'}</div>
+          ${s.loai_van_ban.toLowerCase()==='cong_van'&&s.trich_yeu.trim()?`<div style="font-size:11pt;margin-top:4pt">${s.trich_yeu.trim().toLowerCase().startsWith('v/v')?'':'V/v '}${s.trich_yeu.trim()}</div>`:''}
         </td>
         <td style="width:60%;text-align:center">
           <div style="font-size:15pt;font-weight:bold">ĐẢNG CỘNG SẢN VIỆT NAM</div>
@@ -191,11 +192,11 @@ function renderStep4(sc, container) {
           <div style="font-size:13pt;font-style:italic">${s.dia_danh}, ngày ${s.ngay||'...'} tháng ${s.thang||'...'} năm ${s.nam}</div>
         </td>
       </tr></table>
-      ${s.loai_van_ban!=='cong_van'?`
+      ${s.loai_van_ban.toLowerCase()!=='cong_van'?`
         <div class="preview-center preview-bold" style="font-size:16pt;margin-top:18pt">${tenLoai}</div>
         <div class="preview-center preview-bold" style="font-size:14pt">${s.trich_yeu}</div>
         <div class="preview-separator">-----</div>
-      `:`<div class="preview-center preview-italic" style="font-size:12pt;margin-top:8pt">${s.trich_yeu}</div>`}
+      `:''}
       ${s.can_cu ? s.can_cu.split('\n').filter(l=>l.trim()).map(l=>`<div class="preview-body">- ${l.trim()}</div>`).join('') : ''}
       ${s.noi_dung.split('\n').filter(l=>l.trim()).map(l=>`<div class="preview-body">${l.trim()}</div>`).join('')}
       <table class="preview-header-table" style="margin-top:24pt"><tr>
@@ -230,8 +231,9 @@ async function generateDangDocx(s) {
     leftCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.co_quan_ban_hanh,font:LAYOUT.FONT,size:28,bold:true})]}));
     leftCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:40,after:80},children:[new TextRun({text:'*',font:LAYOUT.FONT,size:28})]}));
     leftCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.so_ky_hieu||'Số      -/...',font:LAYOUT.FONT,size:28})]}));
-    if(s.loai_van_ban==='cong_van' && s.trich_yeu) {
-      leftCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:100},children:[new TextRun({text:'V/v '+s.trich_yeu,font:LAYOUT.FONT,size:24})]}));
+    if(s.loai_van_ban.toLowerCase()==='cong_van' && s.trich_yeu.trim()) {
+      const ty = s.trich_yeu.trim();
+      leftCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:100},children:[new TextRun({text:(ty.toLowerCase().startsWith('v/v')?'':'V/v ')+ty,font:LAYOUT.FONT,size:24})]}));
     }
 
     const rightCells = [];
@@ -242,7 +244,7 @@ async function generateDangDocx(s) {
     children.push(new Table({width:{size:LAYOUT.CONTENT_WIDTH,type:WidthType.DXA},borders:BORDERS_NONE,columnWidths:[3500,5855],rows:[new TableRow({children:[new TableCell({borders:BORDERS_NONE,width:{size:3500,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:leftCells}),new TableCell({borders:BORDERS_NONE,width:{size:5855,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:rightCells})]})]}));
 
     // Ten loai + trich yeu
-    if(s.loai_van_ban!=='cong_van' && LOAI_VB[s.loai_van_ban]) {
+    if(s.loai_van_ban.toLowerCase()!=='cong_van' && LOAI_VB[s.loai_van_ban]) {
       children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},children:[new TextRun({text:LOAI_VB[s.loai_van_ban],font:LAYOUT.FONT,size:32,bold:true})]}));
       if(s.trich_yeu) { children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.trich_yeu,font:LAYOUT.FONT,size:28,bold:true})]})); children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:60,after:120},children:[new TextRun({text:'-----',font:LAYOUT.FONT,size:28})]})); }
     }
