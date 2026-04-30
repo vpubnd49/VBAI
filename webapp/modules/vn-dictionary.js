@@ -131,8 +131,8 @@ export const SPELLING_ERRORS = {
   'kiến nghỉ': 'kiến nghị', 'kiến nghì': 'kiến nghị',
 
   // Lỗi viết tắt sai
-  'UB.ND': 'UBND', 'ubnd': 'UBND',
-  'HĐ.ND': 'HĐND', 'hđnd': 'HĐND',
+  'UB.ND': 'UBND',
+  'HĐ.ND': 'HĐND',
   'BTC.CB': 'BTCCB',
 };
 

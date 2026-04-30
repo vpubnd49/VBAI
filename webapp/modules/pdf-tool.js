@@ -116,7 +116,7 @@ async function handlePdf(file, container) {
         }
 
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.1-flash-lite-preview',
           contents: parts
         });
 
@@ -128,7 +128,7 @@ async function handlePdf(file, container) {
         // Log OCR usage
         addDoc(collection(db, 'search_logs'), {
           query: `[OCR PDF] Quét ảnh Scan: ${file.name} (${limitPages} trang)`,
-          model: "Gemini 2.5 Flash OCR",
+          model: "Gemini 3.1 Flash Lite OCR",
           userEmail: window.currentUser?.email || 'Unknown',
           timestamp: serverTimestamp()
         }).catch(e => console.warn(e));

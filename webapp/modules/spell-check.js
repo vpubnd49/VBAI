@@ -5,9 +5,10 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from '../main.js';
-import { SPELLING_ERRORS } from './vn-dictionary.js';
+import { GoogleGenAI } from "https://esm.run/@google/genai";
+import { SPELLING_ERRORS, WHITELIST } from './vn-dictionary.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
 
 let checkState = { file: null, fileName: '', paragraphs: [], errors: [], docType: 'unknown', formatErrors: [], xmlDoc: null, rawXml: '' };
@@ -27,6 +28,10 @@ export function renderSpellCheck(container) {
         <div class="upload-hint">Chỉ hỗ trợ định dạng .docx (Open XML). Nếu bạn có file .doc, vui lòng chuyển sang .docx trước.</div>
         <input type="file" id="sc-file-input" accept=".docx" style="display:none">
       </div>
+    </div>
+    <div id="sc-progress" style="display:none; margin-top:20px; padding: 20px; background: var(--bg-card); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); text-align: center;">
+      <div style="margin-bottom:10px; font-weight:bold; color:var(--daquy-400)">🤖 Đang dùng AI để rà soát văn bản...</div>
+      <div id="sc-progress-text" style="font-size:0.9rem; color:var(--text-secondary)">Khởi tạo AI...</div>
     </div>
     <div id="sc-results" style="display:none"></div>`;
   const zone = container.querySelector('#sc-drop-zone');
@@ -53,11 +58,25 @@ async function processFile(file, container) {
     checkState.xmlDoc = parser.parseFromString(docXml, 'text/xml');
     checkState.paragraphs = extractParagraphs(checkState.xmlDoc);
     detectDocType(checkState);
-    checkState.errors = checkSpelling(checkState.paragraphs);
+    
+    // Show progress UI
+    container.querySelector('#sc-drop-zone').parentElement.style.display = 'none';
+    const progressEl = container.querySelector('#sc-progress');
+    const progressText = container.querySelector('#sc-progress-text');
+    progressEl.style.display = 'block';
+
+    checkState.errors = await checkSpellingAI(checkState.paragraphs, progressText);
     checkState.formatErrors = checkFormat(checkState);
+    
+    progressEl.style.display = 'none';
     renderResults(container);
     logToFirestore(file.name, checkState.errors.length, checkState.formatErrors.length);
-  } catch (e) { console.error(e); showToast('Lỗi: ' + e.message, 'error'); }
+  } catch (e) { 
+    console.error(e); 
+    showToast('Lỗi: ' + e.message, 'error'); 
+    container.querySelector('#sc-progress').style.display = 'none';
+    container.querySelector('#sc-drop-zone').parentElement.style.display = 'block';
+  }
 }
 
 function extractParagraphs(xmlDoc) {
@@ -100,29 +119,120 @@ function detectDocType(state) {
   else state.docType = 'unknown';
 }
 
-function checkSpelling(paragraphs) {
+async function checkSpellingAI(paragraphs, progressTextEl) {
   const errors = [];
-  const dict = SPELLING_ERRORS;
-  paragraphs.forEach((p, pIdx) => {
-    const textLower = p.text.toLowerCase();
-    for (const [wrong, correct] of Object.entries(dict)) {
-      if (wrong === correct) continue;
-      const wLower = wrong.toLowerCase();
-      let searchIdx = 0;
-      while (true) {
-        const pos = textLower.indexOf(wLower, searchIdx);
-        if (pos === -1) break;
-        const before = pos > 0 ? textLower[pos - 1] : ' ';
-        const after = pos + wLower.length < textLower.length ? textLower[pos + wLower.length] : ' ';
-        if (/[\s,.\-;:!?()"'""''«»]/.test(before) || pos === 0) {
-          if (/[\s,.\-;:!?()"'""''«»]/.test(after) || pos + wLower.length === textLower.length) {
-            errors.push({ type: 'spelling', paraIdx: pIdx, pos, length: wrong.length, original: p.text.substring(pos, pos + wrong.length), suggestion: correct, message: `"${p.text.substring(pos, pos + wrong.length)}" → "${correct}"` });
+  
+  // 1. Fetch API Key
+  progressTextEl.innerText = "Đang lấy cấu hình AI...";
+  let apiKey = '';
+  try {
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    const db = getFirestore(app);
+    const configDoc = await getDoc(doc(db, 'config', 'system'));
+    if (configDoc.exists()) {
+      apiKey = configDoc.data().gemini_api_key || '';
+    }
+  } catch (e) { console.warn("Lỗi lấy API Key:", e); }
+
+  if (!apiKey) {
+    throw new Error("Chưa cấu hình Google AI Studio API Key. Vui lòng vào Trợ Lý Tra Cứu (icon ⚙️) để cấu hình.");
+  }
+
+  const aiClient = new GoogleGenAI({ apiKey });
+  const modelName = localStorage.getItem('vbai_gemini_model') || 'gemini-3.1-flash-lite-preview';
+
+  // 2. Batching paragraphs
+  // Filter out empty or very short paragraphs to save tokens
+  const validParas = paragraphs.filter(p => p.text.trim().length > 10);
+  const BATCH_SIZE = 5; // Process 5 paragraphs at a time
+  const batches = [];
+  for (let i = 0; i < validParas.length; i += BATCH_SIZE) {
+    batches.push(validParas.slice(i, i + BATCH_SIZE));
+  }
+
+  const systemInstruction = `Bạn là chuyên gia rà soát văn bản hành chính và văn bản Đảng của Việt Nam.
+Nhiệm vụ: Đọc các đoạn văn bản được cung cấp và tìm ra các lỗi chính tả, lỗi dùng từ sai ngữ cảnh, câu lủng củng.
+Yêu cầu:
+- Sửa lỗi cho chuẩn xác, hợp ngữ cảnh văn phong hành chính.
+- Bỏ qua các từ viết tắt phổ biến như UBND, HĐND, THCS...
+- TRẢ VỀ KẾT QUẢ DƯỚI DẠNG CHUỖI JSON ARRAY chứa các object có cấu trúc:
+[
+  { "original": "câu hoặc từ bị sai trích chính xác từ văn bản gốc", "suggestion": "câu/từ đã sửa", "reason": "lý do sửa" }
+]
+Nếu không có lỗi nào, trả về mảng rỗng: []
+CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown markdown tick (như \`\`\`json).`;
+
+  // 3. Process batches
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    progressTextEl.innerText = \`Đang phân tích đoạn \${i * BATCH_SIZE + 1} đến \${Math.min((i + 1) * BATCH_SIZE, validParas.length)} / \${validParas.length}...\`;
+    
+    let combinedText = "";
+    batch.forEach(p => combinedText += \`[ID:\${p.index}] \${p.text}\\n\`);
+
+    try {
+      const response = await aiClient.models.generateContent({
+        model: modelName,
+        contents: combinedText,
+        config: { systemInstruction: systemInstruction, temperature: 0.2 },
+      });
+      
+      let resText = response.text || "[]";
+      // Clean up markdown if AI still outputs it
+      resText = resText.replace(/^\`\`\`json/m, '').replace(/^\`\`\`/m, '').trim();
+      
+      let aiErrors = [];
+      try { aiErrors = JSON.parse(resText); } catch(err) { console.warn("Parse JSON failed for batch", i, resText); }
+
+      // Map AI errors back to exact paragraph and position
+      for (const err of aiErrors) {
+        if (!err.original || !err.suggestion) continue;
+        
+        // Find which paragraph in this batch contains the 'original' text
+        let found = false;
+        for (const p of batch) {
+          const pos = p.text.indexOf(err.original);
+          if (pos !== -1) {
+            errors.push({
+              type: 'spelling_ai',
+              paraIdx: p.index,
+              pos: pos,
+              length: err.original.length,
+              original: err.original,
+              suggestion: err.suggestion,
+              reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
+              message: \`"\${err.original}" → "\${err.suggestion}"\`
+            });
+            found = true;
+            break;
           }
         }
-        searchIdx = pos + 1;
+        // Fallback: Case insensitive search if exact match fails
+        if (!found) {
+          for (const p of batch) {
+            const pos = p.text.toLowerCase().indexOf(err.original.toLowerCase());
+            if (pos !== -1) {
+              errors.push({
+                type: 'spelling_ai',
+                paraIdx: p.index,
+                pos: pos,
+                length: err.original.length,
+                original: p.text.substring(pos, pos + err.original.length),
+                suggestion: err.suggestion,
+                reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
+                message: \`"\${err.original}" → "\${err.suggestion}"\`
+              });
+              break;
+            }
+          }
+        }
       }
+    } catch(err) {
+      console.warn("AI Generation error for batch", i, err);
     }
-  });
+  }
+
+  progressTextEl.innerText = "Hoàn tất kiểm tra!";
   return errors;
 }
 
@@ -190,14 +300,28 @@ function renderResults(container) {
     <div class="sc-summary-grid">
       <div class="sc-summary-card"><div class="sc-summary-icon">📄</div><div class="sc-summary-info"><div class="sc-summary-value">${checkState.fileName}</div><div class="sc-summary-label">Loại: ${docLabel}</div></div></div>
       <div class="sc-summary-card ${totalErrors === 0 ? 'sc-ok' : 'sc-warn'}"><div class="sc-summary-icon">${totalErrors === 0 ? '✅' : '⚠️'}</div><div class="sc-summary-info"><div class="sc-summary-value">${totalErrors}</div><div class="sc-summary-label">Tổng số lỗi</div></div></div>
-      <div class="sc-summary-card"><div class="sc-summary-icon">🔤</div><div class="sc-summary-info"><div class="sc-summary-value">${checkState.errors.length}</div><div class="sc-summary-label">Lỗi chính tả</div></div></div>
-      <div class="sc-summary-card"><div class="sc-summary-icon">📐</div><div class="sc-summary-info"><div class="sc-summary-value">${checkState.formatErrors.length}</div><div class="sc-summary-label">Lỗi thể thức</div></div></div>
+      <div class="sc-summary-card sc-clickable" onclick="document.getElementById('sc-spell-details').scrollIntoView({behavior: 'smooth'})" style="cursor:pointer" title="Click để xem chi tiết"><div class="sc-summary-icon">🔤</div><div class="sc-summary-info"><div class="sc-summary-value">${checkState.errors.length}</div><div class="sc-summary-label">Lỗi chính tả / Ngữ pháp</div></div></div>
+      <div class="sc-summary-card sc-clickable" onclick="document.getElementById('sc-format-details').scrollIntoView({behavior: 'smooth'})" style="cursor:pointer" title="Click để xem chi tiết"><div class="sc-summary-icon">📐</div><div class="sc-summary-info"><div class="sc-summary-value">${checkState.formatErrors.length}</div><div class="sc-summary-label">Lỗi thể thức</div></div></div>
     </div>
+    
+    <div id="sc-spell-details" class="section-card" style="margin-top:20px; display: ${checkState.errors.length > 0 ? 'block' : 'none'}">
+      <div class="section-title">🔤 Lỗi chính tả & Ngữ pháp (AI Đề xuất)</div>
+      <div class="sc-format-errors">
+        ${checkState.errors.map(e => `
+          <div class="sc-format-item" style="flex-direction: column; gap: 4px; background: rgba(230,162,0,0.08); border-color: rgba(230,162,0,0.2);">
+            <div><span class="sc-format-badge" style="background:var(--daquy-500); color:#fff">Sai</span> <span style="text-decoration:line-through; color:var(--text-muted)">${escapeHtml(e.original)}</span> ➡️ <span style="font-weight:bold; color:var(--pine-500)">${escapeHtml(e.suggestion)}</span></div>
+            <div style="font-size:0.8rem; color:var(--text-secondary); font-style:italic; margin-top:4px">💡 Lý do: ${escapeHtml(e.reason)}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
     ${checkState.formatErrors.length > 0 ? `
-    <div class="section-card" style="margin-top:20px">
+    <div id="sc-format-details" class="section-card" style="margin-top:20px">
       <div class="section-title">📐 Lỗi thể thức ${docLabel}</div>
       <div class="sc-format-errors">${checkState.formatErrors.map(e => `<div class="sc-format-item"><span class="sc-format-badge">${e.rule}</span><span>${e.message}</span></div>`).join('')}</div>
     </div>` : ''}
+    
     <div class="section-card" style="margin-top:20px">
       <div class="section-title">👁️ Xem trước — So sánh văn bản</div>
       <div class="sc-preview-grid">

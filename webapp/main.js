@@ -8,6 +8,7 @@ import { renderVBDang, handleVBDangAction } from './modules/vb-dang.js';
 import { renderVBND30, handleVBND30Action } from './modules/vb-nd30.js';
 import { renderPdfTool } from './modules/pdf-tool.js';
 import { renderDocxTool } from './modules/docx-tool.js';
+import { renderSpellCheck } from './modules/spell-check.js';
 import { renderAdminPanel } from './modules/admin-panel.js';
 import { renderLogin } from './modules/login.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -54,6 +55,7 @@ const PAGE_TITLES = {
   'vb-nd30': 'Văn Bản Hành Chính (NĐ30)',
   'pdf-tool': 'Xử lý PDF',
   'docx-tool': 'Tạo DOCX',
+  'spell-check': 'Kiểm Tra Văn Bản',
   'admin-panel': 'Quản Trị Hệ Thống',
 };
 
@@ -80,6 +82,7 @@ function renderPage(page) {
     case 'vb-nd30': renderVBND30(container); break;
     case 'pdf-tool': renderPdfTool(container); break;
     case 'docx-tool': renderDocxTool(container); break;
+    case 'spell-check': renderSpellCheck(container); break;
     case 'admin-panel': 
       if (localStorage.getItem('vbai_admin') === 'true') {
         renderAdminPanel(container);
