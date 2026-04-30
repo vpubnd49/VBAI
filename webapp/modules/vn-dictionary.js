@@ -222,6 +222,7 @@ export const CAPITALIZATION_RULES = {
   'chi cục trưởng': 'Chi cục trưởng',
   'hội trưởng': 'Hội trưởng',
   'chi hội trưởng': 'Chi hội trưởng',
+  'thủ trưởng': 'Thủ trưởng',
 
   // ===== Cơ quan hành chính =====
   'ủy ban nhân dân': 'Ủy ban Nhân dân',
@@ -255,6 +256,7 @@ export const OFFICIAL_TITLES = [
   'Cục trưởng', 'Phó Cục trưởng',
   'Trưởng phòng', 'Phó Trưởng phòng',
   'Chi cục trưởng', 'Hội trưởng', 'Chi hội trưởng',
+  'Thủ trưởng',
   // Tổ chức
   'Ban Chấp hành', 'Ban Thường vụ', 'Ban Thường trực',
   'Ban Tổ chức', 'Ban Kiểm tra', 'Ban Kiểm soát',
@@ -282,7 +284,7 @@ export const WHITELIST = [
   'BCH', 'BTV', 'BTC', 'BTT', 'BCĐ', 'BKT', 'BKS',
   'MTTQ', 'MTTQVN', 'MTTW',
   'STC', 'SKHCN', 'SVHTTDL', 'SXD', 'SNNMT', 'STNMT',
-  'PCT', 'CVP', 'PCVP',
+  'PCT', 'CVP', 'PCVP', 'BGDĐT', 'CATP', 'CNTT', 'SYT',
   // Viết tắt loại văn bản
   'QĐ', 'NQ', 'TTr', 'CV', 'BC', 'KH', 'TB', 'CT', 'HD',
   'QPPL', 'VBQPPL',
@@ -291,12 +293,12 @@ export const WHITELIST = [
   'TNHH', 'MTV', 'TMCP', 'CP',
   'CSDL', 'CSDLQG', 'VNEID', 'LGSP', 'QR', 'PKI',
   'CCCD', 'ATTT', 'ANTT', 'ATVSLĐ',
-  'PCTT', 'TDTT', 'HTDN',
+  'PCTT', 'TDTT', 'HTDN', 'DVCQG', 'VPHC', 'TĐKT',
   // Hội/Liên đoàn
   'HHDN', 'HHNM', 'HHVTBT', 'HNDN', 'LĐBB', 'LĐVTCT',
   'LĐTKDL', 'LĐYL', 'LĐCL', 'LĐQV', 'CLB', 'TPL',
-  // Tên riêng
+  // Tên riêng / Khác
   'PICKLEBALL', 'TAEKWONDO', 'YOGA', 'GOLF', 'KARATE',
-  'BILLIARDS', 'SNOOKER', 'VOVINAM',
+  'BILLIARDS', 'SNOOKER', 'VOVINAM', 'GPT', 'HIV', 'KCN', 'MTQG', 'PCMT', 'CQ', 'CSĐT', 'XX',
 ];
 
