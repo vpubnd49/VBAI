@@ -168,7 +168,8 @@ Nhiệm vụ: Đọc các đoạn văn bản được cung cấp và tìm ra cá
 Yêu cầu QUAN TRỌNG:
 - Sửa lỗi cho chuẩn xác, hợp ngữ cảnh văn phong hành chính.
 - Bỏ qua các từ viết tắt phổ biến như UBND, HĐND, THCS...
-- Từ "Nhân dân" phải viết hoa chữ "Nhân": "Nhân dân", "Ủy ban Nhân dân", "Hội đồng Nhân dân".
+- Từ "Nhân dân" khi đứng RIÊNG LẺ phải viết hoa chữ "Nhân": "Nhân dân".
+- LƯU Ý QUAN TRỌNG: "Ủy ban nhân dân" và "Hội đồng nhân dân" giữ nguyên chữ thường, KHÔNG viết thành "Ủy ban Nhân dân" hay "Hội đồng Nhân dân".
 - Đầu câu hoặc sau dấu chấm (.) bắt buộc phải viết hoa.
 - Các chức danh và tổ chức phải viết hoa đúng:
   ${OFFICIAL_TITLES.join(', ')}
@@ -315,6 +316,45 @@ function checkSpellingLocal(paragraphs) {
             });
           }
         }
+      }
+    }
+    
+    // Kiểm tra "Nhân dân" riêng lẻ (không nằm trong "Ủy ban nhân dân" hoặc "Hội đồng nhân dân")
+    const ndPattern = /nh\u00e2n d\u00e2n/gi;
+    let ndMatch;
+    while ((ndMatch = ndPattern.exec(p.text)) !== null) {
+      const pos = ndMatch.index;
+      const actual = p.text.substring(pos, pos + 8); // "nhân dân" = 8 chars
+      
+      // Bỏ qua nếu đã viết hoa đúng "Nhân dân" hoặc IN HOA "NHÂN DÂN"
+      if (actual === 'Nh\u00e2n d\u00e2n' || actual === 'NH\u00c2N D\u00c2N') continue;
+      
+      // Kiểm tra xem có nằm trong "Ủy ban nhân dân" hoặc "Hội đồng nhân dân" không
+      const prefixStart = Math.max(0, pos - 15);
+      const prefix = p.text.substring(prefixStart, pos).toLowerCase();
+      if (prefix.endsWith('ủy ban ') || prefix.endsWith('y ban ') ||
+          prefix.endsWith('ban nhân dân') ||
+          prefix.endsWith('đồng ') || prefix.endsWith('ng ')) {
+        // Kiểm tra cụ thể hơn
+        const longPrefix = p.text.substring(Math.max(0, pos - 20), pos + 8).toLowerCase();
+        if (longPrefix.includes('ủy ban nhân dân') || longPrefix.includes('hội đồng nhân dân')) {
+          continue; // Bỏ qua - đây là cụm từ ghép, giữ nguyên
+        }
+      }
+      
+      // "nhân dân" riêng lẻ, cần viết hoa
+      const isDuplicate = localErrors.some(e => e.paraIdx === p.index && Math.abs(e.pos - pos) < 3);
+      if (!isDuplicate) {
+        localErrors.push({
+          type: 'capitalization',
+          paraIdx: p.index,
+          pos: pos,
+          length: 8,
+          original: actual,
+          suggestion: 'Nh\u00e2n d\u00e2n',
+          reason: 'Viết hoa "Nhân dân" khi đứng riêng lẻ',
+          message: `"${actual}" \u2192 "Nhân dân"`
+        });
       }
     }
   });

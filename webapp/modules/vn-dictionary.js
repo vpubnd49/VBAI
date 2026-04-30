@@ -167,9 +167,9 @@ export const SPELLING_ERRORS = {
   'tiêu chí': 'tiêu chí',
   'kết quà': 'kết quả',
 
-  // Lỗi viết hoa "Nhân dân" (bắt buộc viết hoa chữ Nhân)
-  'nhân dân': 'Nhân dân',
-  'ủy ban nhân dân': 'Ủy ban Nhân dân',
+  // Lỗi viết hoa "Nhân dân" riêng lẻ (bắt buộc viết hoa chữ Nhân)
+  // LƯU Ý: "Ủy ban nhân dân" và "Hội đồng nhân dân" giữ nguyên chữ thường
+  // Chỉ "Nhân dân" đứng riêng mới viết hoa
 };
 
 /**
@@ -225,8 +225,9 @@ export const CAPITALIZATION_RULES = {
   'thủ trưởng': 'Thủ trưởng',
 
   // ===== Cơ quan hành chính =====
-  'ủy ban nhân dân': 'Ủy ban Nhân dân',
-  'hội đồng nhân dân': 'Hội đồng Nhân dân',
+  // LƯU Ý: "Ủy ban nhân dân" và "Hội đồng nhân dân" giữ nguyên, KHÔNG viết hoa "Nhân"
+  'ủy ban nhân dân': 'Ủy ban nhân dân',
+  'hội đồng nhân dân': 'Hội đồng nhân dân',
   'ủy ban mặt trận': 'Ủy ban Mặt trận',
   'mặt trận tổ quốc': 'Mặt trận Tổ quốc',
   'đoàn chủ tịch': 'Đoàn Chủ tịch',
@@ -234,7 +235,8 @@ export const CAPITALIZATION_RULES = {
   'đại hội đại biểu': 'Đại hội đại biểu',
 
   // ===== Từ quan trọng =====
-  'nhân dân': 'Nhân dân',
+  // 'nhân dân' riêng lẻ → 'Nhân dân' (xử lý riêng trong checkSpellingLocal, không đặt ở đây
+  // vì CAPITALIZATION_RULES dùng toLowerCase match sẽ trùng với "ủy ban nhân dân")
   'thủ tướng chính phủ': 'Thủ tướng Chính phủ',
   'chính phủ': 'Chính phủ',
   'quốc hội': 'Quốc hội',
@@ -262,10 +264,10 @@ export const OFFICIAL_TITLES = [
   'Ban Tổ chức', 'Ban Kiểm tra', 'Ban Kiểm soát',
   'Ban Dân vận', 'Ban Tuyên giáo', 'Ban Nội chính',
   'Ban Chỉ đạo', 'Ban Quản lý', 'Ban Vận động',
-  'Ủy ban Nhân dân', 'Hội đồng Nhân dân',
+  'Ủy ban nhân dân', 'Hội đồng nhân dân',
   'Ủy ban Mặt trận', 'Mặt trận Tổ quốc',
   'Đoàn Chủ tịch', 'Hội đồng quản lý',
-  'Đại hội đại biểu', 'Nhân dân',
+  'Đại hội đại biểu', 'Nhân dân (riêng lẻ)',
   'Chính phủ', 'Quốc hội', 'Nhà nước',
   'Thủ tướng Chính phủ',
 ];
