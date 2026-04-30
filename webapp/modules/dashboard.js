@@ -1,6 +1,7 @@
 import { renderChatUI } from "./chat-assistant.js";
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, doc, onSnapshot, setDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { firebaseConfig } from '../firebase-config.js';
 
 /**
  * Dashboard Module — Landing page with stats and module cards
@@ -67,8 +68,6 @@ export function renderDashboard(container, navigateTo) {
   const isNewSession = !sessionStorage.getItem(SESSION_KEY);
 
   // Initialize Firebase
-import { firebaseConfig } from '../firebase-config.js';
-
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
