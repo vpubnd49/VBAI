@@ -6,7 +6,7 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from '../main.js';
 import { GoogleGenAI } from "https://esm.run/@google/genai";
-import { SPELLING_ERRORS, WHITELIST } from './vn-dictionary.js';
+import { SPELLING_ERRORS, CAPITALIZATION_RULES, OFFICIAL_TITLES, WHITELIST } from './vn-dictionary.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
@@ -165,15 +165,19 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
 
   const systemInstruction = `Bạn là chuyên gia rà soát văn bản hành chính và văn bản Đảng của Việt Nam.
 Nhiệm vụ: Đọc các đoạn văn bản được cung cấp và tìm ra các lỗi chính tả, lỗi dùng từ sai ngữ cảnh, câu lủng củng.
-Yêu cầu:
+Yêu cầu QUAN TRỌNG:
 - Sửa lỗi cho chuẩn xác, hợp ngữ cảnh văn phong hành chính.
 - Bỏ qua các từ viết tắt phổ biến như UBND, HĐND, THCS...
+- Từ "Nhân dân" phải viết hoa chữ "Nhân": "Nhân dân", "Ủy ban Nhân dân", "Hội đồng Nhân dân".
+- Đầu câu hoặc sau dấu chấm (.) bắt buộc phải viết hoa.
+- Các chức danh và tổ chức phải viết hoa đúng:
+  ${OFFICIAL_TITLES.join(', ')}
 - TRẢ VỀ KẾT QUẢ DƯỚI DẠNG CHUỖI JSON ARRAY chứa các object có cấu trúc:
 [
   { "original": "câu hoặc từ bị sai trích chính xác từ văn bản gốc", "suggestion": "câu/từ đã sửa", "reason": "lý do sửa" }
 ]
 Nếu không có lỗi nào, trả về mảng rỗng: []
-CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown markdown tick (như \`\`\`json).`;
+CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown tick (như \`\`\`json).`;
 
   // 3. Process batches
   for (let i = 0; i < batches.length; i++) {
@@ -282,6 +286,35 @@ function checkSpellingLocal(paragraphs) {
           reason: 'Lỗi chính tả (Từ điển VBAI)',
           message: `"${p.text.substring(pos, pos + wrong.length)}" \u2192 "${correct}"`
         });
+      }
+    }
+    
+    // Kiểm tra viết hoa chức danh/tổ chức
+    for (const [wrongLower, correct] of Object.entries(CAPITALIZATION_RULES)) {
+      let searchFrom = 0;
+      while (true) {
+        const pos = lowerText.indexOf(wrongLower, searchFrom);
+        if (pos === -1) break;
+        searchFrom = pos + 1;
+        
+        const actual = p.text.substring(pos, pos + wrongLower.length);
+        // Chỉ báo lỗi nếu viết sai (khác với dạng chuẩn và không phải IN HOA toàn bộ)
+        if (actual !== correct && actual !== actual.toUpperCase()) {
+          // Kiểm tra không trùng với lỗi đã tìm
+          const isDuplicate = localErrors.some(e => e.paraIdx === p.index && Math.abs(e.pos - pos) < 3);
+          if (!isDuplicate) {
+            localErrors.push({
+              type: 'capitalization',
+              paraIdx: p.index,
+              pos: pos,
+              length: wrongLower.length,
+              original: actual,
+              suggestion: correct,
+              reason: `Viết hoa chức danh/tổ chức: "${correct}"`,
+              message: `"${actual}" \u2192 "${correct}"`
+            });
+          }
+        }
       }
     }
   });

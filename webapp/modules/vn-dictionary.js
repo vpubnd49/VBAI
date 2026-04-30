@@ -166,7 +166,107 @@ export const SPELLING_ERRORS = {
   'chỉ tiê': 'chỉ tiêu',
   'tiêu chí': 'tiêu chí',
   'kết quà': 'kết quả',
+
+  // Lỗi viết hoa "Nhân dân" (bắt buộc viết hoa chữ Nhân)
+  'nhân dân': 'Nhân dân',
+  'ủy ban nhân dân': 'Ủy ban Nhân dân',
 };
+
+/**
+ * Quy tắc viết hoa chức danh và tổ chức (học từ 235 file mẫu thực tế)
+ * Dùng để AI và local checker kiểm tra viết hoa đúng chuẩn
+ * Format: { sai (lowercase): đúng (đã viết hoa chuẩn) }
+ */
+export const CAPITALIZATION_RULES = {
+  // ===== Tổ chức Đảng/Nhà nước =====
+  'ban chấp hành': 'Ban Chấp hành',
+  'ban thường vụ': 'Ban Thường vụ',
+  'ban thường trực': 'Ban Thường trực',
+  'ban tổ chức': 'Ban Tổ chức',
+  'ban kiểm tra': 'Ban Kiểm tra',
+  'ban kiểm soát': 'Ban Kiểm soát',
+  'ban dân vận': 'Ban Dân vận',
+  'ban tuyên giáo': 'Ban Tuyên giáo',
+  'ban nội chính': 'Ban Nội chính',
+  'ban kinh tế': 'Ban Kinh tế',
+  'ban chỉ đạo': 'Ban Chỉ đạo',
+  'ban quản lý': 'Ban Quản lý',
+  'ban vận động': 'Ban Vận động',
+  'ban cố vấn': 'Ban Cố vấn',
+  'ban vì sự tiến bộ của phụ nữ': 'Ban Vì sự tiến bộ của phụ nữ',
+
+  // ===== Chức danh lãnh đạo =====
+  'trưởng ban': 'Trưởng ban',
+  'phó trưởng ban': 'Phó Trưởng ban',
+  'chủ tịch': 'Chủ tịch',
+  'phó chủ tịch': 'Phó Chủ tịch',
+  'giám đốc': 'Giám đốc',
+  'phó giám đốc': 'Phó Giám đốc',
+  'tổng giám đốc': 'Tổng Giám đốc',
+  'chánh văn phòng': 'Chánh Văn phòng',
+  'phó chánh văn phòng': 'Phó Chánh Văn phòng',
+  'chánh thanh tra': 'Chánh Thanh tra',
+  'phó chánh thanh tra': 'Phó Chánh Thanh tra',
+  'thư ký': 'Thư ký',
+  'tổng thư ký': 'Tổng Thư ký',
+  'phó thư ký': 'Phó Thư ký',
+  'bí thư': 'Bí thư',
+  'phó bí thư': 'Phó Bí thư',
+  'ủy viên': 'Ủy viên',
+  'vụ trưởng': 'Vụ trưởng',
+  'phó vụ trưởng': 'Phó Vụ trưởng',
+  'cục trưởng': 'Cục trưởng',
+  'phó cục trưởng': 'Phó Cục trưởng',
+  'trưởng phòng': 'Trưởng phòng',
+  'phó trưởng phòng': 'Phó Trưởng phòng',
+  'chi cục trưởng': 'Chi cục trưởng',
+  'hội trưởng': 'Hội trưởng',
+  'chi hội trưởng': 'Chi hội trưởng',
+
+  // ===== Cơ quan hành chính =====
+  'ủy ban nhân dân': 'Ủy ban Nhân dân',
+  'hội đồng nhân dân': 'Hội đồng Nhân dân',
+  'ủy ban mặt trận': 'Ủy ban Mặt trận',
+  'mặt trận tổ quốc': 'Mặt trận Tổ quốc',
+  'đoàn chủ tịch': 'Đoàn Chủ tịch',
+  'hội đồng quản lý': 'Hội đồng quản lý',
+  'đại hội đại biểu': 'Đại hội đại biểu',
+
+  // ===== Từ quan trọng =====
+  'nhân dân': 'Nhân dân',
+  'thủ tướng chính phủ': 'Thủ tướng Chính phủ',
+  'chính phủ': 'Chính phủ',
+  'quốc hội': 'Quốc hội',
+  'nhà nước': 'Nhà nước',
+};
+
+/**
+ * Danh sách chức danh/tổ chức đầy đủ dùng cho AI system instruction
+ */
+export const OFFICIAL_TITLES = [
+  // Chức danh
+  'Chủ tịch', 'Phó Chủ tịch', 'Trưởng ban', 'Phó Trưởng ban',
+  'Giám đốc', 'Phó Giám đốc', 'Tổng Giám đốc',
+  'Chánh Văn phòng', 'Phó Chánh Văn phòng',
+  'Chánh Thanh tra', 'Phó Chánh Thanh tra',
+  'Thư ký', 'Tổng Thư ký', 'Phó Thư ký',
+  'Bí thư', 'Phó Bí thư',
+  'Ủy viên', 'Vụ trưởng', 'Phó Vụ trưởng',
+  'Cục trưởng', 'Phó Cục trưởng',
+  'Trưởng phòng', 'Phó Trưởng phòng',
+  'Chi cục trưởng', 'Hội trưởng', 'Chi hội trưởng',
+  // Tổ chức
+  'Ban Chấp hành', 'Ban Thường vụ', 'Ban Thường trực',
+  'Ban Tổ chức', 'Ban Kiểm tra', 'Ban Kiểm soát',
+  'Ban Dân vận', 'Ban Tuyên giáo', 'Ban Nội chính',
+  'Ban Chỉ đạo', 'Ban Quản lý', 'Ban Vận động',
+  'Ủy ban Nhân dân', 'Hội đồng Nhân dân',
+  'Ủy ban Mặt trận', 'Mặt trận Tổ quốc',
+  'Đoàn Chủ tịch', 'Hội đồng quản lý',
+  'Đại hội đại biểu', 'Nhân dân',
+  'Chính phủ', 'Quốc hội', 'Nhà nước',
+  'Thủ tướng Chính phủ',
+];
 
 // Words that are correct but often flagged - whitelist
 export const WHITELIST = [
@@ -174,8 +274,29 @@ export const WHITELIST = [
   'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',
   'ĐẢNG CỘNG SẢN VIỆT NAM',
   'Độc lập', 'Tự do', 'Hạnh phúc',
-  // Viết tắt đơn vị tỉnh Lâm Đồng
+  // Viết tắt đơn vị tỉnh Lâm Đồng (trích xuất từ 235 file mẫu)
   'SNV', 'STP', 'CAT', 'CCHC', 'KTTH', 'KGVX',
   'TTHC', 'DVCTT', 'PAR INDEX', 'SIPAS', 'PAPI',
-  'VPUB', 'BNV', 'TCVN',
+  'VPUB', 'BNV', 'TCVN', 'VPUBND', 'VPCP',
+  // Viết tắt cơ quan
+  'BCH', 'BTV', 'BTC', 'BTT', 'BCĐ', 'BKT', 'BKS',
+  'MTTQ', 'MTTQVN', 'MTTW',
+  'STC', 'SKHCN', 'SVHTTDL', 'SXD', 'SNNMT', 'STNMT',
+  'PCT', 'CVP', 'PCVP',
+  // Viết tắt loại văn bản
+  'QĐ', 'NQ', 'TTr', 'CV', 'BC', 'KH', 'TB', 'CT', 'HD',
+  'QPPL', 'VBQPPL',
+  // Viết tắt chuyên ngành
+  'BHXH', 'BHYT', 'BHTN', 'NSNN', 'TMDV',
+  'TNHH', 'MTV', 'TMCP', 'CP',
+  'CSDL', 'CSDLQG', 'VNEID', 'LGSP', 'QR', 'PKI',
+  'CCCD', 'ATTT', 'ANTT', 'ATVSLĐ',
+  'PCTT', 'TDTT', 'HTDN',
+  // Hội/Liên đoàn
+  'HHDN', 'HHNM', 'HHVTBT', 'HNDN', 'LĐBB', 'LĐVTCT',
+  'LĐTKDL', 'LĐYL', 'LĐCL', 'LĐQV', 'CLB', 'TPL',
+  // Tên riêng
+  'PICKLEBALL', 'TAEKWONDO', 'YOGA', 'GOLF', 'KARATE',
+  'BILLIARDS', 'SNOOKER', 'VOVINAM',
 ];
+
