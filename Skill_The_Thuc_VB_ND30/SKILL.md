@@ -1,5 +1,5 @@
 ---
-name: tao-van-ban-hanh-chinh
+name: Hành Chính (NĐ30)
 description: "Skill tạo văn bản hành chính chuẩn Nghị định 30/2020/NĐ-CP. Hỗ trợ tất cả loại VBHC: công văn, quyết định, nghị quyết, thông báo, báo cáo, tờ trình, kế hoạch, chương trình, hướng dẫn, quy chế, quy định, biên bản, giấy mời, hợp đồng, công điện... Triggers: 'công văn', 'quyết định', 'văn bản hành chính', 'NĐ30', 'tạo văn bản', 'soạn văn bản', 'trình ký'. Script sinh file .docx đúng chuẩn thể thức NĐ30 với thư viện docx-js (Node.js)."
 ---
 
