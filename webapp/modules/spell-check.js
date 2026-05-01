@@ -152,7 +152,7 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
   }
 
   const aiClient = new GoogleGenAI({ apiKey });
-  const modelName = localStorage.getItem('vbai_gemini_model') || 'gemini-3.1-flash-lite-preview';
+  const modelName = 'gemini-3.1-flash-lite-preview';
 
   // 2. Batching paragraphs
   // Filter out empty or very short paragraphs to save tokens

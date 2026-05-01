@@ -55,6 +55,13 @@ export function renderDashboard(container, navigateTo) {
           <div class="module-desc">Rà soát chính tả & thể thức</div>
           <div class="module-badge">NĐ30 • HD36 • AI</div>
         </div>
+
+        <div class="module-card" data-accent="pine" data-page="meeting-minutes" id="card-meeting-minutes">
+          <div class="module-icon pine">🎙️</div>
+          <div class="module-title">Ghi Âm → Thông Báo</div>
+          <div class="module-desc">Chuyển ghi âm thành thông báo</div>
+          <div class="module-badge">STT • NĐ30 • HD36</div>
+        </div>
       </div>
     </section>
 

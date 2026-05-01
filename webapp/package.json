@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "vite": "^8.0.10"
+    "vite": "^7.1.12"
   },
   "dependencies": {
     "docx": "^9.6.1",

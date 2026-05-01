@@ -1,3 +1,6 @@
 .git
 dist
 *.md
+node_modules
+npm-debug.log*
+github-sa-key.json

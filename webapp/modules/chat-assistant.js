@@ -42,6 +42,7 @@ const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên
 - Nếu chưa đủ thông tin, hãy đề xuất người dùng kiểm tra trực tiếp tại các trang web chính thống`;
 
 export function initChat(apiKey, modelName = "gemini-3.1-flash-lite-preview") {
+  currentModelName = "gemini-3.1-flash-lite-preview";
   if (!apiKey) return null;
   try {
     aiClient = new GoogleGenAI({ apiKey });
@@ -92,7 +93,7 @@ export async function sendMessage(text, onChunk) {
 }
 
 export async function renderChatUI(container) {
-  const savedModel = localStorage.getItem('vbai_gemini_model') || 'gemini-3.1-flash-lite-preview';
+  const savedModel = 'gemini-3.1-flash-lite-preview';
   
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -128,13 +129,9 @@ export async function renderChatUI(container) {
           </div>
 
           <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">Chọn Model</label>
-            <select id="model-select" class="form-input">
-              <option value="gemini-3.1-flash-lite-preview" ${savedModel==='gemini-3.1-flash-lite-preview'?'selected':''}>Gemini 3.1 Flash Lite (Mới nhất)</option>
-              <option value="gemini-2.5-flash" ${savedModel==='gemini-2.5-flash'?'selected':''}>Gemini 2.5 Flash (Ổn định)</option>
-              <option value="gemini-2.5-pro" ${savedModel==='gemini-2.5-pro'?'selected':''}>Gemini 2.5 Pro (Thông minh nhất)</option>
-              <option value="gemini-2.0-flash" ${savedModel==='gemini-2.0-flash'?'selected':''}>Gemini 2.0 Flash</option>
-            </select>
+            <label class="form-label">Model AI</label>
+            <input type="text" class="form-input" value="Gemini 3.1 Flash Lite (Preview)" readonly style="background:var(--bg-secondary); cursor:default; opacity:0.8">
+            <input type="hidden" id="model-select" value="gemini-3.1-flash-lite-preview">
           </div>
 
           <div style="padding:10px; background:rgba(230,162,0,0.1); border-radius:8px; margin-bottom:16px; border: 1px solid rgba(230,162,0,0.2)">
@@ -220,8 +217,8 @@ export async function renderChatUI(container) {
   container.querySelector('#close-modal-btn').onclick = () => keyModal.style.display = 'none';
   container.querySelector('#save-key-btn').onclick = async () => {
     const key = apiKeyInput.value.trim();
-    const model = modelSelect.value;
-    localStorage.setItem('vbai_gemini_model', model);
+    const model = 'gemini-3.1-flash-lite-preview';
+    localStorage.setItem('vbai_gemini_model', 'gemini-3.1-flash-lite-preview');
     
     try {
       await setDoc(doc(db, 'config', 'system'), { gemini_api_key: key }, { merge: true });

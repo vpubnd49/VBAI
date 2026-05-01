@@ -3,6 +3,7 @@
  * Handles navigation, state, and page rendering
  */
 
+// VBAI Main Entry - Last Update: 2026-05-01 12:38
 import { renderDashboard } from './modules/dashboard.js';
 import { renderVBDang, handleVBDangAction } from './modules/vb-dang.js';
 import { renderVBND30, handleVBND30Action } from './modules/vb-nd30.js';
@@ -11,6 +12,7 @@ import { renderDocxTool } from './modules/docx-tool.js';
 import { renderSpellCheck } from './modules/spell-check.js';
 import { renderAdminPanel } from './modules/admin-panel.js';
 import { renderLogin } from './modules/login.js';
+import { renderMeetingMinutes } from './modules/meeting-minutes.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
@@ -57,6 +59,7 @@ const PAGE_TITLES = {
   'pdf-tool': 'Xử lý PDF',
   'docx-tool': 'Tạo DOCX',
   'spell-check': 'Kiểm Tra Văn Bản',
+  'meeting-minutes': 'Ghi Âm → Thông Báo',
   'admin-panel': 'Quản Trị Hệ Thống',
 };
 
@@ -92,6 +95,7 @@ function renderPage(page) {
     case 'pdf-tool': renderPdfTool(container); break;
     case 'docx-tool': renderDocxTool(container); break;
     case 'spell-check': renderSpellCheck(container); break;
+    case 'meeting-minutes': renderMeetingMinutes(container); break;
     case 'admin-panel': 
       if (localStorage.getItem('vbai_admin') === 'true') {
         renderAdminPanel(container);
