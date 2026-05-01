@@ -47,25 +47,32 @@ export async function renderDashboard(container, navigateTo) {
     
     // Add "Ghi Âm → Thông Báo" manually as it's a core feature, or ensure it's in manifest
     // For now, let's just render what's in the manifest
+    const friendlyBadges = {
+      'Skill_The_Thuc_VB_Dang_HD36': 'Nghị quyết, Chỉ thị...',
+      'Skill_The_Thuc_VB_ND30': 'Quyết định, Báo cáo...',
+      'Skill_PDF': 'Merge • OCR • Text',
+      'Skill_DOCX': 'Chỉnh sửa • Tạo mới'
+    };
+
     skillsGrid.innerHTML = skills.map(skill => `
       <div class="module-card" data-accent="${skill.accent}" data-page="${skill.page}" id="card-${skill.id}">
         <div class="module-icon ${skill.accent}">${skill.icon}</div>
         <div class="module-title">${skill.name}</div>
-        <div class="module-desc">${skill.description}</div>
-        <div class="module-badge">${skill.id.startsWith('Skill_The_Thuc') ? 'Tiêu chuẩn' : 'Tiện ích'}</div>
+        <div class="module-desc">${skill.description.substring(0, 80)}...</div>
+        <div class="module-badge">${friendlyBadges[skill.id] || 'Tiện ích'}</div>
       </div>
     `).join('') + `
       <div class="module-card" data-accent="daquy" data-page="spell-check" id="card-spell-check">
         <div class="module-icon daquy">🔍</div>
         <div class="module-title">Kiểm Tra Văn Bản</div>
         <div class="module-desc">Rà soát chính tả & thể thức</div>
-        <div class="module-badge">NĐ30 • HD36</div>
+        <div class="module-badge">NĐ30 • HD36 • AI</div>
       </div>
       <div class="module-card" data-accent="pine" data-page="meeting-minutes" id="card-meeting-minutes">
         <div class="module-icon pine">🎙️</div>
         <div class="module-title">Ghi Âm → Thông Báo</div>
         <div class="module-desc">Chuyển ghi âm thành thông báo</div>
-        <div class="module-badge">AI • STT</div>
+        <div class="module-badge">STT • NĐ30 • HD36</div>
       </div>
     `;
 

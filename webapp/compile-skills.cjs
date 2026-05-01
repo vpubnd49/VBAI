@@ -31,7 +31,6 @@ function parseFrontmatter(content) {
   return { metadata, body: content.replace(match[0], '').trim() };
 }
 
-const SKILLS_MAIN_DIR = 'C:/Users/user/Downloads/skills-main/skills/cloud';
 
 async function compile() {
   console.log('🚀 Bắt đầu biên dịch Skills...');
@@ -78,6 +77,26 @@ function processSkill(skillPath, skillId, skillsList, isExternal = false) {
       } catch(e) {}
     }
     
+    let page = 'dashboard';
+    let accent = 'pine';
+
+    if (skillId.includes('ND30')) {
+      page = 'vb-nd30';
+      accent = 'mist';
+    } else if (skillId.includes('Dang_HD36')) {
+      page = 'vb-dang';
+      accent = 'pine';
+    } else if (skillId.includes('PDF')) {
+      page = 'pdf-tool';
+      accent = 'mist';
+    } else if (skillId.includes('DOCX')) {
+      page = 'docx-tool';
+      accent = 'pine';
+    } else if (isExternal) {
+      page = 'admin-panel';
+      accent = 'daquy';
+    }
+
     skillsList.push({
       id: skillId,
       name: metadata.name || skillId,
@@ -85,8 +104,8 @@ function processSkill(skillPath, skillId, skillsList, isExternal = false) {
       instructions: body.substring(0, 5000), // Giới hạn context AI
       references: references,
       icon: metadata.icon || (isExternal ? '☁️' : '📜'),
-      accent: isExternal ? 'daquy' : (skillId.includes('ND30') ? 'mist' : 'pine'),
-      page: isExternal ? 'admin-panel' : (skillId.includes('ND30') ? 'vb-nd30' : 'vb-dang')
+      accent: accent,
+      page: page
     });
   }
 }
