@@ -41,14 +41,25 @@ const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên
 - Ưu tiên cung cấp thông tin từ năm 2024-2026
 - Nếu chưa đủ thông tin, hãy đề xuất người dùng kiểm tra trực tiếp tại các trang web chính thống`;
 
+let allSkills = [];
+
+async function loadSkills() {
+  try {
+    const response = await fetch('./skills-manifest.json');
+    allSkills = await response.json();
+  } catch (e) {
+    console.warn("Lỗi tải Skills cho Chat Assistant:", e);
+  }
+}
+
 export function initChat(apiKey, modelName = "gemini-3.1-flash-lite-preview") {
   currentModelName = "gemini-3.1-flash-lite-preview";
   if (!apiKey) return null;
   try {
     aiClient = new GoogleGenAI({ apiKey });
     currentModelName = modelName;
-    // Reset chat session so it uses the new model
     chatSession = null;
+    loadSkills(); // Tải skills khi init
     return true;
   } catch (e) {
     console.error("Chat Init Error:", e);
@@ -59,17 +70,31 @@ export function initChat(apiKey, modelName = "gemini-3.1-flash-lite-preview") {
 export async function sendMessage(text, onChunk) {
   if (!aiClient) throw new Error("Chưa cấu hình API Key");
 
+  // Tìm kiếm skill liên quan dựa trên triggers
+  let dynamicInstruction = SYSTEM_INSTRUCTION;
+  const lowerText = text.toLowerCase();
+  const matchedSkills = allSkills.filter(s => 
+    s.triggers && s.triggers.some(t => lowerText.includes(t))
+  );
+
+  if (matchedSkills.length > 0) {
+    dynamicInstruction += `\n\n## KIẾN THỨC BỔ SUNG (Dựa trên context người dùng):\n`;
+    matchedSkills.forEach(s => {
+      dynamicInstruction += `\n### Kỹ năng: ${s.name}\n${s.instructions}\n`;
+    });
+    console.log("Đã nạp thêm context từ các skills:", matchedSkills.map(s => s.name));
+  }
+
   try {
     const response = await aiClient.models.generateContent({
       model: currentModelName,
       contents: text,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: dynamicInstruction,
         tools: [{ googleSearch: {} }],
       },
     });
 
-    // Log query to Firestore (fire and forget)
     try {
       const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
@@ -77,11 +102,10 @@ export async function sendMessage(text, onChunk) {
         query: text,
         model: currentModelName,
         userEmail: window.currentUser?.email || 'Unknown',
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        skillsApplied: matchedSkills.map(s => s.id)
       }).catch(err => console.warn("Log Err:", err));
-    } catch (e) {
-      console.warn("Firebase Log Exception:", e);
-    }
+    } catch (e) {}
 
     const fullText = response.text || "";
     if (onChunk) onChunk(fullText);

@@ -6,7 +6,7 @@ import { firebaseConfig } from '../firebase-config.js';
 /**
  * Dashboard Module — Landing page with stats and module cards
  */
-export function renderDashboard(container, navigateTo) {
+export async function renderDashboard(container, navigateTo) {
   container.innerHTML = `
     <div class="dashboard-hero">
       <h1 class="hero-title">Trợ Lý Soạn Văn Bản AI</h1>
@@ -20,47 +20,10 @@ export function renderDashboard(container, navigateTo) {
       <h2 style="font-size: 1rem; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Chọn Công Cụ Soạn Thảo</h2>
       <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">Bắt đầu soạn văn bản hoặc xử lý tài liệu</p>
 
-      <div class="modules-grid">
-        <div class="module-card" data-accent="pine" data-page="vb-dang" id="card-vb-dang">
-          <div class="module-icon pine">📜</div>
-          <div class="module-title">Văn Bản Đảng (HD36)</div>
-          <div class="module-desc">Chuẩn Hướng dẫn 36-HD/VPTW</div>
-          <div class="module-badge">Nghị quyết, Chỉ thị...</div>
-        </div>
-
-        <div class="module-card" data-accent="mist" data-page="vb-nd30" id="card-vb-nd30">
-          <div class="module-icon mist">📋</div>
-          <div class="module-title">Hành Chính (NĐ30)</div>
-          <div class="module-desc">Chuẩn NĐ 30/2020/NĐ-CP</div>
-          <div class="module-badge">Quyết định, Báo cáo...</div>
-        </div>
-
-        <div class="module-card" data-accent="earth" data-page="pdf-tool" id="card-pdf-tool">
-          <div class="module-icon earth">📄</div>
-          <div class="module-title">Xử Lý PDF</div>
-          <div class="module-desc">Trích xuất nội dung, OCR</div>
-          <div class="module-badge">Merge • OCR • Text</div>
-        </div>
-
-        <div class="module-card" data-accent="rose" data-page="docx-tool" id="card-docx-tool">
-          <div class="module-icon rose">📝</div>
-          <div class="module-title">Tạo File DOCX</div>
-          <div class="module-desc">Soạn thảo văn bản Word</div>
-          <div class="module-badge">Chỉnh sửa • Tạo mới</div>
-        </div>
-
-        <div class="module-card" data-accent="daquy" data-page="spell-check" id="card-spell-check">
-          <div class="module-icon daquy">🔍</div>
-          <div class="module-title">Kiểm Tra Văn Bản</div>
-          <div class="module-desc">Rà soát chính tả & thể thức</div>
-          <div class="module-badge">NĐ30 • HD36 • AI</div>
-        </div>
-
-        <div class="module-card" data-accent="pine" data-page="meeting-minutes" id="card-meeting-minutes">
-          <div class="module-icon pine">🎙️</div>
-          <div class="module-title">Ghi Âm → Thông Báo</div>
-          <div class="module-desc">Chuyển ghi âm thành thông báo</div>
-          <div class="module-badge">STT • NĐ30 • HD36</div>
+      <div class="modules-grid" id="skills-grid">
+        <div style="grid-column: 1/-1; text-align: center; padding: 20px;">
+          <div class="spinner"></div>
+          <p style="margin-top: 10px; font-size: 0.8rem; color: var(--text-muted);">Đang tải danh sách kỹ năng...</p>
         </div>
       </div>
     </section>
@@ -76,6 +39,46 @@ export function renderDashboard(container, navigateTo) {
     </footer>
   `;
 
+  // === Render Skills Dynamically ===
+  const skillsGrid = container.querySelector('#skills-grid');
+  try {
+    const response = await fetch('./skills-manifest.json');
+    const skills = await response.json();
+    
+    // Add "Ghi Âm → Thông Báo" manually as it's a core feature, or ensure it's in manifest
+    // For now, let's just render what's in the manifest
+    skillsGrid.innerHTML = skills.map(skill => `
+      <div class="module-card" data-accent="${skill.accent}" data-page="${skill.page}" id="card-${skill.id}">
+        <div class="module-icon ${skill.accent}">${skill.icon}</div>
+        <div class="module-title">${skill.name}</div>
+        <div class="module-desc">${skill.description}</div>
+        <div class="module-badge">${skill.id.startsWith('Skill_The_Thuc') ? 'Tiêu chuẩn' : 'Tiện ích'}</div>
+      </div>
+    `).join('') + `
+      <div class="module-card" data-accent="pine" data-page="meeting-minutes" id="card-meeting-minutes">
+        <div class="module-icon pine">🎙️</div>
+        <div class="module-title">Ghi Âm → Thông Báo</div>
+        <div class="module-desc">Chuyển ghi âm thành thông báo</div>
+        <div class="module-badge">AI • STT</div>
+      </div>
+      <div class="module-card" data-accent="daquy" data-page="spell-check" id="card-spell-check">
+        <div class="module-icon daquy">🔍</div>
+        <div class="module-title">Kiểm Tra Văn Bản</div>
+        <div class="module-desc">Rà soát chính tả & thể thức</div>
+        <div class="module-badge">NĐ30 • HD36</div>
+      </div>
+    `;
+
+    // Re-attach clicks
+    skillsGrid.querySelectorAll('.module-card').forEach(card => {
+      card.addEventListener('click', () => navigateTo(card.dataset.page));
+    });
+
+  } catch (error) {
+    console.warn("Lỗi tải Skills manifest:", error);
+    skillsGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--daquy-500);">Không thể tải danh sách kỹ năng.</p>';
+  }
+
   // === Global Visit Counter (Firebase Firestore) ===
   const visitEl = container.querySelector('#visit-count');
   const SESSION_KEY = 'vbai_session_firestore';
@@ -87,7 +90,7 @@ export function renderDashboard(container, navigateTo) {
     const db = getFirestore(app);
     const visitDocRef = doc(db, 'stats', 'visits');
 
-    // 1. Listen for real-time updates (everyone sees the same number instantly)
+    // 1. Listen for real-time updates
     onSnapshot(visitDocRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -95,33 +98,21 @@ export function renderDashboard(container, navigateTo) {
           visitEl.textContent = data.count.toLocaleString('vi-VN');
         }
       }
-    }, (error) => {
-      console.warn("Firestore Read Error:", error);
     });
 
-    // 2. Increment count if it's a new session using Atomic Increment
+    // 2. Increment count if it's a new session
     if (isNewSession) {
       setDoc(visitDocRef, { count: increment(1) }, { merge: true })
-        .then(() => {
-          sessionStorage.setItem(SESSION_KEY, '1');
-        })
-        .catch((error) => {
-          console.warn("Firestore Increment Error:", error);
-        });
+        .then(() => sessionStorage.setItem(SESSION_KEY, '1'))
+        .catch(err => console.warn("Firestore Error:", err));
     }
   } catch (error) {
     console.warn("Firebase Init Error:", error);
-    // Ultimate Fallback
-    if (visitEl && visitEl.textContent === '...') visitEl.textContent = '1,200+';
+    if (visitEl) visitEl.textContent = '1,200+';
   }
 
   // Render Chat UI
   const chatContainer = container.querySelector('#chat-assistant-container');
   renderChatUI(chatContainer);
-
-  // Module card clicks
-  container.querySelectorAll('.module-card').forEach(card => {
-    card.addEventListener('click', () => navigateTo(card.dataset.page));
-  });
 }
 
