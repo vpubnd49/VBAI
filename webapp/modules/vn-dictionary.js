@@ -6,14 +6,14 @@
 // Common spelling mistakes in Vietnamese administrative documents
 export const SPELLING_ERRORS = {
   // Sai phụ âm đầu
-  'sử lý': 'xử lý', 'sử phạt': 'xử phạt', 'sử dụng': 'sử dụng',
+  'sử lý': 'xử lý', 'sử phạt': 'xử phạt',
   'xu lý': 'xử lý', 'xứ lý': 'xử lý',
   'giám đốt': 'giám đốc', 'giám đốk': 'giám đốc',
   'nghỉ quyết': 'nghị quyết', 'nghị quyếch': 'nghị quyết',
   'dánh giá': 'đánh giá', 'đán giá': 'đánh giá',
   'chấp hàng': 'chấp hành',
   'kết lận': 'kết luận', 'kếch luận': 'kết luận',
-  'chỉ đạ': 'chỉ đạo', 'chỉ dạo': 'Chỉ đạo',
+  'chỉ đạ': 'chỉ đạo', 'chỉ dạo': 'chỉ đạo',
   'triển kha': 'triển khai', 'chiển khai': 'triển khai',
   'thực hiệng': 'thực hiện', 'thực hiệm': 'thực hiện',
   'quyết địng': 'quyết định', 'quyếch định': 'quyết định',
@@ -31,7 +31,7 @@ export const SPELLING_ERRORS = {
   'chương chình': 'chương trình', 'trương trình': 'chương trình',
   'biêng bản': 'biên bản', 'biên bãn': 'biên bản',
   'trách nhiện': 'trách nhiệm', 'chách nhiệm': 'trách nhiệm',
-  'chính sách': 'chính sách', 'chíng sách': 'chính sách',
+  'chíng sách': 'chính sách',
   'nguyên nhâng': 'nguyên nhân', 'nguyên nhâm': 'nguyên nhân',
   'phương hướn': 'phương hướng', 'phương hướg': 'phương hướng',
   'nhiện vụ': 'nhiệm vụ', 'nhiệm vự': 'nhiệm vụ',
@@ -43,46 +43,45 @@ export const SPELLING_ERRORS = {
   'tiêu chuẫn': 'tiêu chuẩn', 'tiêu chuẩng': 'tiêu chuẩn',
   'phê duyệch': 'phê duyệt', 'phê duyệd': 'phê duyệt',
   'chuẩng bị': 'chuẩn bị', 'chuẩn bì': 'chuẩn bị',
-  'đăng ký': 'đăng ký', 'đăn ký': 'đăng ký',
+  'đăn ký': 'đăng ký',
   'giáo dụt': 'giáo dục', 'giáu dục': 'giáo dục',
   'sáng kiếng': 'sáng kiến', 'sán kiến': 'sáng kiến',
 
   // Sai dấu thanh điệu
   'chính phũ': 'chính phủ', 'chính phú': 'chính phủ',
-  'thủ tục': 'thủ tục', 'thũ tục': 'thủ tục',
-  'lãnh đạo': 'lãnh đạo', 'lảnh đạo': 'lãnh đạo',
+  'thũ tục': 'thủ tục',
+  'lảnh đạo': 'lãnh đạo',
   'cơ quang': 'cơ quan', 'cơ quàn': 'cơ quan',
   'ngân sáck': 'ngân sách', 'ngâng sách': 'ngân sách',
-  'đầu tư': 'đầu tư', 'đầu từ': 'đầu tư',
+  'đầu từ': 'đầu tư',
   'dự áng': 'dự án', 'dự àn': 'dự án',
-  'cán bộ': 'cán bộ', 'cáng bộ': 'cán bộ',
-  'thẩm tra': 'thẩm tra', 'thẫm tra': 'thẩm tra',
+  'cáng bộ': 'cán bộ',
+  'thẫm tra': 'thẩm tra',
   'kỷ luậc': 'kỷ luật', 'kỹ luật': 'kỷ luật',
   'kỹ thuậc': 'kỹ thuật', 'kỷ thuật': 'kỹ thuật',
   'tài chín': 'tài chính', 'tái chính': 'tài chính',
   'phương áng': 'phương án', 'phương àn': 'phương án',
   'hoàn thiệng': 'hoàn thiện', 'hoàng thiện': 'hoàn thiện',
-  'quy họach': 'quy hoạch', 'quy hoạch': 'quy hoạch',
+  'quy họach': 'quy hoạch',
   'nhân sư': 'nhân sự', 'nhâng sự': 'nhân sự',
   'thành lâp': 'thành lập', 'thàng lập': 'thành lập',
   'ban hàng': 'ban hành', 'bàn hành': 'ban hành',
   'thi hàng': 'thi hành', 'thì hành': 'thi hành',
   'phạn vi': 'phạm vi', 'phạm vì': 'phạm vi',
   'điều chỉn': 'điều chỉnh', 'điều chỉng': 'điều chỉnh',
-  'bổ nhiện': 'bổ nhiệm', 'bổ nhiện': 'bổ nhiệm',
+  'bổ nhiện': 'bổ nhiệm',
   'miễng nhiệm': 'miễn nhiệm', 'miểm nhiệm': 'miễn nhiệm',
   'luân chuyễn': 'luân chuyển', 'luâng chuyển': 'luân chuyển',
   'nâng cấb': 'nâng cấp', 'nâng câp': 'nâng cấp',
-  'kinh phí': 'kinh phí', 'kính phí': 'kinh phí',
-  'thông tư': 'thông tư', 'thông từ': 'thông tư',
+  'kính phí': 'kinh phí',
+  'thông từ': 'thông tư',
   'nghĩ định': 'nghị định', 'nghì định': 'nghị định',
 
   // Sai chính tả phổ biến
-  'sơ xuất': 'sơ suất', 'sơ sót': 'sơ suất',
-  'dành dụm': 'dành dụm', 'dàng dụm': 'dành dụm',
+  'sơ xuất': 'sơ suất',
   'sáng suốc': 'sáng suốt', 'sáng xuốt': 'sáng suốt',
   'vấng đề': 'vấn đề', 'vấn để': 'vấn đề',
-  'đáng kể': 'đáng kể', 'đánh kể': 'đáng kể',
+  'đánh kể': 'đáng kể',
   'trung thưc': 'trung thực', 'chung thực': 'trung thực',
   'nghiêm tút': 'nghiêm túc', 'nghiêm túk': 'nghiêm túc',
   'tích cựt': 'tích cực', 'tít cực': 'tích cực',
@@ -90,9 +89,8 @@ export const SPELLING_ERRORS = {
   'liêng hệ': 'liên hệ', 'liên hê': 'liên hệ',
   'hợp đông': 'hợp đồng', 'hợp đồn': 'hợp đồng',
   'phối hợb': 'phối hợp', 'phôi hợp': 'phối hợp',
-  'kế họach': 'kế hoạch', 'kế hoạch': 'kế hoạch',
+  'kế họach': 'kế hoạch',
   'khẩng trương': 'khẩn trương', 'khẫn trương': 'khẩn trương',
-  'đồng ý kiến': 'đồng ý kiến',
   'quyền hành': 'quyền hạn',
 
   // Lỗi d/gi/r
@@ -122,7 +120,7 @@ export const SPELLING_ERRORS = {
   'sung đột': 'xung đột', 'xun đột': 'xung đột',
 
   // Lỗi n/ng cuối
-  'bàn giao': 'bàn giao', 'bàng giao': 'bàn giao',
+  'bàng giao': 'bàn giao',
   'hoàn thàn': 'hoàn thành', 'hoàn thàng': 'hoàn thành',
   'sinh hoạch': 'sinh hoạt',
   'giáo dụng': 'giáo dục',
@@ -164,17 +162,11 @@ export const SPELLING_ERRORS = {
   'đáp ưn': 'đáp ứng',
   'đáp ứn': 'đáp ứng',
   'chỉ tiê': 'chỉ tiêu',
-  'tiêu chí': 'tiêu chí',
   'kết quà': 'kết quả',
-
-  // Lỗi viết hoa "Nhân dân" riêng lẻ (bắt buộc viết hoa chữ Nhân)
-  // LƯU Ý: "Ủy ban nhân dân" và "Hội đồng nhân dân" giữ nguyên chữ thường
-  // Chỉ "Nhân dân" đứng riêng mới viết hoa
 };
 
 /**
- * Quy tắc viết hoa chức danh và tổ chức (học từ 235 file mẫu thực tế)
- * Dùng để AI và local checker kiểm tra viết hoa đúng chuẩn
+ * Quy tắc viết hoa TỔ CHỨC (cụm dài, an toàn match — luôn áp dụng)
  * Format: { sai (lowercase): đúng (đã viết hoa chuẩn) }
  */
 export const CAPITALIZATION_RULES = {
@@ -195,37 +187,7 @@ export const CAPITALIZATION_RULES = {
   'ban cố vấn': 'Ban Cố vấn',
   'ban vì sự tiến bộ của phụ nữ': 'Ban Vì sự tiến bộ của phụ nữ',
 
-  // ===== Chức danh lãnh đạo =====
-  'trưởng ban': 'Trưởng ban',
-  'phó trưởng ban': 'Phó Trưởng ban',
-  'chủ tịch': 'Chủ tịch',
-  'phó chủ tịch': 'Phó Chủ tịch',
-  'giám đốc': 'Giám đốc',
-  'phó giám đốc': 'Phó Giám đốc',
-  'tổng giám đốc': 'Tổng Giám đốc',
-  'chánh văn phòng': 'Chánh Văn phòng',
-  'phó chánh văn phòng': 'Phó Chánh Văn phòng',
-  'chánh thanh tra': 'Chánh Thanh tra',
-  'phó chánh thanh tra': 'Phó Chánh Thanh tra',
-  'thư ký': 'Thư ký',
-  'tổng thư ký': 'Tổng Thư ký',
-  'phó thư ký': 'Phó Thư ký',
-  'bí thư': 'Bí thư',
-  'phó bí thư': 'Phó Bí thư',
-  'ủy viên': 'Ủy viên',
-  'vụ trưởng': 'Vụ trưởng',
-  'phó vụ trưởng': 'Phó Vụ trưởng',
-  'cục trưởng': 'Cục trưởng',
-  'phó cục trưởng': 'Phó Cục trưởng',
-  'trưởng phòng': 'Trưởng phòng',
-  'phó trưởng phòng': 'Phó Trưởng phòng',
-  'chi cục trưởng': 'Chi cục trưởng',
-  'hội trưởng': 'Hội trưởng',
-  'chi hội trưởng': 'Chi hội trưởng',
-  'thủ trưởng': 'Thủ trưởng',
-
-  // ===== Cơ quan hành chính =====
-  // LƯU Ý: "Ủy ban nhân dân" và "Hội đồng nhân dân" giữ nguyên, KHÔNG viết hoa "Nhân"
+  // ===== Cơ quan hành chính (cụm dài — an toàn) =====
   'ủy ban nhân dân': 'Ủy ban nhân dân',
   'hội đồng nhân dân': 'Hội đồng nhân dân',
   'ủy ban mặt trận': 'Ủy ban Mặt trận',
@@ -234,13 +196,48 @@ export const CAPITALIZATION_RULES = {
   'hội đồng quản lý': 'Hội đồng quản lý',
   'đại hội đại biểu': 'Đại hội đại biểu',
 
-  // ===== Từ quan trọng =====
-  // 'nhân dân' riêng lẻ → 'Nhân dân' (xử lý riêng trong checkSpellingLocal, không đặt ở đây
-  // vì CAPITALIZATION_RULES dùng toLowerCase match sẽ trùng với "ủy ban nhân dân")
+  // ===== Tổ chức/Khái niệm quan trọng (cụm dài — an toàn) =====
   'thủ tướng chính phủ': 'Thủ tướng Chính phủ',
   'chính phủ': 'Chính phủ',
   'quốc hội': 'Quốc hội',
+
+  // ===== Chức danh DÀI (đi kèm chức vụ phụ — an toàn match) =====
+  'tổng giám đốc': 'Tổng Giám đốc',
+  'phó giám đốc': 'Phó Giám đốc',
+  'phó chủ tịch': 'Phó Chủ tịch',
+  'phó trưởng ban': 'Phó Trưởng ban',
+  'chánh văn phòng': 'Chánh Văn phòng',
+  'phó chánh văn phòng': 'Phó Chánh Văn phòng',
+  'chánh thanh tra': 'Chánh Thanh tra',
+  'phó chánh thanh tra': 'Phó Chánh Thanh tra',
+  'tổng thư ký': 'Tổng Thư ký',
+  'phó bí thư': 'Phó Bí thư',
+  'phó vụ trưởng': 'Phó Vụ trưởng',
+  'phó cục trưởng': 'Phó Cục trưởng',
+  'phó trưởng phòng': 'Phó Trưởng phòng',
+  'chi cục trưởng': 'Chi cục trưởng',
+  'chi hội trưởng': 'Chi hội trưởng',
+};
+
+/**
+ * Chức danh NGẮN — CHỈ viết hoa khi đứng ĐẦU CÂU hoặc ĐI KÈM TÊN RIÊNG
+ * Logic kiểm tra ngữ cảnh được thực hiện trong spell-check.js
+ * Format: { lowercase: capitalized }
+ */
+export const TITLE_CONTEXT_RULES = {
   'nhà nước': 'Nhà nước',
+  'chủ tịch': 'Chủ tịch',
+  'giám đốc': 'Giám đốc',
+  'trưởng ban': 'Trưởng ban',
+  'bí thư': 'Bí thư',
+  'ủy viên': 'Ủy viên',
+  'vụ trưởng': 'Vụ trưởng',
+  'cục trưởng': 'Cục trưởng',
+  'trưởng phòng': 'Trưởng phòng',
+  'hội trưởng': 'Hội trưởng',
+  'thủ trưởng': 'Thủ trưởng',
+  'thư ký': 'Thư ký',
+  'phó thư ký': 'Phó Thư ký',
 };
 
 /**
@@ -304,4 +301,3 @@ export const WHITELIST = [
   'PICKLEBALL', 'TAEKWONDO', 'YOGA', 'GOLF', 'KARATE',
   'BILLIARDS', 'SNOOKER', 'VOVINAM', 'GPT', 'HIV', 'KCN', 'MTQG', 'PCMT', 'CQ', 'CSĐT', 'XX',
 ];
-

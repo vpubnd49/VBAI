@@ -182,9 +182,10 @@ function renderStep2(sc, c) {
     </div>
 
     <div class="panel-group">
-      <div class="panel-header"><div class="panel-header-icon">📝</div>Transcript toàn văn (Bóc băng)</div>
+      <div class="panel-header"><div class="panel-header-icon">📝</div>Transcript toàn văn (Bóc băng) — <em>Có thể chỉnh sửa</em></div>
       <div class="panel-body">
-        <textarea class="form-textarea" rows="8" readonly style="background: rgba(0,0,0,0.1);">${formState.transcript}</textarea>
+        <textarea class="form-textarea" id="f-transcript" rows="8">${formState.transcript}</textarea>
+        <button class="btn btn-secondary" id="btn-reanalyze" style="margin-top: 10px;">🔄 Phân tích lại từ transcript đã sửa</button>
       </div>
     </div>
 
@@ -218,6 +219,32 @@ function renderStep2(sc, c) {
 
   sc.querySelector('#btn-back-1').addEventListener('click', () => { saveState(); formState.step = 1; doRender(c); });
   sc.querySelector('#btn-next-3').addEventListener('click', () => { saveState(); formState.step = 3; doRender(c); });
+
+  // Lưu transcript khi chỉnh sửa
+  const transcriptEl = sc.querySelector('#f-transcript');
+  if (transcriptEl) {
+    transcriptEl.addEventListener('input', () => {
+      formState.transcript = transcriptEl.value;
+    });
+  }
+
+  // Nút phân tích lại từ transcript đã sửa
+  sc.querySelector('#btn-reanalyze').addEventListener('click', async () => {
+    saveState();
+    formState.transcript = sc.querySelector('#f-transcript').value;
+    if (!formState.transcript.trim()) {
+      showToast('Vui lòng nhập transcript trước khi phân tích lại!', 'error');
+      return;
+    }
+    try {
+      showToast('Đang phân tích lại transcript...');
+      await reanalyzeTranscript();
+      renderStep2(sc, c);
+      showToast('✓ Đã cập nhật kết luận từ transcript!', 'success');
+    } catch (e) {
+      showToast('Lỗi: ' + e.message, 'error');
+    }
+  });
 }
 
 function renderStep3(sc, c) {
@@ -309,7 +336,7 @@ async function getApiKey() {
 async function processAudioWithGemini(file) {
   const apiKey = await getApiKey();
   const aiClient = new GoogleGenAI({ apiKey });
-  const model = "gemini-3.1-flash-lite-preview";
+  const model = "gemini-2.5-flash";
 
   // Chuyển file sang Base64
   const base64Audio = await new Promise((resolve, reject) => {
@@ -320,15 +347,22 @@ async function processAudioWithGemini(file) {
   });
 
   const prompt = `
-Bạn là một trợ lý thư ký cuộc họp chuyên nghiệp. Hãy nghe kỹ file ghi âm cuộc họp này và thực hiện các yêu cầu sau:
+Bạn là một trợ lý thư ký cuộc họp chuyên nghiệp trong cơ quan hành chính nhà nước Việt Nam.
+Hãy nghe KỸ file ghi âm cuộc họp này và thực hiện:
 
-1. Xác định NGƯỜI CHỦ TRÌ cuộc họp (nếu có, có thể kèm theo chức vụ).
-2. Liệt kê THÀNH PHẦN THAM DỰ.
-3. TÓM TẮT nội dung chính của cuộc họp (ngắn gọn, súc tích).
-4. Liệt kê các KẾT LUẬN và CHỈ ĐẠO cụ thể của người chủ trì. Mỗi kết luận/chỉ đạo là một mục riêng biệt. Cần chú ý tóm tắt chính xác nội dung kết luận dựa vào biên bản/ghi âm.
-5. Tạo bản TRANSCRIPT (bóc băng) toàn văn nếu có thể.
+1. Xác định NGƯỜI CHỦ TRÌ cuộc họp (họ tên + chức vụ nếu có).
+2. Liệt kê THÀNH PHẦN THAM DỰ (các đơn vị, cá nhân).
+3. TÓM TẮT nội dung chính cuộc họp — viết theo văn phong hành chính, súc tích.
+4. Liệt kê các KẾT LUẬN và CHỈ ĐẠO cụ thể. Mỗi kết luận là một mục riêng biệt, rõ ràng, có thể giao nhiệm vụ cho đơn vị cụ thể nếu được đề cập.
+5. Tạo bản TRANSCRIPT (bóc băng) toàn văn.
 
-Vui lòng trả về ĐÚNG định dạng JSON theo cấu trúc sau, không kèm theo bất kỳ văn bản giải thích nào:
+LƯU Ý QUAN TRỌNG khi bóc băng:
+- Phân biệt người nói bằng nhãn [Người nói 1], [Người nói 2]... hoặc tên nếu xác định được.
+- Đánh dấu phần KHÔNG NGHE RÕ bằng [không rõ].
+- Sử dụng đúng thuật ngữ hành chính Việt Nam: UBND, HĐND, Nghị quyết, Quyết định, Thông báo...
+- Viết đúng chính tả tiếng Việt, đúng dấu.
+
+Trả về ĐÚNG định dạng JSON:
 {
   "chu_tri": "Họ và tên - Chức vụ",
   "thanh_phan": "Danh sách các đơn vị/cá nhân tham dự",
@@ -337,8 +371,9 @@ Vui lòng trả về ĐÚNG định dạng JSON theo cấu trúc sau, không kè
     "Kết luận số 1:...",
     "Kết luận số 2:..."
   ],
-  "transcript": "Nội dung bóc băng chi tiết..."
+  "transcript": "[Người nói 1]: Nội dung...\n[Người nói 2]: Nội dung..."
 }
+CHỈ trả về JSON, KHÔNG giải thích, KHÔNG dùng markdown tick.
   `;
 
   const response = await aiClient.models.generateContent({
@@ -469,5 +504,54 @@ async function generateNotificationDocx() {
   } catch (e) {
     console.error(e);
     showToast('Lỗi khi tạo file DOCX: ' + e.message, 'error');
+  }
+}
+
+// ==============================================
+// PHÂN TÍCH LẠI TỪ TRANSCRIPT ĐÃ CHỈNH SỬA
+// ==============================================
+async function reanalyzeTranscript() {
+  const apiKey = await getApiKey();
+  const aiClient = new GoogleGenAI({ apiKey });
+  const model = "gemini-2.5-flash";
+
+  const prompt = `Đây là bản transcript (bóc băng) cuộc họp hành chính đã được chỉnh sửa bởi người dùng.
+Hãy phân tích lại và trích xuất:
+
+1. NGƯỜI CHỦ TRÌ (họ tên + chức vụ nếu có)
+2. THÀNH PHẦN THAM DỰ
+3. TÓM TẮT nội dung chính — viết theo văn phong hành chính
+4. Các KẾT LUẬN và CHỈ ĐẠO cụ thể (mỗi kết luận một mục riêng)
+
+Trả về ĐÚNG JSON:
+{
+  "chu_tri": "...",
+  "thanh_phan": "...",
+  "tom_tat_noi_dung": "...",
+  "ket_luan": ["Kết luận 1", "Kết luận 2"]
+}
+CHỈ JSON, KHÔNG giải thích.
+
+TRANSCRIPT:
+${formState.transcript}`;
+
+  const response = await aiClient.models.generateContent({
+    model: model,
+    contents: prompt,
+    config: { temperature: 0.1 },
+  });
+
+  let text = response.text || "";
+  text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+  
+  try {
+    const data = JSON.parse(text);
+    formState.chu_tri = data.chu_tri || formState.chu_tri;
+    formState.thanh_phan = data.thanh_phan || formState.thanh_phan;
+    formState.tom_tat_noi_dung = data.tom_tat_noi_dung || formState.tom_tat_noi_dung;
+    formState.ket_luan = data.ket_luan || formState.ket_luan;
+  } catch (e) {
+    console.error("Lỗi parse JSON khi phân tích lại:", e);
+    throw new Error("Không thể phân tích lại transcript. Vui lòng thử lại.");
   }
 }

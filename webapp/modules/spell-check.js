@@ -6,7 +6,7 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from '../main.js';
 import { GoogleGenAI } from "https://esm.run/@google/genai";
-import { SPELLING_ERRORS, CAPITALIZATION_RULES, OFFICIAL_TITLES, WHITELIST } from './vn-dictionary.js';
+import { SPELLING_ERRORS, CAPITALIZATION_RULES, TITLE_CONTEXT_RULES, OFFICIAL_TITLES, WHITELIST } from './vn-dictionary.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
@@ -152,34 +152,41 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
   }
 
   const aiClient = new GoogleGenAI({ apiKey });
-  const modelName = 'gemini-3.1-flash-lite-preview';
+  const modelName = 'gemini-2.5-flash';
 
-  // 2. Batching paragraphs
-  // Filter out empty or very short paragraphs to save tokens
+  // 2. Batching paragraphs — batch nhỏ hơn để AI chính xác hơn
   const validParas = paragraphs.filter(p => p.text.trim().length > 10);
-  const BATCH_SIZE = 5; // Process 5 paragraphs at a time
+  const BATCH_SIZE = 3;
   const batches = [];
   for (let i = 0; i < validParas.length; i += BATCH_SIZE) {
     batches.push(validParas.slice(i, i + BATCH_SIZE));
   }
 
   const systemInstruction = `Bạn là chuyên gia rà soát văn bản hành chính và văn bản Đảng của Việt Nam.
-Nhiệm vụ: Đọc các đoạn văn bản được cung cấp và tìm ra các lỗi chính tả, lỗi dùng từ sai ngữ cảnh, câu lủng củng.
-Yêu cầu QUAN TRỌNG:
-- Sửa lỗi cho chuẩn xác, hợp ngữ cảnh văn phong hành chính.
-- Bỏ qua các từ viết tắt phổ biến như UBND, HĐND, THCS...
-- Từ "Nhân dân" khi đứng RIÊNG LẺ phải viết hoa chữ "Nhân": "Nhân dân".
-- LƯU Ý QUAN TRỌNG: "Ủy ban nhân dân" và "Hội đồng nhân dân" giữ nguyên chữ thường, KHÔNG viết thành "Ủy ban Nhân dân" hay "Hội đồng Nhân dân".
-- Đầu câu hoặc sau dấu chấm (.) bắt buộc phải viết hoa.
-- Các chức danh và tổ chức phải viết hoa đúng:
-  ${OFFICIAL_TITLES.join(', ')}
-- LƯU Ý: Tuyệt đối không đổi từ "Hội viên" thành "Ủy viên" (đây là hai khái niệm khác nhau trong văn bản hội).
-- TRẢ VỀ KẾT QUẢ DƯỚI DẠNG CHUỖI JSON ARRAY chứa các object có cấu trúc:
-[
-  { "original": "câu hoặc từ bị sai trích chính xác từ văn bản gốc", "suggestion": "câu/từ đã sửa", "reason": "lý do sửa" }
-]
-Nếu không có lỗi nào, trả về mảng rỗng: []
-CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown tick (như \`\`\`json).`;
+Nhiệm vụ: Đọc từng đoạn văn bản (có đánh dấu [ID:số]) và tìm ra LỖI CHÍNH TẢ THỰC SỰ, lỗi dùng từ sai ngữ cảnh.
+
+QUY TẮC NGHIÊM NGẶT:
+1. CHỈ báo lỗi chính tả thực sự (đánh máy sai, thiếu dấu, sai phụ âm). KHÔNG báo lỗi viết hoa chức danh.
+2. KHÔNG sửa viết hoa/viết thường cho các chức danh như: ủy viên, chủ tịch, giám đốc, bí thư... Đây là TRÁCH NHIỆM CỦA HỆ THỐNG CỤC BỘ, không phải của bạn.
+3. Bỏ qua viết tắt: UBND, HĐND, THCS, BHXH, PCT, CVP...
+4. "Ủy ban nhân dân" và "Hội đồng nhân dân" giữ nguyên chữ thường cho "nhân dân".
+5. KHÔNG đổi "Hội viên" thành "Ủy viên" (hai khái niệm khác nhau).
+6. Trường "original" PHẢI là chuỗi CHÍNH XÁC TỪ VĂN BẢN GỐC, copy nguyên xi.
+7. Trường "para_id" PHẢI là số ID đoạn văn chứa lỗi (lấy từ [ID:số] ở đầu đoạn).
+
+VÍ DỤ ĐÚNG:
+- "triểm khai" → "triển khai" (sai phụ âm) ✓
+- "thực hiệng" → "thực hiện" (thừa chữ g) ✓
+- "bảo cáo" → "báo cáo" (sai dấu) ✓
+
+VÍ DỤ SAI (KHÔNG ĐƯỢC LÀM):
+- "ủy viên" → "Ủy viên" (viết hoa chức danh) ✗
+- "nhà nước" → "Nhà nước" (viết hoa) ✗
+- "chủ tịch" → "Chủ tịch" (viết hoa) ✗
+
+TRẢ VỀ JSON ARRAY:
+[{"para_id": 5, "original": "triểm khai", "suggestion": "triển khai", "reason": "Sai phụ âm: triểm → triển"}]
+Nếu không có lỗi, trả []. CHỈ JSON, KHÔNG markdown, KHÔNG giải thích.`;
 
   // 3. Process batches
   for (let i = 0; i < batches.length; i++) {
@@ -193,58 +200,57 @@ CHỈ trả về JSON, KHÔNG giải thích gì thêm, KHÔNG dùng markdown tic
       const response = await aiClient.models.generateContent({
         model: modelName,
         contents: combinedText,
-        config: { systemInstruction: systemInstruction, temperature: 0.2 },
+        config: { systemInstruction: systemInstruction, temperature: 0.1 },
       });
       
       let resText = response.text || "[]";
-      // Clean up markdown if AI still outputs it
       resText = resText.replace(/^\`\`\`json/m, '').replace(/^\`\`\`/m, '').trim();
       
       let aiErrors = [];
       try { aiErrors = JSON.parse(resText); } catch(err) { console.warn("Parse JSON failed for batch", i, resText); }
 
-      // Map AI errors back to exact paragraph and position
       for (const err of aiErrors) {
         if (!err.original || !err.suggestion) continue;
         if (err.original === err.suggestion) continue;
 
-        // BẢO VỆ ĐẶC BIỆT: Không được lẫn lộn giữa Hội viên và Ủy viên
+        // BẢO VỆ: Không lẫn Hội viên/Ủy viên
         const lowOrig = err.original.toLowerCase();
         const lowSugg = err.suggestion.toLowerCase();
         if ((lowOrig.includes('hội viên') && lowSugg.includes('ủy viên')) ||
             (lowOrig.includes('ủy viên') && lowSugg.includes('hội viên'))) {
-          console.warn("Blocked AI suggestion swapping Hội viên/Ủy viên:", err);
           continue;
         }
 
-        // Escape regex special chars
-        const escapedOriginal = err.original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`(?<=\\s|^|\\p{P})${escapedOriginal}(?=\\s|$|\\p{P})`, 'gui');
+        // BẢO VỆ: Bỏ qua nếu AI chỉ thay đổi viết hoa (chức danh)
+        if (lowOrig === lowSugg) continue;
 
-        for (const p of batch) {
-          let match;
-          // Reset regex state
-          regex.lastIndex = 0;
+        // Tìm đoạn chính xác bằng para_id hoặc fallback tìm trong batch
+        const targetParas = err.para_id !== undefined
+          ? batch.filter(p => p.index === err.para_id)
+          : batch;
+
+        for (const p of targetParas) {
+          // Dùng indexOf chính xác thay vì regex fuzzy
+          const pos = p.text.indexOf(err.original);
+          if (pos === -1) continue;
+
+          // Kiểm tra không trùng lặp/chồng chéo
+          const isOverlap = errors.some(e => e.paraIdx === p.index && 
+            ((pos >= e.pos && pos < e.pos + e.length) || (e.pos >= pos && e.pos < pos + err.original.length)));
           
-          while ((match = regex.exec(p.text)) !== null) {
-            const pos = match.index;
-            // Prevent duplicate or overlapping errors
-            const isOverlap = errors.some(e => e.paraIdx === p.index && 
-              ((pos >= e.pos && pos < e.pos + e.length) || (e.pos >= pos && e.pos < pos + err.original.length)));
-            
-            if (!isOverlap) {
-              errors.push({
-                type: 'spelling_ai',
-                paraIdx: p.index,
-                pos: pos,
-                length: err.original.length,
-                original: p.text.substring(pos, pos + err.original.length),
-                suggestion: err.suggestion,
-                reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
-                message: `"${err.original}" → "${err.suggestion}"`
-              });
-            }
+          if (!isOverlap) {
+            errors.push({
+              type: 'spelling_ai',
+              paraIdx: p.index,
+              pos: pos,
+              length: err.original.length,
+              original: p.text.substring(pos, pos + err.original.length),
+              suggestion: err.suggestion,
+              reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
+              message: `"${err.original}" → "${err.suggestion}"`
+            });
           }
+          break; // Chỉ match 1 lần mỗi đoạn
         }
       }
     } catch(err) {
@@ -266,7 +272,7 @@ function checkSpellingLocal(paragraphs) {
   paragraphs.forEach(p => {
     const lowerText = p.text.toLowerCase();
     for (const [wrong, correct] of Object.entries(SPELLING_ERRORS)) {
-      if (wrong.toLowerCase() === correct.toLowerCase()) continue; // Skip identity mappings
+      if (wrong.toLowerCase() === correct.toLowerCase()) continue;
       const wrongLower = wrong.toLowerCase();
       let searchFrom = 0;
       while (true) {
@@ -274,7 +280,6 @@ function checkSpellingLocal(paragraphs) {
         if (pos === -1) break;
         searchFrom = pos + 1;
         
-        // Kiểm tra word boundary
         const prevChar = pos > 0 ? p.text[pos - 1] : ' ';
         const nextChar = pos + wrong.length < p.text.length ? p.text[pos + wrong.length] : ' ';
         if (VN_WORD_CHARS.test(prevChar) || VN_WORD_CHARS.test(nextChar)) continue;
@@ -292,7 +297,7 @@ function checkSpellingLocal(paragraphs) {
       }
     }
     
-    // Kiểm tra viết hoa chức danh/tổ chức
+    // Kiểm tra viết hoa TỔ CHỨC (cụm dài — luôn áp dụng)
     for (const [wrongLower, correct] of Object.entries(CAPITALIZATION_RULES)) {
       let searchFrom = 0;
       while (true) {
@@ -301,9 +306,7 @@ function checkSpellingLocal(paragraphs) {
         searchFrom = pos + 1;
         
         const actual = p.text.substring(pos, pos + wrongLower.length);
-        // Chỉ báo lỗi nếu viết sai (khác với dạng chuẩn và không phải IN HOA toàn bộ)
         if (actual !== correct && actual !== actual.toUpperCase()) {
-          // Kiểm tra không trùng với lỗi đã tìm
           const isDuplicate = localErrors.some(e => e.paraIdx === p.index && Math.abs(e.pos - pos) < 3);
           if (!isDuplicate) {
             localErrors.push({
