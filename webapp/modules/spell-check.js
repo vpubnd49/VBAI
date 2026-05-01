@@ -481,7 +481,7 @@ function renderResults(container) {
 function renderOriginal(el) {
   // Hiển thị văn bản GỐC: bôi đỏ các vị trí có lỗi
   el.innerHTML = checkState.paragraphs.map((p, pIdx) => {
-    const paraErrors = checkState.errors.filter(e => e.paraIdx === pIdx);
+    const paraErrors = checkState.errors.filter(e => e.paraIdx === p.index);
     if (paraErrors.length === 0) return `<div class="sc-para">${escapeHtml(p.text)}</div>`;
     
     let text = p.text;
@@ -502,7 +502,7 @@ function renderOriginal(el) {
 function renderChecked(el) {
   // Hiển thị văn bản ĐÃ SỬA: thay thế lỗi bằng gợi ý, highlight màu xanh
   el.innerHTML = checkState.paragraphs.map((p, pIdx) => {
-    const paraErrors = checkState.errors.filter(e => e.paraIdx === pIdx);
+    const paraErrors = checkState.errors.filter(e => e.paraIdx === p.index);
     if (paraErrors.length === 0) return `<div class="sc-para">${escapeHtml(p.text)}</div>`;
     
     let text = p.text;
@@ -530,7 +530,7 @@ async function exportCorrected() {
     children.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: `File gốc: ${checkState.fileName}`, font: 'Times New Roman', size: 24, italics: true, color: '888888' })] }));
     checkState.paragraphs.forEach((p, pIdx) => {
       let text = p.text;
-      const paraErrors = checkState.errors.filter(e => e.paraIdx === pIdx).sort((a, b) => b.pos - a.pos);
+      const paraErrors = checkState.errors.filter(e => e.paraIdx === p.index).sort((a, b) => b.pos - a.pos);
       paraErrors.forEach(err => {
         text = text.substring(0, err.pos) + err.suggestion + text.substring(err.pos + err.length);
       });
