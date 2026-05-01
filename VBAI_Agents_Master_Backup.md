@@ -69,6 +69,26 @@ Engine cốt lõi sử dụng thư viện `docx-js` để sinh file Word chuyên
 
 ---
 
+## 5. Claude Code (Anthropic)
+**Path:** `Skill_Claude/SKILL.md`
+
+```markdown
+# Skill: Claude Code (Anthropic)
+Agent hỗ trợ lập trình thông minh từ Anthropic. Tích hợp sâu vào Antigravity qua extension và CLI.
+```
+
+---
+
+## 6. Codex (OpenAI)
+**Path:** `Skill_Codex/SKILL.md`
+
+```markdown
+# Skill: Codex (OpenAI)
+Agent hỗ trợ lập trình và giải quyết bài toán kỹ thuật từ OpenAI. Hỗ trợ qua CLI `codex` và extension.
+```
+
+---
+
 ## Environment Configuration
 - **Firebase Project:** `vbai-a1729`
 - **GCP Project:** `alvb-app-83921`
