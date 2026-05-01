@@ -64,6 +64,11 @@ const PAGE_TITLES = {
 };
 
 function navigateTo(page) {
+  if (!page || !PAGE_TITLES[page]) {
+    console.warn('Attempted to navigate to invalid page:', page);
+    return;
+  }
+  
   state.currentPage = page;
   // Update nav
   document.querySelectorAll('.nav-item').forEach(item => {
@@ -78,7 +83,7 @@ function navigateTo(page) {
   window.firstLoad = false;
 
   // Update breadcrumb
-  document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[page] || page}</span>`;
+  document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[page]}</span>`;
   // Render page
   renderPage(page);
 }
@@ -130,7 +135,11 @@ function init() {
       `;
       updateClock();
 
-      if (state.currentPage === 'dashboard') renderPage('dashboard');
+      // Ensure a valid page is rendered
+      if (!state.currentPage || !PAGE_TITLES[state.currentPage]) {
+        state.currentPage = 'dashboard';
+      }
+      renderPage(state.currentPage);
     } else {
       window.currentUser = null;
       mainApp.style.display = 'none';
@@ -184,9 +193,12 @@ function init() {
   // Nav clicks
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => {
-      navigateTo(item.dataset.page);
-      if (window.innerWidth <= 768) {
-        closeMobileSidebar();
+      const page = item.dataset.page;
+      if (page) {
+        navigateTo(page);
+        if (window.innerWidth <= 768) {
+          closeMobileSidebar();
+        }
       }
     });
   });
