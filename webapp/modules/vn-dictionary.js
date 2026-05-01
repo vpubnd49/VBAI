@@ -190,6 +190,8 @@ export const CAPITALIZATION_RULES = {
   // ===== Cơ quan hành chính (cụm dài — an toàn) =====
   'ủy ban nhân dân': 'Ủy ban nhân dân',
   'hội đồng nhân dân': 'Hội đồng nhân dân',
+  'tòa án nhân dân': 'Tòa án nhân dân',
+  'viện kiểm sát nhân dân': 'Viện kiểm sát nhân dân',
   'ủy ban mặt trận': 'Ủy ban Mặt trận',
   'mặt trận tổ quốc': 'Mặt trận Tổ quốc',
   'đoàn chủ tịch': 'Đoàn Chủ tịch',
@@ -262,6 +264,7 @@ export const OFFICIAL_TITLES = [
   'Ban Dân vận', 'Ban Tuyên giáo', 'Ban Nội chính',
   'Ban Chỉ đạo', 'Ban Quản lý', 'Ban Vận động',
   'Ủy ban nhân dân', 'Hội đồng nhân dân',
+  'Tòa án nhân dân', 'Viện kiểm sát nhân dân',
   'Ủy ban Mặt trận', 'Mặt trận Tổ quốc',
   'Đoàn Chủ tịch', 'Hội đồng quản lý',
   'Đại hội đại biểu', 'Nhân dân (riêng lẻ)',

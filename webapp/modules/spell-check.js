@@ -169,7 +169,7 @@ QUY TẮC NGHIÊM NGẶT:
 1. CHỈ báo lỗi chính tả thực sự (đánh máy sai, thiếu dấu, sai phụ âm). KHÔNG báo lỗi viết hoa chức danh.
 2. KHÔNG sửa viết hoa/viết thường cho các chức danh như: ủy viên, chủ tịch, giám đốc, bí thư... Đây là TRÁCH NHIỆM CỦA HỆ THỐNG CỤC BỘ, không phải của bạn.
 3. Bỏ qua viết tắt: UBND, HĐND, THCS, BHXH, PCT, CVP...
-4. "Ủy ban nhân dân" và "Hội đồng nhân dân" giữ nguyên chữ thường cho "nhân dân".
+4. "Ủy ban nhân dân", "Hội đồng nhân dân", "Tòa án nhân dân", "Viện kiểm sát nhân dân" giữ nguyên chữ thường cho "nhân dân".
 5. KHÔNG đổi "Hội viên" thành "Ủy viên" (hai khái niệm khác nhau).
 6. Trường "original" PHẢI là chuỗi CHÍNH XÁC TỪ VĂN BẢN GỐC, copy nguyên xi.
 7. Trường "para_id" PHẢI là số ID đoạn văn chứa lỗi (lấy từ [ID:số] ở đầu đoạn).
@@ -334,17 +334,16 @@ function checkSpellingLocal(paragraphs) {
       // Bỏ qua nếu đã viết hoa đúng "Nhân dân" hoặc IN HOA "NHÂN DÂN"
       if (actual === 'Nh\u00e2n d\u00e2n' || actual === 'NH\u00c2N D\u00c2N') continue;
       
-      // Kiểm tra xem có nằm trong "Ủy ban nhân dân" hoặc "Hội đồng nhân dân" không
-      const prefixStart = Math.max(0, pos - 15);
+      // Kiểm tra xem có nằm trong các từ ghép quy định không
+      const prefixStart = Math.max(0, pos - 25);
       const prefix = p.text.substring(prefixStart, pos).toLowerCase();
-      if (prefix.endsWith('ủy ban ') || prefix.endsWith('y ban ') ||
-          prefix.endsWith('ban nhân dân') ||
-          prefix.endsWith('đồng ') || prefix.endsWith('ng ')) {
-        // Kiểm tra cụ thể hơn
-        const longPrefix = p.text.substring(Math.max(0, pos - 20), pos + 8).toLowerCase();
-        if (longPrefix.includes('ủy ban nhân dân') || longPrefix.includes('hội đồng nhân dân')) {
-          continue; // Bỏ qua - đây là cụm từ ghép, giữ nguyên
-        }
+      
+      const longPrefix = p.text.substring(Math.max(0, pos - 25), pos + 8).toLowerCase();
+      if (longPrefix.includes('ủy ban nhân dân') || 
+          longPrefix.includes('hội đồng nhân dân') || 
+          longPrefix.includes('tòa án nhân dân') || 
+          longPrefix.includes('viện kiểm sát nhân dân')) {
+        continue; // Bỏ qua - đây là cụm từ ghép, giữ nguyên chữ thường
       }
       
       // "nhân dân" riêng lẻ, cần viết hoa
