@@ -23,7 +23,7 @@ import { firebaseConfig } from './firebase-config.js';
 const state = {
   currentPage: 'dashboard',
   sidebarOpen: true,
-  version: 'v1.2.6'
+  version: 'v1.2.6a'
 };
 
 // ============ CLOCK ============
