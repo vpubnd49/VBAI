@@ -7,7 +7,7 @@ const path = require('path');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const WEBAPP_DIR = __dirname;
-const OUTPUT_FILE = path.join(WEBAPP_DIR, 'skills-manifest.json');
+const OUTPUT_FILE = path.join(WEBAPP_DIR, 'public', 'skills-manifest.json');
 
 function parseFrontmatter(content) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
