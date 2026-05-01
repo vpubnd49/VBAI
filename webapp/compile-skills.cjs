@@ -41,23 +41,15 @@ async function compile() {
   // 1. Quét Skill nội bộ dự án VBAI
   const items = fs.readdirSync(ROOT_DIR, { withFileTypes: true });
   for (const item of items) {
-    if (item.isDirectory() && item.name.startsWith('Skill_')) {
+    if (item.isDirectory() && item.name.startsWith('Skill_') && item.name !== 'Skill_Claude' && item.name !== 'Skill_Codex') {
       const skillPath = path.join(ROOT_DIR, item.name);
       processSkill(skillPath, item.name, skills);
     }
   }
 
-  // 2. Quét Skill từ kho google/skills (skills-main)
-  if (fs.existsSync(SKILLS_MAIN_DIR)) {
-    console.log(`\n📂 Đang quét thêm từ skills-main...`);
-    const mainItems = fs.readdirSync(SKILLS_MAIN_DIR, { withFileTypes: true });
-    for (const item of mainItems) {
-      if (item.isDirectory()) {
-        const skillPath = path.join(SKILLS_MAIN_DIR, item.name);
-        processSkill(skillPath, item.name, skills, true);
-      }
-    }
-  }
+  // Sắp xếp theo thứ tự mong muốn: Đảng -> Hành chính -> PDF -> DOCX
+  const order = ['Skill_The_Thuc_VB_Dang_HD36', 'Skill_The_Thuc_VB_ND30', 'Skill_PDF', 'Skill_DOCX'];
+  skills.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(skills, null, 2), 'utf8');
   console.log(`\n✅ Đã biên dịch xong ${skills.length} skills!`);
