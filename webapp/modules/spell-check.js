@@ -324,29 +324,39 @@ function checkSpellingLocal(paragraphs) {
       }
     }
     
-    // Kiểm tra "Nhân dân" riêng lẻ (không nằm trong "Ủy ban nhân dân" hoặc "Hội đồng nhân dân")
+    // Kiểm tra "Nhân dân" riêng lẻ — PHẢI bỏ qua khi nằm trong cụm từ ghép
+    // Bước 1: Pre-scan tất cả vị trí cụm từ ghép chứa "nhân dân"
+    const NHAN_DAN_COMPOUNDS = [
+      'ủy ban nhân dân', 'hội đồng nhân dân',
+      'tòa án nhân dân', 'toà án nhân dân',      // Hỗ trợ cả 2 dạng dấu
+      'viện kiểm sát nhân dân'
+    ];
+    const protectedRanges = [];
+    for (const compound of NHAN_DAN_COMPOUNDS) {
+      let sf = 0;
+      while (true) {
+        const cp = lowerText.indexOf(compound, sf);
+        if (cp === -1) break;
+        protectedRanges.push({ start: cp, end: cp + compound.length });
+        sf = cp + 1;
+      }
+    }
+
+    // Bước 2: Tìm tất cả "nhân dân" và chỉ báo lỗi nếu KHÔNG nằm trong vùng bảo vệ
     const ndPattern = /nh\u00e2n d\u00e2n/gi;
     let ndMatch;
     while ((ndMatch = ndPattern.exec(p.text)) !== null) {
       const pos = ndMatch.index;
-      const actual = p.text.substring(pos, pos + 8); // "nhân dân" = 8 chars
+      const actual = p.text.substring(pos, pos + 8);
       
       // Bỏ qua nếu đã viết hoa đúng "Nhân dân" hoặc IN HOA "NHÂN DÂN"
       if (actual === 'Nh\u00e2n d\u00e2n' || actual === 'NH\u00c2N D\u00c2N') continue;
       
-      // Kiểm tra xem có nằm trong các từ ghép quy định không
-      const prefixStart = Math.max(0, pos - 25);
-      const prefix = p.text.substring(prefixStart, pos).toLowerCase();
+      // Bỏ qua nếu nằm trong vùng bảo vệ (cụm từ ghép)
+      const isProtected = protectedRanges.some(r => pos >= r.start && (pos + 8) <= r.end);
+      if (isProtected) continue;
       
-      const longPrefix = p.text.substring(Math.max(0, pos - 25), pos + 8).toLowerCase();
-      if (longPrefix.includes('ủy ban nhân dân') || 
-          longPrefix.includes('hội đồng nhân dân') || 
-          longPrefix.includes('tòa án nhân dân') || 
-          longPrefix.includes('viện kiểm sát nhân dân')) {
-        continue; // Bỏ qua - đây là cụm từ ghép, giữ nguyên chữ thường
-      }
-      
-      // "nhân dân" riêng lẻ, cần viết hoa
+      // "nhân dân" đứng riêng lẻ → cần viết hoa thành "Nhân dân"
       const isDuplicate = localErrors.some(e => e.paraIdx === p.index && Math.abs(e.pos - pos) < 3);
       if (!isDuplicate) {
         localErrors.push({
