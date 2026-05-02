@@ -10,6 +10,7 @@ import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebase
 import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { GoogleGenAI } from "https://esm.run/@google/genai";
 import { firebaseConfig } from '../firebase-config.js';
+import { sendChatRequest } from './ai-proxy.js';
 
 let formState = {
   step: 1, audioFile: null, isProcessing: false,
@@ -422,8 +423,7 @@ async function processAudioWithGemini(file, progressEl) {
 }
 
 async function reanalyzeTranscript() {
-  const apiKey = await getApiKey();
-  const aiClient = new GoogleGenAI({ apiKey });
+  const use9router = localStorage.getItem('vbai_use_9router') === 'true';
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {
   "chu_tri": "...",
@@ -439,10 +439,19 @@ CHỈ JSON, KHÔNG giải thích.
 TRANSCRIPT:
 ${formState.transcript}`;
 
-  const response = await aiClient.models.generateContent({
-    model: "gemini-2.5-flash", contents: prompt, config: { temperature: 0.1 }
-  });
-  let text = response.text || "";
+  let text = "";
+  if (use9router) {
+    const messages = [{ role: "user", content: prompt }];
+    text = await sendChatRequest(messages, "gemini-2.5-flash");
+  } else {
+    const apiKey = await getApiKey();
+    const aiClient = new GoogleGenAI({ apiKey });
+    const response = await aiClient.models.generateContent({
+      model: "gemini-2.5-flash", contents: prompt, config: { temperature: 0.1 }
+    });
+    text = response.text || "";
+  }
+
   text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
   try {
     const data = JSON.parse(text);

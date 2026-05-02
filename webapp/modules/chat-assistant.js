@@ -9,9 +9,12 @@ import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc, setDoc 
 import { firebaseConfig } from '../firebase-config.js';
 
 
+import { sendChatRequest } from './ai-proxy.js';
+
 let aiClient = null;
 let chatSession = null;
 let currentModelName = "gemini-3.1-flash-lite-preview";
+let use9router = localStorage.getItem('vbai_use_9router') === 'true';
 
 const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên gia tư vấn pháp luật Việt Nam hàng đầu. 
 
@@ -54,9 +57,16 @@ async function loadSkills() {
 
 export function initChat(apiKey, modelName = "gemini-3.1-flash-lite-preview") {
   currentModelName = "gemini-3.1-flash-lite-preview";
-  if (!apiKey) return null;
+  use9router = localStorage.getItem('vbai_use_9router') === 'true';
+  
+  if (!use9router && !apiKey) return null;
+  
   try {
-    aiClient = new GoogleGenAI({ apiKey });
+    if (!use9router) {
+      aiClient = new GoogleGenAI({ apiKey });
+    } else {
+      aiClient = { proxy: true }; // Dummy client for 9router mode
+    }
     currentModelName = modelName;
     chatSession = null;
     loadSkills(); // Tải skills khi init
@@ -68,7 +78,7 @@ export function initChat(apiKey, modelName = "gemini-3.1-flash-lite-preview") {
 }
 
 export async function sendMessage(text, onChunk) {
-  if (!aiClient) throw new Error("Chưa cấu hình API Key");
+  if (!aiClient) throw new Error("Chưa cấu hình API Key hoặc 9router");
 
   // Tìm kiếm skill liên quan dựa trên triggers
   let dynamicInstruction = SYSTEM_INSTRUCTION;
@@ -86,28 +96,40 @@ export async function sendMessage(text, onChunk) {
   }
 
   try {
-    const response = await aiClient.models.generateContent({
-      model: currentModelName,
-      contents: text,
-      config: {
-        systemInstruction: dynamicInstruction,
-        tools: [{ googleSearch: {} }],
-      },
-    });
+    let fullText = "";
+    
+    if (use9router) {
+      // Giao tiếp qua 9router (OpenAI format)
+      const messages = [
+        { role: "system", content: dynamicInstruction },
+        { role: "user", content: text }
+      ];
+      fullText = await sendChatRequest(messages, currentModelName);
+    } else {
+      // Giao tiếp trực tiếp qua Gemini SDK
+      const response = await aiClient.models.generateContent({
+        model: currentModelName,
+        contents: text,
+        config: {
+          systemInstruction: dynamicInstruction,
+          tools: [{ googleSearch: {} }],
+        },
+      });
+      fullText = response.text || "";
+    }
 
     try {
       const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
       addDoc(collection(db, 'search_logs'), {
         query: text,
-        model: currentModelName,
+        model: currentModelName + (use9router ? " (via 9router)" : ""),
         userEmail: window.currentUser?.email || 'Unknown',
         timestamp: serverTimestamp(),
         skillsApplied: matchedSkills.map(s => s.id)
       }).catch(err => console.warn("Log Err:", err));
     } catch (e) {}
 
-    const fullText = response.text || "";
     if (onChunk) onChunk(fullText);
     return fullText;
   } catch (e) {
@@ -160,7 +182,18 @@ export async function renderChatUI(container) {
 
           <div style="padding:10px; background:rgba(230,162,0,0.1); border-radius:8px; margin-bottom:16px; border: 1px solid rgba(230,162,0,0.2)">
             <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">🔍 Google Search Grounding: BẬT</p>
-            <p style="font-size:0.7rem; color:var(--text-secondary); margin:4px 0 0">Trợ lý sẽ tự động tìm kiếm Google để lấy thông tin pháp luật mới nhất từ thuvienphapluat.vn, vanban.chinhphu.vn, luatvietnam.vn</p>
+            <p style="font-size:0.7rem; color:var(--text-secondary); margin:4px 0 0">Trợ lý sẽ tự động tìm kiếm Google để lấy thông tin pháp luật mới nhất.</p>
+          </div>
+
+          <div style="padding:12px; background:rgba(66,133,244,0.1); border-radius:8px; margin-bottom:16px; border: 1px solid rgba(66,133,244,0.2); display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">🚀 Sử dụng 9router Proxy</p>
+              <p style="font-size:0.65rem; color:var(--text-secondary); margin:2px 0 0">Chạy yêu cầu AI qua 9router local (localhost:20128)</p>
+            </div>
+            <label class="switch-toggle">
+              <input type="checkbox" id="use-9router-chk" ${localStorage.getItem('vbai_use_9router') === 'true' ? 'checked' : ''}>
+              <span class="slider-round"></span>
+            </label>
           </div>
           
           <div class="btn-row" style="margin-top:20px">
@@ -241,20 +274,26 @@ export async function renderChatUI(container) {
   container.querySelector('#close-modal-btn').onclick = () => keyModal.style.display = 'none';
   container.querySelector('#save-key-btn').onclick = async () => {
     const key = apiKeyInput.value.trim();
+    const isUsing9router = container.querySelector('#use-9router-chk').checked;
     const model = 'gemini-3.1-flash-lite-preview';
-    localStorage.setItem('vbai_gemini_model', 'gemini-3.1-flash-lite-preview');
+    
+    localStorage.setItem('vbai_use_9router', isUsing9router ? 'true' : 'false');
+    localStorage.setItem('vbai_gemini_model', model);
     
     try {
-      await setDoc(doc(db, 'config', 'system'), { gemini_api_key: key }, { merge: true });
+      if (key) {
+        await setDoc(doc(db, 'config', 'system'), { gemini_api_key: key }, { merge: true });
+      }
+      
       if(initChat(key, model)) {
-        alert("Đã lưu cấu hình lên Server thành công!");
+        alert("Đã lưu cấu hình thành công!");
         keyModal.style.display = 'none';
       } else {
         alert("Lỗi khi khởi tạo Model!");
       }
     } catch (e) {
       console.error("Lưu cấu hình lỗi:", e);
-      alert("Lỗi lưu cấu hình lên Server: " + e.message);
+      alert("Lỗi lưu cấu hình: " + e.message);
     }
   };
 }
