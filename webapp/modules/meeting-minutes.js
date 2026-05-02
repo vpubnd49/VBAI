@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Meeting Minutes Module — Redesigned
  * Chuyển đổi audio cuộc họp thành Thông báo kết luận (NĐ30/HD36)
  * Hỗ trợ file >100MB qua Gemini Files API
@@ -297,40 +297,48 @@ async function getApiKey() {
 }
 
 const MEETING_PROMPT = `Bạn là trợ lý thư ký cuộc họp chuyên nghiệp trong cơ quan hành chính nhà nước Việt Nam.
-Hãy nghe KỸ file ghi âm cuộc họp này và trích xuất theo cấu trúc sau:
+Hãy nghe KỸ file ghi âm cuộc họp này và trích xuất theo cấu trúc chuẩn Thông báo kết luận:
 
 1. NGƯỜI CHỦ TRÌ (họ tên + chức vụ).
 2. THÀNH PHẦN THAM DỰ (các đơn vị, cá nhân).
 3. ĐỊA ĐIỂM cuộc họp (nếu xác định được).
 4. TÓM TẮT nội dung chính — viết theo văn phong hành chính.
-5. NỘI DUNG CUỘC HỌP — Phân tách theo từng VẤN ĐỀ/LĨNH VỰC được thảo luận.
-   Mỗi vấn đề gồm:
-   - tieu_de: Tiêu đề vấn đề (VD: "Về xây dựng hệ thống phần mềm chuyên ngành")
-   - danh_gia: Đánh giá, nhận định tình hình (VD: "Sau khi nghe báo cáo...")
-   - ket_luan: Mảng các kết luận/chỉ đạo CỤ THỂ, mỗi kết luận là một đoạn văn riêng biệt, rõ ràng giao nhiệm vụ cho đơn vị nào, thời hạn nào.
+5. NỘI DUNG CUỘC HỌP — Phân tách theo cấu trúc phân cấp chuyên nghiệp:
+   - Nếu cuộc họp phức tạp, hãy chia thành các phần lớn bằng số La Mã (I. Đánh giá chung, II. Nhiệm vụ và giải pháp...).
+   - Bên trong các phần, chia thành các mục nhỏ đánh số 1, 2, 3...
+   - Các kết luận/chỉ đạo cụ thể đánh số a, b, c...
+   Mỗi vấn đề/mục gồm:
+   - tieu_de: Tiêu đề vấn đề (VD: "1. Về xây dựng hệ thống phần mềm chuyên ngành" hoặc "I. ĐÁNH GIÁ CHUNG")
+   - danh_gia: Đánh giá, nhận định tình hình hoặc bối cảnh (nếu có).
+   - ket_luan: Mảng các kết luận/chỉ đạo CỤ THỂ. Mỗi kết luận nên bắt đầu bằng động từ mạnh (Giao, Yêu cầu, Đề nghị...) và xác định rõ đơn vị chủ trì, đơn vị phối hợp, thời hạn hoàn thành.
 6. TRANSCRIPT toàn văn (bóc băng).
 
-LƯU Ý: Phân biệt người nói bằng nhãn. Đánh dấu [không rõ] cho phần không nghe rõ. Dùng đúng thuật ngữ hành chính VN.
+LƯU Ý: Dùng đúng thuật ngữ hành chính VN (ví dụ: "Sở, ban, ngành", "địa phương", "quy định hiện hành").
 
-Trả về ĐÚNG JSON:
+Trả về JSON:
 {
-  "chu_tri": "Đ/c ... - Chức vụ",
-  "thanh_phan": "Lãnh đạo các sở, ngành: ...",
-  "dia_diem": "Phòng họp ...",
-  "tom_tat": "Ngày ..., đồng chí ... đã chủ trì buổi làm việc để nghe ... báo cáo về ...",
+  "chu_tri": "Đ/c Nguyễn Ngọc Phúc - Phó Chủ tịch UBND tỉnh",
+  "thanh_phan": "Lãnh đạo các sở, ngành: Khoa học và Công nghệ, Tài chính, Nội vụ; Văn phòng UBND tỉnh.",
+  "dia_diem": "Phòng họp số 1, UBND tỉnh",
+  "tom_tat": "Ngày 16/4/2026, đồng chí Nguyễn Ngọc Phúc - Phó Chủ tịch UBND tỉnh đã chủ trì buổi làm việc để nghe Sở Khoa học và Công nghệ báo cáo về một số nhiệm vụ trọng tâm...",
   "noi_dung_cuoc_hop": [
     {
-      "tieu_de": "Đối với xây dựng hệ thống phần mềm chuyên ngành",
-      "danh_gia": "Đến nay, 13/14 sở, ban, ngành đã đề xuất danh mục...",
+      "tieu_de": "I. ĐÁNH GIÁ CHUNG",
+      "danh_gia": "Thời gian qua, công tác chuyển đổi số đã có nhiều chuyển biến tích cực, tuy nhiên tiến độ triển khai một số phần mềm chuyên ngành còn chậm...",
+      "ket_luan": []
+    },
+    {
+      "tieu_de": "II. NHIỆM VỤ CỤ THỂ",
+      "danh_gia": "",
       "ket_luan": [
-        "Các sở, ngành chủ động đề xuất xây dựng hệ thống phần mềm theo hướng...",
-        "Giao Sở Khoa học và Công nghệ chủ trì, phối hợp..."
+        "Giao Sở Khoa học và Công nghệ chủ trì, phối hợp với các đơn vị liên quan khẩn trương rà soát danh mục phần mềm, báo cáo UBND tỉnh trước ngày 10/5/2026.",
+        "Yêu cầu các sở, ngành chủ động đề xuất nhu cầu xây dựng cơ sở dữ liệu dùng chung của ngành mình."
       ]
     }
   ],
-  "transcript": "[Người nói 1]: Nội dung...\\n[Người nói 2]: Nội dung..."
+  "transcript": "[Người nói 1]: ...\\n[Người nói 2]: ..."
 }
-CHỈ trả về JSON, KHÔNG giải thích, KHÔNG dùng markdown tick.`;
+CHỈ trả về JSON.`;
 
 async function processAudioWithGemini(file, progressEl) {
   const apiKey = await getApiKey();
@@ -510,11 +518,23 @@ async function generateNotificationDocx() {
     nds.forEach((nd, idx) => {
       if (!nd.tieu_de && (!nd.ket_luan || nd.ket_luan.length === 0)) return;
 
-      // Tiêu đề vấn đề: "1. Đối với xây dựng hệ thống phần mềm chuyên ngành"
-      const stt = nds.length > 1 ? `${idx + 1}. ` : '';
-      ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { ...BS, before: 200 }, indent: { firstLine: 567 }, children: [
-        new TextRun({ text: `${stt}${nd.tieu_de || 'Nội dung'}`, font: L.FONT, size: 28, bold: true })
-      ] }));
+      const isMainSection = /^(I|II|III|IV|V|VI|VII|VIII|IX|X)\./.test(nd.tieu_de);
+      const stt = (nds.length > 1 && !nd.tieu_de.match(/^\d+\./) && !isMainSection) ? `${idx + 1}. ` : '';
+      
+      ch.push(new Paragraph({ 
+        alignment: AlignmentType.JUSTIFIED, 
+        spacing: { ...BS, before: 200 }, 
+        indent: { firstLine: isMainSection ? 0 : 567 },
+        children: [
+          new TextRun({ 
+            text: `${stt}${nd.tieu_de || 'Nội dung'}`, 
+            font: L.FONT, 
+            size: 28, 
+            bold: true,
+            allCaps: isMainSection 
+          })
+        ] 
+      }));
 
       // Đánh giá tình hình (nếu có)
       if (nd.danh_gia && nd.danh_gia.trim()) {
@@ -528,14 +548,22 @@ async function generateNotificationDocx() {
       const letters = 'abcdefghijklmnopqrstuvwxyz';
       klList.forEach((kl, ki) => {
         if (!kl || !kl.trim()) return;
-        const prefix = klList.length > 1 ? `${letters[ki] || (ki + 1)}) ` : '';
-        // Split multi-line conclusions
+        
+        // Check if item already has a prefix like "a)" or "1."
+        const hasPrefix = /^[a-z0-9]\)/.test(kl.trim().toLowerCase());
+        const prefix = (klList.length > 1 && !hasPrefix) ? `${letters[ki] || (ki + 1)}) ` : '';
+        
         const lines = kl.trim().split('\n').filter(l => l.trim());
         lines.forEach((line, li) => {
-          ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [
-            ...(li === 0 ? [new TextRun({ text: prefix, font: L.FONT, size: 28, bold: klList.length > 1 })] : []),
-            new TextRun({ text: li === 0 ? line.trim() : line.trim(), font: L.FONT, size: 28 })
-          ] }));
+          ch.push(new Paragraph({ 
+            alignment: AlignmentType.JUSTIFIED, 
+            spacing: BS, 
+            indent: { firstLine: 567 }, 
+            children: [
+              ...(li === 0 ? [new TextRun({ text: prefix, font: L.FONT, size: 28, bold: prefix !== '' })] : []),
+              new TextRun({ text: line.trim(), font: L.FONT, size: 28 })
+            ] 
+          }));
         });
       });
     });
