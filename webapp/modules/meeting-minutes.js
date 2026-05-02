@@ -1,8 +1,9 @@
-/**
- * Meeting Minutes Module
+﻿/**
+ * Meeting Minutes Module — Redesigned
  * Chuyển đổi audio cuộc họp thành Thông báo kết luận (NĐ30/HD36)
+ * Hỗ trợ file >100MB qua Gemini Files API
  */
-import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType, UnderlineType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from '../main.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -11,33 +12,14 @@ import { GoogleGenAI } from "https://esm.run/@google/genai";
 import { firebaseConfig } from '../firebase-config.js';
 
 let formState = {
-  step: 1,
-  audioFile: null,
-  isProcessing: false,
-  
-  // Dữ liệu bóc băng
-  chu_tri: '',
-  thanh_phan: '',
-  tom_tat_noi_dung: '',
-  ket_luan: [],
+  step: 1, audioFile: null, isProcessing: false,
+  chu_tri: '', thanh_phan: '', dia_diem: '', tom_tat: '',
+  noi_dung_cuoc_hop: [],
   transcript: '',
-
-  // Dữ liệu xuất văn bản
-  the_thuc: 'nd30',
-  co_quan_chu_quan: '',
-  co_quan_ban_hanh: '',
-  so_ky_hieu: '',
-  dia_danh: 'Lâm Đồng',
-  ngay: '',
-  thang: '',
-  nam: '',
-  nguoi_ky: '',
-  chuc_vu_ky: '',
-  quyen_han_ky: 'Ký trực tiếp',
-  noi_nhan: '',
-  dong_chuc_danh_1: '',
-  dong_chuc_danh_2: '',
-  dong_chuc_danh_3: ''
+  the_thuc: 'nd30', co_quan_chu_quan: '', co_quan_ban_hanh: '',
+  so_ky_hieu: '', dia_danh: 'Lâm Đồng', ngay: '', thang: '', nam: '',
+  nguoi_ky: '', noi_nhan: '',
+  dong_chuc_danh_1: '', dong_chuc_danh_2: '', dong_chuc_danh_3: ''
 };
 
 export function renderMeetingMinutes(container) {
@@ -61,15 +43,10 @@ function doRender(c) {
     </div>
     <div id="sc" class="section-card"></div>
   `;
-
   c.querySelectorAll('.step-indicator').forEach(b => b.addEventListener('click', () => {
     const st = +b.dataset.step;
-    if (st <= formState.step && !formState.isProcessing) {
-      formState.step = st;
-      doRender(c);
-    }
+    if (st <= formState.step && !formState.isProcessing) { formState.step = st; doRender(c); }
   }));
-
   const sc = c.querySelector('#sc');
   if (formState.step === 1) renderStep1(sc, c);
   else if (formState.step === 2) renderStep2(sc, c);
@@ -85,106 +62,108 @@ function renderStep1(sc, c) {
         <div class="upload-zone" id="drop-zone" onclick="document.getElementById('audio-upload').click()">
           <div class="upload-icon">🎤</div>
           <div class="upload-text">Nhấp hoặc kéo thả file ghi âm vào đây</div>
-          <div class="upload-hint">Hỗ trợ: MP3, WAV, M4A, OGG, AAC (Tối đa 20MB cho xử lý trực tiếp)</div>
-          ${formState.audioFile ? `<div style="margin-top: 15px; color: var(--success); font-weight: bold;">Đã chọn: ${formState.audioFile.name}</div>` : ''}
+          <div class="upload-hint">Hỗ trợ: MP3, WAV, M4A, OGG, AAC — <strong>Tối đa 200MB</strong> (qua Gemini Files API)</div>
+          ${formState.audioFile ? `<div style="margin-top: 15px; color: var(--success); font-weight: bold;">Đã chọn: ${formState.audioFile.name} (${(formState.audioFile.size / 1024 / 1024).toFixed(1)}MB)</div>` : ''}
         </div>
       </div>
     </div>
     <div id="processing-indicator" style="display: none; text-align: center; padding: 20px;">
       <div class="spinner"></div>
-      <div style="margin-top: 10px; color: var(--daquy-400); font-weight: 600;">Hệ thống AI đang nghe và phân tích cuộc họp... (Có thể mất 1-3 phút)</div>
+      <div id="processing-text" style="margin-top: 10px; color: var(--daquy-400); font-weight: 600;">Đang tải file lên Gemini...</div>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" id="btn-process" ${!formState.audioFile ? 'disabled' : ''}>Phân tích bằng AI →</button>
     </div>
   `;
-
   const fileInput = sc.querySelector('#audio-upload');
   const dropZone = sc.querySelector('#drop-zone');
   const btnProcess = sc.querySelector('#btn-process');
   const indicator = sc.querySelector('#processing-indicator');
 
   fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-      formState.audioFile = e.target.files[0];
-      doRender(c);
-    }
+    if (e.target.files.length > 0) { formState.audioFile = e.target.files[0]; doRender(c); }
   });
-
   dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--pine-500)'; });
   dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--border-default)'; });
   dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = 'var(--border-default)';
-    if (e.dataTransfer.files.length > 0) {
-      formState.audioFile = e.dataTransfer.files[0];
-      doRender(c);
-    }
+    e.preventDefault(); dropZone.style.borderColor = 'var(--border-default)';
+    if (e.dataTransfer.files.length > 0) { formState.audioFile = e.dataTransfer.files[0]; doRender(c); }
   });
-
   btnProcess.addEventListener('click', async () => {
     if (!formState.audioFile) return;
-    formState.isProcessing = true;
-    btnProcess.disabled = true;
-    indicator.style.display = 'block';
-
+    formState.isProcessing = true; btnProcess.disabled = true; indicator.style.display = 'block';
     try {
-      await processAudioWithGemini(formState.audioFile);
-      formState.isProcessing = false;
-      formState.step = 2;
-      doRender(c);
+      await processAudioWithGemini(formState.audioFile, sc.querySelector('#processing-text'));
+      formState.isProcessing = false; formState.step = 2; doRender(c);
     } catch (error) {
-      console.error(error);
-      showToast('Lỗi khi phân tích audio: ' + error.message, 'error');
-      formState.isProcessing = false;
-      doRender(c);
+      console.error(error); showToast('Lỗi khi phân tích audio: ' + error.message, 'error');
+      formState.isProcessing = false; doRender(c);
     }
   });
 }
 
+function escHtml(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function renderStep2(sc, c) {
+  const nds = formState.noi_dung_cuoc_hop;
   sc.innerHTML = `
     <div class="section-title">✍️ Bước 2: Chỉnh sửa nội dung phân tích</div>
     <div class="panel-group">
       <div class="panel-header"><div class="panel-header-icon">👥</div>Thông tin cuộc họp</div>
       <div class="panel-body form-grid">
-        <div class="form-group span-2">
-          <label class="form-label">Người chủ trì</label>
-          <input class="form-input" id="f-chutri" value="${formState.chu_tri}" placeholder="VD: Đồng chí Nguyễn Ngọc Phúc - Phó Chủ tịch UBND tỉnh">
-        </div>
-        <div class="form-group span-2">
-          <label class="form-label">Thành phần tham dự</label>
-          <textarea class="form-textarea" id="f-thanhphan" rows="3">${formState.thanh_phan}</textarea>
-        </div>
-        <div class="form-group span-2">
-          <label class="form-label">Tóm tắt nội dung cuộc họp</label>
-          <textarea class="form-textarea" id="f-tomtat" rows="4">${formState.tom_tat_noi_dung}</textarea>
-        </div>
+        <div class="form-group span-2"><label class="form-label">Người chủ trì</label><input class="form-input" id="f-chutri" value="${escHtml(formState.chu_tri)}" placeholder="VD: Đồng chí Nguyễn Ngọc Phúc - Phó Chủ tịch UBND tỉnh"></div>
+        <div class="form-group span-2"><label class="form-label">Thành phần tham dự</label><textarea class="form-textarea" id="f-thanhphan" rows="3">${escHtml(formState.thanh_phan)}</textarea></div>
+        <div class="form-group span-2"><label class="form-label">Địa điểm</label><input class="form-input" id="f-diadiem" value="${escHtml(formState.dia_diem)}" placeholder="VD: Phòng họp số 1, UBND tỉnh"></div>
+        <div class="form-group span-2"><label class="form-label">Tóm tắt nội dung cuộc họp</label><textarea class="form-textarea" id="f-tomtat" rows="3">${escHtml(formState.tom_tat)}</textarea></div>
       </div>
     </div>
 
     <div class="panel-group">
-      <div class="panel-header"><div class="panel-header-icon">✅</div>Kết luận / Chỉ đạo</div>
+      <div class="panel-header"><div class="panel-header-icon">📋</div>Nội dung kết luận theo từng vấn đề</div>
       <div class="panel-body">
-        <div id="conclusions-container" style="display: flex; flex-direction: column; gap: 10px;">
-          ${formState.ket_luan.map((kl, idx) => `
-            <div class="form-group conclusion-item">
-              <label class="form-label">Kết luận ${idx + 1}</label>
-              <div style="display: flex; gap: 10px;">
-                <textarea class="form-textarea kl-val" rows="3" style="flex: 1;">${kl}</textarea>
-                <button class="btn btn-secondary btn-del-kl" data-idx="${idx}" style="padding: 10px;">🗑️</button>
+        <div id="topics-container" style="display: flex; flex-direction: column; gap: 20px;">
+          ${nds.map((nd, ti) => `
+            <div class="panel-group" style="border: 1px solid var(--daquy-400); margin-bottom: 0;">
+              <div class="panel-header" style="justify-content: space-between;">
+                <span>📌 Vấn đề ${ti + 1}</span>
+                <button class="btn btn-secondary btn-del-topic" data-ti="${ti}" style="padding: 4px 10px; font-size: 0.75rem;">🗑️ Xóa</button>
+              </div>
+              <div class="panel-body">
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label class="form-label">Tiêu đề vấn đề</label>
+                  <input class="form-input topic-title" data-ti="${ti}" value="${escHtml(nd.tieu_de)}" placeholder="VD: Về công tác cải cách hành chính">
+                </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label class="form-label">Đánh giá / Nhận định (phần mở đầu)</label>
+                  <textarea class="form-textarea topic-eval" data-ti="${ti}" rows="3">${escHtml(nd.danh_gia)}</textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Các kết luận, chỉ đạo cụ thể</label>
+                  <div class="kl-list" data-ti="${ti}" style="display: flex; flex-direction: column; gap: 8px;">
+                    ${(nd.ket_luan || []).map((kl, ki) => `
+                      <div style="display: flex; gap: 8px; align-items: flex-start;">
+                        <span style="min-width: 24px; padding-top: 10px; font-weight: bold; color: var(--daquy-400);">${ki + 1}.</span>
+                        <textarea class="form-textarea kl-item" data-ti="${ti}" data-ki="${ki}" rows="2" style="flex: 1;">${escHtml(kl)}</textarea>
+                        <button class="btn btn-secondary btn-del-kl" data-ti="${ti}" data-ki="${ki}" style="padding: 8px;">🗑️</button>
+                      </div>
+                    `).join('')}
+                  </div>
+                  <button class="btn btn-secondary btn-add-kl" data-ti="${ti}" style="margin-top: 8px; font-size: 0.8rem;">+ Thêm kết luận</button>
+                </div>
               </div>
             </div>
           `).join('')}
         </div>
-        <button class="btn btn-secondary" id="btn-add-kl" style="margin-top: 15px;">+ Thêm kết luận</button>
+        <button class="btn btn-secondary" id="btn-add-topic" style="margin-top: 16px;">+ Thêm vấn đề mới</button>
       </div>
     </div>
 
     <div class="panel-group">
       <div class="panel-header"><div class="panel-header-icon">📝</div>Transcript toàn văn (Bóc băng) — <em>Có thể chỉnh sửa</em></div>
       <div class="panel-body">
-        <textarea class="form-textarea" id="f-transcript" rows="8">${formState.transcript}</textarea>
+        <textarea class="form-textarea" id="f-transcript" rows="8">${escHtml(formState.transcript)}</textarea>
         <button class="btn btn-secondary" id="btn-reanalyze" style="margin-top: 10px;">🔄 Phân tích lại từ transcript đã sửa</button>
       </div>
     </div>
@@ -198,98 +177,91 @@ function renderStep2(sc, c) {
   const saveState = () => {
     formState.chu_tri = sc.querySelector('#f-chutri').value;
     formState.thanh_phan = sc.querySelector('#f-thanhphan').value;
-    formState.tom_tat_noi_dung = sc.querySelector('#f-tomtat').value;
-    formState.ket_luan = Array.from(sc.querySelectorAll('.kl-val')).map(el => el.value);
+    formState.dia_diem = sc.querySelector('#f-diadiem').value;
+    formState.tom_tat = sc.querySelector('#f-tomtat').value;
+    formState.transcript = sc.querySelector('#f-transcript').value;
+    formState.noi_dung_cuoc_hop = [];
+    sc.querySelectorAll('.topic-title').forEach(el => {
+      const ti = parseInt(el.dataset.ti);
+      if (!formState.noi_dung_cuoc_hop[ti]) formState.noi_dung_cuoc_hop[ti] = { tieu_de: '', danh_gia: '', ket_luan: [] };
+      formState.noi_dung_cuoc_hop[ti].tieu_de = el.value;
+    });
+    sc.querySelectorAll('.topic-eval').forEach(el => {
+      const ti = parseInt(el.dataset.ti);
+      if (formState.noi_dung_cuoc_hop[ti]) formState.noi_dung_cuoc_hop[ti].danh_gia = el.value;
+    });
+    sc.querySelectorAll('.kl-item').forEach(el => {
+      const ti = parseInt(el.dataset.ti);
+      const ki = parseInt(el.dataset.ki);
+      if (formState.noi_dung_cuoc_hop[ti]) {
+        if (!formState.noi_dung_cuoc_hop[ti].ket_luan) formState.noi_dung_cuoc_hop[ti].ket_luan = [];
+        formState.noi_dung_cuoc_hop[ti].ket_luan[ki] = el.value;
+      }
+    });
   };
 
-  sc.querySelector('#btn-add-kl').addEventListener('click', () => {
+  sc.querySelector('#btn-add-topic').addEventListener('click', () => {
     saveState();
-    formState.ket_luan.push("");
+    formState.noi_dung_cuoc_hop.push({ tieu_de: '', danh_gia: '', ket_luan: [''] });
     renderStep2(sc, c);
   });
-
-  sc.querySelectorAll('.btn-del-kl').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      saveState();
-      const idx = parseInt(e.currentTarget.dataset.idx);
-      formState.ket_luan.splice(idx, 1);
-      renderStep2(sc, c);
-    });
-  });
-
+  sc.querySelectorAll('.btn-del-topic').forEach(btn => btn.addEventListener('click', () => {
+    saveState(); formState.noi_dung_cuoc_hop.splice(parseInt(btn.dataset.ti), 1); renderStep2(sc, c);
+  }));
+  sc.querySelectorAll('.btn-add-kl').forEach(btn => btn.addEventListener('click', () => {
+    saveState(); const ti = parseInt(btn.dataset.ti);
+    formState.noi_dung_cuoc_hop[ti].ket_luan.push(''); renderStep2(sc, c);
+  }));
+  sc.querySelectorAll('.btn-del-kl').forEach(btn => btn.addEventListener('click', () => {
+    saveState(); const ti = parseInt(btn.dataset.ti); const ki = parseInt(btn.dataset.ki);
+    formState.noi_dung_cuoc_hop[ti].ket_luan.splice(ki, 1); renderStep2(sc, c);
+  }));
   sc.querySelector('#btn-back-1').addEventListener('click', () => { saveState(); formState.step = 1; doRender(c); });
   sc.querySelector('#btn-next-3').addEventListener('click', () => { saveState(); formState.step = 3; doRender(c); });
-
-  // Lưu transcript khi chỉnh sửa
-  const transcriptEl = sc.querySelector('#f-transcript');
-  if (transcriptEl) {
-    transcriptEl.addEventListener('input', () => {
-      formState.transcript = transcriptEl.value;
-    });
-  }
-
-  // Nút phân tích lại từ transcript đã sửa
   sc.querySelector('#btn-reanalyze').addEventListener('click', async () => {
-    saveState();
-    formState.transcript = sc.querySelector('#f-transcript').value;
-    if (!formState.transcript.trim()) {
-      showToast('Vui lòng nhập transcript trước khi phân tích lại!', 'error');
-      return;
-    }
+    saveState(); formState.transcript = sc.querySelector('#f-transcript').value;
+    if (!formState.transcript.trim()) { showToast('Vui lòng nhập transcript!', 'error'); return; }
     try {
       showToast('Đang phân tích lại transcript...');
       await reanalyzeTranscript();
-      renderStep2(sc, c);
-      showToast('✓ Đã cập nhật kết luận từ transcript!', 'success');
-    } catch (e) {
-      showToast('Lỗi: ' + e.message, 'error');
-    }
+      renderStep2(sc, c); showToast('✓ Đã cập nhật!', 'success');
+    } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
   });
 }
+
 
 function renderStep3(sc, c) {
   sc.innerHTML = `
     <div class="section-title">📄 Bước 3: Xuất Thông báo kết luận</div>
-    
     <div class="panel-group">
       <div class="panel-header"><div class="panel-header-icon">⚙️</div>Cấu hình thể thức</div>
       <div class="panel-body form-grid">
         <div class="form-group span-2" style="display: flex; gap: 20px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="radio" name="the_thuc" value="nd30" ${formState.the_thuc === 'nd30' ? 'checked' : ''}> Hành chính (NĐ30)
-          </label>
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="radio" name="the_thuc" value="hd36" ${formState.the_thuc === 'hd36' ? 'checked' : ''}> Đảng (HD36)
-          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="the_thuc" value="nd30" ${formState.the_thuc === 'nd30' ? 'checked' : ''}> Hành chính (NĐ30)</label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="the_thuc" value="hd36" ${formState.the_thuc === 'hd36' ? 'checked' : ''}> Đảng (HD36)</label>
         </div>
       </div>
     </div>
-
     <div class="panel-group">
       <div class="panel-header"><div class="panel-header-icon">🏛️</div>Thông tin phát hành</div>
       <div class="panel-body form-grid">
-        <div class="form-group"><label class="form-label">CQ chủ quản (nếu có)</label><input class="form-input" id="f-cqcq" value="${formState.co_quan_chu_quan}"></div>
+        <div class="form-group"><label class="form-label">CQ chủ quản</label><input class="form-input" id="f-cqcq" value="${formState.co_quan_chu_quan}"></div>
         <div class="form-group"><label class="form-label">CQ ban hành <span class="required">*</span></label><input class="form-input" id="f-cqbh" value="${formState.co_quan_ban_hanh}"></div>
         <div class="form-group"><label class="form-label">Số, ký hiệu</label><input class="form-input" id="f-skh" value="${formState.so_ky_hieu}" placeholder="Số:    /TB-UBND"></div>
         <div class="form-group"><label class="form-label">Ngày ban hành</label><div style="display:flex;gap:8px"><input class="form-input" id="f-ng" value="${formState.ngay}" style="flex:1"><input class="form-input" id="f-th" value="${formState.thang}" style="flex:1"><input class="form-input" id="f-na" value="${formState.nam}" style="flex:1"></div></div>
-        
         <div class="form-group span-2"><label class="form-label">Người ký <span class="required">*</span></label><input class="form-input" id="f-nk" value="${formState.nguoi_ky}"></div>
-        
         <div class="span-2" style="margin-top: 10px; font-weight: bold; font-size: 0.8rem; color: var(--daquy-500);">Dòng chức danh</div>
         <div class="form-group span-2"><label class="form-label">Dòng 1</label><input class="form-input" id="f-cd1" value="${formState.dong_chuc_danh_1}" placeholder="TL. CHỦ TỊCH"></div>
         <div class="form-group span-2"><label class="form-label">Dòng 2</label><input class="form-input" id="f-cd2" value="${formState.dong_chuc_danh_2}" placeholder="KT. CHÁNH VĂN PHÒNG"></div>
         <div class="form-group span-2"><label class="form-label">Dòng 3</label><input class="form-input" id="f-cd3" value="${formState.dong_chuc_danh_3}"></div>
-
-        <div class="form-group span-2"><label class="form-label">Nơi nhận</label><textarea class="form-textarea" id="f-nn" rows="4" placeholder="Như trên;\nLưu: VT, ...">${formState.noi_nhan}</textarea></div>
+        <div class="form-group span-2"><label class="form-label">Nơi nhận</label><textarea class="form-textarea" id="f-nn" rows="4" placeholder="- Chủ tịch, các PCT UBND tỉnh;\n- Các sở, ban, ngành;\n- Lưu: VT, ...">${formState.noi_nhan}</textarea></div>
       </div>
     </div>
-
     <div class="btn-row" style="justify-content: center; margin-top: 24px;">
       <button class="btn btn-secondary" id="btn-back-2">← Quay lại chỉnh sửa</button>
       <button class="btn btn-success" id="btn-export">⬇ Tải Thông báo (.DOCX)</button>
     </div>
   `;
-
   const saveState = () => {
     formState.the_thuc = sc.querySelector('input[name="the_thuc"]:checked').value;
     formState.co_quan_chu_quan = sc.querySelector('#f-cqcq').value;
@@ -304,126 +276,187 @@ function renderStep3(sc, c) {
     formState.dong_chuc_danh_3 = sc.querySelector('#f-cd3').value;
     formState.noi_nhan = sc.querySelector('#f-nn').value;
   };
-
-  sc.querySelectorAll('input[name="the_thuc"]').forEach(rad => {
-    rad.addEventListener('change', () => { saveState(); renderStep3(sc, c); });
-  });
-
+  sc.querySelectorAll('input[name="the_thuc"]').forEach(rad => rad.addEventListener('change', () => { saveState(); renderStep3(sc, c); }));
   sc.querySelector('#btn-back-2').addEventListener('click', () => { saveState(); formState.step = 2; doRender(c); });
   sc.querySelector('#btn-export').addEventListener('click', () => {
     saveState();
-    if (!formState.co_quan_ban_hanh || !formState.nguoi_ky) {
-      showToast('Vui lòng nhập cơ quan ban hành và người ký!', 'error');
-      return;
-    }
+    if (!formState.co_quan_ban_hanh || !formState.nguoi_ky) { showToast('Vui lòng nhập cơ quan ban hành và người ký!', 'error'); return; }
     generateNotificationDocx();
   });
 }
 
 // ==============================================
-// XỬ LÝ GEMINI AI
+// XỬ LÝ GEMINI AI — Files API cho file >100MB
 // ==============================================
 async function getApiKey() {
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   const db = getFirestore(app);
   const docSnap = await getDoc(doc(db, 'config', 'system'));
-  if (docSnap.exists() && docSnap.data().gemini_api_key) {
-    return docSnap.data().gemini_api_key;
-  }
-  throw new Error("Vui lòng cấu hình Gemini API Key trong phần Trợ Lý Pháp Lý (Dashboard) trước khi sử dụng tính năng này.");
+  if (docSnap.exists() && docSnap.data().gemini_api_key) return docSnap.data().gemini_api_key;
+  throw new Error("Vui lòng cấu hình Gemini API Key trước khi sử dụng.");
 }
 
-async function processAudioWithGemini(file) {
+const MEETING_PROMPT = `Bạn là trợ lý thư ký cuộc họp chuyên nghiệp trong cơ quan hành chính nhà nước Việt Nam.
+Hãy nghe KỸ file ghi âm cuộc họp này và trích xuất theo cấu trúc sau:
+
+1. NGƯỜI CHỦ TRÌ (họ tên + chức vụ).
+2. THÀNH PHẦN THAM DỰ (các đơn vị, cá nhân).
+3. ĐỊA ĐIỂM cuộc họp (nếu xác định được).
+4. TÓM TẮT nội dung chính — viết theo văn phong hành chính.
+5. NỘI DUNG CUỘC HỌP — Phân tách theo từng VẤN ĐỀ/LĨNH VỰC được thảo luận.
+   Mỗi vấn đề gồm:
+   - tieu_de: Tiêu đề vấn đề (VD: "Về xây dựng hệ thống phần mềm chuyên ngành")
+   - danh_gia: Đánh giá, nhận định tình hình (VD: "Sau khi nghe báo cáo...")
+   - ket_luan: Mảng các kết luận/chỉ đạo CỤ THỂ, mỗi kết luận là một đoạn văn riêng biệt, rõ ràng giao nhiệm vụ cho đơn vị nào, thời hạn nào.
+6. TRANSCRIPT toàn văn (bóc băng).
+
+LƯU Ý: Phân biệt người nói bằng nhãn. Đánh dấu [không rõ] cho phần không nghe rõ. Dùng đúng thuật ngữ hành chính VN.
+
+Trả về ĐÚNG JSON:
+{
+  "chu_tri": "Đ/c ... - Chức vụ",
+  "thanh_phan": "Lãnh đạo các sở, ngành: ...",
+  "dia_diem": "Phòng họp ...",
+  "tom_tat": "Ngày ..., đồng chí ... đã chủ trì buổi làm việc để nghe ... báo cáo về ...",
+  "noi_dung_cuoc_hop": [
+    {
+      "tieu_de": "Đối với xây dựng hệ thống phần mềm chuyên ngành",
+      "danh_gia": "Đến nay, 13/14 sở, ban, ngành đã đề xuất danh mục...",
+      "ket_luan": [
+        "Các sở, ngành chủ động đề xuất xây dựng hệ thống phần mềm theo hướng...",
+        "Giao Sở Khoa học và Công nghệ chủ trì, phối hợp..."
+      ]
+    }
+  ],
+  "transcript": "[Người nói 1]: Nội dung...\\n[Người nói 2]: Nội dung..."
+}
+CHỈ trả về JSON, KHÔNG giải thích, KHÔNG dùng markdown tick.`;
+
+async function processAudioWithGemini(file, progressEl) {
   const apiKey = await getApiKey();
   const aiClient = new GoogleGenAI({ apiKey });
   const model = "gemini-2.5-flash";
 
-  // Chuyển file sang Base64
-  const base64Audio = await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  let contentParts;
 
-  const prompt = `
-Bạn là một trợ lý thư ký cuộc họp chuyên nghiệp trong cơ quan hành chính nhà nước Việt Nam.
-Hãy nghe KỸ file ghi âm cuộc họp này và thực hiện:
+  if (file.size > 20 * 1024 * 1024) {
+    // File >20MB: dùng Files API
+    progressEl.textContent = `Đang tải file lên Gemini (${(file.size / 1024 / 1024).toFixed(1)}MB)...`;
+    const uploaded = await aiClient.files.upload({
+      file: file,
+      config: { mimeType: file.type || 'audio/mpeg', displayName: file.name }
+    });
+    progressEl.textContent = 'Đang chờ AI xử lý file...';
+    // Poll until file is ACTIVE
+    let fileInfo = uploaded;
+    while (fileInfo.state === 'PROCESSING') {
+      await new Promise(r => setTimeout(r, 3000));
+      fileInfo = await aiClient.files.get({ name: fileInfo.name });
+      progressEl.textContent = `Đang xử lý file... (${fileInfo.state})`;
+    }
+    if (fileInfo.state === 'FAILED') throw new Error('Gemini không thể xử lý file audio này.');
+    contentParts = [
+      { fileData: { mimeType: fileInfo.mimeType, fileUri: fileInfo.uri } },
+      { text: MEETING_PROMPT }
+    ];
+  } else {
+    // File <=20MB: inline base64
+    progressEl.textContent = 'Đang mã hóa file...';
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    contentParts = [
+      { inlineData: { data: base64, mimeType: file.type } },
+      { text: MEETING_PROMPT }
+    ];
+  }
 
-1. Xác định NGƯỜI CHỦ TRÌ cuộc họp (họ tên + chức vụ nếu có).
-2. Liệt kê THÀNH PHẦN THAM DỰ (các đơn vị, cá nhân).
-3. TÓM TẮT nội dung chính cuộc họp — viết theo văn phong hành chính, súc tích.
-4. Liệt kê các KẾT LUẬN và CHỈ ĐẠO cụ thể. Mỗi kết luận là một mục riêng biệt, rõ ràng, có thể giao nhiệm vụ cho đơn vị cụ thể nếu được đề cập.
-5. Tạo bản TRANSCRIPT (bóc băng) toàn văn.
-
-LƯU Ý QUAN TRỌNG khi bóc băng:
-- Phân biệt người nói bằng nhãn [Người nói 1], [Người nói 2]... hoặc tên nếu xác định được.
-- Đánh dấu phần KHÔNG NGHE RÕ bằng [không rõ].
-- Sử dụng đúng thuật ngữ hành chính Việt Nam: UBND, HĐND, Nghị quyết, Quyết định, Thông báo...
-- Viết đúng chính tả tiếng Việt, đúng dấu.
-
-Trả về ĐÚNG định dạng JSON:
-{
-  "chu_tri": "Họ và tên - Chức vụ",
-  "thanh_phan": "Danh sách các đơn vị/cá nhân tham dự",
-  "tom_tat_noi_dung": "Đoạn văn tóm tắt nội dung chính đã thảo luận...",
-  "ket_luan": [
-    "Kết luận số 1:...",
-    "Kết luận số 2:..."
-  ],
-  "transcript": "[Người nói 1]: Nội dung...\n[Người nói 2]: Nội dung..."
-}
-CHỈ trả về JSON, KHÔNG giải thích, KHÔNG dùng markdown tick.
-  `;
-
+  progressEl.textContent = 'AI đang nghe và phân tích cuộc họp... (1-5 phút)';
   const response = await aiClient.models.generateContent({
-    model: model,
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { inlineData: { data: base64Audio, mimeType: file.type } },
-          { text: prompt }
-        ]
-      }
-    ]
+    model, contents: [{ role: 'user', parts: contentParts }]
   });
 
   let text = response.text || "";
   text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-  
+
   try {
     const data = JSON.parse(text);
     formState.chu_tri = data.chu_tri || "";
     formState.thanh_phan = data.thanh_phan || "";
-    formState.tom_tat_noi_dung = data.tom_tat_noi_dung || "";
-    formState.ket_luan = data.ket_luan || [];
+    formState.dia_diem = data.dia_diem || "";
+    formState.tom_tat = data.tom_tat || data.tom_tat_noi_dung || "";
+    formState.noi_dung_cuoc_hop = (data.noi_dung_cuoc_hop || []).map(nd => ({
+      tieu_de: nd.tieu_de || '',
+      danh_gia: nd.danh_gia || '',
+      ket_luan: nd.ket_luan || []
+    }));
+    if (formState.noi_dung_cuoc_hop.length === 0 && data.ket_luan) {
+      formState.noi_dung_cuoc_hop = [{ tieu_de: 'Kết luận chung', danh_gia: '', ket_luan: data.ket_luan }];
+    }
     formState.transcript = data.transcript || "";
   } catch (e) {
-    console.error("Lỗi parse JSON:", e, "Text response:", text);
+    console.error("Lỗi parse JSON:", e, text);
     formState.transcript = response.text;
-    formState.tom_tat_noi_dung = "Không thể trích xuất cấu trúc JSON. Vui lòng xem bản transcript bên dưới.";
+    formState.tom_tat = "Không thể trích xuất cấu trúc JSON. Vui lòng xem transcript bên dưới.";
   }
 
-  // Log
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
     addDoc(collection(db, 'search_logs'), {
-      query: `[Ghi Âm → Thông Báo] Xử lý file: ${file.name}`,
-      model: model,
-      userEmail: window.currentUser?.email || 'Unknown',
-      timestamp: serverTimestamp()
-    }).catch(e => console.warn(e));
+      query: `[Ghi Âm → TB] ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)`,
+      model, userEmail: window.currentUser?.email || 'Unknown', timestamp: serverTimestamp()
+    }).catch(() => {});
   } catch (e) {}
 }
 
+async function reanalyzeTranscript() {
+  const apiKey = await getApiKey();
+  const aiClient = new GoogleGenAI({ apiKey });
+  const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
+{
+  "chu_tri": "...",
+  "thanh_phan": "...",
+  "dia_diem": "...",
+  "tom_tat": "...",
+  "noi_dung_cuoc_hop": [
+    { "tieu_de": "...", "danh_gia": "...", "ket_luan": ["..."] }
+  ]
+}
+CHỈ JSON, KHÔNG giải thích.
+
+TRANSCRIPT:
+${formState.transcript}`;
+
+  const response = await aiClient.models.generateContent({
+    model: "gemini-2.5-flash", contents: prompt, config: { temperature: 0.1 }
+  });
+  let text = response.text || "";
+  text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+  try {
+    const data = JSON.parse(text);
+    formState.chu_tri = data.chu_tri || formState.chu_tri;
+    formState.thanh_phan = data.thanh_phan || formState.thanh_phan;
+    formState.dia_diem = data.dia_diem || formState.dia_diem;
+    formState.tom_tat = data.tom_tat || formState.tom_tat;
+    formState.noi_dung_cuoc_hop = (data.noi_dung_cuoc_hop || []).map(nd => ({
+      tieu_de: nd.tieu_de || '', danh_gia: nd.danh_gia || '', ket_luan: nd.ket_luan || []
+    }));
+  } catch (e) { throw new Error("Không thể phân tích lại transcript."); }
+}
+
+
 // ==============================================
-// XUẤT DOCX
+// XUẤT DOCX — Mẫu TBKL chuẩn NĐ30
 // ==============================================
 const L = { PAGE: { width: 11906, height: 16838 }, MARGIN: { top: 1134, bottom: 1134, left: 1701, right: 1134 }, FONT: 'Times New Roman', CW: 9071 };
 const BN = { top: { style: BorderStyle.NONE, size: 0, color: 'auto' }, bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' }, left: { style: BorderStyle.NONE, size: 0, color: 'auto' }, right: { style: BorderStyle.NONE, size: 0, color: 'auto' }, insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'auto' }, insideVertical: { style: BorderStyle.NONE, size: 0, color: 'auto' } };
 const BS = { before: 120, after: 0, line: 340, lineRule: LineRuleType.AT_LEAST };
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 async function generateNotificationDocx() {
   try {
@@ -431,7 +464,7 @@ async function generateNotificationDocx() {
     const isND30 = fs.the_thuc === 'nd30';
     const ch = [];
 
-    // Header
+    // ===== HEADER =====
     const lc = [], rc = [];
     if (fs.co_quan_chu_quan) lc.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: fs.co_quan_chu_quan, font: L.FONT, size: 26 })] }));
     lc.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: fs.co_quan_ban_hanh, font: L.FONT, size: 26, bold: true })] }));
@@ -446,112 +479,102 @@ async function generateNotificationDocx() {
       rc.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: 'ĐẢNG CỘNG SẢN VIỆT NAM', font: L.FONT, size: 30, bold: true })] }));
       rc.push(new Paragraph({ spacing: { before: 20, after: 0 }, border: { top: { style: BorderStyle.SINGLE, size: 2, color: '000000', space: 1 } }, indent: { left: 928, right: 928 } }));
     }
-    
     rc.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: `${fs.dia_danh}, ngày ${fs.ngay || '...'} tháng ${fs.thang || '...'} năm ${fs.nam}`, font: L.FONT, size: 28, italics: true })] }));
     ch.push(new Table({ width: { size: L.CW, type: WidthType.DXA }, borders: BN, columnWidths: [3500, 5571], rows: [new TableRow({ children: [new TableCell({ borders: BN, width: { size: 3500, type: WidthType.DXA }, verticalAlign: VerticalAlign.TOP, children: lc }), new TableCell({ borders: BN, width: { size: 5571, type: WidthType.DXA }, verticalAlign: VerticalAlign.TOP, children: rc })] })] }));
 
-    // Title
+    // ===== TITLE =====
     ch.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 360, after: 120 }, children: [new TextRun({ text: 'THÔNG BÁO', font: L.FONT, size: 28, bold: true })] }));
-    ch.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 240 }, children: [new TextRun({ text: `Kết luận của ${fs.chu_tri || 'lãnh đạo'} tại cuộc họp...`, font: L.FONT, size: 28, bold: true })] }));
-    
-    // Line separator
+
+    // Trích yếu dựa trên tóm tắt
+    const trichYeu = fs.tom_tat ? `Kết luận của ${fs.chu_tri || 'lãnh đạo'} tại buổi làm việc về ${extractTopicSummary(fs)}` : `Kết luận của ${fs.chu_tri || 'lãnh đạo'} tại cuộc họp`;
+    ch.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 240 }, children: [new TextRun({ text: trichYeu, font: L.FONT, size: 28, bold: true })] }));
     ch.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 240 }, children: [new TextRun({ text: '_______________', font: L.FONT, size: 28 })] }));
 
-    // Body Content
-    const intro = `Ngày ${fs.ngay || '...'} tháng ${fs.thang || '...'} năm ${fs.nam}, tại [địa điểm], ${fs.chu_tri} đã chủ trì cuộc họp về [nội dung cuộc họp].`;
-    ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [new TextRun({ text: intro, font: L.FONT, size: 28 })] }));
-    
+    // ===== PHẦN MỞ ĐẦU =====
+    const introText = fs.tom_tat || `Ngày ${fs.ngay || '...'} tháng ${fs.thang || '...'} năm ${fs.nam}, tại ${fs.dia_diem || '[địa điểm]'}, ${fs.chu_tri} đã chủ trì cuộc họp.`;
+    ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [new TextRun({ text: introText, font: L.FONT, size: 28 })] }));
+
     if (fs.thanh_phan) {
-      ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [new TextRun({ text: `Thành phần tham dự: ${fs.thanh_phan}`, font: L.FONT, size: 28 })] }));
+      ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [
+        new TextRun({ text: 'Tham dự buổi làm việc có ', font: L.FONT, size: 28 }),
+        new TextRun({ text: `lãnh đạo các sở, ngành: ${fs.thanh_phan}.`, font: L.FONT, size: 28 })
+      ] }));
     }
 
-    if (fs.tom_tat_noi_dung) {
-      ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [new TextRun({ text: fs.tom_tat_noi_dung, font: L.FONT, size: 28 })] }));
-    }
+    // Câu chuyển tiếp
+    const transitionText = `Sau khi nghe báo cáo và ý kiến của các đại biểu tại buổi làm việc, trên cơ sở trao đổi, thảo luận; ${fs.chu_tri || 'người chủ trì'} kết luận và chỉ đạo như sau:`;
+    ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [new TextRun({ text: transitionText, font: L.FONT, size: 28 })] }));
 
-    ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [new TextRun({ text: `Sau khi nghe báo cáo và ý kiến thảo luận của các đại biểu dự họp, ${fs.chu_tri} kết luận, chỉ đạo như sau:`, font: L.FONT, size: 28 })] }));
+    // ===== NỘI DUNG KẾT LUẬN THEO TỪNG VẤN ĐỀ =====
+    const nds = fs.noi_dung_cuoc_hop || [];
+    nds.forEach((nd, idx) => {
+      if (!nd.tieu_de && (!nd.ket_luan || nd.ket_luan.length === 0)) return;
 
-    // Conclusions
-    fs.ket_luan.forEach((kl, i) => {
-      if (kl.trim()) {
-        ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 0, left: 567, hanging: 567 }, children: [
-          new TextRun({ text: `${i + 1}. `, font: L.FONT, size: 28, bold: true }),
-          new TextRun({ text: kl.trim(), font: L.FONT, size: 28 })
-        ]}));
+      // Tiêu đề vấn đề: "1. Đối với xây dựng hệ thống phần mềm chuyên ngành"
+      const stt = nds.length > 1 ? `${idx + 1}. ` : '';
+      ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { ...BS, before: 200 }, indent: { firstLine: 567 }, children: [
+        new TextRun({ text: `${stt}${nd.tieu_de || 'Nội dung'}`, font: L.FONT, size: 28, bold: true })
+      ] }));
+
+      // Đánh giá tình hình (nếu có)
+      if (nd.danh_gia && nd.danh_gia.trim()) {
+        nd.danh_gia.split('\n').filter(l => l.trim()).forEach(line => {
+          ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [new TextRun({ text: line.trim(), font: L.FONT, size: 28 })] }));
+        });
       }
+
+      // Các kết luận chi tiết: a) b) c)...
+      const klList = nd.ket_luan || [];
+      const letters = 'abcdefghijklmnopqrstuvwxyz';
+      klList.forEach((kl, ki) => {
+        if (!kl || !kl.trim()) return;
+        const prefix = klList.length > 1 ? `${letters[ki] || (ki + 1)}) ` : '';
+        // Split multi-line conclusions
+        const lines = kl.trim().split('\n').filter(l => l.trim());
+        lines.forEach((line, li) => {
+          ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [
+            ...(li === 0 ? [new TextRun({ text: prefix, font: L.FONT, size: 28, bold: klList.length > 1 })] : []),
+            new TextRun({ text: li === 0 ? line.trim() : line.trim(), font: L.FONT, size: 28 })
+          ] }));
+        });
+      });
     });
 
-    ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [new TextRun({ text: `Trân trọng thông báo kết luận của ${fs.chu_tri} để các cơ quan, đơn vị liên quan biết, phối hợp thực hiện./.`, font: L.FONT, size: 28 })] }));
+    // ===== CÂU KẾT =====
+    ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: { ...BS, before: 200 }, indent: { firstLine: 567 }, children: [
+      new TextRun({ text: `Trân trọng thông báo kết luận của ${fs.chu_tri || 'lãnh đạo'} để các sở, ngành, đơn vị liên quan biết, thực hiện./.`, font: L.FONT, size: 28 })
+    ] }));
 
-    // Signature
+    // ===== NƠI NHẬN + CHỮ KÝ =====
     const nn = [new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: 'Nơi nhận:', font: L.FONT, size: 24, bold: true, italics: true })] })];
-    (fs.noi_nhan || 'Như trên;\nLưu: VT.').split('\n').filter(l => l.trim()).forEach(n => nn.push(new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: '- ' + n.trim(), font: L.FONT, size: 22 })] })));
-    
+    (fs.noi_nhan || 'Như trên;\nLưu: VT.').split('\n').filter(l => l.trim()).forEach(n => {
+      const line = n.trim().startsWith('-') ? n.trim() : '- ' + n.trim();
+      nn.push(new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: line, font: L.FONT, size: 22 })] }));
+    });
+
     const sg = [];
     if (fs.dong_chuc_danh_1) sg.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: fs.dong_chuc_danh_1, font: L.FONT, size: 28, bold: true })] }));
     if (fs.dong_chuc_danh_2) sg.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: fs.dong_chuc_danh_2, font: L.FONT, size: 28, bold: true })] }));
     if (fs.dong_chuc_danh_3) sg.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: fs.dong_chuc_danh_3, font: L.FONT, size: 28, bold: true })] }));
     for (let i = 0; i < 4; i++) sg.push(new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: '', font: L.FONT, size: 28 })] }));
     sg.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: fs.nguoi_ky, font: L.FONT, size: 28, bold: true })] }));
-    
+
     ch.push(new Paragraph({ spacing: { before: 240 }, children: [] }));
     ch.push(new Table({ width: { size: L.CW, type: WidthType.DXA }, borders: BN, columnWidths: [4300, 4771], rows: [new TableRow({ children: [new TableCell({ borders: BN, width: { size: 4300, type: WidthType.DXA }, verticalAlign: VerticalAlign.TOP, children: nn }), new TableCell({ borders: BN, width: { size: 4771, type: WidthType.DXA }, verticalAlign: VerticalAlign.TOP, children: sg })] })] }));
-    
-    const doc = new Document({ styles: { default: { document: { run: { font: L.FONT, size: 28 } } } }, sections: [{ properties: { page: { size: L.PAGE, margin: L.MARGIN } }, children: ch }] });
-    const blob = await Packer.toBlob(doc);
+
+    const docObj = new Document({ styles: { default: { document: { run: { font: L.FONT, size: 28 } } } }, sections: [{ properties: { page: { size: L.PAGE, margin: L.MARGIN } }, children: ch }] });
+    const blob = await Packer.toBlob(docObj);
     saveAs(blob, `TBKL_${isND30 ? 'ND30' : 'HD36'}.docx`);
-    showToast('✓ Đã tải file Thông báo kết luận thành công!');
+    showToast('✓ Đã tải file Thông báo kết luận!');
   } catch (e) {
     console.error(e);
     showToast('Lỗi khi tạo file DOCX: ' + e.message, 'error');
   }
 }
 
-// ==============================================
-// PHÂN TÍCH LẠI TỪ TRANSCRIPT ĐÃ CHỈNH SỬA
-// ==============================================
-async function reanalyzeTranscript() {
-  const apiKey = await getApiKey();
-  const aiClient = new GoogleGenAI({ apiKey });
-  const model = "gemini-2.5-flash";
-
-  const prompt = `Đây là bản transcript (bóc băng) cuộc họp hành chính đã được chỉnh sửa bởi người dùng.
-Hãy phân tích lại và trích xuất:
-
-1. NGƯỜI CHỦ TRÌ (họ tên + chức vụ nếu có)
-2. THÀNH PHẦN THAM DỰ
-3. TÓM TẮT nội dung chính — viết theo văn phong hành chính
-4. Các KẾT LUẬN và CHỈ ĐẠO cụ thể (mỗi kết luận một mục riêng)
-
-Trả về ĐÚNG JSON:
-{
-  "chu_tri": "...",
-  "thanh_phan": "...",
-  "tom_tat_noi_dung": "...",
-  "ket_luan": ["Kết luận 1", "Kết luận 2"]
-}
-CHỈ JSON, KHÔNG giải thích.
-
-TRANSCRIPT:
-${formState.transcript}`;
-
-  const response = await aiClient.models.generateContent({
-    model: model,
-    contents: prompt,
-    config: { temperature: 0.1 },
-  });
-
-  let text = response.text || "";
-  text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-  
-  try {
-    const data = JSON.parse(text);
-    formState.chu_tri = data.chu_tri || formState.chu_tri;
-    formState.thanh_phan = data.thanh_phan || formState.thanh_phan;
-    formState.tom_tat_noi_dung = data.tom_tat_noi_dung || formState.tom_tat_noi_dung;
-    formState.ket_luan = data.ket_luan || formState.ket_luan;
-  } catch (e) {
-    console.error("Lỗi parse JSON khi phân tích lại:", e);
-    throw new Error("Không thể phân tích lại transcript. Vui lòng thử lại.");
-  }
+function extractTopicSummary(fs) {
+  const topics = (fs.noi_dung_cuoc_hop || []).map(nd => nd.tieu_de).filter(t => t);
+  if (topics.length === 0) return 'một số nhiệm vụ trọng tâm';
+  if (topics.length <= 3) return topics.join('; ').toLowerCase();
+  return topics.slice(0, 2).join('; ').toLowerCase() + ` và ${topics.length - 2} nội dung khác`;
 }
