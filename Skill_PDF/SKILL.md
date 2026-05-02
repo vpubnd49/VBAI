@@ -1,6 +1,6 @@
 ---
 name: Xử Lý PDF
-description: Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart, rotating pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/decrypting PDFs, extracting images, and OCR on scanned PDFs to make them searchable. If the user mentions a .pdf file or asks to produce one, use this skill.
+description: "Trích xuất nội dung từ file PDF. Hỗ trợ đọc, trích xuất văn bản/bảng biểu, gộp, tách, xoay trang, thêm hình mờ, tạo PDF mới, điền form, mã hóa/giải mã, trích xuất hình ảnh và OCR."
 license: Proprietary. LICENSE.txt has complete terms
 ---
 
