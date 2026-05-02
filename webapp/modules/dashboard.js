@@ -27,6 +27,36 @@ export async function renderDashboard(container, navigateTo) {
         </div>
       </div>
     </section>
+    
+    <!-- Contact Section -->
+    <section id="contact-section" style="margin-top: 48px; animation: pageIn 0.6s ease-out 0.2s both;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+        <div style="width: 32px; height: 3px; background: var(--accent); border-radius: 2px;"></div>
+        <h2 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); letter-spacing: 0.5px;">Liên Hệ Hỗ Trợ</h2>
+      </div>
+      
+      <div class="stats-row" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+        <a href="https://m.me/haichau2404" target="_blank" class="stat-card" style="text-decoration: none; display: flex; align-items: center; gap: 20px; padding: 24px; border-radius: var(--radius-xl); background: linear-gradient(135deg, rgba(0, 132, 255, 0.1), rgba(0, 132, 255, 0.05)); border: 1px solid rgba(0, 132, 255, 0.2);">
+          <div style="width: 56px; height: 56px; border-radius: 16px; background: #0084ff; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 8px 20px rgba(0, 132, 255, 0.3); flex-shrink: 0;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.453 5.502 3.734 7.254.195.15.316.386.324.64l.035 2.128c.008.497.53.818.966.576l2.368-1.314a.786.786 0 01.597-.064c.94.27 1.942.42 2.978.42 5.523 0 10-4.145 10-9.258S17.523 2 12 2zm.893 12.35l-2.585-2.756-5.044 2.756 5.544-5.885 2.585 2.756 5.044-2.756-5.544 5.885z"/></svg>
+          </div>
+          <div>
+            <div style="font-size: 1.1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">Messenger</div>
+            <div style="font-size: 0.85rem; color: #0084ff; font-weight: 600;">@haichau2404</div>
+          </div>
+        </a>
+
+        <a href="https://zalo.me/0911677209" target="_blank" class="stat-card" style="text-decoration: none; display: flex; align-items: center; gap: 20px; padding: 24px; border-radius: var(--radius-xl); background: linear-gradient(135deg, rgba(0, 104, 255, 0.1), rgba(0, 104, 255, 0.05)); border: 1px solid rgba(0, 104, 255, 0.2);">
+          <div style="width: 56px; height: 56px; border-radius: 16px; background: #0068ff; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 8px 20px rgba(0, 104, 255, 0.3); flex-shrink: 0; font-weight: 900; font-size: 1.2rem; font-family: 'Inter', sans-serif;">
+            Z
+          </div>
+          <div>
+            <div style="font-size: 1.1rem; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">Zalo</div>
+            <div style="font-size: 0.85rem; color: #0068ff; font-weight: 600;">0911.677.209</div>
+          </div>
+        </a>
+      </div>
+    </section>
 
     <footer class="app-footer">
       <div class="footer-line">Phiên bản v1.2.6 — Văn phòng UBND tỉnh Lâm Đồng</div>

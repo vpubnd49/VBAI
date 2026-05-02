@@ -193,6 +193,15 @@ function init() {
   // Nav clicks
   document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', () => {
+      if (item.id === 'nav-contact') {
+        navigateTo('dashboard');
+        setTimeout(() => {
+          const el = document.getElementById('contact-section');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
+        return;
+      }
+      
       const page = item.dataset.page;
       if (page) {
         navigateTo(page);
