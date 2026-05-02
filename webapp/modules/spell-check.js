@@ -297,6 +297,68 @@ function checkSpellingLocal(paragraphs) {
       }
     }
     
+    // Kiểm tra mở rộng UBND/HĐND (Yêu cầu mới)
+    const ABBR_RULES = [
+      { abbr: 'UBND', full: 'Ủy ban nhân dân' },
+      { abbr: 'HĐND', full: 'Hội đồng nhân dân' }
+    ];
+
+    ABBR_RULES.forEach(rule => {
+      let sf = 0;
+      while (true) {
+        const pos = p.text.indexOf(rule.abbr, sf);
+        if (pos === -1) break;
+        sf = pos + rule.abbr.length;
+
+        const charBefore = pos > 0 ? p.text[pos - 1] : '';
+        const charAfter = pos + rule.abbr.length < p.text.length ? p.text[pos + rule.abbr.length] : '';
+
+        // 1. Kiểm tra dấu gạch ngang (Số hiệu VB: -UBND, UBND-, -HĐND, HĐND-)
+        if (charBefore === '-' || charAfter === '-') continue;
+
+        // 2. Kiểm tra ranh giới từ (Tránh VPUBND)
+        if (VN_WORD_CHARS.test(charBefore) || VN_WORD_CHARS.test(charAfter)) continue;
+
+        // 3. Kiểm tra cụm từ bảo vệ (không dịch)
+        const contextText = p.text;
+        
+        // Bảo vệ cụm: "Văn phòng ĐĐBQH và HĐND tỉnh"
+        if (rule.abbr === 'HĐND') {
+           const p1 = "Văn phòng ĐĐBQH và HĐND tỉnh";
+           const idxInP1 = p1.indexOf('HĐND');
+           const startP1 = pos - idxInP1;
+           if (startP1 >= 0 && contextText.substring(startP1, startP1 + p1.length) === p1) continue;
+        }
+
+        // Bảo vệ cụm: "Văn phòng HĐND và UBND xã" (phường, đặc khu)
+        const pPatterns = ["Văn phòng HĐND và UBND xã", "Văn phòng HĐND và UBND phường", "Văn phòng HĐND và UBND đặc khu"];
+        let isProtected = false;
+        for (const pattern of pPatterns) {
+          const idxInP = pattern.indexOf(rule.abbr);
+          if (idxInP !== -1) {
+            const startP = pos - idxInP;
+            if (startP >= 0 && contextText.substring(startP, startP + pattern.length) === pattern) {
+              isProtected = true;
+              break;
+            }
+          }
+        }
+        if (isProtected) continue;
+
+        // Nếu vượt qua bộ lọc -> Đề xuất mở rộng
+        localErrors.push({
+          type: 'capitalization',
+          paraIdx: p.index,
+          pos: pos,
+          length: rule.abbr.length,
+          original: rule.abbr,
+          suggestion: rule.full,
+          reason: `Mở rộng viết tắt: ${rule.full}`,
+          message: `"${rule.abbr}" \u2192 "${rule.full}"`
+        });
+      }
+    });
+    
     // Kiểm tra viết hoa TỔ CHỨC (cụm dài — luôn áp dụng)
     for (const [wrongLower, correct] of Object.entries(CAPITALIZATION_RULES)) {
       let searchFrom = 0;
@@ -426,13 +488,6 @@ function checkFormat(state) {
       const hasCQ = state.paragraphs.some(p => p.runs.some(r => r.bold) && p.text.length < 60);
       if (hasCQ) errors.push({ type: 'format', rule: 'HD36', message: 'Có thể thiếu dấu sao (*) dưới tên cơ quan ban hành' });
     }
-  }
-  
-  // Kiểm tra tính nhất quán: UBND vs Ủy ban nhân dân
-  const countUBND = (allText.match(/\bUBND\b/g) || []).length;
-  const countUyBan = (allText.match(/Ủy ban nhân dân/gi) || []).length;
-  if (countUBND > 0 && countUyBan > 0) {
-    errors.push({ type: 'format', rule: 'Nhất quán', message: `Phát hiện dùng lẫn lộn "Ủy ban nhân dân" (${countUyBan} lần) và "UBND" (${countUBND} lần). Nên viết đầy đủ lần đầu, sau đó dùng viết tắt.` });
   }
   
   return errors;
