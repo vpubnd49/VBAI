@@ -1,5 +1,5 @@
 ---
-name: Xử Lý PDF
+name: Xử lý PDF / OCR
 description: "Trích xuất nội dung từ file PDF. Hỗ trợ đọc, trích xuất văn bản/bảng biểu, gộp, tách, xoay trang, thêm hình mờ, tạo PDF mới, điền form, mã hóa/giải mã, trích xuất hình ảnh và OCR."
 license: Proprietary. LICENSE.txt has complete terms
 ---

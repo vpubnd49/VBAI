@@ -60,8 +60,8 @@ const PAGE_TITLES = {
   'vb-nd30': 'Văn Bản Hành Chính (NĐ30)',
   'pdf-tool': 'Xử lý PDF / OCR',
   'docx-tool': 'Tạo & Xuất DOCX',
-  'spell-check': 'Kiểm Tra Văn Bản',
-  'meeting-minutes': 'Ghi Âm → Thông Báo',
+  'spell-check': 'Kiểm tra chính tả & thể thức',
+  'meeting-minutes': 'Xử lý ghi âm cuộc họp',
   'admin-panel': 'Quản Trị Hệ Thống',
 };
 

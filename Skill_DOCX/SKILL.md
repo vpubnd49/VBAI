@@ -1,5 +1,5 @@
 ---
-name: Tạo File DOCX
+name: Tạo & Xuất DOCX
 description: "Soạn thảo văn bản Word. Hỗ trợ tạo, đọc, chỉnh sửa tài liệu Word (.docx). Bao gồm định dạng chuyên nghiệp: mục lục, tiêu đề, số trang, chèn ảnh, tìm kiếm thay thế, xử lý tracked changes/comments và chuyển đổi nội dung thành tài liệu Word hoàn chỉnh."
 license: Proprietary. LICENSE.txt has complete terms
 ---

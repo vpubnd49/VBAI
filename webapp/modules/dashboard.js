@@ -10,7 +10,7 @@ export async function renderDashboard(container, navigateTo) {
   container.innerHTML = `
     <div class="dashboard-hero">
       <h1 class="hero-title">Trợ Lý Soạn Văn Bản AI</h1>
-      <p class="hero-sub">Soạn văn bản hành chính & văn bản Đảng chuẩn thể thức — nhanh chóng, chính xác, chuyên nghiệp</p>
+      <p class="hero-sub">Tra cứu quy định, soạn thảo văn bản hành chính & văn bản Đảng chuẩn thể thức bằng AI</p>
     </div>
 
     <!-- Chat Assistant Panel (Full-width, Top) -->
@@ -109,13 +109,13 @@ export async function renderDashboard(container, navigateTo) {
     `).join('') + `
       <div class="module-card" data-accent="daquy" data-page="spell-check" id="card-spell-check">
         <div class="module-icon daquy">🔍</div>
-        <div class="module-title">Kiểm Tra Văn Bản</div>
+        <div class="module-title">Kiểm tra chính tả & thể thức</div>
         <div class="module-desc">Rà soát chính tả & thể thức</div>
         <div class="module-badge">NĐ30 • HD36 • AI</div>
       </div>
       <div class="module-card" data-accent="pine" data-page="meeting-minutes" id="card-meeting-minutes">
         <div class="module-icon pine">🎙️</div>
-        <div class="module-title">Ghi Âm → Thông Báo</div>
+        <div class="module-title">Xử lý ghi âm cuộc họp</div>
         <div class="module-desc">Chuyển ghi âm thành thông báo</div>
         <div class="module-badge">STT • NĐ30 • HD36</div>
       </div>

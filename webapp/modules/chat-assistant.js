@@ -22,6 +22,7 @@ const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên
 1. **LUÔN TRA CỨU GOOGLE SEARCH** để lấy thông tin mới nhất trước khi trả lời. KHÔNG BAO GIỜ trả lời từ kiến thức cũ nếu có thể tra cứu được.
 2. **ƯU TIÊN NGUỒN CHÍNH THỐNG** theo thứ tự:
    - Các Cổng thông tin điện tử của Chính phủ, các Bộ, Ngành và UBND các tỉnh/thành phố (tên miền **.gov.vn**)
+   - dangcongsan.vn (Báo điện tử Đảng Cộng sản Việt Nam), tulieuvankien.dangcongsan.vn
    - vanban.chinhphu.vn (Cổng thông tin Chính phủ)
    - vbpl.vn (Cơ sở dữ liệu Quốc gia về Văn bản Pháp luật)
    - thuvienphapluat.vn (Thư viện Pháp luật)
@@ -40,9 +41,10 @@ const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên
 - Nếu câu hỏi phức tạp, chia thành các mục rõ ràng
 
 ## LƯU Ý ĐẶC BIỆT:
-- Luôn kiểm tra xem văn bản có bị sửa đổi, bổ sung bởi văn bản nào khác không
-- Ưu tiên cung cấp thông tin từ năm 2024-2026
-- Nếu chưa đủ thông tin, hãy đề xuất người dùng kiểm tra trực tiếp tại các trang web chính thống`;
+- Luôn kiểm tra xem văn bản pháp luật hoặc quy định, hướng dẫn của Đảng có bị sửa đổi, bổ sung, thay thế không.
+- Ưu tiên cung cấp thông tin mới nhất từ năm 2024-2026.
+- Nếu người dùng hỏi về công tác Đảng (Đại hội, tổ chức, kiểm tra, văn phòng cấp ủy...), hãy tra cứu trên hệ thống dangcongsan.vn hoặc các trang thông tin Đảng bộ.
+- Nếu chưa đủ thông tin, hãy đề xuất người dùng kiểm tra trực tiếp tại các trang web chính thống.`;
 
 let allSkills = [];
 
@@ -145,7 +147,7 @@ export async function renderChatUI(container) {
     <div class="chat-assistant-panel panel-group">
       <div class="panel-header">
         <div class="panel-header-icon">⚖️</div>
-        Trợ Lý Tra Cứu Pháp Luật AI (Grounding)
+        Trợ Lý Tra Cứu Pháp Luật & Quy Định Đảng AI
         <div style="flex:1"></div>
         <button id="chat-settings-btn" class="btn-icon" title="Cấu hình" style="display: ${localStorage.getItem('vbai_admin') === 'true' ? 'block' : 'none'}; width:28px; height:28px; font-size:0.8rem">⚙️</button>
       </div>
@@ -153,15 +155,15 @@ export async function renderChatUI(container) {
         <div id="chat-messages" class="chat-messages-area">
           <div class="chat-msg ai">
             <strong>Xin chào! Tôi là Trợ lý VBAI.</strong><br>
-            Tôi hỗ trợ tra cứu các quy định pháp luật, Nghị định, Thông tư mới nhất dựa trên dữ liệu thời gian thực từ Google Search Grounding.
+            Tôi hỗ trợ tra cứu các quy định pháp luật và các quy định, hướng dẫn của Đảng mới nhất dựa trên dữ liệu thời gian thực từ Google Search Grounding.
             <br><br>
             <strong>Nguồn dữ liệu chính thống:</strong><br>
+            • dangcongsan.vn (Tư liệu Văn kiện Đảng)<br>
             • vanban.chinhphu.vn (Cổng thông tin Chính phủ)<br>
             • thuvienphapluat.vn (Thư viện Pháp luật)<br>
-            • luatvietnam.vn (Luật Việt Nam)<br>
             • Các cổng thông tin điện tử (.gov.vn)
             <br><br>
-            <em>Bạn hãy đặt câu hỏi bằng ngôn ngữ tự nhiên (VD: "Quy định mới nhất về cải cách hành chính tại Lâm Đồng")</em>
+            <em>Bạn hãy đặt câu hỏi bằng ngôn ngữ tự nhiên (VD: "Quy định mới nhất về công tác văn thư của Đảng")</em>
           </div>
         </div>
         
