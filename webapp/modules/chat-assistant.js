@@ -145,20 +145,35 @@ export async function renderChatUI(container) {
     <div class="chat-assistant-panel panel-group">
       <div class="panel-header">
         <div class="panel-header-icon">⚖️</div>
-        Trợ Lý Tra Cứu Pháp Luật (AI + Google Search)
+        Trợ Lý Tra Cứu Pháp Luật AI (Grounding)
         <div style="flex:1"></div>
         <button id="chat-settings-btn" class="btn-icon" title="Cấu hình" style="display: ${localStorage.getItem('vbai_admin') === 'true' ? 'block' : 'none'}; width:28px; height:28px; font-size:0.8rem">⚙️</button>
       </div>
       <div class="panel-body">
         <div id="chat-messages" class="chat-messages-area">
-          <div class="chat-msg ai">Xin chào! Tôi là Trợ lý VBAI — Hỗ trợ tra cứu Luật, Nghị định, Thông tư mới nhất từ các nguồn chính thống (thuvienphapluat.vn, vanban.chinhphu.vn, luatvietnam.vn). Hãy đặt câu hỏi!</div>
+          <div class="chat-msg ai">
+            <strong>Xin chào! Tôi là Trợ lý VBAI.</strong><br>
+            Tôi hỗ trợ tra cứu các quy định pháp luật, Nghị định, Thông tư mới nhất dựa trên dữ liệu thời gian thực từ Google Search Grounding.
+            <br><br>
+            <strong>Nguồn dữ liệu chính thống:</strong><br>
+            • vanban.chinhphu.vn (Cổng thông tin Chính phủ)<br>
+            • thuvienphapluat.vn (Thư viện Pháp luật)<br>
+            • luatvietnam.vn (Luật Việt Nam)<br>
+            • Các cổng thông tin điện tử (.gov.vn)
+            <br><br>
+            <em>Bạn hãy đặt câu hỏi bằng ngôn ngữ tự nhiên (VD: "Quy định mới nhất về cải cách hành chính tại Lâm Đồng")</em>
+          </div>
         </div>
         
         <div class="chat-input-wrapper">
-          <input type="text" id="chat-input" placeholder="VD: Nghị định mới nhất về quản lý cán bộ công chức..." class="form-input chat-input-field">
+          <input type="text" id="chat-input" placeholder="Nhập nội dung cần tra cứu..." class="form-input chat-input-field">
           <button id="chat-send-btn" class="btn btn-primary chat-send-btn">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10l15-7.5L10 10l7.5 7.5L2.5 10z" fill="currentColor"/></svg>
           </button>
+        </div>
+
+        <div class="chat-disclaimer" style="margin-top: 12px; padding: 10px; background: rgba(239, 68, 68, 0.05); border-left: 3px solid #ef4444; border-radius: 4px; font-size: 0.75rem; color: var(--text-secondary);">
+          <strong>⚠️ CẢNH BÁO RỦI RO:</strong> VBAI là công cụ hỗ trợ dựa trên AI, không thay thế trách nhiệm của cán bộ, công chức trong việc kiểm tra, đối chiếu với văn bản pháp luật chính thức. Kết quả do AI cung cấp chỉ mang tính chất gợi ý, người dùng cần kiểm tra hiệu lực văn bản trước khi đưa vào dự thảo.
         </div>
       </div>
     </div>

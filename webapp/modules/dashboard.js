@@ -58,6 +58,21 @@ export async function renderDashboard(container, navigateTo) {
       </div>
     </section>
 
+    <section id="disclaimer-section" style="margin-top: 48px; padding: 20px; background: rgba(239, 68, 68, 0.03); border: 1px dashed rgba(239, 68, 68, 0.3); border-radius: var(--radius-xl); animation: pageIn 0.6s ease-out 0.3s both;">
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="font-size: 1.5rem; line-height: 1;">⚠️</div>
+        <div>
+          <h3 style="font-size: 0.9rem; font-weight: 800; color: #ef4444; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Lưu ý quan trọng & Kiểm soát rủi ro</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 8px;">
+            VBAI được xác định là <strong>công cụ hỗ trợ</strong>, không thay thế trách nhiệm của cán bộ, công chức trong việc kiểm tra, thẩm định nội dung tham mưu. Kết quả do Trợ lý AI cung cấp cần được đối chiếu với văn bản pháp luật chính thức.
+          </p>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
+            <strong>An toàn thông tin:</strong> Tuyệt đối không đưa lên hệ thống các tài liệu mật, tài liệu nhạy cảm hoặc thông tin chưa được phép xử lý trên môi trường mạng.
+          </p>
+        </div>
+      </div>
+    </section>
+
     <footer class="app-footer">
       <div class="footer-line">Phiên bản v1.2.6 — Văn phòng UBND tỉnh Lâm Đồng</div>
       <div class="footer-line">PHÁT TRIỂN BỞI: <a href="https://www.facebook.com/haichau2404" target="_blank" rel="noopener" class="footer-link">TRƯƠNG HẢI CHÂU</a></div>

@@ -12,6 +12,7 @@ import { renderDocxTool } from './modules/docx-tool.js';
 import { renderSpellCheck } from './modules/spell-check.js';
 import { renderAdminPanel } from './modules/admin-panel.js';
 import { renderLogin } from './modules/login.js';
+import { renderChatUI } from './modules/chat-assistant.js';
 import { renderMeetingMinutes } from './modules/meeting-minutes.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -54,10 +55,11 @@ export function showToast(msg, type = 'success') {
 // ============ NAVIGATION ============
 const PAGE_TITLES = {
   dashboard: 'Tổng quan',
+  'chat-assistant': 'Trợ lý Tra cứu Pháp luật',
   'vb-dang': 'Văn Bản Đảng (HD36)',
   'vb-nd30': 'Văn Bản Hành Chính (NĐ30)',
-  'pdf-tool': 'Xử lý PDF',
-  'docx-tool': 'Tạo DOCX',
+  'pdf-tool': 'Xử lý PDF / OCR',
+  'docx-tool': 'Tạo & Xuất DOCX',
   'spell-check': 'Kiểm Tra Văn Bản',
   'meeting-minutes': 'Ghi Âm → Thông Báo',
   'admin-panel': 'Quản Trị Hệ Thống',
@@ -95,6 +97,7 @@ function renderPage(page) {
 
   switch (page) {
     case 'dashboard': renderDashboard(container, navigateTo); break;
+    case 'chat-assistant': renderChatUI(container); break;
     case 'vb-dang': renderVBDang(container); break;
     case 'vb-nd30': renderVBND30(container); break;
     case 'pdf-tool': renderPdfTool(container); break;
