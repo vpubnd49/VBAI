@@ -55,9 +55,9 @@ export function showToast(msg, type = 'success') {
 // ============ NAVIGATION ============
 const PAGE_TITLES = {
   dashboard: 'Tổng quan',
-  'chat-assistant': 'Trợ lý Tra cứu Pháp luật',
-  'vb-dang': 'Văn Bản Đảng (HD36)',
-  'vb-nd30': 'Văn Bản Hành Chính (NĐ30)',
+  'chat-assistant': 'Trợ lý tra cứu pháp luật',
+  'vb-dang': 'Soạn VB Đảng (HD36)',
+  'vb-nd30': 'Soạn VB Hành chính (NĐ30)',
   'pdf-tool': 'Xử lý PDF / OCR',
   'docx-tool': 'Tạo & Xuất DOCX',
   'spell-check': 'Kiểm tra chính tả & thể thức',

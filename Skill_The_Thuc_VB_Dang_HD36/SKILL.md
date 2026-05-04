@@ -1,5 +1,5 @@
 ---
-name: Văn Bản Đảng (HD36)
+name: Soạn VB Đảng (HD36)
 description: "Tạo văn bản Đảng (.docx) dùng thể thức theo Hướng dẫn 36-HD/VPTW. Hỗ trợ TẤT CẢ loại VB Đảng: Nghị quyết, Chỉ thị, Kết luận, Quyết định, Quy định, Quy chế, Báo cáo, Tờ trình, Thông báo, Hướng dẫn, Chương trình, Thông tri, Công văn, Biên bản. Dùng khi cần tạo VB cho cấp uỷ, cơ quan tham mưu, BCSĐ, ĐĐ, ban chỉ đạo ở mọi cấp từ TW đến chi bộ."
 ---
 

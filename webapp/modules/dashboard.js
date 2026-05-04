@@ -17,8 +17,8 @@ export async function renderDashboard(container, navigateTo) {
     <div id="chat-assistant-container" style="margin-bottom: 32px;"></div>
 
     <section>
-      <h2 style="font-size: 1rem; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Chọn Công Cụ Soạn Thảo</h2>
-      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">Bắt đầu soạn văn bản hoặc xử lý tài liệu</p>
+      <h2 style="font-size: 1rem; font-weight: 700; margin-bottom: 4px; color: var(--text-primary);">Các Phân Hệ Chức Năng</h2>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">Khám phá các phân hệ nghiệp vụ cốt lõi của VBAI</p>
 
       <div class="modules-grid" id="skills-grid">
         <div style="grid-column: 1/-1; text-align: center; padding: 20px;">
