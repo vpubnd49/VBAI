@@ -566,15 +566,15 @@ export async function renderChatUI(container) {
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10l15-7.5L10 10l7.5 7.5L2.5 10z" fill="currentColor"/></svg>
           </button>
         </div>
-        <div class="btn-row" style="margin-top:10px; justify-content:flex-end; gap:8px;">
-          <button id="chat-export-template-dang-btn" class="btn btn-primary" style="padding:8px 12px; font-size:0.8rem">⬇ Xuất mẫu HD36</button>
-          <button id="chat-export-template-nd30-btn" class="btn btn-primary" style="padding:8px 12px; font-size:0.8rem">⬇ Xuất mẫu ND30</button>
-          <button id="chat-export-docx-btn" class="btn btn-success" style="padding:8px 12px; font-size:0.8rem">⬇ Xuất câu trả lời ra DOCX</button>
+        <div class="chat-export-actions">
+          <button id="chat-export-template-dang-btn" class="btn chat-export-btn chat-export-btn-dang">⬇ Xuất mẫu HD36</button>
+          <button id="chat-export-template-nd30-btn" class="btn chat-export-btn chat-export-btn-nd30">⬇ Xuất mẫu ND30</button>
+          <button id="chat-export-docx-btn" class="btn chat-export-btn chat-export-btn-docx">⬇ Xuất câu trả lời ra DOCX</button>
         </div>
-        <div id="chat-template-modal" class="modal-overlay" style="display:none">
-          <div class="modal-content panel-group" style="max-width:560px; margin: 80px auto">
+        <div id="chat-template-modal" class="modal-overlay chat-template-overlay" style="display:none">
+          <div class="modal-content panel-group chat-template-modal-content">
             <div class="panel-header" id="chat-template-title">Xuất theo mẫu</div>
-            <div class="panel-body">
+            <div class="panel-body chat-template-modal-body">
               <div class="form-grid">
                 <div class="form-group span-2">
                   <label class="form-label" id="chat-template-label-captr">Cơ quan cấp trên</label>
@@ -605,7 +605,7 @@ export async function renderChatUI(container) {
                   <input type="text" id="chat-template-nguoiky" class="form-input" placeholder="Nguyễn Văn A">
                 </div>
               </div>
-              <div class="btn-row" style="margin-top:20px">
+              <div class="btn-row chat-template-modal-actions">
                 <button id="chat-template-submit" class="btn btn-primary">Xuất file</button>
                 <button id="chat-template-cancel" class="btn btn-secondary">Đóng</button>
               </div>
@@ -781,6 +781,11 @@ export async function renderChatUI(container) {
   templateNd30Btn.onclick = () => openTemplateModal('nd30');
   templateCancel.onclick = () => {
     templateModal.style.display = 'none';
+  };
+  templateModal.onclick = (e) => {
+    if (e.target === templateModal) {
+      templateModal.style.display = 'none';
+    }
   };
 
   templateSubmit.onclick = async () => {
