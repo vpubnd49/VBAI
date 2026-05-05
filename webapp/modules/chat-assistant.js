@@ -43,6 +43,22 @@ const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên
 - Khi liệt kê văn bản, ghi theo format: [Loại VB] [Số hiệu]/[Năm] — [Tiêu đề] — Hiệu lực: [Còn/Hết]
 - Nếu câu hỏi phức tạp, chia thành các mục rõ ràng
 
+## SOẠN THẢO VĂN BẢN (QUAN TRỌNG):
+Khi người dùng yêu cầu soạn thảo, dự thảo, hoặc tạo mẫu văn bản (quyết định, nghị quyết, báo cáo, tờ trình, thông báo, kế hoạch, công văn...), BẮT BUỘC phải tuân thủ cấu trúc sau:
+
+1. **Phần tư vấn ngắn gọn** (nếu cần): Giải thích căn cứ pháp lý, lưu ý quan trọng.
+2. **Phần dự thảo văn bản**: PHẢI bắt đầu bằng dòng tên CƠ QUAN BAN HÀNH viết IN HOA (ví dụ: "ỦY BAN NHÂN DÂN TỈNH LÂM ĐỒNG" hoặc "ĐẢNG BỘ TỈNH LÂM ĐỒNG"). Tiếp theo là cấu trúc đầy đủ:
+   - Tên cơ quan (IN HOA, in đậm)
+   - Số ký hiệu: Số: .../QĐ-UBND (hoặc tương ứng)
+   - Quốc hiệu, tiêu ngữ (nếu là VB chính quyền)
+   - Địa danh, ngày tháng năm
+   - TÊN LOẠI VĂN BẢN (IN HOA, in đậm): QUYẾT ĐỊNH / NGHỊ QUYẾT / BÁO CÁO...
+   - Trích yếu: Về việc...
+   - Phần căn cứ (in nghiêng)
+   - Nội dung: Điều 1, Điều 2...
+   - Nơi nhận và chữ ký
+3. **Phần lưu ý cuối** (nếu cần): Ghi chú thêm, nguồn tham khảo.
+
 ## LƯU Ý ĐẶC BIỆT:
 - Luôn kiểm tra xem văn bản pháp luật hoặc quy định, hướng dẫn của Đảng có bị sửa đổi, bổ sung, thay thế không.
 - Ưu tiên cung cấp thông tin mới nhất từ năm 2024-2026.
@@ -838,76 +854,116 @@ export async function renderChatUI(container) {
     const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
     if (!lines.length) return '';
 
-    const sourceMarkers = [
-      'nguon tham khao',
-      'tai lieu tham khao',
-      'tham khao',
-      'canh bao rui ro',
-      'luu y quan trong',
-      'google search grounding',
-      'de xuat tu tro ly',
-      'luu y dac biet'
+    // === TIER 1: Look for formal document header lines (CƠ QUAN IN HOA or QUỐC HIỆU) ===
+    // These are unmistakable document start markers
+    const formalHeaderPatterns = [
+      /^\*{0,2}(UY BAN NHAN DAN|UBND|HOI DONG NHAN DAN|HDND|BO [A-Z]|SO [A-Z]|VAN PHONG)/,
+      /^\*{0,2}(DANG BO|DANG UY|CHI BO|BAN CHAP HANH|BAN THUONG VU)/,
+      /^\*{0,2}(CONG HOA XA HOI CHU NGHIA VIET NAM)/,
+      /^\*{0,2}(DANG CONG SAN VIET NAM)/
     ];
 
-    // Lines that are conversational/AI greeting — not document content
-    const conversationMarkers = [
-      'xin chao', 'toi la', 'ban hay', 'duoi day', 'nguon du lieu chinh thong',
-      'voi tu cach la tro ly', 'toi xin huong dan', 'chao ban',
-      'de ho tro ban', 'ban vui long cho biet', 'ban can cung cap',
-      'neu ban co thong tin', 'toi co the ho tro',
-      'co so phap ly quan trong', 'co so phap ly',
-      'cau truc mau', 'tham khao', 'huong dan soan thao',
-      'luu y quan trong khi soan thao', 'de xuat tu tro ly phap ly'
+    // Document end markers
+    const endMarkers = [
+      'noi nhan:', 'nguon tham khao', 'tai lieu tham khao',
+      'luu y dac biet', 'luu y quan trong khi soan',
+      'canh bao rui ro', 'de xuat tu tro ly',
+      'google search grounding'
     ];
 
-    const isSourceLine = (line) => {
+    const isEndMarker = (line) => {
       const n = normalizeVietnamese(line);
-      if (sourceMarkers.some((m) => n.includes(m))) return true;
+      if (endMarkers.some((m) => n.includes(m))) return true;
+      if (/^\*{0,2}(Noi nhan|Nguon tham khao|Luu y|Canh bao)/i.test(stripMarkdown(line))) return true;
       return /(https?:\/\/|\.gov\.vn|dangcongsan\.vn|thuvienphapluat\.vn|vanban\.chinhphu\.vn|vbpl\.vn)/i.test(line);
     };
 
-    const isConversationLine = (line) => {
-      const n = normalizeVietnamese(line);
-      return conversationMarkers.some((m) => n.includes(m));
-    };
-
-    const effectiveMode = mode === 'auto' ? detectExportModeFromText(raw) : mode;
-    const startPatterns = {
-      dang: /dang uy|dang bo|chi bo|t\/m|k\/t|t\/l|nghi quyet|quyet dinh|chi thi|ket luan|can cu/,
-      nd30: /chu tich ubnd|uy ban nhan dan|ubnd|cong hoa xa hoi chu nghia viet nam|quyet dinh|thong bao|to trinh|can cu/,
-      auto: /dang uy|dang bo|chi bo|chu tich ubnd|uy ban nhan dan|ubnd|can cu|dieu 1|nghi quyet|quyet dinh/
-    };
-
-    const startPattern = startPatterns[effectiveMode] || startPatterns.auto;
-    let startIndex = lines.findIndex((line) => startPattern.test(normalizeVietnamese(line)));
-
-    if (startIndex < 0) {
-      startIndex = lines.findIndex((line) => !isConversationLine(line));
-      if (startIndex < 0) startIndex = 0;
+    // Find document start: look for first line matching a formal header
+    let docStartIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const n = normalizeVietnamese(stripMarkdown(lines[i]));
+      if (formalHeaderPatterns.some((p) => p.test(n))) {
+        docStartIdx = i;
+        break;
+      }
     }
 
-    const sliced = lines.slice(startIndex);
-    let endIndex = sliced.findIndex((line, idx) => idx > 0 && isSourceLine(line));
-    if (endIndex < 0) endIndex = sliced.length;
+    // If no formal header found, try finding document type keyword as standalone header
+    if (docStartIdx < 0) {
+      const typePatterns = /^\*{0,2}(QUYET DINH|NGHI QUYET|BAO CAO|TO TRINH|THONG BAO|KE HOACH|CHI THI|KET LUAN|HUONG DAN|QUY DINH|QUY CHE|CHUONG TRINH|CONG VAN)\*{0,2}$/;
+      for (let i = 0; i < lines.length; i++) {
+        const n = normalizeVietnamese(stripMarkdown(lines[i])).trim();
+        if (typePatterns.test(n)) {
+          // Look back up to 3 lines to find the org header
+          docStartIdx = Math.max(0, i - 3);
+          break;
+        }
+      }
+    }
+
+    // === TIER 2: Fallback — find first line with formal content pattern ===
+    if (docStartIdx < 0) {
+      const effectiveMode = mode === 'auto' ? detectExportModeFromText(raw) : mode;
+      const startPatterns = {
+        dang: /^(dang uy|dang bo|chi bo|ban chap hanh)/,
+        nd30: /^(uy ban nhan dan|ubnd|chu tich|so:|can cu)/,
+        auto: /^(uy ban nhan dan|ubnd|dang uy|dang bo|chu tich|can cu|dieu 1)/
+      };
+      const startPattern = startPatterns[effectiveMode] || startPatterns.auto;
+      docStartIdx = lines.findIndex((line) => startPattern.test(normalizeVietnamese(stripMarkdown(line))));
+    }
+
+    // === TIER 3: Ultimate fallback — skip conversation lines ===
+    if (docStartIdx < 0) {
+      const conversationMarkers = [
+        'xin chao', 'toi la', 'ban hay', 'duoi day', 'nguon du lieu chinh thong',
+        'voi tu cach la tro ly', 'toi xin huong dan', 'chao ban',
+        'de ho tro ban', 'ban vui long cho biet', 'ban can cung cap',
+        'toi co the ho tro', 'co so phap ly quan trong', 'co so phap ly',
+        'cau truc mau', 'huong dan soan thao',
+        'de xuat tu tro ly phap ly'
+      ];
+      docStartIdx = lines.findIndex((line) => {
+        const n = normalizeVietnamese(line);
+        return !conversationMarkers.some((m) => n.includes(m));
+      });
+      if (docStartIdx < 0) docStartIdx = 0;
+    }
+
+    // Find document end
+    const sliced = lines.slice(docStartIdx);
+    let docEndIdx = sliced.length;
+
+    // Find "Nơi nhận" line — include it + a few lines after for the signature block
+    const noiNhanIdx = sliced.findIndex((line) => normalizeVietnamese(stripMarkdown(line)).includes('noi nhan'));
+    if (noiNhanIdx > 0) {
+      // Include up to 8 lines after "Nơi nhận" for the complete signature block
+      docEndIdx = Math.min(sliced.length, noiNhanIdx + 8);
+    } else {
+      // No "Nơi nhận" found — look for source/reference lines
+      for (let i = 1; i < sliced.length; i++) {
+        const n = normalizeVietnamese(sliced[i]);
+        if (['nguon tham khao', 'tai lieu tham khao', 'luu y dac biet', 'luu y quan trong khi soan', 'de xuat tu tro ly', 'canh bao rui ro', 'google search grounding'].some(m => n.includes(m))) {
+          docEndIdx = i;
+          break;
+        }
+        if (/^[-*•]\s*(https?:\/\/|www\.|\[?https?)/i.test(sliced[i])) {
+          docEndIdx = i;
+          break;
+        }
+      }
+    }
 
     const cleaned = sliced
-      .slice(0, endIndex)
+      .slice(0, docEndIdx)
       .filter((line) => {
-        // Remove URL-only lines
         if (/^[-*•]\s*(https?:\/\/|www\.|\[?https?)/i.test(line)) return false;
-        // Remove pure horizontal rule lines
         if (/^---+$/.test(line)) return false;
-        // Remove conversational lines that slipped through
-        if (isConversationLine(line)) return false;
         return true;
       })
-      .map((line) => {
-        // Strip markdown formatting for clean Word output
-        return stripMarkdown(line);
-      });
+      .map((line) => stripMarkdown(line));
 
     if (cleaned.length < 3) {
-      // Fallback: strip markdown from all lines
       return lines.map((l) => stripMarkdown(l)).join('\n');
     }
     return cleaned.join('\n');
@@ -1009,13 +1065,35 @@ export async function renderChatUI(container) {
     templateMode = mode;
     detectedType = detectDocType(answer);
     const mainContentPreview = extractMainContentForWord(answer, mode);
-    const firstLine = mainContentPreview.split('\n').map((v) => v.trim()).find(Boolean) || '';
+    const previewLines = mainContentPreview.split('\n').map((v) => v.trim()).filter(Boolean);
     
-    // Try to extract trich yeu from AI content (look for 'Về việc...' or 'về ...' pattern)
-    const trichYeuMatch = answer.match(/[Vv]ề việc\s+(.{5,120}?)(?:\n|\*|$)/) || answer.match(/[Vv]ề\s+(.{5,120}?)(?:\n|\*|$)/);
-    const trichYeuDefault = trichYeuMatch 
-      ? stripMarkdown(trichYeuMatch[0].trim())
-      : (firstLine.length > 90 ? `${firstLine.slice(0, 90)}...` : firstLine);
+    // Smart trích yếu: search for 'Về việc...' pattern IN the extracted document, not raw AI text
+    let trichYeuDefault = '';
+    for (const line of previewLines) {
+      const match = line.match(/^[Vv]ề việc\s+(.+)/);
+      if (match) {
+        trichYeuDefault = line;
+        break;
+      }
+    }
+    if (!trichYeuDefault) {
+      // Try 'về ' pattern
+      for (const line of previewLines) {
+        const match = line.match(/^[Vv]ề\s+(.{5,120})/);
+        if (match) {
+          trichYeuDefault = line;
+          break;
+        }
+      }
+    }
+    if (!trichYeuDefault) {
+      // Fallback: find a non-header, non-org-name line
+      const firstContentLine = previewLines.find((l) => {
+        const n = normalizeVietnamese(l);
+        return l.length > 10 && !/^(uy ban|ubnd|dang bo|chi bo|cong hoa|doc lap|so:|dang cong san)/.test(n);
+      }) || '';
+      trichYeuDefault = firstContentLine.length > 90 ? `${firstContentLine.slice(0, 90)}...` : firstContentLine;
+    }
 
     // Set loại văn bản
     templateLoaiVb.value = detectedType.label;
