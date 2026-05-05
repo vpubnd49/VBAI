@@ -715,18 +715,19 @@ body {
   position: fixed;
   inset: 0;
   z-index: 2000;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background: rgba(3, 14, 10, 0.92);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   padding: 16px;
+  overflow-y: auto;
 }
 .chat-template-modal-content {
   width: min(720px, calc(100vw - 24px));
-  margin: 0;
-  max-height: calc(100dvh - 32px);
-  overflow: hidden;
+  margin: 12px auto;
+  max-height: none;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   isolation: isolate;
@@ -734,16 +735,15 @@ body {
   background: linear-gradient(165deg, rgba(6, 24, 18, 0.98), rgba(5, 18, 14, 0.98));
 }
 .chat-template-modal-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
   overscroll-behavior: contain;
   padding-bottom: 12px;
   max-height: none;
 }
 .chat-template-modal-actions {
-  position: sticky;
-  bottom: 0;
+  position: static;
   margin-top: 16px;
   padding-top: 12px;
   padding-bottom: 8px;
@@ -766,7 +766,7 @@ body {
   .chat-send-btn svg { width: 14px; height: 14px; }
   .chat-export-actions { grid-template-columns: 1fr; gap: 10px; }
   .chat-export-btn { min-height: 42px; }
-  .chat-template-modal-content { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
+  .chat-template-modal-content { width: calc(100vw - 16px); max-height: none; margin: 8px auto; }
   .chat-template-modal-body { padding: 16px; }
   .chat-template-modal-actions .btn { width: 100%; justify-content: center; }
   .chat-assistant-panel .panel-body { padding: 12px; }
