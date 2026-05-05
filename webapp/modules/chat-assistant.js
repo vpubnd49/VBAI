@@ -591,11 +591,6 @@ export async function renderChatUI(container) {
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10l15-7.5L10 10l7.5 7.5L2.5 10z" fill="currentColor"/></svg>
           </button>
         </div>
-        <div class="chat-export-actions">
-          <button id="chat-export-template-dang-btn" class="btn chat-export-btn chat-export-btn-dang">⬇ Xuất mẫu HD36</button>
-          <button id="chat-export-template-nd30-btn" class="btn chat-export-btn chat-export-btn-nd30">⬇ Xuất mẫu ND30</button>
-          <button id="chat-export-docx-btn" class="btn chat-export-btn chat-export-btn-docx">⬇ Xuất câu trả lời ra DOCX</button>
-        </div>
         <div id="chat-template-modal" class="modal-overlay chat-template-overlay" style="display:none">
           <div class="modal-content panel-group chat-template-modal-content">
             <div class="panel-header" id="chat-template-title">Xuất theo mẫu</div>
@@ -736,6 +731,60 @@ export async function renderChatUI(container) {
     return div;
   };
 
+  const detectExportModeFromText = (text) => {
+    const normalized = normalizeVietnamese(text || '');
+    if (/chu tich ubnd|uy ban nhan dan|cong hoa xa hoi chu nghia viet nam|so:|can cu/.test(normalized)) return 'nd30';
+    if (/dang uy|dang bo|chi bo|t\/m|k\/t|t\/l|dang cong san viet nam/.test(normalized)) return 'dang';
+    return 'auto';
+  };
+
+  const extractMainContentForWord = (rawText, mode = 'auto') => {
+    const raw = String(rawText || '').replace(/\r/g, '');
+    const lines = raw.split('\n').map((line) => line.trim()).filter(Boolean);
+    if (!lines.length) return '';
+
+    const sourceMarkers = [
+      'nguon tham khao',
+      'tai lieu tham khao',
+      'tham khao',
+      'canh bao rui ro',
+      'luu y quan trong',
+      'google search grounding'
+    ];
+
+    const isSourceLine = (line) => {
+      const n = normalizeVietnamese(line);
+      if (sourceMarkers.some((m) => n.includes(m))) return true;
+      return /(https?:\/\/|\.gov\.vn|dangcongsan\.vn|thuvienphapluat\.vn|vanban\.chinhphu\.vn|vbpl\.vn)/i.test(line);
+    };
+
+    const effectiveMode = mode === 'auto' ? detectExportModeFromText(raw) : mode;
+    const startPatterns = {
+      dang: /dang uy|dang bo|chi bo|t\/m|k\/t|t\/l|nghi quyet|quyet dinh|chi thi|ket luan|can cu/,
+      nd30: /chu tich ubnd|uy ban nhan dan|ubnd|cong hoa xa hoi chu nghia viet nam|quyet dinh|thong bao|to trinh|can cu/,
+      auto: /dang uy|dang bo|chi bo|chu tich ubnd|uy ban nhan dan|ubnd|can cu|dieu 1|nghi quyet|quyet dinh/
+    };
+
+    const startPattern = startPatterns[effectiveMode] || startPatterns.auto;
+    let startIndex = lines.findIndex((line) => startPattern.test(normalizeVietnamese(line)));
+
+    if (startIndex < 0) {
+      startIndex = lines.findIndex((line) => !/xin chao|toi la|ban hay|duoi day|nguon du lieu chinh thong/.test(normalizeVietnamese(line)));
+      if (startIndex < 0) startIndex = 0;
+    }
+
+    const sliced = lines.slice(startIndex);
+    let endIndex = sliced.findIndex((line, idx) => idx > 0 && isSourceLine(line));
+    if (endIndex < 0) endIndex = sliced.length;
+
+    const cleaned = sliced
+      .slice(0, endIndex)
+      .filter((line) => !/^[-*•]\s*(https?:\/\/|www\.|\[?https?)/i.test(line));
+
+    if (cleaned.length < 3) return lines.join('\n');
+    return cleaned.join('\n');
+  };
+
   const clearInlineActions = () => {
     msgsArea.querySelectorAll('.chat-inline-actions').forEach((node) => node.remove());
   };
@@ -743,26 +792,27 @@ export async function renderChatUI(container) {
   const exportCurrentAnswerDocx = async (triggerBtn = null) => {
     const answer = (lastAssistantAnswer || '').trim();
     if (!answer) {
-      alert('No answer content to export DOCX.');
+      alert('Chua co noi dung tra loi de xuat DOCX.');
       return;
     }
 
     try {
       if (triggerBtn) triggerBtn.disabled = true;
-      exportBtn.disabled = true;
+      if (exportBtn) exportBtn.disabled = true;
       const title = 'Ket qua Tra cuu VBAI';
+      const content = extractMainContentForWord(answer, 'auto');
       const doc = new Document({
         styles: { default: { document: { run: { font: 'Times New Roman', size: 28 } } } },
-        sections: [{ children: buildDocChildren(title, answer) }]
+        sections: [{ children: buildDocChildren(title, content) }]
       });
       const blob = await Packer.toBlob(doc);
       saveAs(blob, `${toSafeFileName(getDefaultExportName())}.docx`);
     } catch (e) {
       console.error('Export DOCX error:', e);
-      alert('Cannot export DOCX: ' + e.message);
+      alert('Khong the xuat DOCX: ' + e.message);
     } finally {
       if (triggerBtn) triggerBtn.disabled = false;
-      exportBtn.disabled = false;
+      if (exportBtn) exportBtn.disabled = false;
     }
   };
 
@@ -773,9 +823,9 @@ export async function renderChatUI(container) {
     const actions = document.createElement('div');
     actions.className = 'chat-inline-actions';
     actions.innerHTML = `
-      <button type="button" class="btn chat-inline-btn chat-inline-btn-dang">Download HD36</button>
-      <button type="button" class="btn chat-inline-btn chat-inline-btn-nd30">Download ND30</button>
-      <button type="button" class="btn chat-inline-btn chat-inline-btn-docx">Export DOCX</button>
+      <button type="button" class="btn chat-inline-btn chat-inline-btn-dang">Xuat mau HD36</button>
+      <button type="button" class="btn chat-inline-btn chat-inline-btn-nd30">Xuat mau ND30</button>
+      <button type="button" class="btn chat-inline-btn chat-inline-btn-docx">Xuat DOCX</button>
     `;
     aiMsgDiv.appendChild(actions);
 
@@ -828,7 +878,8 @@ export async function renderChatUI(container) {
     }
 
     templateMode = mode;
-    const firstLine = answer.split('\n').map((v) => v.trim()).find(Boolean) || '';
+    const mainContentPreview = extractMainContentForWord(answer, mode);
+    const firstLine = mainContentPreview.split('\n').map((v) => v.trim()).find(Boolean) || '';
     const trichYeuDefault = firstLine.length > 90 ? `${firstLine.slice(0, 90)}...` : firstLine;
 
     if (mode === 'dang') {
@@ -855,8 +906,8 @@ export async function renderChatUI(container) {
     templateModal.style.display = 'block';
   };
 
-  templateDangBtn.onclick = () => openTemplateModal('dang');
-  templateNd30Btn.onclick = () => openTemplateModal('nd30');
+  if (templateDangBtn) templateDangBtn.onclick = () => openTemplateModal('dang');
+  if (templateNd30Btn) templateNd30Btn.onclick = () => openTemplateModal('nd30');
   templateCancel.onclick = () => {
     templateModal.style.display = 'none';
   };
@@ -893,9 +944,10 @@ export async function renderChatUI(container) {
 
     try {
       templateSubmit.disabled = true;
+      const mainContent = extractMainContentForWord(answer, templateMode);
       const templateResult = templateMode === 'dang'
-        ? buildDangNghiQuyetChildren(meta, answer)
-        : buildNd30Children(meta, answer);
+        ? buildDangNghiQuyetChildren(meta, mainContent)
+        : buildNd30Children(meta, mainContent);
 
       const doc = new Document({
         styles: { default: { document: { run: { font: templateResult.layout.font, size: 28 } } } },
@@ -917,10 +969,11 @@ export async function renderChatUI(container) {
       templateSubmit.disabled = false;
     }
   };
-
-  exportBtn.onclick = async () => {
-    await exportCurrentAnswerDocx(exportBtn);
-  };
+  if (exportBtn) {
+    exportBtn.onclick = async () => {
+      await exportCurrentAnswerDocx(exportBtn);
+    };
+  }
   
   settingsBtn.onclick = () => keyModal.style.display = 'block';
   container.querySelector('#close-modal-btn').onclick = () => keyModal.style.display = 'none';
