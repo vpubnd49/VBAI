@@ -136,6 +136,32 @@ function stripMarkdown(text) {
   return cleaned.trim();
 }
 
+/**
+ * Auto-detect document type from AI response content.
+ * Returns object: { label: 'QUYẾT ĐỊNH', kyHieuDang: 'QĐ', kyHieuND30: 'QĐ-UBND' }
+ */
+function detectDocType(rawText) {
+  const n = normalizeVietnamese(rawText || '');
+  const types = [
+    { pattern: /quyet dinh/, label: 'QUYẾT ĐỊNH', kyHieuDang: 'QĐ', kyHieuND30: 'QĐ-UBND', fileSlug: 'quyet_dinh' },
+    { pattern: /nghi quyet/, label: 'NGHỊ QUYẾT', kyHieuDang: 'NQ', kyHieuND30: 'NQ-UBND', fileSlug: 'nghi_quyet' },
+    { pattern: /chi thi/, label: 'CHỈ THỊ', kyHieuDang: 'CT', kyHieuND30: 'CT-UBND', fileSlug: 'chi_thi' },
+    { pattern: /ket luan/, label: 'KẾT LUẬN', kyHieuDang: 'KL', kyHieuND30: 'KL-UBND', fileSlug: 'ket_luan' },
+    { pattern: /bao cao/, label: 'BÁO CÁO', kyHieuDang: 'BC', kyHieuND30: 'BC-UBND', fileSlug: 'bao_cao' },
+    { pattern: /to trinh/, label: 'TỜ TRÌNH', kyHieuDang: 'TTr', kyHieuND30: 'TTr-UBND', fileSlug: 'to_trinh' },
+    { pattern: /thong bao/, label: 'THÔNG BÁO', kyHieuDang: 'TB', kyHieuND30: 'TB-UBND', fileSlug: 'thong_bao' },
+    { pattern: /cong van/, label: 'Công văn', kyHieuDang: 'CV', kyHieuND30: 'UBND-VP', fileSlug: 'cong_van' },
+    { pattern: /huong dan/, label: 'HƯỚNG DẪN', kyHieuDang: 'HD', kyHieuND30: 'HD-UBND', fileSlug: 'huong_dan' },
+    { pattern: /quy dinh/, label: 'QUY ĐỊNH', kyHieuDang: 'QyĐ', kyHieuND30: 'QyĐ-UBND', fileSlug: 'quy_dinh' },
+    { pattern: /quy che/, label: 'QUY CHẾ', kyHieuDang: 'QC', kyHieuND30: 'QC-UBND', fileSlug: 'quy_che' },
+    { pattern: /chuong trinh/, label: 'CHƯƠNG TRÌNH', kyHieuDang: 'CTr', kyHieuND30: 'CTr-UBND', fileSlug: 'chuong_trinh' },
+  ];
+  for (const t of types) {
+    if (t.pattern.test(n)) return t;
+  }
+  return { label: 'NGHỊ QUYẾT', kyHieuDang: 'NQ', kyHieuND30: 'NQ-UBND', fileSlug: 'nghi_quyet' };
+}
+
 function parseInlineRuns(text, font, size) {
   const runs = [];
   const regex = /\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*/g;
@@ -334,7 +360,7 @@ function buildDangNghiQuyetChildren(meta, content) {
   children.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { before: 360, after: 0 },
-    children: [new TextRun({ text: 'NGHỊ QUYẾT', font: layout.font, size: 32, bold: true })]
+    children: [new TextRun({ text: meta.loaiVanBan || 'NGHỊ QUYẾT', font: layout.font, size: 32, bold: true })]
   }));
   children.push(new Paragraph({
     alignment: AlignmentType.CENTER,
@@ -489,7 +515,7 @@ function buildNd30Children(meta, content) {
   children.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { before: 360, after: 0 },
-    children: [new TextRun({ text: 'NGHỊ QUYẾT', font: layout.font, size: 28, bold: true })]
+    children: [new TextRun({ text: meta.loaiVanBan || 'NGHỊ QUYẾT', font: layout.font, size: 28, bold: true })]
   }));
   children.push(new Paragraph({
     alignment: AlignmentType.CENTER,
@@ -661,6 +687,10 @@ export async function renderChatUI(container) {
             <div class="panel-body chat-template-modal-body">
               <div class="form-grid">
                 <div class="form-group span-2">
+                  <label class="form-label">Loại văn bản <span class="required">*</span></label>
+                  <input type="text" id="chat-template-loaivb" class="form-input" placeholder="QUYẾT ĐỊNH / NGHỊ QUYẾT / BÁO CÁO...">
+                </div>
+                <div class="form-group span-2">
                   <label class="form-label" id="chat-template-label-captr">Cơ quan cấp trên</label>
                   <input type="text" id="chat-template-captr" class="form-input" placeholder="Để trống nếu không có">
                 </div>
@@ -670,7 +700,7 @@ export async function renderChatUI(container) {
                 </div>
                 <div class="form-group">
                   <label class="form-label">Số ký hiệu</label>
-                  <input type="text" id="chat-template-sokh" class="form-input" placeholder="Số 01-NQ/...">
+                  <input type="text" id="chat-template-sokh" class="form-input" placeholder="Số 01-QĐ/...">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Địa danh</label>
@@ -757,6 +787,7 @@ export async function renderChatUI(container) {
   const templateModal = container.querySelector('#chat-template-modal');
   const templateTitle = container.querySelector('#chat-template-title');
   const templateCapTrLabel = container.querySelector('#chat-template-label-captr');
+  const templateLoaiVb = container.querySelector('#chat-template-loaivb');
   const templateCapTr = container.querySelector('#chat-template-captr');
   const templateCqbh = container.querySelector('#chat-template-cqbh');
   const templateSokh = container.querySelector('#chat-template-sokh');
@@ -967,6 +998,7 @@ export async function renderChatUI(container) {
   sendBtn.onclick = handleSend;
   input.onkeypress = (e) => { if(e.key==='Enter') handleSend(); };
   let templateMode = 'dang';
+  let detectedType = null;
   const openTemplateModal = (mode) => {
     const answer = (lastAssistantAnswer || '').trim();
     if (!answer) {
@@ -975,23 +1007,32 @@ export async function renderChatUI(container) {
     }
 
     templateMode = mode;
+    detectedType = detectDocType(answer);
     const mainContentPreview = extractMainContentForWord(answer, mode);
     const firstLine = mainContentPreview.split('\n').map((v) => v.trim()).find(Boolean) || '';
-    const trichYeuDefault = firstLine.length > 90 ? `${firstLine.slice(0, 90)}...` : firstLine;
+    
+    // Try to extract trich yeu from AI content (look for 'Về việc...' or 'về ...' pattern)
+    const trichYeuMatch = answer.match(/[Vv]ề việc\s+(.{5,120}?)(?:\n|\*|$)/) || answer.match(/[Vv]ề\s+(.{5,120}?)(?:\n|\*|$)/);
+    const trichYeuDefault = trichYeuMatch 
+      ? stripMarkdown(trichYeuMatch[0].trim())
+      : (firstLine.length > 90 ? `${firstLine.slice(0, 90)}...` : firstLine);
+
+    // Set loại văn bản
+    templateLoaiVb.value = detectedType.label;
 
     if (mode === 'dang') {
-      templateTitle.innerText = 'Xuất mẫu Nghị quyết Đảng (HD36)';
+      templateTitle.innerText = `Xuất mẫu ${detectedType.label} — Đảng (HD36)`;
       templateCapTrLabel.innerText = 'Cơ quan cấp trên';
       templateCapTr.placeholder = 'VD: ĐẢNG BỘ TỈNH ...';
       templateCqbh.placeholder = 'VD: CHI BỘ ...';
-      templateSokh.value = 'Số 01-NQ/CB';
+      templateSokh.value = `Số 01-${detectedType.kyHieuDang}/CB`;
       templateChucdanh.value = 'BÍ THƯ';
     } else {
-      templateTitle.innerText = 'Xuất mẫu Nghị định 30 (ND30)';
+      templateTitle.innerText = `Xuất mẫu ${detectedType.label} — NĐ30`;
       templateCapTrLabel.innerText = 'Cơ quan chủ quản';
       templateCapTr.placeholder = 'VD: ỦY BAN NHÂN DÂN TỈNH ...';
-      templateCqbh.placeholder = 'VD: VĂN PHÒNG';
-      templateSokh.value = 'Số: 01/NQ-UBND';
+      templateCqbh.placeholder = 'VD: ỦY BAN NHÂN DÂN TỈNH LÂM ĐỒNG';
+      templateSokh.value = `Số: 01/${detectedType.kyHieuND30}`;
       templateChucdanh.value = 'CHỦ TỊCH';
     }
 
@@ -1029,10 +1070,12 @@ export async function renderChatUI(container) {
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const yyyy = String(now.getFullYear());
 
+    const loaiVbInput = (templateLoaiVb.value || '').trim();
     const meta = {
+      loaiVanBan: loaiVbInput || (detectedType ? detectedType.label : 'NGHỊ QUYẾT'),
       coQuanCapTren: (templateCapTr.value || '').trim(),
       coQuanBanHanh,
-      soKyHieu: (templateSokh.value || '').trim() || (templateMode === 'dang' ? 'Số 01-NQ/CB' : 'Số: 01/NQ-UBND'),
+      soKyHieu: (templateSokh.value || '').trim() || (templateMode === 'dang' ? `Số 01-${detectedType?.kyHieuDang || 'NQ'}/CB` : `Số: 01/${detectedType?.kyHieuND30 || 'NQ-UBND'}`),
       trichYeu: (templateTrichyeu.value || '').trim() || 'về công tác triển khai nhiệm vụ',
       nguoiKy: (templateNguoiky.value || '').trim() || 'Nguyễn Văn A',
       chucDanh: (templateChucdanh.value || '').trim() || (templateMode === 'dang' ? 'BÍ THƯ' : 'CHỦ TỊCH'),
@@ -1055,9 +1098,10 @@ export async function renderChatUI(container) {
       });
 
       const suffix = templateMode === 'dang' ? 'hd36' : 'nd30';
-      const base = (meta.soKyHieu || 'nghi_quyet').replace(/^Số:?\s*/i, '').replace(/\s+/g, '_');
+      const fileSlug = detectedType?.fileSlug || 'van_ban';
+      const base = (meta.soKyHieu || fileSlug).replace(/^Số:?\s*/i, '').replace(/\s+/g, '_');
       const blob = await Packer.toBlob(doc);
-      saveAs(blob, `${toSafeFileName(base || `nghi_quyet_${suffix}`)}_${suffix}.docx`);
+      saveAs(blob, `${toSafeFileName(base || `${fileSlug}_${suffix}`)}_${suffix}.docx`);
       templateModal.style.display = 'none';
     } catch (e) {
       console.error("Template export error:", e);
