@@ -119,6 +119,47 @@ function getDefaultExportName() {
   return `tra_cuu_vbai_${stamp}`;
 }
 
+function stripMarkdown(text) {
+  let cleaned = text;
+  // Remove heading markers
+  cleaned = cleaned.replace(/^#{1,6}\s+/gm, '');
+  // Remove bold/italic markers but keep text
+  cleaned = cleaned.replace(/\*\*\*(.+?)\*\*\*/g, '$1');
+  cleaned = cleaned.replace(/\*\*(.+?)\*\*/g, '$1');
+  cleaned = cleaned.replace(/\*(.+?)\*/g, '$1');
+  cleaned = cleaned.replace(/__(.+?)__/g, '$1');
+  cleaned = cleaned.replace(/_(.+?)_/g, '$1');
+  // Remove markdown links [text](url) -> text
+  cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  // Remove horizontal rules
+  cleaned = cleaned.replace(/^---+$/gm, '');
+  return cleaned.trim();
+}
+
+function parseInlineRuns(text, font, size) {
+  const runs = [];
+  const regex = /\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      runs.push(new TextRun({ text: text.slice(lastIndex, match.index), font, size }));
+    }
+    if (match[1]) {
+      runs.push(new TextRun({ text: match[1], font, size, bold: true, italics: true }));
+    } else if (match[2]) {
+      runs.push(new TextRun({ text: match[2], font, size, bold: true }));
+    } else if (match[3]) {
+      runs.push(new TextRun({ text: match[3], font, size, italics: true }));
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    runs.push(new TextRun({ text: text.slice(lastIndex), font, size }));
+  }
+  return runs.length ? runs : [new TextRun({ text, font, size })];
+}
+
 function buildDocChildren(title, content) {
   const children = [];
   children.push(
@@ -137,49 +178,72 @@ function buildDocChildren(title, content) {
       return;
     }
 
-    if (text.startsWith('### ')) {
+    // Heading 3
+    const h3Match = text.match(/^###\s+(.+)/);
+    if (h3Match) {
       children.push(new Paragraph({
         heading: HeadingLevel.HEADING_3,
-        children: [new TextRun({ text: text.slice(4), font: 'Times New Roman', size: 28, bold: true })]
+        children: [new TextRun({ text: stripMarkdown(h3Match[1]), font: 'Times New Roman', size: 28, bold: true })]
       }));
       return;
     }
 
-    if (text.startsWith('## ')) {
+    // Heading 2
+    const h2Match = text.match(/^##\s+(.+)/);
+    if (h2Match) {
       children.push(new Paragraph({
         heading: HeadingLevel.HEADING_2,
-        children: [new TextRun({ text: text.slice(3), font: 'Times New Roman', size: 30, bold: true })]
+        children: [new TextRun({ text: stripMarkdown(h2Match[1]), font: 'Times New Roman', size: 30, bold: true })]
       }));
       return;
     }
 
-    if (text.startsWith('# ')) {
+    // Heading 1
+    const h1Match = text.match(/^#\s+(.+)/);
+    if (h1Match) {
       children.push(new Paragraph({
         heading: HeadingLevel.HEADING_1,
-        children: [new TextRun({ text: text.slice(2), font: 'Times New Roman', size: 32, bold: true })]
+        children: [new TextRun({ text: stripMarkdown(h1Match[1]), font: 'Times New Roman', size: 32, bold: true })]
       }));
       return;
     }
 
+    // Bullet points (-, *, •)
     const bulletMatch = text.match(/^[-*•]\s+(.+)/);
     if (bulletMatch) {
+      const bulletContent = bulletMatch[1];
       children.push(
         new Paragraph({
           alignment: AlignmentType.JUSTIFIED,
           spacing: { after: 100 },
           indent: { firstLine: 360 },
-          children: [new TextRun({ text: `- ${bulletMatch[1]}`, font: 'Times New Roman', size: 28 })]
+          children: [new TextRun({ text: '- ', font: 'Times New Roman', size: 28 }), ...parseInlineRuns(bulletContent, 'Times New Roman', 28)]
         })
       );
       return;
     }
 
+    // Numbered list: "1. xxx"
+    const numberedMatch = text.match(/^(\d+\.\s+)(.+)/);
+    if (numberedMatch) {
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: { after: 100 },
+          indent: { firstLine: 567 },
+          children: [new TextRun({ text: numberedMatch[1], font: 'Times New Roman', size: 28 }), ...parseInlineRuns(numberedMatch[2], 'Times New Roman', 28)]
+        })
+      );
+      return;
+    }
+
+    // Normal paragraph with inline formatting
     children.push(
       new Paragraph({
         alignment: AlignmentType.JUSTIFIED,
         spacing: { after: 100 },
         indent: { firstLine: 567 },
-        children: [new TextRun({ text, font: 'Times New Roman', size: 28 })]
+        children: parseInlineRuns(text, 'Times New Roman', 28)
       })
     );
   });
@@ -749,13 +813,31 @@ export async function renderChatUI(container) {
       'tham khao',
       'canh bao rui ro',
       'luu y quan trong',
-      'google search grounding'
+      'google search grounding',
+      'de xuat tu tro ly',
+      'luu y dac biet'
+    ];
+
+    // Lines that are conversational/AI greeting — not document content
+    const conversationMarkers = [
+      'xin chao', 'toi la', 'ban hay', 'duoi day', 'nguon du lieu chinh thong',
+      'voi tu cach la tro ly', 'toi xin huong dan', 'chao ban',
+      'de ho tro ban', 'ban vui long cho biet', 'ban can cung cap',
+      'neu ban co thong tin', 'toi co the ho tro',
+      'co so phap ly quan trong', 'co so phap ly',
+      'cau truc mau', 'tham khao', 'huong dan soan thao',
+      'luu y quan trong khi soan thao', 'de xuat tu tro ly phap ly'
     ];
 
     const isSourceLine = (line) => {
       const n = normalizeVietnamese(line);
       if (sourceMarkers.some((m) => n.includes(m))) return true;
       return /(https?:\/\/|\.gov\.vn|dangcongsan\.vn|thuvienphapluat\.vn|vanban\.chinhphu\.vn|vbpl\.vn)/i.test(line);
+    };
+
+    const isConversationLine = (line) => {
+      const n = normalizeVietnamese(line);
+      return conversationMarkers.some((m) => n.includes(m));
     };
 
     const effectiveMode = mode === 'auto' ? detectExportModeFromText(raw) : mode;
@@ -769,7 +851,7 @@ export async function renderChatUI(container) {
     let startIndex = lines.findIndex((line) => startPattern.test(normalizeVietnamese(line)));
 
     if (startIndex < 0) {
-      startIndex = lines.findIndex((line) => !/xin chao|toi la|ban hay|duoi day|nguon du lieu chinh thong/.test(normalizeVietnamese(line)));
+      startIndex = lines.findIndex((line) => !isConversationLine(line));
       if (startIndex < 0) startIndex = 0;
     }
 
@@ -779,9 +861,24 @@ export async function renderChatUI(container) {
 
     const cleaned = sliced
       .slice(0, endIndex)
-      .filter((line) => !/^[-*•]\s*(https?:\/\/|www\.|\[?https?)/i.test(line));
+      .filter((line) => {
+        // Remove URL-only lines
+        if (/^[-*•]\s*(https?:\/\/|www\.|\[?https?)/i.test(line)) return false;
+        // Remove pure horizontal rule lines
+        if (/^---+$/.test(line)) return false;
+        // Remove conversational lines that slipped through
+        if (isConversationLine(line)) return false;
+        return true;
+      })
+      .map((line) => {
+        // Strip markdown formatting for clean Word output
+        return stripMarkdown(line);
+      });
 
-    if (cleaned.length < 3) return lines.join('\n');
+    if (cleaned.length < 3) {
+      // Fallback: strip markdown from all lines
+      return lines.map((l) => stripMarkdown(l)).join('\n');
+    }
     return cleaned.join('\n');
   };
 
@@ -792,14 +889,14 @@ export async function renderChatUI(container) {
   const exportCurrentAnswerDocx = async (triggerBtn = null) => {
     const answer = (lastAssistantAnswer || '').trim();
     if (!answer) {
-      alert('Chua co noi dung tra loi de xuat DOCX.');
+      alert('Chưa có nội dung trả lời để xuất DOCX.');
       return;
     }
 
     try {
       if (triggerBtn) triggerBtn.disabled = true;
       if (exportBtn) exportBtn.disabled = true;
-      const title = 'Ket qua Tra cuu VBAI';
+      const title = 'Kết quả Tra cứu VBAI';
       const content = extractMainContentForWord(answer, 'auto');
       const doc = new Document({
         styles: { default: { document: { run: { font: 'Times New Roman', size: 28 } } } },
@@ -809,7 +906,7 @@ export async function renderChatUI(container) {
       saveAs(blob, `${toSafeFileName(getDefaultExportName())}.docx`);
     } catch (e) {
       console.error('Export DOCX error:', e);
-      alert('Khong the xuat DOCX: ' + e.message);
+      alert('Không thể xuất DOCX: ' + e.message);
     } finally {
       if (triggerBtn) triggerBtn.disabled = false;
       if (exportBtn) exportBtn.disabled = false;
@@ -823,9 +920,9 @@ export async function renderChatUI(container) {
     const actions = document.createElement('div');
     actions.className = 'chat-inline-actions';
     actions.innerHTML = `
-      <button type="button" class="btn chat-inline-btn chat-inline-btn-dang">Xuat mau HD36</button>
-      <button type="button" class="btn chat-inline-btn chat-inline-btn-nd30">Xuat mau ND30</button>
-      <button type="button" class="btn chat-inline-btn chat-inline-btn-docx">Xuat DOCX</button>
+      <button type="button" class="btn chat-inline-btn chat-inline-btn-dang">📜 Xuất mẫu HD36</button>
+      <button type="button" class="btn chat-inline-btn chat-inline-btn-nd30">📄 Xuất mẫu NĐ30</button>
+      <button type="button" class="btn chat-inline-btn chat-inline-btn-docx">⬇ Xuất file Word</button>
     `;
     aiMsgDiv.appendChild(actions);
 

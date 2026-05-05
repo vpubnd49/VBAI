@@ -1,5 +1,3 @@
-# Trich xuat mau 36-HD_VPTW_380096.docx
-
 > Nguon: templates/36-HD_VPTW_380096.docx
 > Tu dong trich xuat de dua vao du lieu tra cuu VBAI.
 
