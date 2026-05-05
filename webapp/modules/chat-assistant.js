@@ -903,7 +903,7 @@ export async function renderChatUI(container) {
     templateDiadan.value = 'Lâm Đồng';
     templateTrichyeu.value = trichYeuDefault || 'về công tác triển khai nhiệm vụ';
     templateNguoiky.value = 'Nguyễn Văn A';
-    templateModal.style.display = 'block';
+    templateModal.style.display = 'flex';
   };
 
   if (templateDangBtn) templateDangBtn.onclick = () => openTemplateModal('dang');
