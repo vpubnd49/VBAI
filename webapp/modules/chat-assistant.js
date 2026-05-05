@@ -736,6 +736,58 @@ export async function renderChatUI(container) {
     return div;
   };
 
+  const clearInlineActions = () => {
+    msgsArea.querySelectorAll('.chat-inline-actions').forEach((node) => node.remove());
+  };
+
+  const exportCurrentAnswerDocx = async (triggerBtn = null) => {
+    const answer = (lastAssistantAnswer || '').trim();
+    if (!answer) {
+      alert('No answer content to export DOCX.');
+      return;
+    }
+
+    try {
+      if (triggerBtn) triggerBtn.disabled = true;
+      exportBtn.disabled = true;
+      const title = 'Ket qua Tra cuu VBAI';
+      const doc = new Document({
+        styles: { default: { document: { run: { font: 'Times New Roman', size: 28 } } } },
+        sections: [{ children: buildDocChildren(title, answer) }]
+      });
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, `${toSafeFileName(getDefaultExportName())}.docx`);
+    } catch (e) {
+      console.error('Export DOCX error:', e);
+      alert('Cannot export DOCX: ' + e.message);
+    } finally {
+      if (triggerBtn) triggerBtn.disabled = false;
+      exportBtn.disabled = false;
+    }
+  };
+
+  const attachInlineActions = (aiMsgDiv) => {
+    if (!aiMsgDiv || !(lastAssistantAnswer || '').trim()) return;
+    clearInlineActions();
+
+    const actions = document.createElement('div');
+    actions.className = 'chat-inline-actions';
+    actions.innerHTML = `
+      <button type="button" class="btn chat-inline-btn chat-inline-btn-dang">Download HD36</button>
+      <button type="button" class="btn chat-inline-btn chat-inline-btn-nd30">Download ND30</button>
+      <button type="button" class="btn chat-inline-btn chat-inline-btn-docx">Export DOCX</button>
+    `;
+    aiMsgDiv.appendChild(actions);
+
+    const inlineDangBtn = actions.querySelector('.chat-inline-btn-dang');
+    const inlineNd30Btn = actions.querySelector('.chat-inline-btn-nd30');
+    const inlineDocxBtn = actions.querySelector('.chat-inline-btn-docx');
+
+    inlineDangBtn.onclick = () => openTemplateModal('dang');
+    inlineNd30Btn.onclick = () => openTemplateModal('nd30');
+    inlineDocxBtn.onclick = () => exportCurrentAnswerDocx(inlineDocxBtn);
+  };
+
   const handleSend = async () => {
     const text = input.value.trim();
     if (!text) return;
@@ -756,6 +808,7 @@ export async function renderChatUI(container) {
         aiMsgDiv.innerText = full;
         msgsArea.scrollTop = msgsArea.scrollHeight;
       });
+      attachInlineActions(aiMsgDiv);
     } catch (e) {
       aiMsgDiv.innerText = "❌ Lỗi: " + e.message;
       aiMsgDiv.classList.add('error');
@@ -866,27 +919,7 @@ export async function renderChatUI(container) {
   };
 
   exportBtn.onclick = async () => {
-    const answer = (lastAssistantAnswer || '').trim();
-    if (!answer) {
-      alert("Chưa có nội dung trả lời để xuất DOCX.");
-      return;
-    }
-
-    try {
-      exportBtn.disabled = true;
-      const title = 'Kết quả Tra cứu VBAI';
-      const doc = new Document({
-        styles: { default: { document: { run: { font: 'Times New Roman', size: 28 } } } },
-        sections: [{ children: buildDocChildren(title, answer) }]
-      });
-      const blob = await Packer.toBlob(doc);
-      saveAs(blob, `${toSafeFileName(getDefaultExportName())}.docx`);
-    } catch (e) {
-      console.error("Export DOCX error:", e);
-      alert("Không thể xuất DOCX: " + e.message);
-    } finally {
-      exportBtn.disabled = false;
-    }
+    await exportCurrentAnswerDocx(exportBtn);
   };
   
   settingsBtn.onclick = () => keyModal.style.display = 'block';

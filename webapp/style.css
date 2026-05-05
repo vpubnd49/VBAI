@@ -608,6 +608,37 @@ body {
 }
 .chat-msg.error { color: var(--danger); border-color: var(--danger); }
 
+.chat-inline-actions {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.chat-inline-btn {
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  justify-content: center;
+}
+.chat-inline-btn-dang {
+  background: linear-gradient(135deg, rgba(251,188,4,0.18), rgba(194,136,0,0.12));
+  color: var(--daquy-300);
+  border-color: rgba(251,188,4,0.28);
+}
+.chat-inline-btn-nd30 {
+  background: linear-gradient(135deg, rgba(123,104,174,0.24), rgba(92,79,130,0.18));
+  color: #dbd4f1;
+  border-color: rgba(184,174,214,0.26);
+}
+.chat-inline-btn-docx {
+  background: linear-gradient(135deg, rgba(82,183,136,0.34), rgba(64,145,108,0.28));
+  color: #f1fffa;
+  border-color: rgba(116,198,157,0.34);
+}
+
 .chat-input-wrapper {
   display: flex; gap: 8px; align-items: center;
 }
@@ -714,6 +745,7 @@ body {
   .chat-msg {
     max-width: 90%; padding: 8px 12px; font-size: 0.8rem;
   }
+  .chat-inline-actions { grid-template-columns: 1fr; }
   .chat-input-field { height: 38px; font-size: 0.8rem; }
   .chat-send-btn { width: 38px; height: 38px; min-width: 38px; }
   .chat-send-btn svg { width: 14px; height: 14px; }
