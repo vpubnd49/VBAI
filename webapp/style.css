@@ -581,7 +581,7 @@ body {
 }
 
 /* ============ Chat Assistant ============ */
-.chat-assistant-panel { overflow: hidden; }
+.chat-assistant-panel { overflow: hidden; position: relative; }
 .chat-assistant-panel .panel-body { padding: 16px; }
 
 .chat-messages-area {
@@ -712,28 +712,38 @@ body {
   max-height: 90vh; overflow-y: auto; width: 100%; 
 }
 .chat-template-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
   align-items: center;
+  background: rgba(3, 14, 10, 0.92);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .chat-template-modal-content {
   width: min(720px, calc(100vw - 24px));
   margin: 0;
-  max-height: min(92vh, 92dvh);
+  max-height: min(90vh, 90dvh);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  isolation: isolate;
+  border: 1px solid var(--border-subtle);
+  background: linear-gradient(165deg, rgba(6, 24, 18, 0.98), rgba(5, 18, 14, 0.98));
 }
 .chat-template-modal-body {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-bottom: 12px;
+  max-height: calc(min(90vh, 90dvh) - 66px);
 }
 .chat-template-modal-actions {
   position: sticky;
   bottom: 0;
   margin-top: 16px;
   padding-top: 12px;
-  background: linear-gradient(180deg, rgba(13, 38, 26, 0.08), rgba(13, 38, 26, 0.9) 35%);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, rgba(8, 28, 20, 0.75), rgba(8, 28, 20, 0.98) 35%);
+  backdrop-filter: none;
   border-top: 1px solid var(--border-subtle);
 }
 
