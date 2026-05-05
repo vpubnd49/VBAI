@@ -31,6 +31,64 @@ function parseFrontmatter(content) {
   return { metadata, body: content.replace(match[0], '').trim() };
 }
 
+function getDefaultTriggers(skillId) {
+  const triggerMap = {
+    Skill_The_Thuc_VB_Dang_HD36: [
+      'dang uy',
+      'dang bo',
+      'chi bo',
+      'nghi quyet',
+      'chi thi',
+      'ket luan',
+      'van ban dang',
+      'hd36',
+      't/m',
+      'k/t',
+      't/l'
+    ],
+    Skill_The_Thuc_VB_ND30: [
+      'cong van',
+      'quyet dinh',
+      'to trinh',
+      'thong bao',
+      'van ban hanh chinh',
+      'nd30',
+      'nghi dinh 30',
+      'trinh ky'
+    ],
+    Skill_PDF: [
+      'pdf',
+      'ocr',
+      'trich xuat pdf',
+      'gop file pdf',
+      'tach file pdf'
+    ],
+    Skill_DOCX: [
+      'docx',
+      'word',
+      'file word',
+      'xuat word',
+      'xuat docx',
+      'soan thao word'
+    ]
+  };
+
+  return triggerMap[skillId] || [];
+}
+
+function normalizeTriggers(raw) {
+  if (!raw) return [];
+
+  if (Array.isArray(raw)) {
+    return raw.map(v => String(v).trim().toLowerCase()).filter(Boolean);
+  }
+
+  return String(raw)
+    .split(',')
+    .map(v => v.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 
 async function compile() {
   console.log('🚀 Bắt đầu biên dịch Skills...');
@@ -97,10 +155,15 @@ function processSkill(skillPath, skillId, skillsList, isExternal = false) {
       accent = 'daquy';
     }
 
+    const normalizedTriggers = normalizeTriggers(metadata.triggers);
+
     skillsList.push({
       id: skillId,
       name: metadata.name || skillId,
       description: metadata.description || '',
+      triggers: normalizedTriggers.length
+        ? normalizedTriggers
+        : getDefaultTriggers(skillId),
       instructions: body.substring(0, 5000), // Giới hạn context AI
       references: references,
       icon: metadata.icon || (isExternal ? '☁️' : '📜'),
