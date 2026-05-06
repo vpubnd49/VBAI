@@ -1,5 +1,5 @@
-﻿/**
- * Chat Assistant Module â€” Legal & Administrative Consultant
+/**
+ * Chat Assistant Module — Legal & Administrative Consultant
  * Uses @google/genai SDK with Google Search Grounding for real-time legal data
  */
 import { GoogleGenAI } from "https://esm.run/@google/genai";
@@ -42,51 +42,51 @@ const PROVIDER_PRESETS = {
   proxy_custom: null
 };
 
-const SYSTEM_INSTRUCTION = `Báº¡n lÃ  Trá»£ LÃ½ PhÃ¡p LÃ½ VBAI â€” má»™t chuyÃªn gia tÆ° váº¥n phÃ¡p luáº­t Viá»‡t Nam hÃ ng Ä‘áº§u. 
+const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên gia tư vấn pháp luật Việt Nam hàng đầu. 
 
-## NGUYÃŠN Táº®C Cá»T LÃ•I:
-1. **LUÃ”N TRA Cá»¨U GOOGLE SEARCH** Ä‘á»ƒ láº¥y thÃ´ng tin má»›i nháº¥t trÆ°á»›c khi tráº£ lá»i. KHÃ”NG BAO GIá»œ tráº£ lá»i tá»« kiáº¿n thá»©c cÅ© náº¿u cÃ³ thá»ƒ tra cá»©u Ä‘Æ°á»£c.
-2. **Æ¯U TIÃŠN NGUá»’N CHÃNH THá»NG** theo thá»© tá»±:
-   - CÃ¡c Cá»•ng thÃ´ng tin Ä‘iá»‡n tá»­ cá»§a ChÃ­nh phá»§, cÃ¡c Bá»™, NgÃ nh vÃ  UBND cÃ¡c tá»‰nh/thÃ nh phá»‘ (tÃªn miá»n **.gov.vn**)
-   - dangcongsan.vn (BÃ¡o Ä‘iá»‡n tá»­ Äáº£ng Cá»™ng sáº£n Viá»‡t Nam), tulieuvankien.dangcongsan.vn
-   - vanban.chinhphu.vn (Cá»•ng thÃ´ng tin ChÃ­nh phá»§)
-   - vbpl.vn (CÆ¡ sá»Ÿ dá»¯ liá»‡u Quá»‘c gia vá» VÄƒn báº£n PhÃ¡p luáº­t)
-   - thuvienphapluat.vn (ThÆ° viá»‡n PhÃ¡p luáº­t)
-   - luatvietnam.vn (Luáº­t Viá»‡t Nam)
-3. **SO SÃNH CÅ¨ - Má»šI**: Khi tráº£ lá»i, LUÃ”N nÃªu rÃµ:
-   - VÄƒn báº£n hiá»‡n hÃ nh (má»›i nháº¥t) lÃ  gÃ¬, sá»‘ hiá»‡u, ngÃ y ban hÃ nh
-   - VÄƒn báº£n cÅ© nÃ o Ä‘Ã£ bá»‹ thay tháº¿/sá»­a Ä‘á»•i/bá»• sung
-   - Äiá»ƒm khÃ¡c biá»‡t chÃ­nh giá»¯a quy Ä‘á»‹nh cÅ© vÃ  má»›i
-4. **TRÃCH DáºªN CHÃNH XÃC**: Ghi rÃµ Äiá»u, Khoáº£n, Äiá»ƒm cá»¥ thá»ƒ. Náº¿u khÃ´ng cháº¯c cháº¯n, pháº£i nÃ³i rÃµ.
-5. **Cáº¢NH BÃO**: Náº¿u má»™t vÄƒn báº£n Ä‘Ã£ háº¿t hiá»‡u lá»±c hoáº·c bá»‹ sá»­a Ä‘á»•i, PHáº¢I cáº£nh bÃ¡o ngÆ°á»i dÃ¹ng ngay láº­p tá»©c.
+## NGUYÊN TẮC CỐT LÕI:
+1. **LUÔN TRA CỨU GOOGLE SEARCH** để lấy thông tin mới nhất trước khi trả lời. KHÔNG BAO GIỜ trả lời từ kiến thức cũ nếu có thể tra cứu được.
+2. **ƯU TIÊN NGUỒN CHÍNH THỐNG** theo thứ tự:
+   - Các Cổng thông tin điện tử của Chính phủ, các Bộ, Ngành và UBND các tỉnh/thành phố (tên miền **.gov.vn**)
+   - dangcongsan.vn (Báo điện tử Đảng Cộng sản Việt Nam), tulieuvankien.dangcongsan.vn
+   - vanban.chinhphu.vn (Cổng thông tin Chính phủ)
+   - vbpl.vn (Cơ sở dữ liệu Quốc gia về Văn bản Pháp luật)
+   - thuvienphapluat.vn (Thư viện Pháp luật)
+   - luatvietnam.vn (Luật Việt Nam)
+3. **SO SÁNH CŨ - MỚI**: Khi trả lời, LUÔN nêu rõ:
+   - Văn bản hiện hành (mới nhất) là gì, số hiệu, ngày ban hành
+   - Văn bản cũ nào đã bị thay thế/sửa đổi/bổ sung
+   - Điểm khác biệt chính giữa quy định cũ và mới
+4. **TRÍCH DẪN CHÍNH XÁC**: Ghi rõ Điều, Khoản, Điểm cụ thể. Nếu không chắc chắn, phải nói rõ.
+5. **CẢNH BÁO**: Nếu một văn bản đã hết hiệu lực hoặc bị sửa đổi, PHẢI cảnh báo người dùng ngay lập tức.
 
-## Äá»ŠNH Dáº NG TRáº¢ Lá»œI:
-- Sá»­ dá»¥ng tiáº¿ng Viá»‡t, chuyÃªn nghiá»‡p, rÃµ rÃ ng
-- Ghi nguá»“n tham kháº£o (link website) á»Ÿ cuá»‘i cÃ¢u tráº£ lá»i
-- Khi liá»‡t kÃª vÄƒn báº£n, ghi theo format: [Loáº¡i VB] [Sá»‘ hiá»‡u]/[NÄƒm] â€” [TiÃªu Ä‘á»] â€” Hiá»‡u lá»±c: [CÃ²n/Háº¿t]
-- Náº¿u cÃ¢u há»i phá»©c táº¡p, chia thÃ nh cÃ¡c má»¥c rÃµ rÃ ng
+## ĐỊNH DẠNG TRẢ LỜI:
+- Sử dụng tiếng Việt, chuyên nghiệp, rõ ràng
+- Ghi nguồn tham khảo (link website) ở cuối câu trả lời
+- Khi liệt kê văn bản, ghi theo format: [Loại VB] [Số hiệu]/[Năm] — [Tiêu đề] — Hiệu lực: [Còn/Hết]
+- Nếu câu hỏi phức tạp, chia thành các mục rõ ràng
 
-## SOáº N THáº¢O VÄ‚N Báº¢N (QUAN TRá»ŒNG):
-Khi ngÆ°á»i dÃ¹ng yÃªu cáº§u soáº¡n tháº£o, dá»± tháº£o, hoáº·c táº¡o máº«u vÄƒn báº£n (quyáº¿t Ä‘á»‹nh, nghá»‹ quyáº¿t, bÃ¡o cÃ¡o, tá» trÃ¬nh, thÃ´ng bÃ¡o, káº¿ hoáº¡ch, cÃ´ng vÄƒn...), Báº®T BUá»˜C pháº£i tuÃ¢n thá»§ cáº¥u trÃºc sau:
+## SOẠN THẢO VĂN BẢN (QUAN TRỌNG):
+Khi người dùng yêu cầu soạn thảo, dự thảo, hoặc tạo mẫu văn bản (quyết định, nghị quyết, báo cáo, tờ trình, thông báo, kế hoạch, công văn...), BẮT BUỘC phải tuân thủ cấu trúc sau:
 
-1. **Pháº§n tÆ° váº¥n ngáº¯n gá»n** (náº¿u cáº§n): Giáº£i thÃ­ch cÄƒn cá»© phÃ¡p lÃ½, lÆ°u Ã½ quan trá»ng.
-2. **Pháº§n dá»± tháº£o vÄƒn báº£n**: PHáº¢I báº¯t Ä‘áº§u báº±ng dÃ²ng tÃªn CÆ  QUAN BAN HÃ€NH viáº¿t IN HOA (vÃ­ dá»¥: "á»¦Y BAN NHÃ‚N DÃ‚N Tá»ˆNH LÃ‚M Äá»’NG" hoáº·c "Äáº¢NG Bá»˜ Tá»ˆNH LÃ‚M Äá»’NG"). Tiáº¿p theo lÃ  cáº¥u trÃºc Ä‘áº§y Ä‘á»§:
-   - TÃªn cÆ¡ quan (IN HOA, in Ä‘áº­m)
-   - Sá»‘ kÃ½ hiá»‡u: Sá»‘: .../QÄ-UBND (hoáº·c tÆ°Æ¡ng á»©ng)
-   - Quá»‘c hiá»‡u, tiÃªu ngá»¯ (náº¿u lÃ  VB chÃ­nh quyá»n)
-   - Äá»‹a danh, ngÃ y thÃ¡ng nÄƒm
-   - TÃŠN LOáº I VÄ‚N Báº¢N (IN HOA, in Ä‘áº­m): QUYáº¾T Äá»ŠNH / NGHá»Š QUYáº¾T / BÃO CÃO...
-   - TrÃ­ch yáº¿u: Vá» viá»‡c...
-   - Pháº§n cÄƒn cá»© (in nghiÃªng)
-   - Ná»™i dung: Äiá»u 1, Äiá»u 2...
-   - NÆ¡i nháº­n vÃ  chá»¯ kÃ½
-3. **Pháº§n lÆ°u Ã½ cuá»‘i** (náº¿u cáº§n): Ghi chÃº thÃªm, nguá»“n tham kháº£o.
+1. **Phần tư vấn ngắn gọn** (nếu cần): Giải thích căn cứ pháp lý, lưu ý quan trọng.
+2. **Phần dự thảo văn bản**: PHẢI bắt đầu bằng dòng tên CƠ QUAN BAN HÀNH viết IN HOA (ví dụ: "ỦY BAN NHÂN DÂN TỈNH LÂM ĐỒNG" hoặc "ĐẢNG BỘ TỈNH LÂM ĐỒNG"). Tiếp theo là cấu trúc đầy đủ:
+   - Tên cơ quan (IN HOA, in đậm)
+   - Số ký hiệu: Số: .../QĐ-UBND (hoặc tương ứng)
+   - Quốc hiệu, tiêu ngữ (nếu là VB chính quyền)
+   - Địa danh, ngày tháng năm
+   - TÊN LOẠI VĂN BẢN (IN HOA, in đậm): QUYẾT ĐỊNH / NGHỊ QUYẾT / BÁO CÁO...
+   - Trích yếu: Về việc...
+   - Phần căn cứ (in nghiêng)
+   - Nội dung: Điều 1, Điều 2...
+   - Nơi nhận và chữ ký
+3. **Phần lưu ý cuối** (nếu cần): Ghi chú thêm, nguồn tham khảo.
 
-## LÆ¯U Ã Äáº¶C BIá»†T:
-- LuÃ´n kiá»ƒm tra xem vÄƒn báº£n phÃ¡p luáº­t hoáº·c quy Ä‘á»‹nh, hÆ°á»›ng dáº«n cá»§a Äáº£ng cÃ³ bá»‹ sá»­a Ä‘á»•i, bá»• sung, thay tháº¿ khÃ´ng.
-- Æ¯u tiÃªn cung cáº¥p thÃ´ng tin má»›i nháº¥t tá»« nÄƒm 2024-2026.
-- Náº¿u ngÆ°á»i dÃ¹ng há»i vá» cÃ´ng tÃ¡c Äáº£ng (Äáº¡i há»™i, tá»• chá»©c, kiá»ƒm tra, vÄƒn phÃ²ng cáº¥p á»§y...), hÃ£y tra cá»©u trÃªn há»‡ thá»‘ng dangcongsan.vn hoáº·c cÃ¡c trang thÃ´ng tin Äáº£ng bá»™.
-- Náº¿u chÆ°a Ä‘á»§ thÃ´ng tin, hÃ£y Ä‘á» xuáº¥t ngÆ°á»i dÃ¹ng kiá»ƒm tra trá»±c tiáº¿p táº¡i cÃ¡c trang web chÃ­nh thá»‘ng.`;
+## LƯU Ý ĐẶC BIỆT:
+- Luôn kiểm tra xem văn bản pháp luật hoặc quy định, hướng dẫn của Đảng có bị sửa đổi, bổ sung, thay thế không.
+- Ưu tiên cung cấp thông tin mới nhất từ năm 2024-2026.
+- Nếu người dùng hỏi về công tác Đảng (Đại hội, tổ chức, kiểm tra, văn phòng cấp ủy...), hãy tra cứu trên hệ thống dangcongsan.vn hoặc các trang thông tin Đảng bộ.
+- Nếu chưa đủ thông tin, hãy đề xuất người dùng kiểm tra trực tiếp tại các trang web chính thống.`;
 
 let allSkills = [];
 
@@ -95,7 +95,7 @@ async function loadSkills() {
     const response = await fetch('./skills-manifest.json');
     allSkills = await response.json();
   } catch (e) {
-    console.warn("Lá»—i táº£i Skills cho Chat Assistant:", e);
+    console.warn("Lỗi tải Skills cho Chat Assistant:", e);
   }
 }
 
@@ -135,12 +135,12 @@ function buildSkillReferenceContext(skill) {
   const renderedReferences = referenceEntries.map(([fileName, content]) => {
     const compactContent = content.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim();
     const excerpt = compactContent.length > 4000
-      ? `${compactContent.slice(0, 4000)}\n...[RÃºt gá»n ná»™i dung tham chiáº¿u]...`
+      ? `${compactContent.slice(0, 4000)}\n...[Rút gọn nội dung tham chiếu]...`
       : compactContent;
-    return `#### TÃ i liá»‡u: ${fileName}\n${excerpt}`;
+    return `#### Tài liệu: ${fileName}\n${excerpt}`;
   }).join('\n\n');
 
-  return `\n### TÃ i liá»‡u tham chiáº¿u\n${renderedReferences}\n`;
+  return `\n### Tài liệu tham chiếu\n${renderedReferences}\n`;
 }
 
 export function initChat(apiKey, modelName = DEFAULT_GEMINI_MODEL) {
@@ -151,7 +151,7 @@ export function initChat(apiKey, modelName = DEFAULT_GEMINI_MODEL) {
     aiClient = { proxy: true }; // Dummy client for 9router mode
     currentModelName = DEFAULT_GEMINI_MODEL;
     chatSession = null;
-    loadSkills(); // Táº£i skills khi init
+    loadSkills(); // Tải skills khi init
     return true;
   } catch (e) {
     console.error("Chat Init Error:", e);
@@ -160,35 +160,35 @@ export function initChat(apiKey, modelName = DEFAULT_GEMINI_MODEL) {
 }
 
 export async function sendMessage(text, onChunk) {
-  if (!aiClient) throw new Error("ChÆ°a cáº¥u hÃ¬nh API Key hoáº·c 9router");
+  if (!aiClient) throw new Error("Chưa cấu hình API Key hoặc 9router");
 
-  // TÃ¬m kiáº¿m skill liÃªn quan dá»±a trÃªn triggers
+  // Tìm kiếm skill liên quan dựa trên triggers
   let dynamicInstruction = SYSTEM_INSTRUCTION;
   const lowerText = text.toLowerCase();
   const normalizedText = normalizeVietnamese(text);
   const matchedSkills = allSkills.filter((s) => detectSkillMatch(s, lowerText, normalizedText));
 
   if (matchedSkills.length > 0) {
-    dynamicInstruction += `\n\n## KIáº¾N THá»¨C Bá»” SUNG (Dá»±a trÃªn context ngÆ°á»i dÃ¹ng):\n`;
+    dynamicInstruction += `\n\n## KIẾN THỨC BỔ SUNG (Dựa trên context người dùng):\n`;
     matchedSkills.forEach(s => {
-      dynamicInstruction += `\n### Ká»¹ nÄƒng: ${s.name}\n${s.instructions}\n`;
+      dynamicInstruction += `\n### Kỹ năng: ${s.name}\n${s.instructions}\n`;
       dynamicInstruction += buildSkillReferenceContext(s);
     });
-    console.log("ÄÃ£ náº¡p thÃªm context tá»« cÃ¡c skills:", matchedSkills.map(s => s.name));
+    console.log("Đã nạp thêm context từ các skills:", matchedSkills.map(s => s.name));
   }
 
   try {
     let fullText = "";
     
     if (use9router) {
-      // Giao tiáº¿p qua 9router (OpenAI format)
+      // Giao tiếp qua 9router (OpenAI format)
       const messages = [
         { role: "system", content: dynamicInstruction },
         { role: "user", content: text }
       ];
       fullText = await sendChatRequest(messages, currentModelName);
     } else {
-      // Giao tiáº¿p trá»±c tiáº¿p qua Gemini SDK
+      // Giao tiếp trực tiếp qua Gemini SDK
       const response = await aiClient.models.generateContent({
         model: currentModelName,
         contents: text,
@@ -228,35 +228,35 @@ export async function renderChatUI(container) {
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
       <div class="panel-header">
-        <div class="panel-header-icon">âš–ï¸</div>
-        Trá»£ LÃ½ Tra Cá»©u PhÃ¡p Luáº­t & Quy Äá»‹nh Äáº£ng AI
+        <div class="panel-header-icon">⚖️</div>
+        Trợ Lý Tra Cứu Pháp Luật & Quy Định Đảng AI
         <div style="flex:1"></div>
-        <button id="chat-settings-btn" class="btn-icon" title="Cáº¥u hÃ¬nh" style="display: ${localStorage.getItem('vbai_admin') === 'true' ? 'block' : 'none'}; width:28px; height:28px; font-size:0.8rem">âš™ï¸</button>
+        <button id="chat-settings-btn" class="btn-icon" title="Cấu hình" style="display: ${localStorage.getItem('vbai_admin') === 'true' ? 'block' : 'none'}; width:28px; height:28px; font-size:0.8rem">⚙️</button>
       </div>
       <div class="panel-body">
         <div id="chat-messages" class="chat-messages-area">
           <div class="chat-msg ai">
-            <strong>Xin chÃ o! TÃ´i lÃ  Trá»£ lÃ½ VBAI.</strong><br>
-            TÃ´i há»— trá»£ tra cá»©u cÃ¡c quy Ä‘á»‹nh phÃ¡p luáº­t vÃ  cÃ¡c quy Ä‘á»‹nh, hÆ°á»›ng dáº«n cá»§a Äáº£ng má»›i nháº¥t dá»±a trÃªn dá»¯ liá»‡u thá»i gian thá»±c tá»« Google Search Grounding.
+            <strong>Xin chào! Tôi là Trợ lý VBAI.</strong><br>
+            Tôi hỗ trợ tra cứu các quy định pháp luật và các quy định, hướng dẫn của Đảng mới nhất dựa trên dữ liệu thời gian thực từ Google Search Grounding.
             <br><br>
-            <strong>Nguá»“n dá»¯ liá»‡u chÃ­nh thá»‘ng:</strong><br>
-            â€¢ dangcongsan.vn (TÆ° liá»‡u VÄƒn kiá»‡n Äáº£ng)<br>
-            â€¢ vanban.chinhphu.vn (Cá»•ng thÃ´ng tin ChÃ­nh phá»§)<br>
-            â€¢ thuvienphapluat.vn (ThÆ° viá»‡n PhÃ¡p luáº­t)<br>
-            â€¢ CÃ¡c cá»•ng thÃ´ng tin Ä‘iá»‡n tá»­ (.gov.vn)
+            <strong>Nguồn dữ liệu chính thống:</strong><br>
+            • dangcongsan.vn (Tư liệu Văn kiện Đảng)<br>
+            • vanban.chinhphu.vn (Cổng thông tin Chính phủ)<br>
+            • thuvienphapluat.vn (Thư viện Pháp luật)<br>
+            • Các cổng thông tin điện tử (.gov.vn)
             <br><br>
-            <em>Báº¡n hÃ£y Ä‘áº·t cÃ¢u há»i báº±ng ngÃ´n ngá»¯ tá»± nhiÃªn (VD: "Quy Ä‘á»‹nh má»›i nháº¥t vá» cÃ´ng tÃ¡c vÄƒn thÆ° cá»§a Äáº£ng")</em>
+            <em>Bạn hãy đặt câu hỏi bằng ngôn ngữ tự nhiên (VD: "Quy định mới nhất về công tác văn thư của Đảng")</em>
           </div>
         </div>
         
         <div class="chat-input-wrapper">
-          <input type="text" id="chat-input" placeholder="Nháº­p ná»™i dung cáº§n tra cá»©u..." class="form-input chat-input-field">
+          <input type="text" id="chat-input" placeholder="Nhập nội dung cần tra cứu..." class="form-input chat-input-field">
           <button id="chat-send-btn" class="btn btn-primary chat-send-btn">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10l15-7.5L10 10l7.5 7.5L2.5 10z" fill="currentColor"/></svg>
           </button>
         </div>
         <div class="chat-disclaimer" style="margin-top: 12px; padding: 10px; background: rgba(239, 68, 68, 0.05); border-left: 3px solid #ef4444; border-radius: 4px; font-size: 0.75rem; color: var(--text-secondary);">
-          <strong>âš ï¸ Cáº¢NH BÃO Rá»¦I RO:</strong> VBAI lÃ  cÃ´ng cá»¥ há»— trá»£ dá»±a trÃªn AI, khÃ´ng thay tháº¿ trÃ¡ch nhiá»‡m cá»§a cÃ¡n bá»™, cÃ´ng chá»©c trong viá»‡c kiá»ƒm tra, Ä‘á»‘i chiáº¿u vá»›i vÄƒn báº£n phÃ¡p luáº­t chÃ­nh thá»©c. Káº¿t quáº£ do AI cung cáº¥p chá»‰ mang tÃ­nh cháº¥t gá»£i Ã½, ngÆ°á»i dÃ¹ng cáº§n kiá»ƒm tra hiá»‡u lá»±c vÄƒn báº£n trÆ°á»›c khi Ä‘Æ°a vÃ o dá»± tháº£o.
+          <strong>⚠️ CẢNH BÁO RỦI RO:</strong> VBAI là công cụ hỗ trợ dựa trên AI, không thay thế trách nhiệm của cán bộ, công chức trong việc kiểm tra, đối chiếu với văn bản pháp luật chính thức. Kết quả do AI cung cấp chỉ mang tính chất gợi ý, người dùng cần kiểm tra hiệu lực văn bản trước khi đưa vào dự thảo.
         </div>
       </div>
     </div>
@@ -264,7 +264,7 @@ export async function renderChatUI(container) {
     <!-- API Key Modal -->
     <div id="key-modal" class="modal-overlay" style="display:none">
       <div class="modal-content panel-group" style="max-width:420px; margin: 100px auto">
-        <div class="panel-header">Cáº¥u hÃ¬nh Trá»£ LÃ½ AI</div>
+        <div class="panel-header">Cấu hình Trợ Lý AI</div>
           <div class="panel-body">
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">Profile Proxy</label>
@@ -277,7 +277,7 @@ export async function renderChatUI(container) {
           </div>
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">API Key (Google hoac 9router)</label>
-            <input type="password" id="api-key-input" class="form-input" value="" placeholder="DÃ¡n API Key vÃ o Ä‘Ã¢y...">
+            <input type="password" id="api-key-input" class="form-input" value="" placeholder="Dán API Key vào đây...">
             <p style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">Neu bat 9router thi nhap 9router key. Neu tat 9router thi nhap Google AI Studio key.</p>
           </div>
           <div class="form-group" style="margin-bottom:16px">
@@ -298,14 +298,14 @@ export async function renderChatUI(container) {
           </div>
 
           <div style="padding:10px; background:rgba(230,162,0,0.1); border-radius:8px; margin-bottom:16px; border: 1px solid rgba(230,162,0,0.2)">
-            <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">ðŸ” Google Search Grounding: Báº¬T</p>
-            <p style="font-size:0.7rem; color:var(--text-secondary); margin:4px 0 0">Trá»£ lÃ½ sáº½ tá»± Ä‘á»™ng tÃ¬m kiáº¿m Google Ä‘á»ƒ láº¥y thÃ´ng tin phÃ¡p luáº­t má»›i nháº¥t.</p>
+            <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">🔍 Google Search Grounding: BẬT</p>
+            <p style="font-size:0.7rem; color:var(--text-secondary); margin:4px 0 0">Trợ lý sẽ tự động tìm kiếm Google để lấy thông tin pháp luật mới nhất.</p>
           </div>
 
           <div style="padding:12px; background:rgba(66,133,244,0.1); border-radius:8px; margin-bottom:16px; border: 1px solid rgba(66,133,244,0.2); display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">ðŸš€ Sá»­ dá»¥ng 9router Proxy</p>
-              <p style="font-size:0.65rem; color:var(--text-secondary); margin:2px 0 0">Cháº¡y yÃªu cáº§u AI qua 9router local (localhost:20128)</p>
+              <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">🚀 Sử dụng 9router Proxy</p>
+              <p style="font-size:0.65rem; color:var(--text-secondary); margin:2px 0 0">Chạy yêu cầu AI qua 9router local (localhost:20128)</p>
             </div>
             <label class="switch-toggle">
               <input type="checkbox" id="use-9router-chk" checked disabled>
@@ -316,8 +316,8 @@ export async function renderChatUI(container) {
             <button id="test-proxy-btn" class="btn btn-secondary">Kiem tra ket noi proxy</button>
           </div>
           <div class="btn-row" style="margin-top:20px">
-            <button id="save-key-btn" class="btn btn-primary">LÆ°u cáº¥u hÃ¬nh</button>
-            <button id="close-modal-btn" class="btn btn-secondary">ÄÃ³ng</button>
+            <button id="save-key-btn" class="btn btn-primary">Lưu cấu hình</button>
+            <button id="close-modal-btn" class="btn btn-secondary">Đóng</button>
           </div>
         </div>
       </div>
@@ -336,7 +336,7 @@ export async function renderChatUI(container) {
   const testProxyBtn = container.querySelector('#test-proxy-btn');
   const modelSelect = container.querySelector('#model-select');
 
-  // Khá»Ÿi táº¡o Firebase vÃ  táº£i API Key
+  // Khởi tạo Firebase và tải API Key
   let apiKey = '';
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   const db = getFirestore(app);
@@ -358,7 +358,7 @@ export async function renderChatUI(container) {
       if(apiKeyInput) apiKeyInput.value = apiKey;
     }
   } catch (e) {
-    console.warn("Lá»—i táº£i API Key:", e);
+    console.warn("Lỗi tải API Key:", e);
   }
 
   const fallbackEndpoint = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
@@ -411,7 +411,7 @@ export async function renderChatUI(container) {
     const text = input.value.trim();
     if (!text) return;
     if (!aiClient) {
-      alert("Vui lÃ²ng cáº¥u hÃ¬nh API Key trÆ°á»›c (báº¥m vÃ o icon âš™ï¸)");
+      alert("Vui lòng cấu hình API Key trước (bấm vào icon ⚙️)");
       return;
     }
 
@@ -419,14 +419,14 @@ export async function renderChatUI(container) {
     sendBtn.disabled = true;
     addMsg(text, 'user');
     
-    const aiMsgDiv = addMsg('ðŸ” Äang tra cá»©u tá»« Google Search...', 'ai');
+    const aiMsgDiv = addMsg('🔍 Đang tra cứu từ Google Search...', 'ai');
     try {
       await sendMessage(text, (full) => {
         aiMsgDiv.innerText = full;
         msgsArea.scrollTop = msgsArea.scrollHeight;
       });
     } catch (e) {
-      aiMsgDiv.innerText = "âŒ Lá»—i: " + e.message;
+      aiMsgDiv.innerText = "❌ Lỗi: " + e.message;
       aiMsgDiv.classList.add('error');
     } finally {
       sendBtn.disabled = false;
@@ -493,14 +493,14 @@ export async function renderChatUI(container) {
       await setDoc(doc(db, 'config', 'system'), payload, { merge: true });
       
       if(initChat(key, model)) {
-        alert("ÄÃ£ lÆ°u cáº¥u hÃ¬nh thÃ nh cÃ´ng!");
+        alert("Đã lưu cấu hình thành công!");
         keyModal.style.display = 'none';
       } else {
-        alert("Lá»—i khi khá»Ÿi táº¡o Model!");
+        alert("Lỗi khi khởi tạo Model!");
       }
     } catch (e) {
-      console.error("LÆ°u cáº¥u hÃ¬nh lá»—i:", e);
-      alert("Lá»—i lÆ°u cáº¥u hÃ¬nh: " + e.message);
+      console.error("Lưu cấu hình lỗi:", e);
+      alert("Lỗi lưu cấu hình: " + e.message);
     }
   };
 }
