@@ -17,12 +17,13 @@ const DEFAULT_TRANSCRIBE_MODEL = "gemini-2.5-pro";
 let aiClient = null;
 let chatSession = null;
 let currentModelName = DEFAULT_GEMINI_MODEL;
-let use9router = localStorage.getItem('vbai_use_9router') === 'true';
+let use9router = true;
 
 const PROVIDER_PRESETS = {
+  // Kept for backward compatibility with old saved profile values.
   google_direct: {
-    useProxy: false,
-    endpoint: '',
+    useProxy: true,
+    endpoint: 'http://localhost:8317/v1',
     model: DEFAULT_GEMINI_MODEL,
     transcribeModel: DEFAULT_TRANSCRIBE_MODEL
   },
@@ -144,16 +145,10 @@ function buildSkillReferenceContext(skill) {
 
 export function initChat(apiKey, modelName = DEFAULT_GEMINI_MODEL) {
   currentModelName = DEFAULT_GEMINI_MODEL;
-  use9router = localStorage.getItem('vbai_use_9router') === 'true';
-  
-  if (!use9router && !apiKey) return null;
+  use9router = true;
   
   try {
-    if (!use9router) {
-      aiClient = new GoogleGenAI({ apiKey });
-    } else {
-      aiClient = { proxy: true }; // Dummy client for 9router mode
-    }
+    aiClient = { proxy: true }; // Dummy client for 9router mode
     currentModelName = DEFAULT_GEMINI_MODEL;
     chatSession = null;
     loadSkills(); // Táº£i skills khi init
@@ -274,7 +269,6 @@ export async function renderChatUI(container) {
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">Profile Proxy</label>
             <select id="provider-profile-select" class="form-input">
-              <option value="google_direct">Google truc tiep</option>
               <option value="proxy_9router_local">9router local (localhost:20128)</option>
               <option value="proxy_cliproxy_local">CLIProxy local (localhost:8317)</option>
               <option value="proxy_custom">Tuy chinh</option>
@@ -314,7 +308,7 @@ export async function renderChatUI(container) {
               <p style="font-size:0.65rem; color:var(--text-secondary); margin:2px 0 0">Cháº¡y yÃªu cáº§u AI qua 9router local (localhost:20128)</p>
             </div>
             <label class="switch-toggle">
-              <input type="checkbox" id="use-9router-chk" ${localStorage.getItem('vbai_use_9router') === 'true' ? 'checked' : ''}>
+              <input type="checkbox" id="use-9router-chk" checked disabled>
               <span class="slider-round"></span>
             </label>
           </div>
@@ -351,18 +345,16 @@ export async function renderChatUI(container) {
     const configDoc = await getDoc(doc(db, 'config', 'system'));
     if (configDoc.exists()) {
       const data = configDoc.data();
-      apiKey = data.gemini_api_key || '';
       const routerKey = data.router_api_key || '';
       const routerEndpoint = data.router_endpoint || '';
       const routerTranscribeModel = data.router_transcribe_model || '';
       const routerProfile = data.router_profile || '';
+      apiKey = routerKey || localStorage.getItem('vbai_9router_api_key') || '';
       if (routerKey) localStorage.setItem('vbai_9router_api_key', routerKey);
       if (routerEndpoint) localStorage.setItem('vbai_9router_endpoint', routerEndpoint);
       if (routerTranscribeModel) localStorage.setItem('vbai_transcribe_model', routerTranscribeModel);
       if (routerProfile) localStorage.setItem('vbai_router_profile', routerProfile);
-      if (localStorage.getItem('vbai_use_9router') === 'true' && routerKey) {
-        apiKey = routerKey;
-      }
+      localStorage.setItem('vbai_use_9router', 'true');
       if(apiKeyInput) apiKeyInput.value = apiKey;
     }
   } catch (e) {
@@ -389,8 +381,7 @@ export async function renderChatUI(container) {
     if (!preserveKey && apiKeyInput) apiKeyInput.value = '';
   };
 
-  const currentProfile = localStorage.getItem('vbai_router_profile')
-    || (localStorage.getItem('vbai_use_9router') === 'true' ? 'proxy_cliproxy_local' : 'google_direct');
+  const currentProfile = localStorage.getItem('vbai_router_profile') || 'proxy_cliproxy_local';
   if (providerProfileSelect) {
     providerProfileSelect.value = PROVIDER_PRESETS[currentProfile] ? currentProfile : 'proxy_custom';
     providerProfileSelect.onchange = () => {
@@ -478,7 +469,7 @@ export async function renderChatUI(container) {
     const routerEndpoint = (routerEndpointInput?.value || '').trim();
     const transcribeModel = (transcribeModelInput?.value || '').trim() || DEFAULT_TRANSCRIBE_MODEL;
     const selectedProfile = providerProfileSelect?.value || 'proxy_custom';
-    const isUsing9router = container.querySelector('#use-9router-chk').checked;
+    const isUsing9router = true;
     const model = DEFAULT_GEMINI_MODEL;
     
     localStorage.setItem('vbai_use_9router', isUsing9router ? 'true' : 'false');
@@ -498,10 +489,7 @@ export async function renderChatUI(container) {
         router_profile: selectedProfile
       };
       if (routerEndpoint) payload.router_endpoint = routerEndpoint;
-      if (key) {
-        if (isUsing9router) payload.router_api_key = key;
-        else payload.gemini_api_key = key;
-      }
+      if (key) payload.router_api_key = key;
       await setDoc(doc(db, 'config', 'system'), payload, { merge: true });
       
       if(initChat(key, model)) {
