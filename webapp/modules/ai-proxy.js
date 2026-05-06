@@ -7,19 +7,46 @@ const FALLBACK_9ROUTER_ENDPOINT =
     ? "http://localhost:20128/v1"
     : "https://your-9router-public-url.com/v1";
 const LOCKED_MODEL = "gemini-2.5-pro";
+const PROXY_PRESETS = {
+  proxy_9router_local: "http://localhost:20128/v1",
+  proxy_cliproxy_local: "http://localhost:8317/v1",
+};
 
 function trimTrailingSlash(url = "") {
   return String(url || "").replace(/\/+$/, "");
 }
 
-function getProxyConfig() {
-  const endpoint = trimTrailingSlash(localStorage.getItem("vbai_9router_endpoint") || FALLBACK_9ROUTER_ENDPOINT);
-  const apiKey = (localStorage.getItem("vbai_9router_api_key") || "").trim();
-  return { endpoint, apiKey };
+function normalizeContext(context = "default") {
+  const raw = String(context || "default").toLowerCase().trim();
+  return raw || "default";
 }
 
-function buildAuthHeaders(extraHeaders = {}) {
-  const { apiKey } = getProxyConfig();
+function getProxyConfig(context = "default") {
+  const ctx = normalizeContext(context);
+  const enabledRaw = localStorage.getItem(`vbai_proxy_enabled_${ctx}`);
+  const enabled = (enabledRaw ?? localStorage.getItem("vbai_use_9router") ?? "true") === "true";
+  const profile = localStorage.getItem(`vbai_proxy_profile_${ctx}`)
+    || localStorage.getItem("vbai_router_profile")
+    || "proxy_cliproxy_local";
+
+  const endpointFromProfile = PROXY_PRESETS[profile] || "";
+  const endpoint = trimTrailingSlash(
+    localStorage.getItem(`vbai_proxy_endpoint_${ctx}`)
+      || (profile === "proxy_custom" ? localStorage.getItem("vbai_9router_endpoint") : endpointFromProfile)
+      || localStorage.getItem("vbai_9router_endpoint")
+      || FALLBACK_9ROUTER_ENDPOINT
+  );
+
+  const apiKey = (
+    localStorage.getItem(`vbai_proxy_api_key_${ctx}`)
+    || localStorage.getItem("vbai_9router_api_key")
+    || ""
+  ).trim();
+  return { endpoint, apiKey, enabled, profile, context: ctx };
+}
+
+function buildAuthHeaders(context = "default", extraHeaders = {}) {
+  const { apiKey } = getProxyConfig(context);
   const headers = { ...extraHeaders };
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   return headers;
@@ -29,16 +56,23 @@ function buildAuthHeaders(extraHeaders = {}) {
  * Send chat completion request via 9router.
  */
 export async function sendChatRequest(messages, _model, options = {}) {
-  const { endpoint } = getProxyConfig();
+  const context = options.context || "default";
+  const { endpoint, enabled } = getProxyConfig(context);
+  if (!enabled) {
+    throw new Error(`Proxy dang tat cho chuc nang "${normalizeContext(context)}". Hay bat proxy trong cau hinh.`);
+  }
+
+  const requestOptions = { ...options };
+  delete requestOptions.context;
   const response = await fetch(`${endpoint}/chat/completions`, {
     method: "POST",
-    headers: buildAuthHeaders({ "Content-Type": "application/json" }),
+    headers: buildAuthHeaders(context, { "Content-Type": "application/json" }),
     body: JSON.stringify({
       model: LOCKED_MODEL,
       messages,
-      temperature: options.temperature ?? 0.7,
-      stream: options.stream ?? false,
-      ...options,
+      temperature: requestOptions.temperature ?? 0.7,
+      stream: requestOptions.stream ?? false,
+      ...requestOptions,
     }),
   });
 
@@ -60,7 +94,7 @@ export async function sendChatRequest(messages, _model, options = {}) {
     throw new Error(rawMessage);
   }
 
-  if (options.stream) return response.body;
+  if (requestOptions.stream) return response.body;
   const contentType = response.headers.get("content-type") || "";
 
   // Some 9router setups return SSE chunks even with stream=false.
@@ -87,17 +121,24 @@ export async function sendChatRequest(messages, _model, options = {}) {
  * Send audio transcription request via 9router (OpenAI-compatible).
  */
 export async function sendAudioTranscription(file, model = LOCKED_MODEL, options = {}) {
-  const { endpoint } = getProxyConfig();
+  const context = options.context || "default";
+  const { endpoint, enabled } = getProxyConfig(context);
+  if (!enabled) {
+    throw new Error(`Proxy dang tat cho chuc nang "${normalizeContext(context)}". Hay bat proxy trong cau hinh.`);
+  }
+
+  const requestOptions = { ...options };
+  delete requestOptions.context;
   const form = new FormData();
   form.append("file", file);
   form.append("model", model);
-  if (options.language) form.append("language", options.language);
-  if (options.prompt) form.append("prompt", options.prompt);
-  if (options.temperature !== undefined) form.append("temperature", String(options.temperature));
+  if (requestOptions.language) form.append("language", requestOptions.language);
+  if (requestOptions.prompt) form.append("prompt", requestOptions.prompt);
+  if (requestOptions.temperature !== undefined) form.append("temperature", String(requestOptions.temperature));
 
   const response = await fetch(`${endpoint}/audio/transcriptions`, {
     method: "POST",
-    headers: buildAuthHeaders(),
+    headers: buildAuthHeaders(context),
     body: form,
   });
 
@@ -115,6 +156,7 @@ export async function sendAudioTranscription(file, model = LOCKED_MODEL, options
  * Useful when /audio/transcriptions is unavailable on the 9router instance.
  */
 export async function sendAudioTranscriptionViaChat(file, model = LOCKED_MODEL, options = {}) {
+  const context = options.context || "default";
   const maxBytes = options.maxBytes ?? 12 * 1024 * 1024;
   if (file.size > maxBytes) {
     throw new Error(`File audio qua lon cho fallback chat (${(file.size / 1024 / 1024).toFixed(1)}MB > ${(maxBytes / 1024 / 1024).toFixed(1)}MB).`);
@@ -134,19 +176,20 @@ export async function sendAudioTranscriptionViaChat(file, model = LOCKED_MODEL, 
     ],
   }];
 
-  const text = await sendChatRequest(messages, LOCKED_MODEL, { temperature: options.temperature ?? 0 });
+  const text = await sendChatRequest(messages, LOCKED_MODEL, { temperature: options.temperature ?? 0, context });
   return text || "";
 }
 
 /**
  * Check whether 9router endpoint is reachable.
  */
-export async function check9routerStatus() {
-  const { endpoint } = getProxyConfig();
+export async function check9routerStatus(context = "default") {
+  const { endpoint, enabled } = getProxyConfig(context);
+  if (!enabled) return false;
   try {
     const res = await fetch(`${endpoint}/models`, {
       method: "GET",
-      headers: buildAuthHeaders(),
+      headers: buildAuthHeaders(context),
     });
     return res.ok;
   } catch (e) {

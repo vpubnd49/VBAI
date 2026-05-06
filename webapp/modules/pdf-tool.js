@@ -110,7 +110,7 @@ async function handlePdf(file, container) {
         }
 
         const model = localStorage.getItem('vbai_gemini_model') || 'gemini-2.5-pro';
-        fullText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0 });
+        fullText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'pdf' });
         fullText = fullText || "Không quét được nội dung.";
         textContentArea.textContent = fullText;
         showToast('✓ Đã quét OCR thành công!');

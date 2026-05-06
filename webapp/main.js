@@ -22,9 +22,15 @@ import { firebaseConfig } from './firebase-config.js';
 const GLOBAL_AI_MODEL = 'gemini-2.5-pro';
 
 function applyGlobalModelDefaults() {
-  localStorage.setItem('vbai_gemini_model', GLOBAL_AI_MODEL);
-  localStorage.setItem('vbai_transcribe_model', GLOBAL_AI_MODEL);
-  localStorage.setItem('vbai_use_9router', 'true');
+  if (!localStorage.getItem('vbai_gemini_model')) {
+    localStorage.setItem('vbai_gemini_model', GLOBAL_AI_MODEL);
+  }
+  if (!localStorage.getItem('vbai_transcribe_model')) {
+    localStorage.setItem('vbai_transcribe_model', GLOBAL_AI_MODEL);
+  }
+  if (!localStorage.getItem('vbai_use_9router')) {
+    localStorage.setItem('vbai_use_9router', 'true');
+  }
   if (!localStorage.getItem('vbai_router_profile')) {
     localStorage.setItem('vbai_router_profile', 'proxy_cliproxy_local');
   }

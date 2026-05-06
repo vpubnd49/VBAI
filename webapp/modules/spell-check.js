@@ -185,7 +185,7 @@ Nếu không có lỗi, trả []. CHỈ JSON, KHÔNG markdown, KHÔNG giải th�
         { role: "system", content: systemInstruction },
         { role: "user", content: combinedText }
       ];
-      let resText = await sendChatRequest(messages, modelName, { temperature: 0.1 });
+      let resText = await sendChatRequest(messages, modelName, { temperature: 0.1, context: 'spellcheck' });
       resText = resText.replace(/^\`\`\`json/m, '').replace(/^\`\`\`/m, '').trim();
       
       let aiErrors = [];
@@ -638,5 +638,3 @@ function logToFirestore(fileName, spellCount, formatCount) {
     }).catch(() => {});
   } catch (e) {}
 }
-
-

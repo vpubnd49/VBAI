@@ -345,20 +345,21 @@ Tr? v? JSON:
 CH? tr? v? JSON.`;
 
 async function processAudioWithGemini(file, progressEl) {
-  const use9router = localStorage.getItem('vbai_use_9router') === 'true';
+  const use9router = (localStorage.getItem('vbai_proxy_enabled_meeting') ?? localStorage.getItem('vbai_use_9router') ?? 'true') === 'true';
   if (use9router) {
     progressEl.textContent = 'Dang chuyen giong noi thanh van ban qua 9router...';
     const transcriptModel = localStorage.getItem('vbai_transcribe_model') || DEFAULT_TRANSCRIBE_MODEL;
     const chatModel = localStorage.getItem('vbai_gemini_model') || DEFAULT_GEMINI_MODEL;
     let transcript = '';
     try {
-      transcript = await sendAudioTranscription(file, transcriptModel, { temperature: 0 });
+      transcript = await sendAudioTranscription(file, transcriptModel, { temperature: 0, context: 'meeting' });
     } catch (e) {
       progressEl.textContent = 'Khong dung duoc /audio/transcriptions, dang fallback qua chat/completions...';
       try {
         transcript = await sendAudioTranscriptionViaChat(file, chatModel, {
           temperature: 0,
-          maxBytes: 12 * 1024 * 1024
+          maxBytes: 12 * 1024 * 1024,
+          context: 'meeting'
         });
       } catch (fallbackErr) {
         throw new Error(`9router khong ho tro transcription endpoint va fallback chat that bai (${fallbackErr.message}).`);
@@ -371,7 +372,7 @@ async function processAudioWithGemini(file, progressEl) {
     progressEl.textContent = 'Dang phan tich transcript va trich xuat cau truc...';
     const model = chatModel;
     const prompt = `${MEETING_PROMPT}\n\nTRANSCRIPT:\n${transcript}`;
-    let text = await sendChatRequest([{ role: "user", content: prompt }], model, { temperature: 0.1 });
+    let text = await sendChatRequest([{ role: "user", content: prompt }], model, { temperature: 0.1, context: 'meeting' });
     text = (text || '').replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
 
     try {
@@ -489,7 +490,7 @@ async function processAudioWithGemini(file, progressEl) {
 }
 
 async function reanalyzeTranscript() {
-  const use9router = localStorage.getItem('vbai_use_9router') === 'true';
+  const use9router = (localStorage.getItem('vbai_proxy_enabled_meeting') ?? localStorage.getItem('vbai_use_9router') ?? 'true') === 'true';
   const prompt = `��y l� b?n transcript cu?c h?p h�nh ch�nh d� ch?nh s?a. Ph�n t�ch l?i v� tr? v? JSON:
 {
   "chu_tri": "...",
@@ -509,7 +510,7 @@ ${formState.transcript}`;
   if (use9router) {
     const messages = [{ role: "user", content: prompt }];
     const model = localStorage.getItem('vbai_gemini_model') || DEFAULT_GEMINI_MODEL;
-    text = await sendChatRequest(messages, model, { temperature: 0.1 });
+    text = await sendChatRequest(messages, model, { temperature: 0.1, context: 'meeting' });
   } else {
     const apiKey = await getApiKey();
     const aiClient = new GoogleGenAI({ apiKey });
