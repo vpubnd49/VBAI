@@ -3,8 +3,8 @@
  */
 import { showToast } from '../main.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { GoogleGenAI } from "https://esm.run/@google/genai";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { sendChatRequest } from './ai-proxy.js';
 
 import { firebaseConfig } from '../firebase-config.js';
 
@@ -88,21 +88,15 @@ async function handlePdf(file, container) {
     ocrBtn.onclick = async () => {
       ocrBtn.disabled = true;
       ocrBtn.textContent = '⏳ Đang quét AI...';
-      textContentArea.textContent = 'Đang chuyển trang thành ảnh và gửi lên AI Gemini... Vui lòng chờ vài giây...';
+      textContentArea.textContent = 'Đang chuyển trang thành ảnh và gửi lên AI qua 9router... Vui lòng chờ vài giây...';
       
       try {
         const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         const db = getFirestore(app);
-        const configDoc = await getDoc(doc(db, 'config', 'system'));
-        const apiKey = configDoc.exists() ? configDoc.data().gemini_api_key : null;
+        const content = [{ type: "text", text: "Hãy đọc và trích xuất nguyên văn toàn bộ chữ tiếng Việt có trong các hình ảnh tài liệu này. Giữ nguyên bố cục và xuống dòng nếu có thể." }];
         
-        if (!apiKey) throw new Error("Chưa cấu hình API Key trong Quản trị hệ thống.");
-        
-        const ai = new GoogleGenAI({ apiKey });
-        const parts = [{ text: "Hãy đọc và trích xuất nguyên văn toàn bộ chữ tiếng Việt có trong các hình ảnh tài liệu này. Giữ nguyên bố cục và xuống dòng nếu có thể." }];
-        
-        // Convert max 15 pages to images to avoid payload too large
-        const limitPages = Math.min(pdf.numPages, 15);
+        // Keep payload moderate for OpenAI-compatible multimodal endpoint
+        const limitPages = Math.min(pdf.numPages, 8);
         for (let i = 1; i <= limitPages; i++) {
           const page = await pdf.getPage(i);
           const viewport = page.getViewport({ scale: 1.5 });
@@ -112,15 +106,12 @@ async function handlePdf(file, container) {
           canvas.width = viewport.width;
           await page.render({ canvasContext: context, viewport }).promise;
           const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-          parts.push({ inlineData: { data: base64, mimeType: 'image/jpeg' } });
+          content.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } });
         }
 
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.1-flash-lite-preview',
-          contents: parts
-        });
-
-        fullText = response.text || "Không quét được nội dung.";
+        const model = localStorage.getItem('vbai_gemini_model') || 'gemini-2.5-pro';
+        fullText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0 });
+        fullText = fullText || "Không quét được nội dung.";
         textContentArea.textContent = fullText;
         showToast('✓ Đã quét OCR thành công!');
         ocrBtn.style.display = 'none'; // hide after success
@@ -128,7 +119,7 @@ async function handlePdf(file, container) {
         // Log OCR usage
         addDoc(collection(db, 'search_logs'), {
           query: `[OCR PDF] Quét ảnh Scan: ${file.name} (${limitPages} trang)`,
-          model: "Gemini 3.1 Flash Lite OCR",
+          model: `${model} (via 9router OCR)`,
           userEmail: window.currentUser?.email || 'Unknown',
           timestamp: serverTimestamp()
         }).catch(e => console.warn(e));

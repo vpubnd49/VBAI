@@ -19,6 +19,13 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
 
 import { firebaseConfig } from './firebase-config.js';
 
+const GLOBAL_AI_MODEL = 'gemini-2.5-pro';
+
+function applyGlobalModelDefaults() {
+  localStorage.setItem('vbai_gemini_model', GLOBAL_AI_MODEL);
+  localStorage.setItem('vbai_transcribe_model', GLOBAL_AI_MODEL);
+}
+
 
 // ============ STATE ============
 const state = {
@@ -117,6 +124,8 @@ function renderPage(page) {
 
 // ============ INIT ============
 function init() {
+  applyGlobalModelDefaults();
+
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   const auth = getAuth(app);
 

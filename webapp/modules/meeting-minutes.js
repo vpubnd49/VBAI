@@ -10,7 +10,10 @@ import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebase
 import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { GoogleGenAI } from "https://esm.run/@google/genai";
 import { firebaseConfig } from '../firebase-config.js';
-import { sendChatRequest } from './ai-proxy.js';
+import { sendChatRequest, sendAudioTranscription, sendAudioTranscriptionViaChat } from './ai-proxy.js';
+
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-pro";
+const DEFAULT_TRANSCRIBE_MODEL = "gemini-2.5-pro";
 
 let formState = {
   step: 1, audioFile: null, isProcessing: false,
@@ -342,9 +345,72 @@ Trả về JSON:
 CHỈ trả về JSON.`;
 
 async function processAudioWithGemini(file, progressEl) {
+  const use9router = localStorage.getItem('vbai_use_9router') === 'true';
+  if (use9router) {
+    progressEl.textContent = 'Dang chuyen giong noi thanh van ban qua 9router...';
+    const transcriptModel = localStorage.getItem('vbai_transcribe_model') || DEFAULT_TRANSCRIBE_MODEL;
+    const chatModel = localStorage.getItem('vbai_gemini_model') || DEFAULT_GEMINI_MODEL;
+    let transcript = '';
+    try {
+      transcript = await sendAudioTranscription(file, transcriptModel, { temperature: 0 });
+    } catch (e) {
+      progressEl.textContent = 'Khong dung duoc /audio/transcriptions, dang fallback qua chat/completions...';
+      try {
+        transcript = await sendAudioTranscriptionViaChat(file, chatModel, {
+          temperature: 0,
+          maxBytes: 12 * 1024 * 1024
+        });
+      } catch (fallbackErr) {
+        throw new Error(`9router khong ho tro transcription endpoint va fallback chat that bai (${fallbackErr.message}).`);
+      }
+    }
+    if (!transcript || !transcript.trim()) {
+      throw new Error('Khong nhan duoc transcript tu 9router.');
+    }
+
+    progressEl.textContent = 'Dang phan tich transcript va trich xuat cau truc...';
+    const model = chatModel;
+    const prompt = `${MEETING_PROMPT}\n\nTRANSCRIPT:\n${transcript}`;
+    let text = await sendChatRequest([{ role: "user", content: prompt }], model, { temperature: 0.1 });
+    text = (text || '').replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+
+    try {
+      const data = JSON.parse(text);
+      formState.chu_tri = data.chu_tri || "";
+      formState.thanh_phan = data.thanh_phan || "";
+      formState.dia_diem = data.dia_diem || "";
+      formState.tom_tat = data.tom_tat || data.tom_tat_noi_dung || "";
+      formState.noi_dung_cuoc_hop = (data.noi_dung_cuoc_hop || []).map(nd => ({
+        tieu_de: nd.tieu_de || '',
+        danh_gia: nd.danh_gia || '',
+        ket_luan: nd.ket_luan || []
+      }));
+      if (formState.noi_dung_cuoc_hop.length === 0 && data.ket_luan) {
+        formState.noi_dung_cuoc_hop = [{ tieu_de: 'Ket luan chung', danh_gia: '', ket_luan: data.ket_luan }];
+      }
+      formState.transcript = data.transcript || transcript;
+    } catch (e) {
+      console.error("Loi parse JSON:", e, text);
+      formState.transcript = transcript;
+      formState.tom_tat = "Khong the trich xuat cau truc JSON. Vui long xem transcript ben duoi.";
+    }
+
+    try {
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      addDoc(collection(db, 'search_logs'), {
+        query: `[Ghi Am -> TB] ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)`,
+        model: `${transcriptModel} + ${model} (via 9router)`,
+        userEmail: window.currentUser?.email || 'Unknown',
+        timestamp: serverTimestamp()
+      }).catch(() => {});
+    } catch (e) {}
+    return;
+  }
+
   const apiKey = await getApiKey();
   const aiClient = new GoogleGenAI({ apiKey });
-  const model = "gemini-2.5-flash";
+  const model = DEFAULT_GEMINI_MODEL;
 
   let contentParts;
 
@@ -442,12 +508,13 @@ ${formState.transcript}`;
   let text = "";
   if (use9router) {
     const messages = [{ role: "user", content: prompt }];
-    text = await sendChatRequest(messages, "gemini-2.5-flash");
+    const model = localStorage.getItem('vbai_gemini_model') || DEFAULT_GEMINI_MODEL;
+    text = await sendChatRequest(messages, model, { temperature: 0.1 });
   } else {
     const apiKey = await getApiKey();
     const aiClient = new GoogleGenAI({ apiKey });
     const response = await aiClient.models.generateContent({
-      model: "gemini-2.5-flash", contents: prompt, config: { temperature: 0.1 }
+      model: DEFAULT_GEMINI_MODEL, contents: prompt, config: { temperature: 0.1 }
     });
     text = response.text || "";
   }
