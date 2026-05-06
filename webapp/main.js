@@ -34,13 +34,20 @@ function applyGlobalModelDefaults() {
   if (!localStorage.getItem('vbai_router_profile')) {
     localStorage.setItem('vbai_router_profile', 'proxy_9router_local');
   }
+
+  if (
+    localStorage.getItem('vbai_use_9router') !== 'false'
+    && localStorage.getItem('vbai_router_profile') !== 'google_direct'
+  ) {
+    localStorage.setItem('vbai_proxy_enabled_chat', 'true');
+  }
 }
 
 
 // ============ STATE ============
 const state = {
   currentPage: 'dashboard',
-  sidebarOpen: true,
+  sidebarOpen: false,
   version: 'v1.2.6'
 };
 
@@ -88,6 +95,7 @@ function navigateTo(page) {
     return;
   }
   
+  const previousPage = state.currentPage;
   state.currentPage = page;
   // Update nav
   document.querySelectorAll('.nav-item').forEach(item => {
@@ -95,7 +103,7 @@ function navigateTo(page) {
   });
 
   // Nếu đang ở Dashboard mà bấm Tổng quan thì F5 (theo yêu cầu user)
-  if (state.currentPage === 'dashboard' && page === 'dashboard' && !window.firstLoad) {
+  if (previousPage === 'dashboard' && page === 'dashboard' && !window.firstLoad) {
     window.location.reload();
     return;
   }
@@ -109,6 +117,7 @@ function navigateTo(page) {
 
 function renderPage(page) {
   const container = document.getElementById('page-content');
+  if (!container) return;
   container.innerHTML = '';
   container.className = 'page-content page-enter';
 
@@ -142,6 +151,7 @@ function init() {
   onAuthStateChanged(auth, (user) => {
     const loginOverlay = document.getElementById('login-overlay');
     const mainApp = document.getElementById('app');
+    if (!loginOverlay || !mainApp) return;
     
     if (user) {
       window.currentUser = user;
@@ -161,7 +171,15 @@ function init() {
       if (!state.currentPage || !PAGE_TITLES[state.currentPage]) {
         state.currentPage = 'dashboard';
       }
-      renderPage(state.currentPage);
+      try {
+        renderPage(state.currentPage);
+      } catch (err) {
+        console.error('Render page failed after login:', err);
+        const container = document.getElementById('page-content');
+        if (container) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Có lỗi khi tải trang chủ. Vui lòng tải lại trang.</div></div>';
+        }
+      }
     } else {
       window.currentUser = null;
       mainApp.style.display = 'none';
@@ -200,6 +218,7 @@ function init() {
 
   toggleBtn.addEventListener('click', () => {
     if (window.innerWidth <= 768) {
+      sidebar.classList.remove('collapsed');
       sidebar.classList.toggle('open');
       if (overlay) overlay.classList.toggle('active');
     } else {
@@ -253,9 +272,9 @@ function init() {
   // Clock
   updateClock();
 
-  // Initial render
+  // Initial render is handled by onAuthStateChanged to avoid
+  // racing with auth state restoration.
   window.firstLoad = true;
-  renderPage('dashboard');
 }
 
 document.addEventListener('DOMContentLoaded', init);

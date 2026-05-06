@@ -37,6 +37,28 @@ const PROVIDER_PRESETS = {
   proxy_custom: null
 };
 
+function isProxyModelCredentialError(error) {
+  const msg = String(error?.message || "").toLowerCase();
+  return (
+    msg.includes("khong the dung gemini-2.5-pro tren proxy hien tai")
+    || msg.includes("no active credentials")
+    || msg.includes("model_not_found")
+    || msg.includes("unauthorized")
+  );
+}
+function getDirectGeminiApiKey() {
+  return (localStorage.getItem("vbai_google_api_key") || "").trim();
+}
+
+function keepChatProxyEnabledWhenUsing9router() {
+  if (
+    localStorage.getItem('vbai_use_9router') !== 'false'
+    && localStorage.getItem('vbai_router_profile') !== 'google_direct'
+  ) {
+    localStorage.setItem('vbai_proxy_enabled_chat', 'true');
+  }
+}
+
 const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên gia tư vấn pháp luật Việt Nam hàng đầu. 
 
 ## NGUYÊN TẮC CỐT LÕI:
@@ -139,6 +161,7 @@ function buildSkillReferenceContext(skill) {
 }
 
 export function initChat(apiKey, modelName = DEFAULT_GEMINI_MODEL) {
+  keepChatProxyEnabledWhenUsing9router();
   currentModelName = DEFAULT_GEMINI_MODEL;
   use9router = localStorage.getItem('vbai_use_9router') !== 'false';
   
@@ -178,14 +201,38 @@ export async function sendMessage(text, onChunk) {
 
   try {
     let fullText = "";
-    
+    let routeLabel = use9router ? "9router" : "google_direct";
+
     if (use9router) {
       // Giao tiếp qua 9router (OpenAI format)
       const messages = [
         { role: "system", content: dynamicInstruction },
         { role: "user", content: text }
       ];
-      fullText = await sendChatRequest(messages, currentModelName, { context: 'chat' });
+      try {
+        fullText = await sendChatRequest(messages, currentModelName, { context: 'chat' });
+      } catch (proxyError) {
+        if (!isProxyModelCredentialError(proxyError)) throw proxyError;
+        const fallbackKey = getDirectGeminiApiKey();
+        if (!fallbackKey) throw proxyError;
+
+        const fallbackClient = new GoogleGenAI({ apiKey: fallbackKey });
+        const fallbackResponse = await fallbackClient.models.generateContent({
+          model: currentModelName,
+          contents: text,
+          config: {
+            systemInstruction: dynamicInstruction,
+            tools: [{ googleSearch: {} }],
+          },
+        });
+
+        fullText = fallbackResponse.text || "";
+        aiClient = fallbackClient;
+        use9router = false;
+        routeLabel = "google_direct_fallback";
+        localStorage.setItem("vbai_use_9router", "false");
+        localStorage.setItem("vbai_proxy_enabled_chat", "false");
+      }
     } else {
       // Giao tiếp trực tiếp qua Gemini SDK
       const response = await aiClient.models.generateContent({
@@ -204,7 +251,7 @@ export async function sendMessage(text, onChunk) {
       const db = getFirestore(app);
       addDoc(collection(db, 'search_logs'), {
         query: text,
-        model: currentModelName + (use9router ? " (via 9router)" : ""),
+        model: `${currentModelName} (${routeLabel})`,
         userEmail: window.currentUser?.email || 'Unknown',
         timestamp: serverTimestamp(),
         skillsApplied: matchedSkills.map(s => s.id)
@@ -220,6 +267,7 @@ export async function sendMessage(text, onChunk) {
 }
 
 export async function renderChatUI(container) {
+  keepChatProxyEnabledWhenUsing9router();
   const profileForDefault = localStorage.getItem('vbai_router_profile') || '';
   const savedModel = DEFAULT_GEMINI_MODEL;
   localStorage.setItem('vbai_gemini_model', DEFAULT_GEMINI_MODEL);
@@ -237,14 +285,6 @@ export async function renderChatUI(container) {
           <div class="chat-msg ai">
             <strong>Xin chào! Tôi là Trợ lý VBAI.</strong><br>
             Tôi hỗ trợ tra cứu các quy định pháp luật và các quy định, hướng dẫn của Đảng mới nhất dựa trên dữ liệu thời gian thực từ Google Search Grounding.
-            <br><br>
-            <strong>Nguồn dữ liệu chính thống:</strong><br>
-            • dangcongsan.vn (Tư liệu Văn kiện Đảng)<br>
-            • vanban.chinhphu.vn (Cổng thông tin Chính phủ)<br>
-            • thuvienphapluat.vn (Thư viện Pháp luật)<br>
-            • Các cổng thông tin điện tử (.gov.vn)
-            <br><br>
-            <em>Bạn hãy đặt câu hỏi bằng ngôn ngữ tự nhiên (VD: "Quy định mới nhất về công tác văn thư của Đảng")</em>
           </div>
         </div>
         
@@ -388,10 +428,13 @@ export async function renderChatUI(container) {
       const routerProfilePdf = data.router_profile_pdf || '';
       const routerProfileMeeting = data.router_profile_meeting || '';
       const routerProxyEnabledChat = data.router_proxy_enabled_chat;
-      const useProxyNow = (localStorage.getItem('vbai_proxy_enabled_chat') ?? localStorage.getItem('vbai_use_9router') ?? 'true') !== 'false';
+      const shouldUseGoogleDirect = (routerProfile === 'google_direct' || routerProxyEnabledChat === false) && !!googleKey;
+      const useProxyNow = !shouldUseGoogleDirect;
       apiKey = useProxyNow
         ? (routerKey || localStorage.getItem('vbai_9router_api_key') || '')
         : (googleKey || localStorage.getItem('vbai_google_api_key') || '');
+      localStorage.setItem('vbai_use_9router', useProxyNow ? 'true' : 'false');
+      localStorage.setItem('vbai_proxy_enabled_chat', useProxyNow ? 'true' : 'false');
       if (routerKey && !localStorage.getItem('vbai_9router_api_key')) localStorage.setItem('vbai_9router_api_key', routerKey);
       if (routerEndpoint && !localStorage.getItem('vbai_9router_endpoint')) localStorage.setItem('vbai_9router_endpoint', routerEndpoint);
       if (routerTranscribeModel && !localStorage.getItem('vbai_transcribe_model')) localStorage.setItem('vbai_transcribe_model', routerTranscribeModel);
@@ -401,8 +444,9 @@ export async function renderChatUI(container) {
       if (routerProfilePdf) localStorage.setItem('vbai_proxy_profile_pdf', routerProfilePdf);
       if (routerProfileMeeting) localStorage.setItem('vbai_proxy_profile_meeting', routerProfileMeeting);
       if (typeof routerProxyEnabledChat === 'boolean') {
-        localStorage.setItem('vbai_proxy_enabled_chat', routerProxyEnabledChat ? 'true' : 'false');
+        localStorage.setItem('vbai_proxy_enabled_chat', useProxyNow ? 'true' : 'false');
       }
+      keepChatProxyEnabledWhenUsing9router();
       if (googleKey) localStorage.setItem('vbai_google_api_key', googleKey);
       if(apiKeyInput) apiKeyInput.value = apiKey;
     }
@@ -452,6 +496,7 @@ export async function renderChatUI(container) {
   if (localStorage.getItem('vbai_proxy_enabled_chat') === null) {
     localStorage.setItem('vbai_proxy_enabled_chat', localStorage.getItem('vbai_use_9router') !== 'false' ? 'true' : 'false');
   }
+  keepChatProxyEnabledWhenUsing9router();
   if (localStorage.getItem('vbai_proxy_enabled_spellcheck') === null) localStorage.setItem('vbai_proxy_enabled_spellcheck', 'true');
   if (localStorage.getItem('vbai_proxy_enabled_pdf') === null) localStorage.setItem('vbai_proxy_enabled_pdf', 'true');
   if (localStorage.getItem('vbai_proxy_enabled_meeting') === null) localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
@@ -605,7 +650,4 @@ export async function renderChatUI(container) {
     }
   };
 }
-
-
-
 

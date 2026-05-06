@@ -1,11 +1,30 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { showToast } from '../main.js';
 
 import { firebaseConfig } from '../firebase-config.js';
 
 let isRegistering = false;
+
+function shouldPreferRedirectLogin() {
+  const ua = String(navigator.userAgent || "").toLowerCase();
+  const isMobile = /android|iphone|ipad|ipod|mobile/.test(ua);
+  const isSafari = /safari/.test(ua) && !/chrome|chromium|edg|opr/.test(ua);
+  const isFirefox = /firefox|fxios/.test(ua);
+  const isInAppBrowser = /fbav|fban|instagram|zalo|line|webview|wv/.test(ua);
+  return isMobile || isSafari || isFirefox || isInAppBrowser;
+}
+
+function canFallbackToRedirect(errorCode = "") {
+  return [
+    "auth/popup-blocked",
+    "auth/popup-closed-by-user",
+    "auth/cancelled-popup-request",
+    "auth/web-storage-unsupported",
+    "auth/operation-not-supported-in-this-environment",
+  ].includes(errorCode);
+}
 
 export function renderLogin(container) {
   container.innerHTML = `
@@ -185,6 +204,19 @@ export function renderLogin(container) {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
+  getRedirectResult(auth)
+    .then(async (result) => {
+      if (result?.user) {
+        await saveUserToDb(db, result.user);
+        showToast('Dang nhap thanh cong!');
+      }
+    })
+    .catch((error) => {
+      if (error?.code) {
+        showToast('Loi dang nhap Google: ' + (error?.message || error.code), 'error');
+      }
+    });
+
   const form = container.querySelector('#login-form');
   const btnGoogle = container.querySelector('#btn-google-login');
   const btnSubmit = container.querySelector('#btn-submit');
@@ -207,13 +239,38 @@ export function renderLogin(container) {
 
   // Handle Google Login
   btnGoogle.addEventListener('click', async () => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const oldLabel = btnGoogle.innerHTML;
+    btnGoogle.disabled = true;
+    btnGoogle.textContent = 'Dang mo Google...';
     try {
-      const provider = new GoogleAuthProvider();
+      if (shouldPreferRedirectLogin()) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
       const result = await signInWithPopup(auth, provider);
       await saveUserToDb(db, result.user);
-      showToast('Đăng nhập thành công!');
+      showToast('Dang nhap thanh cong!');
     } catch (error) {
-      showToast('Lỗi đăng nhập Google: ' + error.message, 'error');
+      const code = error?.code || '';
+      const shouldFallbackToRedirect = canFallbackToRedirect(code);
+
+      if (shouldFallbackToRedirect) {
+        try {
+          showToast('Popup bi chan, chuyen sang dang nhap redirect...');
+          await signInWithRedirect(auth, provider);
+          return;
+        } catch (redirectError) {
+          showToast('Loi dang nhap Google: ' + (redirectError?.message || 'Khong the redirect dang nhap'), 'error');
+        }
+      } else {
+        showToast('Loi dang nhap Google: ' + (error?.message || 'Khong xac dinh'), 'error');
+      }
+    } finally {
+      btnGoogle.disabled = false;
+      btnGoogle.innerHTML = oldLabel;
     }
   });
 
@@ -262,3 +319,4 @@ async function saveUserToDb(db, user) {
     console.error("Lỗi lưu user:", e);
   }
 }
+

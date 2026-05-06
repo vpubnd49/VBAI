@@ -23,7 +23,10 @@ function normalizeContext(context = "default") {
 function getProxyConfig(context = "default") {
   const ctx = normalizeContext(context);
   const enabledRaw = localStorage.getItem(`vbai_proxy_enabled_${ctx}`);
-  const enabled = (enabledRaw ?? localStorage.getItem("vbai_use_9router") ?? "true") === "true";
+  const useProxy = (localStorage.getItem("vbai_use_9router") ?? "true") !== "false";
+  const enabled = ctx === "chat"
+    ? useProxy
+    : (enabledRaw ?? localStorage.getItem("vbai_use_9router") ?? "true") === "true";
   const profile = localStorage.getItem(`vbai_proxy_profile_${ctx}`)
     || localStorage.getItem("vbai_router_profile")
     || "proxy_9router_local";
