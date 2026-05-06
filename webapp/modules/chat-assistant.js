@@ -154,7 +154,7 @@ export function initChat(apiKey, modelName = DEFAULT_GEMINI_MODEL) {
     } else {
       aiClient = { proxy: true }; // Dummy client for 9router mode
     }
-    currentModelName = modelName;
+    currentModelName = DEFAULT_GEMINI_MODEL;
     chatSession = null;
     loadSkills(); // Táº£i skills khi init
     return true;
@@ -227,10 +227,8 @@ export async function sendMessage(text, onChunk) {
 
 export async function renderChatUI(container) {
   const profileForDefault = localStorage.getItem('vbai_router_profile') || '';
-  const presetDefaultModel = PROVIDER_PRESETS[profileForDefault]?.model;
-  const savedModel = localStorage.getItem('vbai_gemini_model')
-    || presetDefaultModel
-    || DEFAULT_GEMINI_MODEL;
+  const savedModel = DEFAULT_GEMINI_MODEL;
+  localStorage.setItem('vbai_gemini_model', DEFAULT_GEMINI_MODEL);
   
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -481,10 +479,7 @@ export async function renderChatUI(container) {
     const transcribeModel = (transcribeModelInput?.value || '').trim() || DEFAULT_TRANSCRIBE_MODEL;
     const selectedProfile = providerProfileSelect?.value || 'proxy_custom';
     const isUsing9router = container.querySelector('#use-9router-chk').checked;
-    const presetModel = PROVIDER_PRESETS[selectedProfile]?.model;
-    const model = isUsing9router
-      ? (presetModel || localStorage.getItem('vbai_gemini_model') || DEFAULT_GEMINI_MODEL)
-      : DEFAULT_GEMINI_MODEL;
+    const model = DEFAULT_GEMINI_MODEL;
     
     localStorage.setItem('vbai_use_9router', isUsing9router ? 'true' : 'false');
     localStorage.setItem('vbai_gemini_model', model);
