@@ -33,12 +33,7 @@ const PROVIDER_PRESETS = {
     model: DEFAULT_GEMINI_MODEL,
     transcribeModel: DEFAULT_TRANSCRIBE_MODEL
   },
-  proxy_cliproxy_local: {
-    useProxy: true,
-    endpoint: 'http://localhost:8317/v1',
-    model: DEFAULT_GEMINI_MODEL,
-    transcribeModel: DEFAULT_TRANSCRIBE_MODEL
-  },
+
   proxy_custom: null
 };
 
@@ -275,7 +270,7 @@ export async function renderChatUI(container) {
             <select id="provider-profile-select" class="form-input">
               <option value="google_direct">Google trực tiếp (không proxy)</option>
               <option value="proxy_9router_local">9router local (localhost:20128)</option>
-              <option value="proxy_cliproxy_local">CLIProxy local (localhost:8317)</option>
+
               <option value="proxy_custom">Tuy chinh</option>
             </select>
             <p style="font-size:0.7rem; color:var(--text-secondary); margin-top:4px">Chon profile de tu dong dien endpoint va model.</p>
@@ -323,25 +318,25 @@ export async function renderChatUI(container) {
               <select id="proxy-profile-chat" class="form-input">
                 <option value="inherit">Tra cứu: kế thừa profile chung</option>
                 <option value="proxy_9router_local">Tra cứu: 9router local</option>
-                <option value="proxy_cliproxy_local">Tra cứu: CLIProxy local</option>
+
                 <option value="proxy_custom">Tra cứu: custom endpoint</option>
               </select>
               <select id="proxy-profile-spellcheck" class="form-input">
                 <option value="inherit">Chính tả: kế thừa profile chung</option>
                 <option value="proxy_9router_local">Chính tả: 9router local</option>
-                <option value="proxy_cliproxy_local">Chính tả: CLIProxy local</option>
+
                 <option value="proxy_custom">Chính tả: custom endpoint</option>
               </select>
               <select id="proxy-profile-pdf" class="form-input">
                 <option value="inherit">OCR PDF: kế thừa profile chung</option>
                 <option value="proxy_9router_local">OCR PDF: 9router local</option>
-                <option value="proxy_cliproxy_local">OCR PDF: CLIProxy local</option>
+
                 <option value="proxy_custom">OCR PDF: custom endpoint</option>
               </select>
               <select id="proxy-profile-meeting" class="form-input">
                 <option value="inherit">Ghi âm: kế thừa profile chung</option>
                 <option value="proxy_9router_local">Ghi âm: 9router local</option>
-                <option value="proxy_cliproxy_local">Ghi âm: CLIProxy local</option>
+
                 <option value="proxy_custom">Ghi âm: custom endpoint</option>
               </select>
             </div>
@@ -397,9 +392,9 @@ export async function renderChatUI(container) {
       apiKey = useProxyNow
         ? (routerKey || localStorage.getItem('vbai_9router_api_key') || '')
         : (googleKey || localStorage.getItem('vbai_google_api_key') || '');
-      if (routerKey) localStorage.setItem('vbai_9router_api_key', routerKey);
-      if (routerEndpoint) localStorage.setItem('vbai_9router_endpoint', routerEndpoint);
-      if (routerTranscribeModel) localStorage.setItem('vbai_transcribe_model', routerTranscribeModel);
+      if (routerKey && !localStorage.getItem('vbai_9router_api_key')) localStorage.setItem('vbai_9router_api_key', routerKey);
+      if (routerEndpoint && !localStorage.getItem('vbai_9router_endpoint')) localStorage.setItem('vbai_9router_endpoint', routerEndpoint);
+      if (routerTranscribeModel && !localStorage.getItem('vbai_transcribe_model')) localStorage.setItem('vbai_transcribe_model', routerTranscribeModel);
       if (routerProfile) localStorage.setItem('vbai_router_profile', routerProfile);
       if (routerProfileChat) localStorage.setItem('vbai_proxy_profile_chat', routerProfileChat);
       if (routerProfileSpell) localStorage.setItem('vbai_proxy_profile_spellcheck', routerProfileSpell);
@@ -437,7 +432,7 @@ export async function renderChatUI(container) {
 
   const currentProfile = localStorage.getItem('vbai_router_profile')
     || ((localStorage.getItem('vbai_proxy_enabled_chat') ?? localStorage.getItem('vbai_use_9router')) !== 'false'
-      ? 'proxy_cliproxy_local'
+      ? 'proxy_9router_local'
       : 'google_direct');
   if (providerProfileSelect) {
     providerProfileSelect.value = PROVIDER_PRESETS[currentProfile] ? currentProfile : 'proxy_custom';
@@ -591,7 +586,12 @@ export async function renderChatUI(container) {
         if (isUsing9router) payload.router_api_key = key;
         else payload.gemini_api_key = key;
       }
-      await setDoc(doc(db, 'config', 'system'), payload, { merge: true });
+      
+      try {
+        await setDoc(doc(db, 'config', 'system'), payload, { merge: true });
+      } catch (firestoreError) {
+        console.warn("Lỗi lưu cấu hình lên server (Firestore), nhưng đã lưu cục bộ trên máy bạn:", firestoreError);
+      }
       
       if(initChat(key, model)) {
         alert("Đã lưu cấu hình thành công!");

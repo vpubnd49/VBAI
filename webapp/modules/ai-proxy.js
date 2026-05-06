@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AI Proxy Module for 9router (OpenAI-compatible)
  */
 
@@ -9,7 +9,6 @@ const FALLBACK_9ROUTER_ENDPOINT =
 const LOCKED_MODEL = "gemini-2.5-pro";
 const PROXY_PRESETS = {
   proxy_9router_local: "http://localhost:20128/v1",
-  proxy_cliproxy_local: "http://localhost:8317/v1",
 };
 
 function trimTrailingSlash(url = "") {
@@ -27,7 +26,7 @@ function getProxyConfig(context = "default") {
   const enabled = (enabledRaw ?? localStorage.getItem("vbai_use_9router") ?? "true") === "true";
   const profile = localStorage.getItem(`vbai_proxy_profile_${ctx}`)
     || localStorage.getItem("vbai_router_profile")
-    || "proxy_cliproxy_local";
+    || "proxy_9router_local";
 
   const endpointFromProfile = PROXY_PRESETS[profile] || "";
   const endpoint = trimTrailingSlash(

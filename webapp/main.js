@@ -32,7 +32,7 @@ function applyGlobalModelDefaults() {
     localStorage.setItem('vbai_use_9router', 'true');
   }
   if (!localStorage.getItem('vbai_router_profile')) {
-    localStorage.setItem('vbai_router_profile', 'proxy_cliproxy_local');
+    localStorage.setItem('vbai_router_profile', 'proxy_9router_local');
   }
 }
 
