@@ -345,7 +345,8 @@ Trả về JSON:
 CHỈ trả về JSON.`;
 
 async function processAudioWithGemini(file, progressEl) {
-  const use9router = (localStorage.getItem('vbai_proxy_enabled_meeting') ?? localStorage.getItem('vbai_use_9router') ?? 'true') === 'true';
+  // Luôn dùng trực tiếp SDK Gemini để xử lý audio đa phương thức (gemini-2.5-pro)
+  const use9router = false;
   if (use9router) {
     progressEl.textContent = 'Đang chuyển giọng nói thành văn bản qua 9router...';
     const transcriptModel = localStorage.getItem('vbai_transcribe_model') || DEFAULT_TRANSCRIBE_MODEL;

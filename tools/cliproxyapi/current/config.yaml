@@ -1,0 +1,20 @@
+﻿host: "127.0.0.1"
+port: 8317
+
+auth-dir: "~/.cli-proxy-api"
+
+api-keys:
+  - "sk-d5ed34d5f4772908-p3oktz-902e886c"
+
+request-retry: 2
+max-retry-credentials: 1
+usage-statistics-enabled: false
+
+openai-compatibility:
+  - name: "nine-router-local"
+    base-url: "http://127.0.0.1:20128/v1"
+    api-key-entries:
+      - api-key: "sk-d5ed34d5f4772908-p3oktz-902e886c"
+    models:
+      - name: "gc/gemini-2.5-pro"
+        alias: "gemini-2.5-pro"
