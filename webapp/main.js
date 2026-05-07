@@ -20,11 +20,23 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
 import { firebaseConfig } from './firebase-config.js';
 
 const GLOBAL_AI_MODEL = 'cx/gpt-5.5';
+const GLOBAL_MEETING_MODEL = 'gemini-2.5-pro';
+const GLOBAL_TRANSCRIBE_MODEL = 'gpt-4o-mini-transcribe';
 const DEFAULT_9ROUTER_API_KEY = 'sk-d5ed34d5f4772908-4u4qqz-80769bfa';
+const DEFAULT_MEETING_TRANSCRIBE_API_KEY = 'AIzaSyAa4rHozoUWV4BLJ0XIOKFlqQMalQXb0X4';
 
 function applyGlobalModelDefaults() {
   if (!localStorage.getItem('vbai_router_model')) {
     localStorage.setItem('vbai_router_model', GLOBAL_AI_MODEL);
+  }
+  if (!localStorage.getItem('vbai_router_model_meeting')) {
+    localStorage.setItem('vbai_router_model_meeting', GLOBAL_MEETING_MODEL);
+  }
+  if (!localStorage.getItem('vbai_transcribe_model')) {
+    localStorage.setItem('vbai_transcribe_model', GLOBAL_TRANSCRIBE_MODEL);
+  }
+  if (!localStorage.getItem('vbai_transcribe_model_meeting')) {
+    localStorage.setItem('vbai_transcribe_model_meeting', GLOBAL_MEETING_MODEL);
   }
   localStorage.setItem('vbai_use_9router', 'true');
   if (!localStorage.getItem('vbai_router_profile') || localStorage.getItem('vbai_router_profile') === 'google_direct') {
@@ -37,6 +49,15 @@ function applyGlobalModelDefaults() {
     localStorage.setItem('vbai_proxy_api_key_spellcheck', DEFAULT_9ROUTER_API_KEY);
     localStorage.setItem('vbai_proxy_api_key_pdf', DEFAULT_9ROUTER_API_KEY);
     localStorage.setItem('vbai_proxy_api_key_meeting', DEFAULT_9ROUTER_API_KEY);
+    if (!localStorage.getItem('vbai_transcribe_api_key')) {
+      localStorage.setItem('vbai_transcribe_api_key', DEFAULT_9ROUTER_API_KEY);
+    }
+  }
+  if (!localStorage.getItem('vbai_transcribe_api_key') && DEFAULT_MEETING_TRANSCRIBE_API_KEY) {
+    localStorage.setItem('vbai_transcribe_api_key', DEFAULT_MEETING_TRANSCRIBE_API_KEY);
+  }
+  if (!localStorage.getItem('vbai_proxy_api_key_meeting_transcribe') && DEFAULT_MEETING_TRANSCRIBE_API_KEY) {
+    localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', DEFAULT_MEETING_TRANSCRIBE_API_KEY);
   }
 
   if (localStorage.getItem('vbai_use_9router') !== 'false') {

@@ -1,7 +1,7 @@
 ﻿/**
  * Meeting Minutes Module — Redesigned
  * Chuyển đổi audio cuộc họp thành Thông báo kết luận (NĐ30/HD36)
- * Dùng 9router (OpenAI-compatible) cho xử lý ghi âm và phân tích nội dung
+ * Dung OpenAI-compatible API cho xu ly ghi am va phan tich noi dung
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType } from 'docx';
 import { saveAs } from 'file-saver';
@@ -9,10 +9,13 @@ import { showToast } from '../main.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
-import { sendChatRequest, sendAudioTranscription, sendAudioTranscriptionViaChat } from './ai-proxy.js';
+import { sendChatRequest, sendAudioTranscription, sendAudioTranscriptionViaChat, getProxyModelIds } from './ai-proxy.js';
 
 const DEFAULT_MODEL = "cx/gpt-5.5";
+const DEFAULT_MEETING_MODEL = "gemini-2.5-pro";
 const DEFAULT_TRANSCRIBE_MODEL = "";
+const STRICT_MEETING_AUDIO_MODEL = "gemini-2.5-pro";
+const PROCESSING_TEXT = "Đang xử lý......";
 
 let formState = {
   step: 1, audioFile: null, isProcessing: false,
@@ -65,14 +68,14 @@ function renderStep1(sc, c) {
         <div class="upload-zone" id="drop-zone" onclick="document.getElementById('audio-upload').click()">
           <div class="upload-icon">🎤</div>
           <div class="upload-text">Nhấp hoặc kéo thả file ghi âm vào đây</div>
-          <div class="upload-hint">Hỗ trợ: MP3, WAV, M4A, OGG, AAC — <strong>Tối đa 200MB</strong> (xử lý qua 9router/OpenAI-compatible)</div>
+          <div class="upload-hint">Hỗ trợ: MP3, WAV, M4A, OGG, AAC — <strong>Tối đa 200MB</strong></div>
           ${formState.audioFile ? `<div style="margin-top: 15px; color: var(--success); font-weight: bold;">Đã chọn: ${formState.audioFile.name} (${(formState.audioFile.size / 1024 / 1024).toFixed(1)}MB)</div>` : ''}
         </div>
       </div>
     </div>
     <div id="processing-indicator" style="display: none; text-align: center; padding: 20px;">
       <div class="spinner"></div>
-      <div id="processing-text" style="margin-top: 10px; color: var(--daquy-400); font-weight: 600;">Đang tải file lên 9router...</div>
+      <div id="processing-text" style="margin-top: 10px; color: var(--daquy-400); font-weight: 600;">${PROCESSING_TEXT}</div>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" id="btn-process" ${!formState.audioFile ? 'disabled' : ''}>Phân tích bằng AI →</button>
@@ -314,14 +317,74 @@ function pickRandomModel(raw, fallbackModel) {
 }
 
 function resolveMeetingChatModel() {
-  const raw = localStorage.getItem('vbai_router_model') || DEFAULT_MODEL;
-  return pickRandomModel(raw, DEFAULT_MODEL);
+  return STRICT_MEETING_AUDIO_MODEL;
 }
 
 function resolveMeetingTranscribeModel() {
-  const raw = localStorage.getItem('vbai_transcribe_model') || "";
-  const fallback = resolveMeetingChatModel();
-  return pickRandomModel(raw, fallback);
+  return STRICT_MEETING_AUDIO_MODEL;
+}
+
+function getTranscribeModelPoolRaw() {
+  return (
+    localStorage.getItem('vbai_transcribe_model_meeting')
+    || localStorage.getItem('vbai_transcribe_model')
+    || ""
+  );
+}
+
+function isLikelyApiKey(value = "") {
+  const v = String(value || "").trim();
+  return /^sk-[a-z0-9\-]{10,}$/i.test(v);
+}
+
+function isValidHttpEndpoint(value = "") {
+  const v = String(value || "").trim();
+  if (!v) return false;
+  if (isLikelyApiKey(v)) return false;
+  return /^https?:\/\//i.test(v);
+}
+
+function maskSensitive(value = "") {
+  const v = String(value || "").trim();
+  if (!v) return "(trong)";
+  if (isLikelyApiKey(v)) return `${v.slice(0, 6)}***${v.slice(-4)}`;
+  return v;
+}
+
+function hasDedicatedTranscribeApi() {
+  const endpoint = (
+    localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
+    || localStorage.getItem('vbai_transcribe_endpoint')
+    || ""
+  ).trim();
+  const profile = (
+    localStorage.getItem('vbai_proxy_profile_meeting_transcribe')
+    || localStorage.getItem('vbai_transcribe_profile')
+    || ""
+  ).trim();
+  const useDedicated = (localStorage.getItem('vbai_transcribe_use_dedicated') || '').trim().toLowerCase() === 'true';
+  const hasValidEndpoint = !endpoint || isValidHttpEndpoint(endpoint);
+  return !!(useDedicated || (endpoint && hasValidEndpoint) || profile === 'proxy_custom');
+}
+
+function resolveMeetingTranscribeContext() {
+  return hasDedicatedTranscribeApi() ? 'meeting_transcribe' : 'meeting';
+}
+
+function getTranscribeEndpointForError(context = 'meeting') {
+  if (context === 'meeting_transcribe') {
+    const specific = (
+      localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
+      || localStorage.getItem('vbai_transcribe_endpoint')
+      || ""
+    ).trim();
+    if (specific) return maskSensitive(specific);
+  }
+  return maskSensitive((
+    localStorage.getItem('vbai_proxy_endpoint_meeting')
+    || localStorage.getItem('vbai_9router_endpoint')
+    || 'http://localhost:20128/v1'
+  ).trim());
 }
 
 function isAudioCapableModelName(model = "") {
@@ -331,47 +394,41 @@ function isAudioCapableModelName(model = "") {
 }
 
 function buildTranscribeModelCandidates() {
-  const configured = parseModelPool(localStorage.getItem('vbai_transcribe_model') || "", "")
-    .map(normalizeModelName)
-    .filter(Boolean);
-  const defaults = [
-    "gpt-4o-mini-transcribe",
-    "gpt-4o-transcribe",
-    "whisper-1",
-  ].map(normalizeModelName);
-
-  const merged = [...configured, ...defaults];
-  const unique = [];
-  for (const m of merged) {
-    if (!m) continue;
-    if (!isAudioCapableModelName(m)) continue;
-    if (!unique.includes(m)) unique.push(m);
-  }
-  return unique;
+  return [STRICT_MEETING_AUDIO_MODEL];
 }
 
 function buildAudioChatFallbackCandidates() {
-  const configured = parseModelPool(localStorage.getItem('vbai_transcribe_model') || "", "")
-    .map(normalizeModelName)
-    .filter(Boolean)
-    .filter(isAudioCapableModelName);
-  const chatModel = normalizeModelName(resolveMeetingChatModel());
-  const defaults = [
-    "gpt-4o-audio-preview",
-    "gpt-audio-1.5",
-    "gpt-4o-mini",
-    "gpt-4o",
-    "gpt-4o-mini-transcribe",
-    "gpt-4o-transcribe",
-    chatModel,
-  ].map(normalizeModelName);
-  const merged = [...configured, ...defaults];
-  const unique = [];
-  for (const m of merged) {
-    if (!m) continue;
-    if (!unique.includes(m)) unique.push(m);
-  }
-  return unique;
+  return [STRICT_MEETING_AUDIO_MODEL];
+}
+
+function pickStrictGeminiModelId(modelIds = []) {
+  const ids = Array.isArray(modelIds) ? modelIds.filter(Boolean) : [];
+  if (!ids.length) return "";
+
+  const lowerMap = ids.map((id) => ({ raw: id, lower: String(id).toLowerCase() }));
+  const exact = lowerMap.find((x) => x.lower === "gemini-2.5-pro");
+  if (exact) return exact.raw;
+
+  const googleExact = lowerMap.find((x) => x.lower === "google/gemini-2.5-pro");
+  if (googleExact) return googleExact.raw;
+
+  const contains = lowerMap.find((x) => x.lower.includes("gemini-2.5-pro"));
+  if (contains) return contains.raw;
+
+  return "";
+}
+
+async function resolveStrictMeetingModel(context = "meeting") {
+  const ids = await getProxyModelIds(context).catch(() => []);
+  if (!ids.length) return STRICT_MEETING_AUDIO_MODEL;
+
+  const resolved = pickStrictGeminiModelId(ids);
+  if (resolved) return resolved;
+
+  const preview = ids.slice(0, 12).join(", ");
+  throw new Error(
+    `Proxy/API hien tai khong co model Gemini 2.5 Pro. Model dang co: ${preview || "(rong)"}`
+  );
 }
 
 const MEETING_PROMPT = `Bạn là trợ lý thư ký cuộc họp chuyên nghiệp trong cơ quan hành chính nhà nước Việt Nam.
@@ -421,23 +478,49 @@ CHỈ trả về JSON.`;
 async function processAudioWith9router(file, progressEl) {
   localStorage.setItem('vbai_use_9router', 'true');
   localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
-  progressEl.textContent = 'Đang chuyển giọng nói thành văn bản...';
+  localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
+  const transcribeContext = resolveMeetingTranscribeContext();
+  const transcribeRouteLabel = transcribeContext === 'meeting_transcribe' ? 'API ghi am rieng' : '9router';
+  if (transcribeContext === 'meeting_transcribe') {
+    let rawEndpoint = (
+      localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
+      || localStorage.getItem('vbai_transcribe_endpoint')
+      || ""
+    ).trim();
+    if (isLikelyApiKey(rawEndpoint)) {
+      localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
+      localStorage.setItem('vbai_transcribe_api_key', rawEndpoint);
+      localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', rawEndpoint);
+      localStorage.removeItem('vbai_transcribe_endpoint');
+      localStorage.removeItem('vbai_proxy_endpoint_meeting_transcribe');
+      rawEndpoint = '';
+    }
+    if (rawEndpoint && !isValidHttpEndpoint(rawEndpoint)) {
+      throw new Error(
+        `Endpoint API ghi am rieng khong hop le: "${maskSensitive(rawEndpoint)}". Vui long nhap dung URL bat dau bang http(s)://.`
+      );
+    }
+  }
+  const analysisContext = transcribeContext;
+  const strictModel = await resolveStrictMeetingModel(transcribeContext);
+  const chatModel = strictModel;
+  progressEl.textContent = PROCESSING_TEXT;
 
-  const transcriptModel = resolveMeetingTranscribeModel();
+  const transcriptModel = strictModel;
   let transcript = '';
   const transcribeTimeoutMs = Number(localStorage.getItem('vbai_transcribe_timeout_ms') || '45000');
   const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : 45000;
 
-  const transcribeCandidates = buildTranscribeModelCandidates();
+  const transcribeCandidates = [strictModel];
 
   try {
     let lastErr = null;
     for (const modelCandidate of transcribeCandidates) {
       try {
-        progressEl.textContent = `Đang thử /audio/transcriptions với model ${modelCandidate}...`;
+        progressEl.textContent = PROCESSING_TEXT;
         const text = await sendAudioTranscription(file, modelCandidate, {
           temperature: 0,
-          context: 'meeting',
+          context: transcribeContext,
           timeoutMs: safeTranscribeTimeoutMs,
         });
         if (String(text || "").trim()) {
@@ -452,24 +535,24 @@ async function processAudioWith9router(file, progressEl) {
       throw (lastErr || new Error('Khong nhan duoc /audio/transcriptions'));
     }
   } catch (e) {
-    progressEl.textContent = 'Không dùng được /audio/transcriptions, đang chuyển sang chế độ chia nhỏ audio qua 9router...';
+    progressEl.textContent = PROCESSING_TEXT;
     try {
       const maxChunkMb = Number(localStorage.getItem('vbai_transcribe_chunk_mb') || '24');
       const safeChunkMb = Number.isFinite(maxChunkMb) && maxChunkMb >= 8 ? maxChunkMb : 24;
       let lastFallbackErr = null;
-      const chatCandidates = buildAudioChatFallbackCandidates();
+      const chatCandidates = [strictModel];
       for (const modelCandidate of chatCandidates) {
         try {
-          progressEl.textContent = `Đang fallback qua chat với model ${modelCandidate}...`;
+          progressEl.textContent = PROCESSING_TEXT;
           const text = await sendAudioTranscriptionViaChat(file, modelCandidate, {
             temperature: 0,
             maxBytes: safeChunkMb * 1024 * 1024,
             chunkWhenLarge: true,
-            context: 'meeting',
+            context: transcribeContext,
             timeoutMs: safeTranscribeTimeoutMs,
             onProgress: (info) => {
               if (!info || !info.part || !info.total) return;
-              progressEl.textContent = `Đang bóc băng qua 9router: phần ${info.part}/${info.total}...`;
+              progressEl.textContent = PROCESSING_TEXT;
             }
           });
           if (String(text || "").trim()) {
@@ -484,22 +567,22 @@ async function processAudioWith9router(file, progressEl) {
         throw (lastFallbackErr || new Error("Khong nhan duoc transcript tu fallback chat."));
       }
     } catch (fallbackErr) {
-      const endpoint = localStorage.getItem('vbai_9router_endpoint') || 'http://localhost:20128/v1';
+      const endpoint = getTranscribeEndpointForError(transcribeContext);
       const msg = String(fallbackErr?.message || fallbackErr || "");
       if (/khong the dung model/i.test(msg)) {
-        throw new Error(`Không thể xử lý ghi âm qua 9router (${endpoint}): Chưa có model transcription/audio được cấp quyền trên proxy. Vui lòng cấu hình Transcribe Model hợp lệ (gợi ý: whisper-1 hoặc gpt-4o-mini-transcribe).`);
+        throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): Model bat buoc gemini-2.5-pro chua duoc cap quyen tren proxy/API hien tai.`);
       }
-      throw new Error(`Không thể xử lý ghi âm qua 9router (${endpoint}): ${fallbackErr.message}`);
+      throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): ${fallbackErr.message}`);
     }
   }
 
   if (!transcript || !transcript.trim()) {
-    throw new Error('Không nhận được transcript từ 9router.');
+    throw new Error(`Khong nhan duoc transcript tu ${transcribeRouteLabel}.`);
   }
 
-  progressEl.textContent = 'Đang phân tích transcript và trích xuất cấu trúc...';
+  progressEl.textContent = PROCESSING_TEXT;
   const prompt = `${MEETING_PROMPT}\n\nTRANSCRIPT:\n${transcript}`;
-  let text = await sendChatRequest([{ role: "user", content: prompt }], chatModel, { temperature: 0.1, context: 'meeting' });
+  let text = await sendChatRequest([{ role: "user", content: prompt }], chatModel, { temperature: 0.1, context: analysisContext });
   text = (text || '').replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
 
   try {
@@ -528,7 +611,7 @@ async function processAudioWith9router(file, progressEl) {
     const db = getFirestore(app);
     addDoc(collection(db, 'search_logs'), {
       query: `[Ghi Âm → TB] ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
-      model: `${transcriptModel} + ${chatModel} (via 9router)`,
+      model: `${transcriptModel} + ${chatModel} (via ${transcribeRouteLabel})`,
       userEmail: window.currentUser?.email || 'Unknown',
       timestamp: serverTimestamp()
     }).catch(() => {});
@@ -538,6 +621,9 @@ async function processAudioWith9router(file, progressEl) {
 async function reanalyzeTranscript() {
   localStorage.setItem('vbai_use_9router', 'true');
   localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
+  localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
+  const transcribeContext = resolveMeetingTranscribeContext();
+  const strictModel = await resolveStrictMeetingModel(transcribeContext);
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {
   "chu_tri": "...",
@@ -554,8 +640,7 @@ TRANSCRIPT:
 ${formState.transcript}`;
 
   const messages = [{ role: "user", content: prompt }];
-  const model = resolveMeetingChatModel();
-  let text = await sendChatRequest(messages, model, { temperature: 0.1, context: 'meeting' });
+  let text = await sendChatRequest(messages, strictModel, { temperature: 0.1, context: transcribeContext });
 
   text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
   try {

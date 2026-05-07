@@ -29,18 +29,25 @@ function normalizeContext(context = "default") {
 
 function getProxyConfig(context = "default") {
   const ctx = normalizeContext(context);
-  const enabledRaw = localStorage.getItem(`vbai_proxy_enabled_${ctx}`);
+  const parentCtx = ctx === "meeting_transcribe" ? "meeting" : "default";
+  const enabledRaw = localStorage.getItem(`vbai_proxy_enabled_${ctx}`)
+    || (ctx === "meeting_transcribe" ? localStorage.getItem("vbai_transcribe_enabled") : "")
+    || localStorage.getItem(`vbai_proxy_enabled_${parentCtx}`);
   const useProxy = (localStorage.getItem("vbai_use_9router") ?? "true") !== "false";
   const enabled = ctx === "chat"
     ? useProxy
     : (enabledRaw ?? localStorage.getItem("vbai_use_9router") ?? "true") === "true";
   const profile = localStorage.getItem(`vbai_proxy_profile_${ctx}`)
+    || (ctx === "meeting_transcribe" ? localStorage.getItem("vbai_transcribe_profile") : "")
+    || localStorage.getItem(`vbai_proxy_profile_${parentCtx}`)
     || localStorage.getItem("vbai_router_profile")
     || "proxy_9router_local";
 
   const endpointFromProfile = PROXY_PRESETS[profile] || "";
   const endpoint = trimTrailingSlash(
     localStorage.getItem(`vbai_proxy_endpoint_${ctx}`)
+      || (ctx === "meeting_transcribe" ? localStorage.getItem("vbai_transcribe_endpoint") : "")
+      || localStorage.getItem(`vbai_proxy_endpoint_${parentCtx}`)
       || (profile === "proxy_custom" ? localStorage.getItem("vbai_9router_endpoint") : endpointFromProfile)
       || localStorage.getItem("vbai_9router_endpoint")
       || FALLBACK_9ROUTER_ENDPOINT
@@ -48,6 +55,8 @@ function getProxyConfig(context = "default") {
 
   const apiKey = (
     localStorage.getItem(`vbai_proxy_api_key_${ctx}`)
+    || (ctx === "meeting_transcribe" ? localStorage.getItem("vbai_transcribe_api_key") : "")
+    || localStorage.getItem(`vbai_proxy_api_key_${parentCtx}`)
     || localStorage.getItem("vbai_9router_api_key")
     || ""
   ).trim();
@@ -475,6 +484,25 @@ export async function check9routerStatus(context = "default") {
     return res.ok;
   } catch (e) {
     return false;
+  }
+}
+
+export async function getProxyModelIds(context = "default") {
+  const { endpoint, enabled } = getProxyConfig(context);
+  if (!enabled) return [];
+  try {
+    const res = await fetchWithTimeout(`${endpoint}/models`, {
+      method: "GET",
+      headers: buildAuthHeaders(context),
+    }, 15000);
+    if (!res.ok) return [];
+    const payload = await res.json().catch(() => ({}));
+    const ids = Array.isArray(payload?.data)
+      ? payload.data.map((m) => String(m?.id || "").trim()).filter(Boolean)
+      : [];
+    return ids;
+  } catch {
+    return [];
   }
 }
 

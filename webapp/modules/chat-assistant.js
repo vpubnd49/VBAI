@@ -10,26 +10,17 @@ import { saveAs } from 'file-saver';
 import { firebaseConfig } from '../firebase-config.js';
 
 
-import { sendChatRequest, check9routerStatus } from './ai-proxy.js';
+import { sendChatRequest, check9routerStatus, getProxyModelIds } from './ai-proxy.js';
 
 const DEFAULT_MODEL = "cx/gpt-5.5";
-const DEFAULT_TRANSCRIBE_MODEL = "";
+const DEFAULT_MEETING_TRANSCRIBE_API_KEY = "AIzaSyAa4rHozoUWV4BLJ0XIOKFlqQMalQXb0X4";
+const STRICT_MEETING_AUDIO_MODEL = "gemini-2.5-pro";
+const GOOGLE_GEMINI_OPENAI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai";
 
 let aiClient = null;
 let chatSession = null;
 let currentModelName = DEFAULT_MODEL;
 let use9router = localStorage.getItem('vbai_use_9router') !== 'false';
-
-const PROVIDER_PRESETS = {
-  proxy_9router_local: {
-    useProxy: true,
-    endpoint: 'http://localhost:20128/v1',
-    model: DEFAULT_MODEL,
-    transcribeModel: DEFAULT_TRANSCRIBE_MODEL
-  },
-
-  proxy_custom: null
-};
 
 function isProxyUnavailableError(error) {
   const msg = String(error?.message || "").toLowerCase();
@@ -62,6 +53,23 @@ function normalizeModelName(model = "") {
   return String(model || "")
     .trim()
     .replace(/(\d),(\d)/g, "$1.$2");
+}
+
+function isLikelyApiKey(value = "") {
+  const v = String(value || "").trim();
+  return /^sk-[a-z0-9\-]{10,}$/i.test(v);
+}
+
+function isLikelyGoogleApiKey(value = "") {
+  const v = String(value || "").trim();
+  return /^AIza[0-9A-Za-z\-_]{20,}$/.test(v);
+}
+
+function isValidHttpEndpoint(value = "") {
+  const v = String(value || "").trim();
+  if (!v) return false;
+  if (isLikelyApiKey(v)) return false;
+  return /^https?:\/\//i.test(v);
 }
 
 function getCurrentProxyEndpoint() {
@@ -846,18 +854,10 @@ export async function renderChatUI(container) {
         <div class="panel-header">Cau hinh Tro ly AI - 9router la chinh</div>
           <div class="panel-body config-ai-modal-body">
           <div class="config-ai-alert">
-            <p style="font-size:0.86rem; margin:0; color:var(--text-primary); font-weight:700">Che do 9router-only</p>
-            <p style="font-size:0.78rem; margin:6px 0 0; color:var(--text-secondary)">Toan bo ung dung se chi goi qua 9router. Khong dung fallback.</p>
+            <p style="font-size:0.86rem; margin:0; color:var(--text-primary); font-weight:700">Che do cau hinh toi gian</p>
+            <p style="font-size:0.78rem; margin:6px 0 0; color:var(--text-secondary)">Tra cuu/soan thao dung 9router. Ghi am dung model co dinh gemini-2.5-pro voi endpoint/key rieng (neu khai bao).</p>
           </div>
 
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">Profile Proxy</label>
-            <select id="provider-profile-select" class="form-input">
-              <option value="proxy_9router_local">9router local (localhost:20128)</option>
-              <option value="proxy_custom">Tuy chinh</option>
-            </select>
-            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Che do nay chi dung 9router 100%.</p>
-          </div>
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">9router API Key (chinh)</label>
             <input type="password" id="api-key-input" class="form-input" value="" placeholder="Dan 9router API key chinh">
@@ -869,9 +869,19 @@ export async function renderChatUI(container) {
             <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Vi du: http://localhost:20128/v1 hoac endpoint public OpenAI-compatible.</p>
           </div>
           <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">Transcribe Model</label>
-            <input type="text" id="transcribe-model-input" class="form-input" value="" placeholder="Vi du: gpt-4o-mini-transcribe; gpt-4o-transcribe">
-            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Co the nhap 1 model hoac danh sach model (tach boi ; | xuong dong). He thong se chon ngau nhien moi lan.</p>
+            <label class="form-label">Model ghi am (co dinh)</label>
+            <input type="text" class="form-input" value="${STRICT_MEETING_AUDIO_MODEL}" readonly>
+            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Ghi am dang duoc siet chi dung ${STRICT_MEETING_AUDIO_MODEL}.</p>
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">API ghi am rieng - Endpoint (neu 9router khong ho tro)</label>
+            <input type="text" id="transcribe-endpoint-input" class="form-input" value="" placeholder="Vi du: https://your-openai-compatible-endpoint/v1">
+            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">De trong neu muon ke thua endpoint chung. Neu nhap, module ghi am se uu tien endpoint nay.</p>
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">API ghi am rieng - Key</label>
+            <input type="password" id="transcribe-api-key-input" class="form-input" value="" placeholder="Dan API key danh rieng cho transcription">
+            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">De trong neu muon dung chung key 9router. Neu nhap, chi ap dung cho xu ly ghi am.</p>
           </div>
 
           <div class="form-group" style="margin-bottom:16px">
@@ -891,47 +901,9 @@ export async function renderChatUI(container) {
             </label>
           </div>
 
-          <div style="padding:14px; background:rgba(66,133,244,0.1); border-radius:10px; margin-bottom:16px; border: 1px solid rgba(66,133,244,0.2); display: flex; align-items: center; justify-content: space-between;">
-            <div>
-              <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">🚀 Sử dụng 9router Proxy</p>
-              <p style="font-size:0.65rem; color:var(--text-secondary); margin:2px 0 0">Chạy yêu cầu AI qua 9router local (localhost:20128)</p>
-            </div>
-            <label class="switch-toggle">
-              <input type="checkbox" id="use-9router-chk" checked disabled>
-              <span class="slider-round"></span>
-            </label>
-          </div>
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">Proxy theo chức năng</label>
-            <div style="display:grid; grid-template-columns:1fr; gap:8px">
-              <select id="proxy-profile-chat" class="form-input">
-                <option value="inherit">Tra cứu: kế thừa profile chung</option>
-                <option value="proxy_9router_local">Tra cứu: 9router local</option>
-
-                <option value="proxy_custom">Tra cứu: custom endpoint</option>
-              </select>
-              <select id="proxy-profile-spellcheck" class="form-input">
-                <option value="inherit">Chính tả: kế thừa profile chung</option>
-                <option value="proxy_9router_local">Chính tả: 9router local</option>
-
-                <option value="proxy_custom">Chính tả: custom endpoint</option>
-              </select>
-              <select id="proxy-profile-pdf" class="form-input">
-                <option value="inherit">OCR PDF: kế thừa profile chung</option>
-                <option value="proxy_9router_local">OCR PDF: 9router local</option>
-
-                <option value="proxy_custom">OCR PDF: custom endpoint</option>
-              </select>
-              <select id="proxy-profile-meeting" class="form-input">
-                <option value="inherit">Ghi âm: kế thừa profile chung</option>
-                <option value="proxy_9router_local">Ghi âm: 9router local</option>
-
-                <option value="proxy_custom">Ghi âm: custom endpoint</option>
-              </select>
-            </div>
-          </div>
           <div class="btn-row" style="margin-bottom:12px">
             <button id="test-proxy-btn" class="btn btn-secondary">Kiem tra ket noi proxy</button>
+            <button id="test-transcribe-btn" class="btn btn-secondary">Kiem tra key ghi am</button>
           </div>
           <div class="btn-row" style="margin-top:20px">
             <button id="save-key-btn" class="btn btn-primary">Lưu cấu hình</button>
@@ -947,17 +919,14 @@ export async function renderChatUI(container) {
   const msgsArea = container.querySelector('#chat-messages');
   const settingsBtn = container.querySelector('#chat-settings-btn');
   const keyModal = container.querySelector('#key-modal');
-  const providerProfileSelect = container.querySelector('#provider-profile-select');
   const apiKeyInput = container.querySelector('#api-key-input');
   const routerEndpointInput = container.querySelector('#router-endpoint-input');
-  const transcribeModelInput = container.querySelector('#transcribe-model-input');
+  const transcribeEndpointInput = container.querySelector('#transcribe-endpoint-input');
+  const transcribeApiKeyInput = container.querySelector('#transcribe-api-key-input');
   const useWebSearchChk = container.querySelector('#use-web-search-chk');
   const testProxyBtn = container.querySelector('#test-proxy-btn');
+  const testTranscribeBtn = container.querySelector('#test-transcribe-btn');
   const modelSelect = container.querySelector('#model-select');
-  const profileChatSelect = container.querySelector('#proxy-profile-chat');
-  const profileSpellSelect = container.querySelector('#proxy-profile-spellcheck');
-  const profilePdfSelect = container.querySelector('#proxy-profile-pdf');
-  const profileMeetingSelect = container.querySelector('#proxy-profile-meeting');
 
   // Khởi tạo Firebase và tải API Key
   let apiKey = '';
@@ -970,22 +939,55 @@ export async function renderChatUI(container) {
       const data = configDoc.data();
       const routerKey = data.router_api_key || '';
       const routerEndpoint = data.router_endpoint || '';
-      const routerTranscribeModel = data.router_transcribe_model || '';
+      const routerTranscribeEndpoint = data.router_transcribe_endpoint || '';
+      const routerTranscribeApiKey = data.router_transcribe_api_key || '';
       const routerModel = normalizeModelName(data.router_model || '');
       const routerWebSearchEnabled = data.router_web_search_enabled;
-      const routerProfile = data.router_profile || '';
-      const routerProfileChat = data.router_profile_chat || '';
-      const routerProfileSpell = data.router_profile_spellcheck || '';
-      const routerProfilePdf = data.router_profile_pdf || '';
-      const routerProfileMeeting = data.router_profile_meeting || '';
       const routerProxyEnabledChat = data.router_proxy_enabled_chat;
       apiKey = routerKey || localStorage.getItem('vbai_9router_api_key') || '';
       localStorage.setItem('vbai_use_9router', 'true');
       localStorage.setItem('vbai_proxy_enabled_chat', 'true');
       if (routerKey && !localStorage.getItem('vbai_9router_api_key')) localStorage.setItem('vbai_9router_api_key', routerKey);
       if (routerEndpoint) localStorage.setItem('vbai_9router_endpoint', routerEndpoint);
-      if ('router_transcribe_model' in data) {
-        localStorage.setItem('vbai_transcribe_model', String(routerTranscribeModel || '').trim());
+      localStorage.setItem('vbai_transcribe_model', STRICT_MEETING_AUDIO_MODEL);
+      localStorage.setItem('vbai_transcribe_model_meeting', STRICT_MEETING_AUDIO_MODEL);
+      if ('router_transcribe_endpoint' in data) {
+        const cleanEndpoint = String(routerTranscribeEndpoint || '').trim();
+        if (cleanEndpoint && isLikelyApiKey(cleanEndpoint)) {
+          localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
+          localStorage.setItem('vbai_transcribe_api_key', cleanEndpoint);
+          localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', cleanEndpoint);
+          localStorage.removeItem('vbai_transcribe_endpoint');
+          localStorage.removeItem('vbai_proxy_endpoint_meeting_transcribe');
+        } else if (cleanEndpoint) {
+          localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
+          localStorage.setItem('vbai_transcribe_endpoint', cleanEndpoint);
+          localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', cleanEndpoint);
+          localStorage.setItem('vbai_proxy_profile_meeting_transcribe', 'proxy_custom');
+        }
+      }
+      if ('router_transcribe_api_key' in data) {
+        const cleanApiKey = String(routerTranscribeApiKey || '').trim();
+        if (cleanApiKey) {
+          localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
+          localStorage.setItem('vbai_transcribe_api_key', cleanApiKey);
+          localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', cleanApiKey);
+          const currentEndpoint = (
+            localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
+            || localStorage.getItem('vbai_transcribe_endpoint')
+            || ''
+          ).trim();
+          if (!currentEndpoint && isLikelyGoogleApiKey(cleanApiKey)) {
+            localStorage.setItem('vbai_transcribe_endpoint', GOOGLE_GEMINI_OPENAI_ENDPOINT);
+            localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', GOOGLE_GEMINI_OPENAI_ENDPOINT);
+            localStorage.setItem('vbai_proxy_profile_meeting_transcribe', 'proxy_custom');
+          }
+        }
+      }
+      const hasDedicatedEndpoint = !!(localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe') || localStorage.getItem('vbai_transcribe_endpoint'));
+      const hasDedicatedKey = !!(localStorage.getItem('vbai_proxy_api_key_meeting_transcribe') || localStorage.getItem('vbai_transcribe_api_key'));
+      if (!hasDedicatedEndpoint && !hasDedicatedKey) {
+        localStorage.setItem('vbai_transcribe_use_dedicated', 'false');
       }
       if (routerModel) {
         localStorage.setItem('vbai_router_model', routerModel);
@@ -993,11 +995,11 @@ export async function renderChatUI(container) {
       if (typeof routerWebSearchEnabled === 'boolean') {
         localStorage.setItem('vbai_proxy_web_search', routerWebSearchEnabled ? 'true' : 'false');
       }
-      if (routerProfile) localStorage.setItem('vbai_router_profile', routerProfile === 'google_direct' ? 'proxy_9router_local' : routerProfile);
-      if (routerProfileChat) localStorage.setItem('vbai_proxy_profile_chat', routerProfileChat);
-      if (routerProfileSpell) localStorage.setItem('vbai_proxy_profile_spellcheck', routerProfileSpell);
-      if (routerProfilePdf) localStorage.setItem('vbai_proxy_profile_pdf', routerProfilePdf);
-      if (routerProfileMeeting) localStorage.setItem('vbai_proxy_profile_meeting', routerProfileMeeting);
+      localStorage.setItem('vbai_router_profile', 'proxy_custom');
+      localStorage.setItem('vbai_proxy_profile_chat', 'proxy_custom');
+      localStorage.setItem('vbai_proxy_profile_spellcheck', 'proxy_custom');
+      localStorage.setItem('vbai_proxy_profile_pdf', 'proxy_custom');
+      localStorage.setItem('vbai_proxy_profile_meeting', 'proxy_custom');
       if (typeof routerProxyEnabledChat === 'boolean') {
         localStorage.setItem('vbai_proxy_enabled_chat', 'true');
       }
@@ -1013,8 +1015,23 @@ export async function renderChatUI(container) {
   if (routerEndpointInput) {
     routerEndpointInput.value = localStorage.getItem('vbai_9router_endpoint') || fallbackEndpoint;
   }
-  if (transcribeModelInput) {
-    transcribeModelInput.value = localStorage.getItem('vbai_transcribe_model') || '';
+  localStorage.setItem('vbai_transcribe_model', STRICT_MEETING_AUDIO_MODEL);
+  localStorage.setItem('vbai_transcribe_model_meeting', STRICT_MEETING_AUDIO_MODEL);
+  if (transcribeEndpointInput) {
+    transcribeEndpointInput.value =
+      localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
+      || localStorage.getItem('vbai_transcribe_endpoint')
+      || (isLikelyGoogleApiKey(localStorage.getItem('vbai_proxy_api_key_meeting_transcribe') || localStorage.getItem('vbai_transcribe_api_key') || '')
+        ? GOOGLE_GEMINI_OPENAI_ENDPOINT
+        : '')
+      || '';
+  }
+  if (transcribeApiKeyInput) {
+    transcribeApiKeyInput.value =
+      localStorage.getItem('vbai_proxy_api_key_meeting_transcribe')
+      || localStorage.getItem('vbai_transcribe_api_key')
+      || DEFAULT_MEETING_TRANSCRIBE_API_KEY
+      || '';
   }
   if (modelSelect) {
     modelSelect.value = normalizeModelName(
@@ -1025,33 +1042,11 @@ export async function renderChatUI(container) {
   if (useWebSearchChk) {
     useWebSearchChk.checked = (localStorage.getItem('vbai_proxy_web_search') ?? 'true') !== 'false';
   }
-  const applyProviderPreset = (profile, preserveKey = true) => {
-    const preset = PROVIDER_PRESETS[profile];
-    if (!preset) return;
-    if (routerEndpointInput) routerEndpointInput.value = preset.endpoint || '';
-    if (transcribeModelInput && !transcribeModelInput.value.trim()) transcribeModelInput.value = preset.transcribeModel || '';
-    if (modelSelect && !modelSelect.value.trim()) modelSelect.value = preset.model || DEFAULT_MODEL;
-    const useProxyChk = container.querySelector('#use-9router-chk');
-    if (useProxyChk) useProxyChk.checked = !!preset.useProxy;
-    if (!preserveKey && apiKeyInput) apiKeyInput.value = '';
-  };
-
-  const currentProfile = localStorage.getItem('vbai_router_profile') || 'proxy_9router_local';
-  if (providerProfileSelect) {
-    providerProfileSelect.value = PROVIDER_PRESETS[currentProfile] ? currentProfile : 'proxy_custom';
-    providerProfileSelect.onchange = () => {
-      const p = providerProfileSelect.value;
-      localStorage.setItem('vbai_router_profile', p);
-      if (p !== 'proxy_custom') applyProviderPreset(p, true);
-    };
-    if (providerProfileSelect.value !== 'proxy_custom') {
-      applyProviderPreset(providerProfileSelect.value, true);
-    }
-  }
-  if (profileChatSelect) profileChatSelect.value = localStorage.getItem('vbai_proxy_profile_chat') || 'inherit';
-  if (profileSpellSelect) profileSpellSelect.value = localStorage.getItem('vbai_proxy_profile_spellcheck') || 'inherit';
-  if (profilePdfSelect) profilePdfSelect.value = localStorage.getItem('vbai_proxy_profile_pdf') || 'inherit';
-  if (profileMeetingSelect) profileMeetingSelect.value = localStorage.getItem('vbai_proxy_profile_meeting') || 'inherit';
+  localStorage.setItem('vbai_router_profile', 'proxy_custom');
+  localStorage.setItem('vbai_proxy_profile_chat', 'proxy_custom');
+  localStorage.setItem('vbai_proxy_profile_spellcheck', 'proxy_custom');
+  localStorage.setItem('vbai_proxy_profile_pdf', 'proxy_custom');
+  localStorage.setItem('vbai_proxy_profile_meeting', 'proxy_custom');
   if (localStorage.getItem('vbai_proxy_enabled_chat') === null) {
     localStorage.setItem('vbai_proxy_enabled_chat', localStorage.getItem('vbai_use_9router') !== 'false' ? 'true' : 'false');
   }
@@ -1059,6 +1054,7 @@ export async function renderChatUI(container) {
   if (localStorage.getItem('vbai_proxy_enabled_spellcheck') === null) localStorage.setItem('vbai_proxy_enabled_spellcheck', 'true');
   if (localStorage.getItem('vbai_proxy_enabled_pdf') === null) localStorage.setItem('vbai_proxy_enabled_pdf', 'true');
   if (localStorage.getItem('vbai_proxy_enabled_meeting') === null) localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
+  if (localStorage.getItem('vbai_proxy_enabled_meeting_transcribe') === null) localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
 
   // Init chat: with 9router, API key can be empty on local proxy
   initChat(
@@ -1204,26 +1200,127 @@ export async function renderChatUI(container) {
       }
     };
   }
+  if (testTranscribeBtn) {
+    testTranscribeBtn.onclick = async () => {
+      let endpoint = (transcribeEndpointInput?.value || '').trim();
+      let key = (transcribeApiKeyInput?.value || '').trim();
+
+      if (endpoint && isLikelyApiKey(endpoint) && !key) {
+        key = endpoint;
+        endpoint = '';
+      }
+      if (!endpoint && isLikelyGoogleApiKey(key)) {
+        endpoint = GOOGLE_GEMINI_OPENAI_ENDPOINT;
+      }
+      if (!endpoint) {
+        endpoint = (routerEndpointInput?.value || '').trim();
+      }
+      if (!endpoint || !isValidHttpEndpoint(endpoint)) {
+        alert('Endpoint ghi am khong hop le. Vui long nhap URL bat dau bang http(s)://');
+        return;
+      }
+      if (!key) {
+        alert('Chua co API key ghi am. Vui long nhap key tai o "API ghi am rieng - Key".');
+        return;
+      }
+
+      const backup = {
+        endpoint: localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe'),
+        endpoint2: localStorage.getItem('vbai_transcribe_endpoint'),
+        key: localStorage.getItem('vbai_proxy_api_key_meeting_transcribe'),
+        key2: localStorage.getItem('vbai_transcribe_api_key'),
+        profile: localStorage.getItem('vbai_proxy_profile_meeting_transcribe'),
+        useDedicated: localStorage.getItem('vbai_transcribe_use_dedicated'),
+        enabled: localStorage.getItem('vbai_proxy_enabled_meeting_transcribe'),
+      };
+
+      localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', endpoint);
+      localStorage.setItem('vbai_transcribe_endpoint', endpoint);
+      localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', key);
+      localStorage.setItem('vbai_transcribe_api_key', key);
+      localStorage.setItem('vbai_proxy_profile_meeting_transcribe', 'proxy_custom');
+      localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
+      localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
+
+      testTranscribeBtn.disabled = true;
+      const prevText = testTranscribeBtn.innerText;
+      testTranscribeBtn.innerText = 'Dang kiem tra...';
+      try {
+        const ids = await getProxyModelIds('meeting_transcribe');
+        if (!ids.length) {
+          alert(`Khong lay duoc danh sach model tu endpoint ghi am: ${endpoint}`);
+          return;
+        }
+        const gemini = ids.find((id) => String(id).toLowerCase().includes('gemini-2.5-pro'));
+        if (gemini) {
+          alert(`Ket noi ghi am OK. Tim thay model: ${gemini}`);
+        } else {
+          alert(`Ket noi duoc nhung khong co gemini-2.5-pro. Model hien co: ${ids.slice(0, 12).join(', ')}`);
+        }
+      } catch (e) {
+        alert('Loi kiem tra key ghi am: ' + (e?.message || e));
+      } finally {
+        if (backup.endpoint === null) localStorage.removeItem('vbai_proxy_endpoint_meeting_transcribe'); else localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', backup.endpoint);
+        if (backup.endpoint2 === null) localStorage.removeItem('vbai_transcribe_endpoint'); else localStorage.setItem('vbai_transcribe_endpoint', backup.endpoint2);
+        if (backup.key === null) localStorage.removeItem('vbai_proxy_api_key_meeting_transcribe'); else localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', backup.key);
+        if (backup.key2 === null) localStorage.removeItem('vbai_transcribe_api_key'); else localStorage.setItem('vbai_transcribe_api_key', backup.key2);
+        if (backup.profile === null) localStorage.removeItem('vbai_proxy_profile_meeting_transcribe'); else localStorage.setItem('vbai_proxy_profile_meeting_transcribe', backup.profile);
+        if (backup.useDedicated === null) localStorage.removeItem('vbai_transcribe_use_dedicated'); else localStorage.setItem('vbai_transcribe_use_dedicated', backup.useDedicated);
+        if (backup.enabled === null) localStorage.removeItem('vbai_proxy_enabled_meeting_transcribe'); else localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', backup.enabled);
+        testTranscribeBtn.disabled = false;
+        testTranscribeBtn.innerText = prevText;
+      }
+    };
+  }
   container.querySelector('#save-key-btn').onclick = async () => {
     const routerKey = apiKeyInput.value.trim();
     const routerEndpoint = (routerEndpointInput?.value || '').trim();
-    const transcribeModel = (transcribeModelInput?.value || '').trim();
-    const selectedProfile = providerProfileSelect?.value || 'proxy_custom';
-    const isUsing9router = true;
+    const transcribeModel = STRICT_MEETING_AUDIO_MODEL;
+    const transcribeEndpointInputValue = (transcribeEndpointInput?.value || '').trim();
+    const transcribeApiKeyInputValue = (transcribeApiKeyInput?.value || '').trim();
+    let transcribeEndpoint = transcribeEndpointInputValue
+      || localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
+      || localStorage.getItem('vbai_transcribe_endpoint')
+      || '';
+    let transcribeApiKey = transcribeApiKeyInputValue
+      || localStorage.getItem('vbai_proxy_api_key_meeting_transcribe')
+      || localStorage.getItem('vbai_transcribe_api_key')
+      || DEFAULT_MEETING_TRANSCRIBE_API_KEY
+      || '';
+    const selectedProfile = 'proxy_custom';
     const useProxyWebSearch = useWebSearchChk?.checked !== false;
     const model = normalizeModelName(modelSelect?.value || '') || DEFAULT_MODEL;
-    const profileChat = profileChatSelect?.value || 'inherit';
-    const profileSpell = profileSpellSelect?.value || 'inherit';
-    const profilePdf = profilePdfSelect?.value || 'inherit';
-    const profileMeeting = profileMeetingSelect?.value || 'inherit';
+    const profileChat = 'proxy_custom';
+    const profileSpell = 'proxy_custom';
+    const profilePdf = 'proxy_custom';
+    const profileMeeting = 'proxy_custom';
+
+    if (routerEndpoint && !isValidHttpEndpoint(routerEndpoint)) {
+      alert('9router Endpoint khong hop le. Vui long nhap URL bat dau bang http(s)://');
+      return;
+    }
+    if (transcribeEndpoint && !isValidHttpEndpoint(transcribeEndpoint)) {
+      if (isLikelyApiKey(transcribeEndpoint)) {
+        transcribeApiKey = transcribeApiKeyInputValue || transcribeEndpoint;
+        transcribeEndpoint = '';
+      } else {
+        alert('API ghi am rieng - Endpoint khong hop le. Vui long nhap URL bat dau bang http(s)://');
+        return;
+      }
+    }
+    if (!transcribeEndpoint && isLikelyGoogleApiKey(transcribeApiKey)) {
+      transcribeEndpoint = GOOGLE_GEMINI_OPENAI_ENDPOINT;
+    }
     
     localStorage.setItem('vbai_use_9router', 'true');
     localStorage.setItem('vbai_proxy_enabled_chat', 'true');
     localStorage.setItem('vbai_proxy_enabled_spellcheck', 'true');
     localStorage.setItem('vbai_proxy_enabled_pdf', 'true');
     localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
+    localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
     localStorage.setItem('vbai_router_model', model);
     localStorage.setItem('vbai_transcribe_model', transcribeModel);
+    localStorage.setItem('vbai_transcribe_model_meeting', transcribeModel);
     localStorage.setItem('vbai_router_profile', selectedProfile);
     localStorage.setItem('vbai_proxy_web_search', useProxyWebSearch ? 'true' : 'false');
     localStorage.setItem('vbai_proxy_profile_chat', profileChat);
@@ -1246,18 +1343,32 @@ export async function renderChatUI(container) {
       localStorage.setItem('vbai_proxy_api_key_pdf', routerKey);
       localStorage.setItem('vbai_proxy_api_key_meeting', routerKey);
     }
+    if (transcribeEndpoint) {
+      localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
+      localStorage.setItem('vbai_transcribe_endpoint', transcribeEndpoint);
+      localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', transcribeEndpoint);
+      localStorage.setItem('vbai_proxy_profile_meeting_transcribe', 'proxy_custom');
+    }
+    if (transcribeApiKey) {
+      localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
+      localStorage.setItem('vbai_transcribe_api_key', transcribeApiKey);
+      localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', transcribeApiKey);
+    }
     
     try {
       const payload = {
         router_model: model,
         router_web_search_enabled: useProxyWebSearch,
         router_transcribe_model: transcribeModel,
-        router_profile: selectedProfile,
-        router_profile_chat: profileChat,
-        router_profile_spellcheck: profileSpell,
-        router_profile_pdf: profilePdf,
-        router_profile_meeting: profileMeeting,
-        router_proxy_enabled_chat: true
+        router_transcribe_endpoint: transcribeEndpoint,
+        router_transcribe_api_key: transcribeApiKey,
+        router_profile: 'proxy_custom',
+        router_profile_chat: 'proxy_custom',
+        router_profile_spellcheck: 'proxy_custom',
+        router_profile_pdf: 'proxy_custom',
+        router_profile_meeting: 'proxy_custom',
+        router_proxy_enabled_chat: true,
+        router_proxy_enabled_meeting_transcribe: true
       };
       if (routerEndpoint) payload.router_endpoint = routerEndpoint;
       if (routerKey) payload.router_api_key = routerKey;
