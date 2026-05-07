@@ -136,7 +136,7 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
   const errors = [];
   
   progressTextEl.innerText = "Dang ket noi 9router...";
-  const modelName = localStorage.getItem('vbai_gemini_model') || 'gemini-2.5-pro';
+  const modelName = (localStorage.getItem('vbai_router_model') || 'cx/gpt-5.5');
 
   // 2. Batching paragraphs — batch nhỏ hơn để AI chính xác hơn
   const validParas = paragraphs.filter(p => p.text.trim().length > 10);
@@ -638,3 +638,4 @@ function logToFirestore(fileName, spellCount, formatCount) {
     }).catch(() => {});
   } catch (e) {}
 }
+

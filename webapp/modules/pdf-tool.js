@@ -27,7 +27,7 @@ export function renderPdfTool(container) {
       <div class="section-title">📋 Nội dung trích xuất</div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <button class="btn btn-secondary" id="pdf-copy-btn">📋 Copy nội dung</button>
-        <button class="btn btn-primary" id="pdf-ocr-btn" style="display:none; background:var(--daquy-500); border-color:var(--daquy-600)">🔍 Quét OCR bằng AI Gemini</button>
+        <button class="btn btn-primary" id="pdf-ocr-btn" style="display:none; background:var(--daquy-500); border-color:var(--daquy-600)">🔍 Quét OCR bằng AI</button>
       </div>
       <div id="pdf-text-content" style="background:var(--bg-input);padding:16px;border-radius:var(--radius-md);font-size:0.85rem;line-height:1.7;max-height:500px;overflow-y:auto;white-space:pre-wrap;color:var(--text-primary);border:1px solid var(--border-subtle)"></div>
     </div>
@@ -109,7 +109,7 @@ async function handlePdf(file, container) {
           content.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } });
         }
 
-        const model = localStorage.getItem('vbai_gemini_model') || 'gemini-2.5-pro';
+        const model = (localStorage.getItem('vbai_router_model') || 'cx/gpt-5.5');
         fullText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'pdf' });
         fullText = fullText || "Không quét được nội dung.";
         textContentArea.textContent = fullText;
@@ -154,3 +154,4 @@ async function handlePdf(file, container) {
     showToast('Lỗi xử lý PDF: ' + e.message, 'error');
   }
 }
+

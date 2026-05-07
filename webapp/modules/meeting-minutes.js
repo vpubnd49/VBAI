@@ -1,19 +1,18 @@
-/**
+﻿/**
  * Meeting Minutes Module — Redesigned
  * Chuyển đổi audio cuộc họp thành Thông báo kết luận (NĐ30/HD36)
- * Hỗ trợ file >100MB qua Gemini Files API
+ * Dùng 9router (OpenAI-compatible) cho xử lý ghi âm và phân tích nội dung
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from '../main.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { GoogleGenAI } from "https://esm.run/@google/genai";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
 import { sendChatRequest, sendAudioTranscription, sendAudioTranscriptionViaChat } from './ai-proxy.js';
 
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-pro";
-const DEFAULT_TRANSCRIBE_MODEL = "gemini-2.5-pro";
+const DEFAULT_MODEL = "cx/gpt-5.5";
+const DEFAULT_TRANSCRIBE_MODEL = "";
 
 let formState = {
   step: 1, audioFile: null, isProcessing: false,
@@ -66,14 +65,14 @@ function renderStep1(sc, c) {
         <div class="upload-zone" id="drop-zone" onclick="document.getElementById('audio-upload').click()">
           <div class="upload-icon">🎤</div>
           <div class="upload-text">Nhấp hoặc kéo thả file ghi âm vào đây</div>
-          <div class="upload-hint">Hỗ trợ: MP3, WAV, M4A, OGG, AAC — <strong>Tối đa 200MB</strong> (qua Gemini Files API)</div>
+          <div class="upload-hint">Hỗ trợ: MP3, WAV, M4A, OGG, AAC — <strong>Tối đa 200MB</strong> (xử lý qua 9router/OpenAI-compatible)</div>
           ${formState.audioFile ? `<div style="margin-top: 15px; color: var(--success); font-weight: bold;">Đã chọn: ${formState.audioFile.name} (${(formState.audioFile.size / 1024 / 1024).toFixed(1)}MB)</div>` : ''}
         </div>
       </div>
     </div>
     <div id="processing-indicator" style="display: none; text-align: center; padding: 20px;">
       <div class="spinner"></div>
-      <div id="processing-text" style="margin-top: 10px; color: var(--daquy-400); font-weight: 600;">Đang tải file lên Gemini...</div>
+      <div id="processing-text" style="margin-top: 10px; color: var(--daquy-400); font-weight: 600;">Đang tải file lên 9router...</div>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" id="btn-process" ${!formState.audioFile ? 'disabled' : ''}>Phân tích bằng AI →</button>
@@ -97,7 +96,7 @@ function renderStep1(sc, c) {
     if (!formState.audioFile) return;
     formState.isProcessing = true; btnProcess.disabled = true; indicator.style.display = 'block';
     try {
-      await processAudioWithGemini(formState.audioFile, sc.querySelector('#processing-text'));
+      await processAudioWith9router(formState.audioFile, sc.querySelector('#processing-text'));
       formState.isProcessing = false; formState.step = 2; doRender(c);
     } catch (error) {
       console.error(error); showToast('Lỗi khi phân tích audio: ' + error.message, 'error');
@@ -290,14 +289,89 @@ function renderStep3(sc, c) {
 }
 
 // ==============================================
-// XỬ LÝ GEMINI AI — Files API cho file >100MB
+// XỬ LÝ GHI ÂM QUA 9ROUTER (OPENAI-COMPATIBLE)
 // ==============================================
-async function getApiKey() {
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  const db = getFirestore(app);
-  const docSnap = await getDoc(doc(db, 'config', 'system'));
-  if (docSnap.exists() && docSnap.data().gemini_api_key) return docSnap.data().gemini_api_key;
-  throw new Error("Vui lòng cấu hình Gemini API Key trước khi sử dụng.");
+function normalizeModelName(model = "") {
+  return String(model || "")
+    .trim()
+    .replace(/(\d),(\d)/g, "$1.$2");
+}
+
+function parseModelPool(raw, fallbackModel) {
+  const source = String(raw || "").trim();
+  if (!source) return [fallbackModel];
+  const normalizedSource = source.replace(/(\d),(\d)/g, "$1.$2");
+  const items = normalizedSource
+    .split(/[\n;|,]+/g)
+    .map(normalizeModelName)
+    .filter(Boolean);
+  return items.length > 0 ? items : [fallbackModel];
+}
+
+function pickRandomModel(raw, fallbackModel) {
+  const pool = parseModelPool(raw, fallbackModel);
+  return pool[Math.floor(Math.random() * pool.length)] || fallbackModel;
+}
+
+function resolveMeetingChatModel() {
+  const raw = localStorage.getItem('vbai_router_model') || DEFAULT_MODEL;
+  return pickRandomModel(raw, DEFAULT_MODEL);
+}
+
+function resolveMeetingTranscribeModel() {
+  const raw = localStorage.getItem('vbai_transcribe_model') || "";
+  const fallback = resolveMeetingChatModel();
+  return pickRandomModel(raw, fallback);
+}
+
+function isAudioCapableModelName(model = "") {
+  const n = normalizeModelName(model).toLowerCase();
+  if (!n) return false;
+  return /(transcribe|whisper|audio|4o)/.test(n);
+}
+
+function buildTranscribeModelCandidates() {
+  const configured = parseModelPool(localStorage.getItem('vbai_transcribe_model') || "", "")
+    .map(normalizeModelName)
+    .filter(Boolean);
+  const defaults = [
+    "gpt-4o-mini-transcribe",
+    "gpt-4o-transcribe",
+    "whisper-1",
+  ].map(normalizeModelName);
+
+  const merged = [...configured, ...defaults];
+  const unique = [];
+  for (const m of merged) {
+    if (!m) continue;
+    if (!isAudioCapableModelName(m)) continue;
+    if (!unique.includes(m)) unique.push(m);
+  }
+  return unique;
+}
+
+function buildAudioChatFallbackCandidates() {
+  const configured = parseModelPool(localStorage.getItem('vbai_transcribe_model') || "", "")
+    .map(normalizeModelName)
+    .filter(Boolean)
+    .filter(isAudioCapableModelName);
+  const chatModel = normalizeModelName(resolveMeetingChatModel());
+  const defaults = [
+    "gpt-4o-audio-preview",
+    "gpt-audio-1.5",
+    "gpt-4o-mini",
+    "gpt-4o",
+    "gpt-4o-mini-transcribe",
+    "gpt-4o-transcribe",
+    chatModel,
+  ].map(normalizeModelName);
+  const merged = [...configured, ...defaults];
+  const unique = [];
+  for (const m of merged) {
+    if (!m) continue;
+    if (!unique.includes(m)) unique.push(m);
+  }
+  return unique;
 }
 
 const MEETING_PROMPT = `Bạn là trợ lý thư ký cuộc họp chuyên nghiệp trong cơ quan hành chính nhà nước Việt Nam.
@@ -344,120 +418,89 @@ Trả về JSON:
 }
 CHỈ trả về JSON.`;
 
-async function processAudioWithGemini(file, progressEl) {
-  // Luôn dùng trực tiếp SDK Gemini để xử lý audio đa phương thức (gemini-2.5-pro)
-  const use9router = false;
-  if (use9router) {
-    progressEl.textContent = 'Đang chuyển giọng nói thành văn bản qua 9router...';
-    const transcriptModel = localStorage.getItem('vbai_transcribe_model') || DEFAULT_TRANSCRIBE_MODEL;
-    const chatModel = localStorage.getItem('vbai_gemini_model') || DEFAULT_GEMINI_MODEL;
-    let transcript = '';
-    try {
-      transcript = await sendAudioTranscription(file, transcriptModel, { temperature: 0, context: 'meeting' });
-    } catch (e) {
-      progressEl.textContent = 'Không dùng được /audio/transcriptions, đang fallback qua chat/completions...';
+async function processAudioWith9router(file, progressEl) {
+  localStorage.setItem('vbai_use_9router', 'true');
+  localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
+  progressEl.textContent = 'Đang chuyển giọng nói thành văn bản...';
+
+  const transcriptModel = resolveMeetingTranscribeModel();
+  let transcript = '';
+  const transcribeTimeoutMs = Number(localStorage.getItem('vbai_transcribe_timeout_ms') || '45000');
+  const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : 45000;
+
+  const transcribeCandidates = buildTranscribeModelCandidates();
+
+  try {
+    let lastErr = null;
+    for (const modelCandidate of transcribeCandidates) {
       try {
-        transcript = await sendAudioTranscriptionViaChat(file, chatModel, {
+        progressEl.textContent = `Đang thử /audio/transcriptions với model ${modelCandidate}...`;
+        const text = await sendAudioTranscription(file, modelCandidate, {
           temperature: 0,
-          maxBytes: 12 * 1024 * 1024,
-          context: 'meeting'
+          context: 'meeting',
+          timeoutMs: safeTranscribeTimeoutMs,
         });
-      } catch (fallbackErr) {
-        throw new Error(`9router không hỗ trợ transcription endpoint và fallback chat thất bại (${fallbackErr.message}).`);
+        if (String(text || "").trim()) {
+          transcript = text.trim();
+          break;
+        }
+      } catch (err) {
+        lastErr = err;
       }
     }
-    if (!transcript || !transcript.trim()) {
-      throw new Error('Không nhận được transcript từ 9router.');
+    if (!String(transcript || '').trim()) {
+      throw (lastErr || new Error('Khong nhan duoc /audio/transcriptions'));
     }
-
-    progressEl.textContent = 'Đang phân tích transcript và trích xuất cấu trúc...';
-    const model = chatModel;
-    const prompt = `${MEETING_PROMPT}\n\nTRANSCRIPT:\n${transcript}`;
-    let text = await sendChatRequest([{ role: "user", content: prompt }], model, { temperature: 0.1, context: 'meeting' });
-    text = (text || '').replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-
+  } catch (e) {
+    progressEl.textContent = 'Không dùng được /audio/transcriptions, đang chuyển sang chế độ chia nhỏ audio qua 9router...';
     try {
-      const data = JSON.parse(text);
-      formState.chu_tri = data.chu_tri || "";
-      formState.thanh_phan = data.thanh_phan || "";
-      formState.dia_diem = data.dia_diem || "";
-      formState.tom_tat = data.tom_tat || data.tom_tat_noi_dung || "";
-      formState.noi_dung_cuoc_hop = (data.noi_dung_cuoc_hop || []).map(nd => ({
-        tieu_de: nd.tieu_de || '',
-        danh_gia: nd.danh_gia || '',
-        ket_luan: nd.ket_luan || []
-      }));
-      if (formState.noi_dung_cuoc_hop.length === 0 && data.ket_luan) {
-        formState.noi_dung_cuoc_hop = [{ tieu_de: 'Kết luận chung', danh_gia: '', ket_luan: data.ket_luan }];
+      const maxChunkMb = Number(localStorage.getItem('vbai_transcribe_chunk_mb') || '24');
+      const safeChunkMb = Number.isFinite(maxChunkMb) && maxChunkMb >= 8 ? maxChunkMb : 24;
+      let lastFallbackErr = null;
+      const chatCandidates = buildAudioChatFallbackCandidates();
+      for (const modelCandidate of chatCandidates) {
+        try {
+          progressEl.textContent = `Đang fallback qua chat với model ${modelCandidate}...`;
+          const text = await sendAudioTranscriptionViaChat(file, modelCandidate, {
+            temperature: 0,
+            maxBytes: safeChunkMb * 1024 * 1024,
+            chunkWhenLarge: true,
+            context: 'meeting',
+            timeoutMs: safeTranscribeTimeoutMs,
+            onProgress: (info) => {
+              if (!info || !info.part || !info.total) return;
+              progressEl.textContent = `Đang bóc băng qua 9router: phần ${info.part}/${info.total}...`;
+            }
+          });
+          if (String(text || "").trim()) {
+            transcript = text.trim();
+            break;
+          }
+        } catch (fallbackErr) {
+          lastFallbackErr = fallbackErr;
+        }
       }
-      formState.transcript = data.transcript || transcript;
-    } catch (e) {
-      console.error("Lỗi parse JSON:", e, text);
-      formState.transcript = transcript;
-      formState.tom_tat = "Không thể trích xuất cấu trúc JSON. Vui lòng xem transcript bên dưới.";
+      if (!String(transcript || "").trim()) {
+        throw (lastFallbackErr || new Error("Khong nhan duoc transcript tu fallback chat."));
+      }
+    } catch (fallbackErr) {
+      const endpoint = localStorage.getItem('vbai_9router_endpoint') || 'http://localhost:20128/v1';
+      const msg = String(fallbackErr?.message || fallbackErr || "");
+      if (/khong the dung model/i.test(msg)) {
+        throw new Error(`Không thể xử lý ghi âm qua 9router (${endpoint}): Chưa có model transcription/audio được cấp quyền trên proxy. Vui lòng cấu hình Transcribe Model hợp lệ (gợi ý: whisper-1 hoặc gpt-4o-mini-transcribe).`);
+      }
+      throw new Error(`Không thể xử lý ghi âm qua 9router (${endpoint}): ${fallbackErr.message}`);
     }
-
-    try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      addDoc(collection(db, 'search_logs'), {
-        query: `[Ghi Âm → TB] ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)`,
-        model: `${transcriptModel} + ${model} (via 9router)`,
-        userEmail: window.currentUser?.email || 'Unknown',
-        timestamp: serverTimestamp()
-      }).catch(() => {});
-    } catch (e) {}
-    return;
   }
 
-  const apiKey = await getApiKey();
-  const aiClient = new GoogleGenAI({ apiKey });
-  const model = DEFAULT_GEMINI_MODEL;
-
-  let contentParts;
-
-  if (file.size > 20 * 1024 * 1024) {
-    // File >20MB: dùng Files API
-    progressEl.textContent = `Đang tải file lên Gemini (${(file.size / 1024 / 1024).toFixed(1)}MB)...`;
-    const uploaded = await aiClient.files.upload({
-      file: file,
-      config: { mimeType: file.type || 'audio/mpeg', displayName: file.name }
-    });
-    progressEl.textContent = 'Đang chờ AI xử lý file...';
-    // Poll until file is ACTIVE
-    let fileInfo = uploaded;
-    while (fileInfo.state === 'PROCESSING') {
-      await new Promise(r => setTimeout(r, 3000));
-      fileInfo = await aiClient.files.get({ name: fileInfo.name });
-      progressEl.textContent = `Đang xử lý file... (${fileInfo.state})`;
-    }
-    if (fileInfo.state === 'FAILED') throw new Error('Gemini không thể xử lý file audio này.');
-    contentParts = [
-      { fileData: { mimeType: fileInfo.mimeType, fileUri: fileInfo.uri } },
-      { text: MEETING_PROMPT }
-    ];
-  } else {
-    // File <=20MB: inline base64
-    progressEl.textContent = 'Đang mã hóa file...';
-    const base64 = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-    contentParts = [
-      { inlineData: { data: base64, mimeType: file.type } },
-      { text: MEETING_PROMPT }
-    ];
+  if (!transcript || !transcript.trim()) {
+    throw new Error('Không nhận được transcript từ 9router.');
   }
 
-  progressEl.textContent = 'AI đang nghe và phân tích cuộc họp... (1-5 phút)';
-  const response = await aiClient.models.generateContent({
-    model, contents: [{ role: 'user', parts: contentParts }]
-  });
-
-  let text = response.text || "";
-  text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+  progressEl.textContent = 'Đang phân tích transcript và trích xuất cấu trúc...';
+  const prompt = `${MEETING_PROMPT}\n\nTRANSCRIPT:\n${transcript}`;
+  let text = await sendChatRequest([{ role: "user", content: prompt }], chatModel, { temperature: 0.1, context: 'meeting' });
+  text = (text || '').replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
 
   try {
     const data = JSON.parse(text);
@@ -473,10 +516,10 @@ async function processAudioWithGemini(file, progressEl) {
     if (formState.noi_dung_cuoc_hop.length === 0 && data.ket_luan) {
       formState.noi_dung_cuoc_hop = [{ tieu_de: 'Kết luận chung', danh_gia: '', ket_luan: data.ket_luan }];
     }
-    formState.transcript = data.transcript || "";
+    formState.transcript = data.transcript || transcript;
   } catch (e) {
     console.error("Lỗi parse JSON:", e, text);
-    formState.transcript = response.text;
+    formState.transcript = transcript;
     formState.tom_tat = "Không thể trích xuất cấu trúc JSON. Vui lòng xem transcript bên dưới.";
   }
 
@@ -484,14 +527,17 @@ async function processAudioWithGemini(file, progressEl) {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
     addDoc(collection(db, 'search_logs'), {
-      query: `[Ghi Âm → TB] ${file.name} (${(file.size/1024/1024).toFixed(1)}MB)`,
-      model, userEmail: window.currentUser?.email || 'Unknown', timestamp: serverTimestamp()
+      query: `[Ghi Âm → TB] ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
+      model: `${transcriptModel} + ${chatModel} (via 9router)`,
+      userEmail: window.currentUser?.email || 'Unknown',
+      timestamp: serverTimestamp()
     }).catch(() => {});
   } catch (e) {}
 }
 
 async function reanalyzeTranscript() {
-  const use9router = (localStorage.getItem('vbai_proxy_enabled_meeting') ?? localStorage.getItem('vbai_use_9router') ?? 'true') === 'true';
+  localStorage.setItem('vbai_use_9router', 'true');
+  localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {
   "chu_tri": "...",
@@ -507,19 +553,9 @@ CHỈ JSON, KHÔNG giải thích.
 TRANSCRIPT:
 ${formState.transcript}`;
 
-  let text = "";
-  if (use9router) {
-    const messages = [{ role: "user", content: prompt }];
-    const model = localStorage.getItem('vbai_gemini_model') || DEFAULT_GEMINI_MODEL;
-    text = await sendChatRequest(messages, model, { temperature: 0.1, context: 'meeting' });
-  } else {
-    const apiKey = await getApiKey();
-    const aiClient = new GoogleGenAI({ apiKey });
-    const response = await aiClient.models.generateContent({
-      model: DEFAULT_GEMINI_MODEL, contents: prompt, config: { temperature: 0.1 }
-    });
-    text = response.text || "";
-  }
+  const messages = [{ role: "user", content: prompt }];
+  const model = resolveMeetingChatModel();
+  let text = await sendChatRequest(messages, model, { temperature: 0.1, context: 'meeting' });
 
   text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
   try {
