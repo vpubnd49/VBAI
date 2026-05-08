@@ -668,6 +668,42 @@ function buildSkillReferenceContext(skill) {
   return `\n### Tài liệu tham chiếu\n${renderedReferences}\n`;
 }
 
+async function fetchWebSearchResults(query) {
+  try {
+    const q = encodeURIComponent(query);
+    const url = `https://html.duckduckgo.com/html/?q=${q}`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    
+    const response = await fetch(proxyUrl);
+    if (!response.ok) return "";
+    
+    const data = await response.json();
+    const htmlStr = data.contents;
+    
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlStr, "text/html");
+    
+    const results = [];
+    const resultNodes = doc.querySelectorAll('.result');
+    for (let i = 0; i < Math.min(resultNodes.length, 5); i++) {
+      const node = resultNodes[i];
+      const titleNode = node.querySelector('.result__title');
+      const snippetNode = node.querySelector('.result__snippet');
+      const linkNode = node.querySelector('.result__url');
+      if (titleNode && snippetNode) {
+        const title = titleNode.textContent.replace(/\s+/g, ' ').trim();
+        const snippet = snippetNode.textContent.replace(/\s+/g, ' ').trim();
+        const link = linkNode ? linkNode.textContent.replace(/\s+/g, '').trim() : "";
+        results.push(`- [${title}](${link}): ${snippet}`);
+      }
+    }
+    return results.join("\n\n");
+  } catch (e) {
+    console.warn("Web search failed:", e);
+    return "";
+  }
+}
+
 export function initChat(apiKey, modelName = DEFAULT_MODEL) {
   keepChatProxyEnabledWhenUsing9router();
   localStorage.setItem('vbai_use_9router', 'true');
@@ -731,9 +767,22 @@ export async function sendMessage(text, onChunk) {
       return cached;
     }
 
+    let finalUserText = contextualUserText;
+    let routeLabel = "9router";
+
+    const useWebSearch = shouldUseProxyWebSearchTool();
+    if (useWebSearch && shouldPreferWebSearch(rawUserText)) {
+      if (onChunk) onChunk("Đang tra cứu dữ liệu mới nhất từ Internet...\n");
+      const searchResults = await fetchWebSearchResults(rawUserText);
+      if (searchResults) {
+        finalUserText = `${contextualUserText}\n\n[Dữ liệu trực tuyến cập nhật để tham khảo]:\n${searchResults}`;
+        routeLabel = "9router_web_search_injected";
+      }
+    }
+
     const messages = [
       { role: "system", content: dynamicInstruction },
-      { role: "user", content: contextualUserText }
+      { role: "user", content: finalUserText }
     ];
 
     const streamOptions = {
@@ -741,35 +790,18 @@ export async function sendMessage(text, onChunk) {
       stream: true,
       temperature: drafting ? 0.35 : 0.2,
       onDelta: (partial) => {
-        if (onChunk) onChunk(partial);
+        if (onChunk) {
+          onChunk(partial);
+        }
       }
     };
 
     try {
-      if (useWebSearch) {
-        try {
-          fullText = await sendChatRequest(messages, currentModelName, {
-            ...streamOptions,
-            tools: [{ type: "web_search_preview" }]
-          });
-          routeLabel = "9router_web_search";
-          if (!String(fullText || "").trim()) {
-            fullText = await sendChatRequest(messages, currentModelName, streamOptions);
-            routeLabel = "9router_retry_no_tool";
-          }
-        } catch (toolError) {
-          if (!isProxyToolUnsupportedError(toolError)) throw toolError;
-          fullText = await sendChatRequest(messages, currentModelName, streamOptions);
-          if (!String(fullText || "").trim()) {
-            throw new Error("Proxy tra ve phan hoi rong. Vui long kiem tra model ho tro text output.");
-          }
-        }
-      } else {
-        fullText = await sendChatRequest(messages, currentModelName, streamOptions);
-        if (!String(fullText || "").trim()) {
-          throw new Error("Proxy tra ve phan hoi rong. Vui long kiem tra model ho tro text output.");
-        }
+      fullText = await sendChatRequest(messages, currentModelName, streamOptions);
+      if (!String(fullText || "").trim()) {
+        throw new Error("Proxy tra ve phan hoi rong. Vui long kiem tra model ho tro text output.");
       }
+
     } catch (proxyError) {
       const endpoint = getCurrentProxyEndpoint();
       if (isProxyUnavailableError(proxyError)) {
