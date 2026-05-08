@@ -669,39 +669,62 @@ function buildSkillReferenceContext(skill) {
 }
 
 async function fetchWebSearchResults(query) {
-  try {
-    const q = encodeURIComponent(query);
-    const url = `https://html.duckduckgo.com/html/?q=${q}`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    
-    const response = await fetch(proxyUrl);
-    if (!response.ok) return "";
-    
-    const data = await response.json();
-    const htmlStr = data.contents;
-    
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlStr, "text/html");
-    
-    const results = [];
-    const resultNodes = doc.querySelectorAll('.result');
-    for (let i = 0; i < Math.min(resultNodes.length, 5); i++) {
-      const node = resultNodes[i];
-      const titleNode = node.querySelector('.result__title');
-      const snippetNode = node.querySelector('.result__snippet');
-      const linkNode = node.querySelector('.result__url');
-      if (titleNode && snippetNode) {
-        const title = titleNode.textContent.replace(/\s+/g, ' ').trim();
-        const snippet = snippetNode.textContent.replace(/\s+/g, ' ').trim();
-        const link = linkNode ? linkNode.textContent.replace(/\s+/g, '').trim() : "";
-        results.push(`- [${title}](${link}): ${snippet}`);
+  const proxies = [
+    (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+  ];
+
+  for (const proxyFn of proxies) {
+    try {
+      const q = encodeURIComponent(query);
+      const url = `https://html.duckduckgo.com/html/?q=${q}`;
+      const proxyUrl = proxyFn(url);
+      
+      const response = await fetch(proxyUrl);
+      if (!response.ok) continue;
+      
+      let htmlStr = "";
+      if (proxyUrl.includes("allorigins")) {
+        const data = await response.json();
+        htmlStr = data.contents;
+      } else {
+        htmlStr = await response.text();
       }
+      
+      if (!htmlStr) continue;
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlStr, "text/html");
+      
+      const results = [];
+      const resultNodes = doc.querySelectorAll('.result__body');
+      const nodes = resultNodes.length > 0 ? resultNodes : doc.querySelectorAll('.result');
+      
+      for (let i = 0; i < Math.min(nodes.length, 5); i++) {
+        const node = nodes[i];
+        const a = node.querySelector('.result__title a') || node.querySelector('.result__a');
+        const s = node.querySelector('.result__snippet');
+        if (a && s) {
+          const title = a.textContent.replace(/\s+/g, ' ').trim();
+          const snippet = s.textContent.replace(/\s+/g, ' ').trim();
+          let link = a.getAttribute('href') || "";
+          if (link.startsWith('//')) link = 'https:' + link;
+          // Clean duckduckgo outgoing links if any
+          if (link.includes('uddg=')) {
+            try {
+              const u = new URL('https://duckduckgo.com' + link);
+              link = u.searchParams.get('uddg') || link;
+            } catch(e){}
+          }
+          results.push(`- [${title}](${link}): ${snippet}`);
+        }
+      }
+      if (results.length > 0) return results.join("\n\n");
+    } catch (e) {
+      console.warn("Search proxy attempt failed:", e);
     }
-    return results.join("\n\n");
-  } catch (e) {
-    console.warn("Web search failed:", e);
-    return "";
   }
+  return "";
 }
 
 export function initChat(apiKey, modelName = DEFAULT_MODEL) {
@@ -782,6 +805,7 @@ export async function sendMessage(text, onChunk) {
 
     const messages = [
       { role: "system", content: dynamicInstruction },
+      ...recentTurns.map(t => ({ role: t.role, content: t.content })),
       { role: "user", content: finalUserText }
     ];
 
