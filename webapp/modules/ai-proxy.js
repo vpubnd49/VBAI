@@ -27,6 +27,24 @@ function normalizeContext(context = "default") {
   return raw || "default";
 }
 
+function parseEndpointHost(endpoint = "") {
+  const raw = String(endpoint || "").trim();
+  if (!raw) return "";
+  try {
+    return new URL(raw).host.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+export function isGeminiOpenAIEndpoint(endpoint = "") {
+  const raw = String(endpoint || "").trim().toLowerCase();
+  if (!raw) return false;
+  const host = parseEndpointHost(raw);
+  if (host === "generativelanguage.googleapis.com") return true;
+  return raw.includes("generativelanguage.googleapis.com/v1beta/openai");
+}
+
 function getProxyConfig(context = "default") {
   const ctx = normalizeContext(context);
   const parentCtx = ctx === "meeting_transcribe" ? "meeting" : "default";
@@ -63,6 +81,10 @@ function getProxyConfig(context = "default") {
   return { endpoint, apiKey, enabled, profile, context: ctx };
 }
 
+export function getProxyEndpointForContext(context = "default") {
+  return getProxyConfig(context).endpoint;
+}
+
 function buildAuthHeaders(context = "default", extraHeaders = {}) {
   const { apiKey, endpoint } = getProxyConfig(context);
   const headers = { ...extraHeaders };
@@ -86,6 +108,55 @@ async function fetchWithTimeout(url, init = {}, timeoutMs = 120000) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+function stripHtmlTags(text = "") {
+  return String(text || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+async function buildHttpErrorMessage(response, fallback = "") {
+  const fallbackMessage = fallback || `HTTP Error ${response?.status || ""}`.trim();
+  let raw = "";
+  try {
+    raw = await response.text();
+  } catch {
+    return fallbackMessage;
+  }
+
+  const trimmed = String(raw || "").trim();
+  if (!trimmed) return fallbackMessage;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    const candidate =
+      parsed?.error?.message
+      || parsed?.message
+      || parsed?.detail
+      || parsed?.error_description
+      || "";
+    if (String(candidate || "").trim()) return String(candidate).trim();
+  } catch {
+    // continue to plain text/html fallback
+  }
+
+  if (trimmed.startsWith("<")) {
+    const plain = stripHtmlTags(trimmed);
+    if (plain) return `${fallbackMessage}: ${plain.slice(0, 320)}`;
+    return fallbackMessage;
+  }
+  return trimmed.slice(0, 320);
+}
+
+function describeTranscribeEndpoint(endpoint = "") {
+  const raw = String(endpoint || "").trim();
+  if (!raw) return "(khong ro endpoint)";
+  return raw;
+}
+
+function buildTranscribeError(routeKind, endpoint, model, detail) {
+  const err = String(detail || "").trim() || "Khong ro nguyen nhan";
+  const modelId = String(model || "").trim() || DEFAULT_PROXY_MODEL;
+  return `Loi transcription (${routeKind}) tai ${describeTranscribeEndpoint(endpoint)} voi model "${modelId}": ${err}`;
 }
 
 /**
@@ -136,8 +207,7 @@ export async function sendChatRequest(messages, model, options = {}) {
   }
 
   if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    const rawMessage = errData.error?.message || `HTTP Error ${response.status}`;
+    const rawMessage = await buildHttpErrorMessage(response, `HTTP Error ${response.status}`);
     const normalized = String(rawMessage || "").toLowerCase();
     const isModelMissing = normalized.includes("model_not_found") || normalized.includes("not found");
     if (!retryModel && isModelMissing) {
@@ -311,6 +381,28 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
   if (!enabled) {
     throw new Error(`Proxy dang tat cho chuc nang "${normalizeContext(context)}". Hay bat proxy trong cau hinh.`);
   }
+  const resolvedModel = normalizeModelName(model) || DEFAULT_PROXY_MODEL;
+  const useGeminiChatRoute = isGeminiOpenAIEndpoint(endpoint);
+
+  if (useGeminiChatRoute) {
+    try {
+      return await sendAudioTranscriptionViaChat(file, resolvedModel, {
+        ...options,
+        context,
+      });
+    } catch (err) {
+      const detail = String(err?.message || err || "");
+      if (/^loi transcription/i.test(detail)) {
+        throw (err instanceof Error ? err : new Error(detail));
+      }
+      throw new Error(buildTranscribeError(
+        "chat/input_audio",
+        endpoint,
+        resolvedModel,
+        detail
+      ));
+    }
+  }
 
   const requestOptions = { ...options };
   delete requestOptions.context;
@@ -318,7 +410,7 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
   delete requestOptions.timeoutMs;
   const form = new FormData();
   form.append("file", file);
-  form.append("model", model);
+  form.append("model", resolvedModel);
   if (requestOptions.language) form.append("language", requestOptions.language);
   if (requestOptions.prompt) form.append("prompt", requestOptions.prompt);
   if (requestOptions.temperature !== undefined) form.append("temperature", String(requestOptions.temperature));
@@ -338,8 +430,13 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
   }
 
   if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error?.message || `HTTP Error ${response.status}`);
+    const detail = await buildHttpErrorMessage(response, `HTTP Error ${response.status}`);
+    throw new Error(buildTranscribeError(
+      "audio/transcriptions",
+      endpoint,
+      resolvedModel,
+      detail
+    ));
   }
 
   const raw = await response.text();
@@ -369,6 +466,7 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
  */
 export async function sendAudioTranscriptionViaChat(file, model = DEFAULT_PROXY_MODEL, options = {}) {
   const context = options.context || "default";
+  const endpoint = getProxyEndpointForContext(context);
   const maxBytes = options.maxBytes ?? 12 * 1024 * 1024;
   const chunkWhenLarge = options.chunkWhenLarge !== false;
   const onProgress = typeof options.onProgress === "function" ? options.onProgress : null;
@@ -391,7 +489,7 @@ export async function sendAudioTranscriptionViaChat(file, model = DEFAULT_PROXY_
     || "Hay chuyen toan bo audio nay thanh van ban tieng Viet. Chi tra ve transcript thuần text, khong giai thich.";
 
   const base64 = await fileToBase64(file);
-  const format = detectAudioFormat(file);
+  const { format } = resolveAudioFormatForEndpoint(file, getProxyEndpointForContext(context));
 
   const messages = [{
     role: "user",
@@ -401,14 +499,23 @@ export async function sendAudioTranscriptionViaChat(file, model = DEFAULT_PROXY_
     ],
   }];
 
-  const text = await sendChatRequest(messages, model || DEFAULT_PROXY_MODEL, {
-    temperature: options.temperature ?? 0,
-    context,
-    timeoutMs,
-    stream: false,
-    disableAliasRetry: true,
-  });
-  return text || "";
+  try {
+    const text = await sendChatRequest(messages, model || DEFAULT_PROXY_MODEL, {
+      temperature: options.temperature ?? 0,
+      context,
+      timeoutMs,
+      stream: false,
+      disableAliasRetry: true,
+    });
+    return text || "";
+  } catch (err) {
+    throw new Error(buildTranscribeError(
+      "chat/input_audio",
+      endpoint,
+      model || DEFAULT_PROXY_MODEL,
+      err?.message || err
+    ));
+  }
 }
 
 async function transcribeAudioViaChatChunked(file, model = DEFAULT_PROXY_MODEL, options = {}) {
@@ -752,6 +859,28 @@ function detectAudioFormat(file) {
   if (mime.includes("m4a") || mime.includes("mp4") || name.endsWith(".m4a")) return "m4a";
   if (mime.includes("aac") || name.endsWith(".aac")) return "aac";
   return "mp3";
+}
+
+function resolveAudioFormatForEndpoint(file, endpoint = "") {
+  const detected = detectAudioFormat(file);
+  const mime = String(file?.type || "").toLowerCase();
+  const name = String(file?.name || "").toLowerCase();
+  const hasMetadata = !!mime || /\.[a-z0-9]+$/i.test(name);
+
+  if (!isGeminiOpenAIEndpoint(endpoint)) {
+    return { format: detected, detected, downgraded: false };
+  }
+
+  if (detected === "wav" || detected === "mp3") {
+    return { format: detected, detected, downgraded: false };
+  }
+
+  if (!hasMetadata) {
+    return { format: "wav", detected, downgraded: true };
+  }
+
+  // Keep known format labels when metadata is clear to avoid mismatched content-type hints.
+  return { format: detected, detected, downgraded: false };
 }
 
 async function findFallbackChatModel(context = "default", currentModel = "") {

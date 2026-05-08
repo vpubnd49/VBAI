@@ -9,12 +9,24 @@ import { showToast } from '../main.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
-import { sendChatRequest, sendAudioTranscription, sendAudioTranscriptionViaChat, getProxyModelIds } from './ai-proxy.js';
+import {
+  sendChatRequest,
+  sendAudioTranscription,
+  sendAudioTranscriptionViaChat,
+  getProxyModelIds,
+  getProxyEndpointForContext,
+  isGeminiOpenAIEndpoint,
+} from './ai-proxy.js';
 
 const DEFAULT_MODEL = "cx/gpt-5.5";
 const DEFAULT_MEETING_MODEL = "gemini-2.5-pro";
 const DEFAULT_TRANSCRIBE_MODEL = "";
 const STRICT_MEETING_AUDIO_MODEL = "gemini-2.5-pro";
+const MEETING_AUDIO_MODEL_FALLBACK_ORDER = [
+  "gemini-2.5-pro",
+  "gemini-2.5-flash",
+  "gemini-3-flash-preview",
+];
 const PROCESSING_TEXT = "Đang xử lý......";
 
 let formState = {
@@ -401,34 +413,54 @@ function buildAudioChatFallbackCandidates() {
   return [STRICT_MEETING_AUDIO_MODEL];
 }
 
-function pickStrictGeminiModelId(modelIds = []) {
-  const ids = Array.isArray(modelIds) ? modelIds.filter(Boolean) : [];
-  if (!ids.length) return "";
+function dedupeModelIds(ids = []) {
+  const seen = new Set();
+  const out = [];
+  for (const id of ids) {
+    const raw = String(id || "").trim();
+    if (!raw) continue;
+    const key = raw.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(raw);
+  }
+  return out;
+}
 
+function pickBestAvailableModel(modelIds = [], target = "") {
+  const ids = Array.isArray(modelIds) ? modelIds.filter(Boolean) : [];
+  const t = String(target || "").toLowerCase().trim();
+  if (!ids.length || !t) return "";
   const lowerMap = ids.map((id) => ({ raw: id, lower: String(id).toLowerCase() }));
-  const exact = lowerMap.find((x) => x.lower === "gemini-2.5-pro");
+
+  const exact = lowerMap.find((x) => x.lower === t);
   if (exact) return exact.raw;
 
-  const googleExact = lowerMap.find((x) => x.lower === "google/gemini-2.5-pro");
-  if (googleExact) return googleExact.raw;
+  const providerExact = lowerMap.find((x) => x.lower === `google/${t}`);
+  if (providerExact) return providerExact.raw;
 
-  const contains = lowerMap.find((x) => x.lower.includes("gemini-2.5-pro"));
+  const contains = lowerMap.find((x) => x.lower.includes(t));
   if (contains) return contains.raw;
 
   return "";
 }
 
-async function resolveStrictMeetingModel(context = "meeting") {
+async function resolveMeetingAudioModelCandidates(context = "meeting") {
   const ids = await getProxyModelIds(context).catch(() => []);
-  if (!ids.length) return STRICT_MEETING_AUDIO_MODEL;
+  const preferred = [];
 
-  const resolved = pickStrictGeminiModelId(ids);
-  if (resolved) return resolved;
+  if (ids.length) {
+    for (const target of MEETING_AUDIO_MODEL_FALLBACK_ORDER) {
+      const hit = pickBestAvailableModel(ids, target);
+      if (hit) preferred.push(hit);
+    }
+  }
 
-  const preview = ids.slice(0, 12).join(", ");
-  throw new Error(
-    `Proxy/API hien tai khong co model Gemini 2.5 Pro. Model dang co: ${preview || "(rong)"}`
-  );
+  // Always append canonical fallback order so we still try when /models is incomplete.
+  return dedupeModelIds([
+    ...preferred,
+    ...MEETING_AUDIO_MODEL_FALLBACK_ORDER,
+  ]);
 }
 
 const MEETING_PROMPT = `Bạn là trợ lý thư ký cuộc họp chuyên nghiệp trong cơ quan hành chính nhà nước Việt Nam.
@@ -502,29 +534,43 @@ async function processAudioWith9router(file, progressEl) {
     }
   }
   const analysisContext = transcribeContext;
-  const strictModel = await resolveStrictMeetingModel(transcribeContext);
-  const chatModel = strictModel;
+  const modelCandidates = await resolveMeetingAudioModelCandidates(transcribeContext);
+  if (!modelCandidates.length) {
+    throw new Error("Khong tim duoc model transcription hop le.");
+  }
+  let chatModel = modelCandidates[0];
   progressEl.textContent = PROCESSING_TEXT;
 
-  const transcriptModel = strictModel;
+  const transcriptEndpoint = getProxyEndpointForContext(transcribeContext);
+  const useGeminiDirectChat = transcribeContext === 'meeting_transcribe'
+    && isGeminiOpenAIEndpoint(transcriptEndpoint);
+  const transcriptModel = chatModel;
   let transcript = '';
+  let usedTranscriptModel = chatModel;
   const transcribeTimeoutMs = Number(localStorage.getItem('vbai_transcribe_timeout_ms') || '45000');
   const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : 45000;
-
-  const transcribeCandidates = [strictModel];
+  const transcribeCandidates = modelCandidates;
 
   try {
     let lastErr = null;
     for (const modelCandidate of transcribeCandidates) {
       try {
         progressEl.textContent = PROCESSING_TEXT;
-        const text = await sendAudioTranscription(file, modelCandidate, {
-          temperature: 0,
-          context: transcribeContext,
-          timeoutMs: safeTranscribeTimeoutMs,
-        });
+        const text = useGeminiDirectChat
+          ? await sendAudioTranscriptionViaChat(file, modelCandidate, {
+            temperature: 0,
+            context: transcribeContext,
+            timeoutMs: safeTranscribeTimeoutMs,
+          })
+          : await sendAudioTranscription(file, modelCandidate, {
+            temperature: 0,
+            context: transcribeContext,
+            timeoutMs: safeTranscribeTimeoutMs,
+          });
         if (String(text || "").trim()) {
           transcript = text.trim();
+          usedTranscriptModel = modelCandidate;
+          chatModel = modelCandidate;
           break;
         }
       } catch (err) {
@@ -537,10 +583,12 @@ async function processAudioWith9router(file, progressEl) {
   } catch (e) {
     progressEl.textContent = PROCESSING_TEXT;
     try {
-      const maxChunkMb = Number(localStorage.getItem('vbai_transcribe_chunk_mb') || '24');
-      const safeChunkMb = Number.isFinite(maxChunkMb) && maxChunkMb >= 8 ? maxChunkMb : 24;
+      const defaultChunkMb = useGeminiDirectChat ? 12 : 24;
+      const minChunkMb = useGeminiDirectChat ? 4 : 8;
+      const maxChunkMb = Number(localStorage.getItem('vbai_transcribe_chunk_mb') || String(defaultChunkMb));
+      const safeChunkMb = Number.isFinite(maxChunkMb) && maxChunkMb >= minChunkMb ? maxChunkMb : defaultChunkMb;
       let lastFallbackErr = null;
-      const chatCandidates = [strictModel];
+      const chatCandidates = modelCandidates;
       for (const modelCandidate of chatCandidates) {
         try {
           progressEl.textContent = PROCESSING_TEXT;
@@ -557,6 +605,8 @@ async function processAudioWith9router(file, progressEl) {
           });
           if (String(text || "").trim()) {
             transcript = text.trim();
+            usedTranscriptModel = modelCandidate;
+            chatModel = modelCandidate;
             break;
           }
         } catch (fallbackErr) {
@@ -611,7 +661,7 @@ async function processAudioWith9router(file, progressEl) {
     const db = getFirestore(app);
     addDoc(collection(db, 'search_logs'), {
       query: `[Ghi Âm → TB] ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
-      model: `${transcriptModel} + ${chatModel} (via ${transcribeRouteLabel})`,
+      model: `${usedTranscriptModel || transcriptModel} + ${chatModel} (via ${transcribeRouteLabel})`,
       userEmail: window.currentUser?.email || 'Unknown',
       timestamp: serverTimestamp()
     }).catch(() => {});
@@ -623,7 +673,8 @@ async function reanalyzeTranscript() {
   localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
   localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
   const transcribeContext = resolveMeetingTranscribeContext();
-  const strictModel = await resolveStrictMeetingModel(transcribeContext);
+  const modelCandidates = await resolveMeetingAudioModelCandidates(transcribeContext);
+  const strictModel = modelCandidates[0] || STRICT_MEETING_AUDIO_MODEL;
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {
   "chu_tri": "...",

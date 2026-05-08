@@ -10,7 +10,13 @@ import { saveAs } from 'file-saver';
 import { firebaseConfig } from '../firebase-config.js';
 
 
-import { sendChatRequest, check9routerStatus, getProxyModelIds } from './ai-proxy.js';
+import {
+  sendChatRequest,
+  check9routerStatus,
+  getProxyModelIds,
+  sendAudioTranscriptionViaChat,
+  isGeminiOpenAIEndpoint,
+} from './ai-proxy.js';
 
 const DEFAULT_MODEL = "cx/gpt-5.5";
 const DEFAULT_MEETING_TRANSCRIBE_API_KEY = "AIzaSyAa4rHozoUWV4BLJ0XIOKFlqQMalQXb0X4";
@@ -87,6 +93,39 @@ function keepChatProxyEnabledWhenUsing9router() {
   if (localStorage.getItem('vbai_use_9router') !== 'false') {
     localStorage.setItem('vbai_proxy_enabled_chat', 'true');
   }
+}
+
+function createSilentWavTestFile() {
+  const sampleRate = 8000;
+  const durationSec = 0.25;
+  const channels = 1;
+  const bitsPerSample = 16;
+  const numSamples = Math.max(1, Math.floor(sampleRate * durationSec));
+  const bytesPerSample = bitsPerSample / 8;
+  const dataSize = numSamples * channels * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  const writeAscii = (offset, text) => {
+    for (let i = 0; i < text.length; i += 1) {
+      view.setUint8(offset + i, text.charCodeAt(i));
+    }
+  };
+
+  writeAscii(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeAscii(8, 'WAVE');
+  writeAscii(12, 'fmt ');
+  view.setUint32(16, 16, true); // fmt chunk size
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+  view.setUint16(32, channels * bytesPerSample, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeAscii(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  return new File([buffer], 'vbai_transcribe_test.wav', { type: 'audio/wav' });
 }
 
 const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên gia tư vấn pháp luật Việt Nam hàng đầu. 
@@ -952,6 +991,7 @@ export async function renderChatUI(container) {
             <label class="form-label">API ghi am rieng - Endpoint (neu 9router khong ho tro)</label>
             <input type="text" id="transcribe-endpoint-input" class="form-input" value="" placeholder="Vi du: https://your-openai-compatible-endpoint/v1">
             <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">De trong neu muon ke thua endpoint chung. Neu nhap, module ghi am se uu tien endpoint nay.</p>
+            <p style="font-size:0.74rem; color:var(--daquy-400); margin-top:4px">Neu dung Gemini OpenAI endpoint, he thong se goi chat/input_audio truc tiep (khong phu thuoc /audio/transcriptions).</p>
           </div>
           <div class="form-group" style="margin-bottom:16px">
             <label class="form-label">API ghi am rieng - Key</label>
@@ -1333,16 +1373,33 @@ export async function renderChatUI(container) {
       const prevText = testTranscribeBtn.innerText;
       testTranscribeBtn.innerText = 'Dang kiem tra...';
       try {
-        const ids = await getProxyModelIds('meeting_transcribe');
-        if (!ids.length) {
-          alert(`Khong lay duoc danh sach model tu endpoint ghi am: ${endpoint}`);
-          return;
-        }
-        const gemini = ids.find((id) => String(id).toLowerCase().includes('gemini-2.5-pro'));
-        if (gemini) {
-          alert(`Ket noi ghi am OK. Tim thay model: ${gemini}`);
+        if (isGeminiOpenAIEndpoint(endpoint)) {
+          const testFile = createSilentWavTestFile();
+          const probe = await sendAudioTranscriptionViaChat(testFile, STRICT_MEETING_AUDIO_MODEL, {
+            context: 'meeting_transcribe',
+            temperature: 0,
+            chunkWhenLarge: false,
+            timeoutMs: 45000,
+            prompt: 'Transcribe this very short audio and return plain text only.',
+          });
+          const preview = String(probe || '').trim();
+          if (preview) {
+            alert(`Ket noi ghi am Gemini OK qua chat/input_audio. Mau transcript: "${preview.slice(0, 80)}${preview.length > 80 ? '...' : ''}"`);
+          } else {
+            alert('Ket noi ghi am Gemini OK qua chat/input_audio. File test im lang nen transcript co the rong.');
+          }
         } else {
-          alert(`Ket noi duoc nhung khong co gemini-2.5-pro. Model hien co: ${ids.slice(0, 12).join(', ')}`);
+          const ids = await getProxyModelIds('meeting_transcribe');
+          if (!ids.length) {
+            alert(`Khong lay duoc danh sach model tu endpoint ghi am: ${endpoint}`);
+            return;
+          }
+          const gemini = ids.find((id) => String(id).toLowerCase().includes('gemini-2.5-pro'));
+          if (gemini) {
+            alert(`Ket noi ghi am OK. Tim thay model: ${gemini}`);
+          } else {
+            alert(`Ket noi duoc nhung khong co gemini-2.5-pro. Model hien co: ${ids.slice(0, 12).join(', ')}`);
+          }
         }
       } catch (e) {
         alert('Loi kiem tra key ghi am: ' + (e?.message || e));
