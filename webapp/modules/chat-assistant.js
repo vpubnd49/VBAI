@@ -669,6 +669,25 @@ function buildSkillReferenceContext(skill) {
 }
 
 async function fetchWebSearchResults(query) {
+  const googleKey = localStorage.getItem('vbai_google_search_key');
+  const googleCx = localStorage.getItem('vbai_google_search_cx');
+
+  if (googleKey && googleCx) {
+    try {
+      const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(query)}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        const items = data.items || [];
+        if (items.length > 0) {
+          return items.slice(0, 5).map(item => `- [${item.title}](${item.link}): ${item.snippet}`).join("\n\n");
+        }
+      }
+    } catch (e) {
+      console.warn("Google API failed, falling back to proxy:", e);
+    }
+  }
+
   const proxies = [
     (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
     (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
@@ -948,13 +967,23 @@ export async function renderChatUI(container) {
 
           <div style="padding:12px; background:rgba(230,162,0,0.1); border-radius:10px; margin-bottom:16px; border: 1px solid rgba(230,162,0,0.2); display:flex; align-items:center; justify-content:space-between; gap:12px;">
             <div>
-              <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">🔍 Web Search qua 9router</p>
-              <p style="font-size:0.7rem; color:var(--text-secondary); margin:4px 0 0">Bat de model OpenAI co the tra cuu du lieu moi qua tool web search (neu 9router ho tro).</p>
+              <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">🔍 Web Search (Google/DuckDuckGo)</p>
+              <p style="font-size:0.7rem; color:var(--text-secondary); margin:4px 0 0">Tự động tra cứu thông tin mới từ Internet khi cần thiết.</p>
             </div>
             <label class="switch-toggle">
               <input type="checkbox" id="use-web-search-chk" ${(localStorage.getItem('vbai_proxy_web_search') ?? 'true') !== 'false' ? 'checked' : ''}>
               <span class="slider-round"></span>
             </label>
+          </div>
+
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">Google Search API Key (Ưu tiên)</label>
+            <input type="password" id="google-search-key-input" class="form-input" value="${localStorage.getItem('vbai_google_search_key') || ''}" placeholder="AIza...">
+            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Dùng Google API chính thống. Để trống để dùng DuckDuckGo miễn phí thông qua proxy.</p>
+          </div>
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label">Google Search Engine ID (CX)</label>
+            <input type="text" id="google-search-cx-input" class="form-input" value="${localStorage.getItem('vbai_google_search_cx') || ''}" placeholder="Ví dụ: 789...:abc...">
           </div>
 
           <div class="btn-row" style="margin-bottom:12px">
@@ -979,9 +1008,8 @@ export async function renderChatUI(container) {
   const routerEndpointInput = container.querySelector('#router-endpoint-input');
   const transcribeEndpointInput = container.querySelector('#transcribe-endpoint-input');
   const transcribeApiKeyInput = container.querySelector('#transcribe-api-key-input');
-  const useWebSearchChk = container.querySelector('#use-web-search-chk');
-  const testProxyBtn = container.querySelector('#test-proxy-btn');
-  const testTranscribeBtn = container.querySelector('#test-transcribe-btn');
+  const googleKeyInput = container.querySelector('#google-search-key-input');
+  const googleCxInput = container.querySelector('#google-search-cx-input');
   const modelSelect = container.querySelector('#model-select');
 
   // Khởi tạo Firebase và tải API Key
@@ -1345,6 +1373,8 @@ export async function renderChatUI(container) {
       || '';
     const selectedProfile = 'proxy_custom';
     const useProxyWebSearch = useWebSearchChk?.checked !== false;
+    const googleSearchKey = googleKeyInput?.value.trim() || '';
+    const googleSearchCx = googleCxInput?.value.trim() || '';
     const model = normalizeModelName(modelSelect?.value || '') || DEFAULT_MODEL;
     const profileChat = 'proxy_custom';
     const profileSpell = 'proxy_custom';
@@ -1379,6 +1409,8 @@ export async function renderChatUI(container) {
     localStorage.setItem('vbai_transcribe_model_meeting', transcribeModel);
     localStorage.setItem('vbai_router_profile', selectedProfile);
     localStorage.setItem('vbai_proxy_web_search', useProxyWebSearch ? 'true' : 'false');
+    localStorage.setItem('vbai_google_search_key', googleSearchKey);
+    localStorage.setItem('vbai_google_search_cx', googleSearchCx);
     localStorage.setItem('vbai_proxy_profile_chat', profileChat);
     localStorage.setItem('vbai_proxy_profile_spellcheck', profileSpell);
     localStorage.setItem('vbai_proxy_profile_pdf', profilePdf);
@@ -1428,6 +1460,8 @@ export async function renderChatUI(container) {
       };
       if (routerEndpoint) payload.router_endpoint = routerEndpoint;
       if (routerKey) payload.router_api_key = routerKey;
+      if (googleSearchKey) payload.google_search_key = googleSearchKey;
+      if (googleSearchCx) payload.google_search_cx = googleSearchCx;
       
       try {
         await setDoc(doc(db, 'config', 'system'), payload, { merge: true });
