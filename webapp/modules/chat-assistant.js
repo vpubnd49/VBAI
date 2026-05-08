@@ -756,7 +756,7 @@ export async function sendMessage(text, onChunk) {
   try {
     let fullText = "";
     let routeLabel = "9router";
-    const useWebSearch = shouldUseProxyWebSearchTool();
+    let useWebSearch = shouldUseProxyWebSearchTool();
     const cached = getCachedChatAnswer(rawUserText, currentModelName, use9router, useWebSearch);
     if (cached) {
       pushTurn("user", rawUserText);
@@ -768,9 +768,9 @@ export async function sendMessage(text, onChunk) {
     }
 
     let finalUserText = contextualUserText;
-    let routeLabel = "9router";
+    routeLabel = "9router";
 
-    const useWebSearch = shouldUseProxyWebSearchTool();
+    useWebSearch = shouldUseProxyWebSearchTool();
     if (useWebSearch && shouldPreferWebSearch(rawUserText)) {
       if (onChunk) onChunk("Đang tra cứu dữ liệu mới nhất từ Internet...\n");
       const searchResults = await fetchWebSearchResults(rawUserText);
