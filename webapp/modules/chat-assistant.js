@@ -901,7 +901,7 @@ export async function renderChatUI(container) {
         <div class="panel-header-icon">⚖️</div>
         Trợ Lý Tra Cứu Pháp Luật & Quy Định Đảng AI
         <div style="flex:1"></div>
-        <button id="chat-settings-btn" class="btn-icon" title="Cấu hình" style="display: ${localStorage.getItem('vbai_admin') === 'true' ? 'block' : 'none'}; width:28px; height:28px; font-size:0.8rem">⚙️</button>
+        <button id="chat-settings-btn" class="btn-icon" title="Cấu hình" style="width:28px; height:28px; font-size:0.8rem">⚙️</button>
       </div>
       <div class="panel-body">
         <div id="chat-messages" class="chat-messages-area">
@@ -1008,8 +1008,11 @@ export async function renderChatUI(container) {
   const routerEndpointInput = container.querySelector('#router-endpoint-input');
   const transcribeEndpointInput = container.querySelector('#transcribe-endpoint-input');
   const transcribeApiKeyInput = container.querySelector('#transcribe-api-key-input');
+  const useWebSearchChk = container.querySelector('#use-web-search-chk');
   const googleKeyInput = container.querySelector('#google-search-key-input');
   const googleCxInput = container.querySelector('#google-search-cx-input');
+  const testProxyBtn = container.querySelector('#test-proxy-btn');
+  const testTranscribeBtn = container.querySelector('#test-transcribe-btn');
   const modelSelect = container.querySelector('#model-select');
 
   // Khởi tạo Firebase và tải API Key
