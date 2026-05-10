@@ -1167,9 +1167,15 @@ export async function renderChatUI(container) {
   const handleSend = async () => {
     const text = input.value.trim();
     if (!text) return;
-    const currentKey = (localStorage.getItem('vbai_openai_api_key') || '').trim();
-    if (!currentKey) {
-      alert("Vui lòng cấu hình API Key trước (bấm vào icon ⚙️)");
+    const provider = localStorage.getItem('vbai_active_provider') || 'openai';
+    const currentKey = (
+      provider === 'gemini' 
+      ? localStorage.getItem('vbai_gemini_api_key') 
+      : localStorage.getItem('vbai_openai_api_key')
+    ) || '';
+
+    if (!currentKey.trim()) {
+      alert("Vui lòng cấu hình API Key trước (bấm vào icon 🧩)");
       return;
     }
 
