@@ -337,11 +337,11 @@ function pickRandomModel(raw, fallbackModel) {
 }
 
 function resolveMeetingChatModel() {
-  return STRICT_MEETING_AUDIO_MODEL;
+  return getMeetingModelFallbackOrder()[0];
 }
 
 function resolveMeetingTranscribeModel() {
-  return STRICT_MEETING_AUDIO_MODEL;
+  return getMeetingModelFallbackOrder()[0];
 }
 
 function getTranscribeModelPoolRaw() {
@@ -414,11 +414,11 @@ function isAudioCapableModelName(model = "") {
 }
 
 function buildTranscribeModelCandidates() {
-  return [STRICT_MEETING_AUDIO_MODEL];
+  return [getMeetingModelFallbackOrder()[0]];
 }
 
 function buildAudioChatFallbackCandidates() {
-  return [STRICT_MEETING_AUDIO_MODEL];
+  return [getMeetingModelFallbackOrder()[0]];
 }
 
 function dedupeModelIds(ids = []) {
@@ -628,7 +628,8 @@ async function processAudioWithProxy(file, progressEl) {
       const endpoint = getTranscribeEndpointForError(transcribeContext);
       const msg = String(fallbackErr?.message || fallbackErr || "");
       if (/khong the dung model/i.test(msg)) {
-        throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): Model bat buoc gemini-2.5-pro chua duoc cap quyen tren proxy/API hien tai.`);
+        const fallbackModel = getMeetingModelFallbackOrder()[0];
+        throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): Model bat buoc ${fallbackModel} chua duoc cap quyen tren proxy/API hien tai.`);
       }
       throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): ${fallbackErr.message}`);
     }
