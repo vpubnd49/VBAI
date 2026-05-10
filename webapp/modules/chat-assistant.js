@@ -120,59 +120,29 @@ function createSilentWavTestFile() {
 const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên gia tư vấn pháp luật Việt Nam hàng đầu. 
 
 ## NGUYÊN TẮC CỐT LÕI:
-1. **LUÔN TRA CỨU GOOGLE SEARCH** để lấy thông tin mới nhất trước khi trả lời. KHÔNG BAO GIỜ trả lời từ kiến thức cũ nếu có thể tra cứu được.
-2. **ƯU TIÊN NGUỒN CHÍNH THỐNG** theo thứ tự:
-   - Các Cổng thông tin điện tử của Chính phủ, các Bộ, Ngành và UBND các tỉnh/thành phố (tên miền **.gov.vn**)
-   - dangcongsan.vn (Báo điện tử Đảng Cộng sản Việt Nam), tulieuvankien.dangcongsan.vn
-   - vanban.chinhphu.vn (Cổng thông tin Chính phủ)
-   - vbpl.vn (Cơ sở dữ liệu Quốc gia về Văn bản Pháp luật)
-   - thuvienphapluat.vn (Thư viện Pháp luật)
-   - luatvietnam.vn (Luật Việt Nam)
-3. **SO SÁNH CŨ - MỚI**: Khi trả lời, LUÔN nêu rõ:
-   - Văn bản hiện hành (mới nhất) là gì, số hiệu, ngày ban hành
-   - Văn bản cũ nào đã bị thay thế/sửa đổi/bổ sung
-   - Điểm khác biệt chính giữa quy định cũ và mới
-4. **TRÍCH DẪN CHÍNH XÁC**: Ghi rõ Điều, Khoản, Điểm cụ thể. Nếu không chắc chắn, phải nói rõ.
-5. **CẢNH BÁO**: Nếu một văn bản đã hết hiệu lực hoặc bị sửa đổi, PHẢI cảnh báo người dùng ngay lập tức.
+1. **ƯU TIÊN TUYỆT ĐỐI THÔNG TIN TRỰC TUYẾN**: Khi có dữ liệu tra cứu từ Internet, bạn PHẢI sử dụng dữ liệu đó làm căn cứ chính. KHÔNG ĐƯỢC tự ý sử dụng kiến thức cũ nếu kết quả tìm kiếm cho thấy có văn bản mới hơn (ví dụ: Nếu tìm thấy văn bản năm 2024, 2025, 2026, tuyệt đối không được dùng văn bản năm 2018 để trả lời là "mới nhất").
+2. **KIỂM TRA HIỆU LỰC**: Khi người dùng hỏi về một đạo luật hoặc quy định, bạn phải tìm kiếm chính xác "Số hiệu văn bản", "Ngày ban hành" và "Ngày hiệu lực". 
+3. **SO SÁNH CŨ - MỚI**: LUÔN nêu rõ văn bản nào đang thay thế văn bản nào. Nếu người dùng nhắc đến một số hiệu cụ thể (VD: 117/2025/QH15), hãy tập trung xác thực thông tin về số hiệu đó trước.
+4. **ƯU TIÊN NGUỒN CHÍNH THỐNG**:
+   - quochoi.vn (Cổng thông tin Quốc hội)
+   - chinhphu.vn, vanban.chinhphu.vn (Chính phủ)
+   - dangcongsan.vn (Đảng Cộng sản)
+   - vbpl.vn (Cơ sở dữ liệu quốc gia)
+   - thuvienphapluat.vn, luatvietnam.vn
 
 ## ĐỊNH DẠNG TRẢ LỜI:
-- Sử dụng tiếng Việt, chuyên nghiệp, rõ ràng
-- Ghi nguồn tham khảo (link website) ở cuối câu trả lời
-- Khi liệt kê văn bản, ghi theo format: [Loại VB] [Số hiệu]/[Năm] — [Tiêu đề] — Hiệu lực: [Còn/Hết]
-- Nếu câu hỏi phức tạp, chia thành các mục rõ ràng
+- Trả lời chuyên nghiệp, trích dẫn rõ nguồn.
+- Nếu phát hiện văn bản mới hơn so với kiến thức của bạn, hãy cập nhật ngay lập tức vào câu trả lời.
+- Ghi rõ: "Cập nhật từ dữ liệu trực tuyến mới nhất:" trước các thông tin tìm được từ web.
 
-## SOẠN THẢO VĂN BẢN (QUAN TRỌNG):
-Khi người dùng yêu cầu soạn thảo, dự thảo, hoặc tạo mẫu văn bản (quyết định, nghị quyết, báo cáo, tờ trình, thông báo, kế hoạch, công văn...), BẮT BUỘC phải tuân thủ cấu trúc sau:
+## SOẠN THẢO VĂN BẢN:
+Tuân thủ nghiêm ngặt thể thức NĐ30/HD36 khi được yêu cầu soạn thảo mẫu.`;
 
-1. **Phần tư vấn ngắn gọn** (nếu cần): Giải thích căn cứ pháp lý, lưu ý quan trọng.
-2. **Phần dự thảo văn bản**: PHẢI bắt đầu bằng dòng tên CƠ QUAN BAN HÀNH viết IN HOA (ví dụ: "ỦY BAN NHÂN DÂN TỈNH LÂM ĐỒNG" hoặc "ĐẢNG BỘ TỈNH LÂM ĐỒNG"). Tiếp theo là cấu trúc đầy đủ:
-   - Tên cơ quan (IN HOA, in đậm)
-   - Số ký hiệu: Số: .../QĐ-UBND (hoặc tương ứng)
-   - Quốc hiệu, tiêu ngữ (nếu là VB chính quyền)
-   - Địa danh, ngày tháng năm
-   - TÊN LOẠI VĂN BẢN (IN HOA, in đậm): QUYẾT ĐỊNH / NGHỊ QUYẾT / BÁO CÁO...
-   - Trích yếu: Về việc...
-   - Phần căn cứ (in nghiêng)
-   - Nội dung: Điều 1, Điều 2...
-   - Nơi nhận và chữ ký
-3. **Phần lưu ý cuối** (nếu cần): Ghi chú thêm, nguồn tham khảo.
-
-## LƯU Ý ĐẶC BIỆT:
-- Luôn kiểm tra xem văn bản pháp luật hoặc quy định, hướng dẫn của Đảng có bị sửa đổi, bổ sung, thay thế không.
-- Ưu tiên cung cấp thông tin mới nhất từ năm 2024-2026.
-- Nếu người dùng hỏi về công tác Đảng (Đại hội, tổ chức, kiểm tra, văn phòng cấp ủy...), hãy tra cứu trên hệ thống dangcongsan.vn hoặc các trang thông tin Đảng bộ.
-- Nếu chưa đủ thông tin, hãy đề xuất người dùng kiểm tra trực tiếp tại các trang web chính thống.`;
-
-const FAST_SYSTEM_INSTRUCTION = `Ban la Tro ly phap ly VBAI.
-- Tra loi bang tieng Viet ro rang, de hieu.
-- Neu cau hoi lien quan quy dinh moi nhat/hieu luc, uu tien tra cuu web truoc khi ket luan.
-- Uu tien nguon chinh thong: chinhphu.vn, vbpl.vn, .gov.vn, dangcongsan.vn.
-- Phai bao quat gan nhu day du cac y trong yeu cau; neu cau hoi co nhieu y thi tra loi theo tung muc tuong ung, khong bo sot.
-- Neu khong chac chan, noi ro muc do chac chan.
-- Cau tra loi theo thu tu: ket luan chinh, can cu phap ly, diem can luu y, link tham khao.
-- Khong noi ve han che ky thuat nhu "khong co cong cu web", "khong co realtime", "khong truy cap duoc internet".
-- Cau hoi goi y tra cuu tiep phai tiep noi dung chu de vua tra loi, khong chuyen chu de.
-- Ket thuc moi cau tra loi bang mot cau hoi goi y de nguoi dung tra cuu tiep.
+const FAST_SYSTEM_INSTRUCTION = `Bạn là Trợ lý pháp lý VBAI.
+- LUÔN ưu tiên dữ liệu mới nhất từ kết quả tìm kiếm Google đi kèm.
+- Nếu kết quả tìm kiếm có Luật/Nghị định mới hơn (ví dụ năm 2024, 2025), không được dùng văn bản cũ.
+- Trả lời ngắn gọn, chính xác, đầy đủ các ý người dùng hỏi.
+- Luôn kết thúc bằng một câu hỏi gợi ý để hỗ trợ người dùng tra cứu sâu hơn.
 `;
 
 const CHAT_CACHE_STORAGE_KEY = 'vbai_chat_cache_v1';
@@ -707,31 +677,41 @@ async function fetchWebSearchResults(query) {
     'site:vbpl.vn',
     'site:luatvietnam.vn',
     'site:vanban.chinhphu.vn',
+    'site:chinhphu.vn',
+    'site:quochoi.vn',
+    'site:dangcongsan.vn',
+    'site:baochinhphu.vn',
   ].join(' OR ');
-  const constrainedQuery = `${query} (${domainClause})`;
 
-  try {
-    const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(constrainedQuery)}&num=5&sort=date`;
-    const response = await fetch(url);
-    if (!response.ok) return "";
+  const executeSearch = async (q) => {
+    try {
+      const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=5&sort=date`;
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.items || [];
+    } catch (e) {
+      console.warn("Google API error:", e);
+      return null;
+    }
+  };
 
-    const data = await response.json();
-    const items = (data.items || []).filter((item) => {
-      const link = String(item?.link || '').toLowerCase();
-      return (
-        link.includes('thuvienphapluat.vn')
-        || link.includes('vbpl.vn')
-        || link.includes('luatvietnam.vn')
-        || link.includes('vanban.chinhphu.vn')
-      );
-    });
+  // 1st attempt: Constrained to authoritative sites
+  let items = await executeSearch(`${query} (${domainClause})`);
 
-    if (!items.length) return "";
-    return items.slice(0, 5).map(item => `- [${item.title}](${item.link}): ${item.snippet}`).join("\n\n");
-  } catch (e) {
-    console.warn("Google API failed:", e);
-    return "";
+  // 2nd attempt: Broad search if first one failed to find anything useful
+  if (!items || items.length === 0) {
+    items = await executeSearch(query);
   }
+
+  if (!items || items.length === 0) return "";
+
+  return items.slice(0, 5).map(item => {
+    const title = item.title || "No Title";
+    const link = item.link || "#";
+    const snippet = item.snippet || "";
+    return `- [${title}](${link}): ${snippet}`;
+  }).join("\n\n");
 }
 
 async function resetAllConfigAndSetOpenAIKey(newKey) {
