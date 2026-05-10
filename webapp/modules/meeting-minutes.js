@@ -80,15 +80,18 @@ function doRender(c) {
 }
 
 function renderStep1(sc, c) {
+  const provider = localStorage.getItem('vbai_active_provider') || 'openai';
+  const supportedFormats = provider === 'gemini' ? 'MP3, WAV' : 'MP3, WAV, M4A, OGG, AAC';
+
   sc.innerHTML = `
-    <div class="section-title">📌 Bước 1: Tải lên file ghi âm cuộc họp</div>
+    <div class="section-title">📌 Bước 1: Tải lên file ghi âm cuộc họp (${provider === 'gemini' ? 'Gemini' : 'OpenAI'})</div>
     <div class="panel-group">
       <div class="panel-body" style="text-align: center;">
         <input type="file" id="audio-upload" accept="audio/*" style="display: none;" />
         <div class="upload-zone" id="drop-zone" onclick="document.getElementById('audio-upload').click()">
           <div class="upload-icon">🎤</div>
           <div class="upload-text">Nhấp hoặc kéo thả file ghi âm vào đây</div>
-          <div class="upload-hint">Hỗ trợ: MP3, WAV, M4A, OGG, AAC — <strong>Tối đa 200MB</strong></div>
+          <div class="upload-hint">Hỗ trợ: <strong>${supportedFormats}</strong> — <strong>Tối đa 200MB</strong> ${provider === 'gemini' ? '(Gemini chỉ nhận MP3/WAV)' : ''}</div>
           ${formState.audioFile ? `<div style="margin-top: 15px; color: var(--success); font-weight: bold;">Đã chọn: ${formState.audioFile.name} (${(formState.audioFile.size / 1024 / 1024).toFixed(1)}MB)</div>` : ''}
         </div>
       </div>
@@ -107,13 +110,34 @@ function renderStep1(sc, c) {
   const indicator = sc.querySelector('#processing-indicator');
 
   fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) { formState.audioFile = e.target.files[0]; doRender(c); }
+    if (e.target.files.length > 0) {
+      const file = e.target.files[0];
+      if (provider === 'gemini') {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['mp3', 'wav'].includes(ext)) {
+          alert('Google Gemini hiện chỉ hỗ trợ định dạng MP3 và WAV. Vui lòng chuyển đổi file của bạn hoặc sử dụng OpenAI.');
+          fileInput.value = '';
+          return;
+        }
+      }
+      formState.audioFile = file; doRender(c);
+    }
   });
   dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--pine-500)'; });
   dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = 'var(--border-default)'; });
   dropZone.addEventListener('drop', (e) => {
     e.preventDefault(); dropZone.style.borderColor = 'var(--border-default)';
-    if (e.dataTransfer.files.length > 0) { formState.audioFile = e.dataTransfer.files[0]; doRender(c); }
+    if (e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (provider === 'gemini') {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['mp3', 'wav'].includes(ext)) {
+          alert('Google Gemini hiện chỉ hỗ trợ định dạng MP3 và WAV.');
+          return;
+        }
+      }
+      formState.audioFile = file; doRender(c);
+    }
   });
   btnProcess.addEventListener('click', async () => {
     if (!formState.audioFile) return;
