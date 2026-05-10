@@ -18,15 +18,23 @@ import {
   isGeminiOpenAIEndpoint,
 } from './ai-proxy.js';
 
-const DEFAULT_MODEL = "cx/gpt-5.5";
-const DEFAULT_MEETING_MODEL = "gemini-2.5-pro";
-const DEFAULT_TRANSCRIBE_MODEL = "";
-const STRICT_MEETING_AUDIO_MODEL = "gemini-2.5-pro";
-const MEETING_AUDIO_MODEL_FALLBACK_ORDER = [
+const OPENAI_MEETING_MODEL_FALLBACK_ORDER = [
+  "gpt-4o",
+  "gpt-4o-mini",
+];
+
+const GEMINI_MEETING_MODEL_FALLBACK_ORDER = [
   "gemini-2.5-pro",
-  "gemini-2.5-flash",
+  "gemini-2.0-flash-exp",
+  "gemini-2.0-flash-lite-preview",
   "gemini-3-flash-preview",
 ];
+
+function getMeetingModelFallbackOrder() {
+  const provider = localStorage.getItem('vbai_active_provider') || 'openai';
+  return provider === 'gemini' ? GEMINI_MEETING_MODEL_FALLBACK_ORDER : OPENAI_MEETING_MODEL_FALLBACK_ORDER;
+}
+
 const PROCESSING_TEXT = "Đang xử lý......";
 
 let formState = {
@@ -448,9 +456,10 @@ function pickBestAvailableModel(modelIds = [], target = "") {
 async function resolveMeetingAudioModelCandidates(context = "meeting") {
   const ids = await getProxyModelIds(context).catch(() => []);
   const preferred = [];
+  const fallbackOrder = getMeetingModelFallbackOrder();
 
   if (ids.length) {
-    for (const target of MEETING_AUDIO_MODEL_FALLBACK_ORDER) {
+    for (const target of fallbackOrder) {
       const hit = pickBestAvailableModel(ids, target);
       if (hit) preferred.push(hit);
     }
@@ -672,7 +681,9 @@ async function reanalyzeTranscript() {
   localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
   const transcribeContext = resolveMeetingTranscribeContext();
   const modelCandidates = await resolveMeetingAudioModelCandidates(transcribeContext);
-  const strictModel = modelCandidates[0] || STRICT_MEETING_AUDIO_MODEL;
+  const activeProvider = localStorage.getItem('vbai_active_provider') || 'openai';
+  const defaultModel = activeProvider === 'gemini' ? 'gemini-2.5-pro' : 'gpt-4o';
+  const strictModel = modelCandidates[0] || defaultModel;
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {
   "chu_tri": "...",
