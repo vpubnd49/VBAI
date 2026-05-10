@@ -468,7 +468,7 @@ async function resolveMeetingAudioModelCandidates(context = "meeting") {
   // Always append canonical fallback order so we still try when /models is incomplete.
   return dedupeModelIds([
     ...preferred,
-    ...MEETING_AUDIO_MODEL_FALLBACK_ORDER,
+    ...fallbackOrder,
   ]);
 }
 
