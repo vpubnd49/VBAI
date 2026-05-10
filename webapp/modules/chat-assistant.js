@@ -785,6 +785,71 @@ async function fetchWebSearchResults(query) {
   return "";
 }
 
+  async function resetAllConfigAndSetOpenAIKey(newKey) {
+    // 1. Clear all vbai_* keys
+    Object.keys(localStorage).filter(k => k.startsWith('vbai_')).forEach(k => localStorage.removeItem(k));
+    sessionStorage.removeItem('vbai_chat_cache_v1');
+
+    // 2. Set OpenAI key for all contexts (DIRECT OpenAI, no proxy)
+    const contexts = ['chat', 'spellcheck', 'pdf', 'meeting', 'meeting_transcribe'];
+    contexts.forEach(ctx => {
+      localStorage.setItem(`vbai_proxy_api_key_${ctx}`, newKey);
+      localStorage.setItem(`vbai_proxy_enabled_${ctx}`, 'true');
+      localStorage.setItem(`vbai_proxy_profile_${ctx}`, 'direct_openai');
+    });
+    localStorage.setItem('vbai_9router_api_key', newKey);
+    localStorage.setItem('vbai_use_9router', 'false'); // DIRECT mode
+
+    // 3. Set default models
+    localStorage.setItem('vbai_router_model', 'gpt-5.5');
+    localStorage.setItem('vbai_transcribe_model', 'gpt-4o-mini-transcribe');
+    localStorage.setItem('vbai_router_model_meeting', 'gpt-5.5');
+
+    // 4. Clear any old 9router endpoint configs
+    localStorage.removeItem('vbai_9router_endpoint');
+    localStorage.removeItem('vbai_router_profile');
+    contexts.forEach(ctx => {
+      localStorage.removeItem(`vbai_proxy_endpoint_${ctx}`);
+    });
+    localStorage.removeItem('vbai_transcribe_endpoint');
+
+    // 5. Save to Firestore (system-wide config)
+    try {
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      await setDoc(doc(db, 'config', 'system'), {
+        router_api_key: newKey,
+        router_endpoint: '',
+        router_model: 'gpt-5.5',
+        router_transcribe_model: 'gpt-4o-mini-transcribe',
+        router_web_search_enabled: false,
+        router_profile: 'direct_openai',
+        router_profile_chat: 'direct_openai',
+        router_profile_spellcheck: 'direct_openai',
+        router_profile_pdf: 'direct_openai',
+        router_profile_meeting: 'direct_openai',
+        router_proxy_enabled_chat: true,
+        router_proxy_enabled_spellcheck: true,
+        router_proxy_enabled_pdf: true,
+        router_proxy_enabled_meeting: true,
+        router_proxy_enabled_meeting_transcribe: true,
+        router_transcribe_endpoint: '',
+        router_transcribe_api_key: newKey,
+        google_search_key: '',
+        google_search_cx: '',
+      }, { merge: true });
+    } catch (e) {
+      console.warn('Firestore save failed:', e);
+    }
+
+    // 6. Re-init chat
+    if (window.initChat) {
+      initChat(newKey, 'gpt-5.5');
+    }
+
+    alert('✅ Đã reset cấu hình và lưu OpenAI key thành công!\n\nSử dụng direct OpenAI mode.\nHãy reload trang để áp dụng.');
+  }
+
 export function initChat(apiKey, modelName = DEFAULT_MODEL) {
   keepChatProxyEnabledWhenUsing9router();
   localStorage.setItem('vbai_use_9router', 'true');
@@ -1034,6 +1099,9 @@ export async function renderChatUI(container) {
             <button id="save-key-btn" class="btn btn-primary">Lưu cấu hình</button>
             <button id="close-modal-btn" class="btn btn-secondary">Đóng</button>
           </div>
+          <div class="btn-row" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border-default)">
+            <button id="reset-config-btn" class="btn" style="background:#dc2626; color:#fff; border:none; width:100%;">🗑️ Reset & Set OpenAI Key</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1054,6 +1122,7 @@ export async function renderChatUI(container) {
   const testProxyBtn = container.querySelector('#test-proxy-btn');
   const testTranscribeBtn = container.querySelector('#test-transcribe-btn');
   const modelSelect = container.querySelector('#model-select');
+  const resetConfigBtn = container.querySelector('#reset-config-btn');
 
   // Khởi tạo Firebase và tải API Key
   let apiKey = '';
@@ -1416,6 +1485,33 @@ export async function renderChatUI(container) {
       }
     };
   }
+  if (resetConfigBtn) {
+    resetConfigBtn.onclick = async () => {
+      const raw = prompt('Nhập OpenAI API key (sk-...):', '');
+      const key = String(raw || '').trim();
+      if (!key) return;
+      if (!/^sk-[a-zA-Z0-9_-]{20,}$/.test(key)) {
+        alert('API key không hợp lệ. Format: sk-...');
+        return;
+      }
+      const ok = confirm('CẢNH BÁO: Sẽ xóa TẤT CẢ cấu hình cũ và đặt OpenAI key mới. Tiếp tục?');
+      if (!ok) return;
+      try {
+        resetConfigBtn.disabled = true;
+        const prev = resetConfigBtn.textContent;
+        resetConfigBtn.textContent = 'Đang reset...';
+        await resetAllConfigAndSetOpenAIKey(key);
+        keyModal.style.display = 'none';
+        window.location.reload();
+        resetConfigBtn.textContent = prev;
+      } catch (e) {
+        alert('Lỗi reset cấu hình: ' + (e?.message || e));
+      } finally {
+        resetConfigBtn.disabled = false;
+      }
+    };
+  }
+
   container.querySelector('#save-key-btn').onclick = async () => {
     const routerKey = apiKeyInput.value.trim();
     const routerEndpoint = (routerEndpointInput?.value || '').trim();

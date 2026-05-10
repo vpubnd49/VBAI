@@ -7,8 +7,10 @@ const FALLBACK_9ROUTER_ENDPOINT =
     ? "http://localhost:20128/v1"
     : "https://your-9router-public-url.com/v1";
 const DEFAULT_PROXY_MODEL = "cx/gpt-5.5";
+const DEFAULT_OPENAI_ENDPOINT = "https://api.openai.com/v1";
 const PROXY_PRESETS = {
   proxy_9router_local: "http://localhost:20128/v1",
+  direct_openai: DEFAULT_OPENAI_ENDPOINT,
 };
 
 function trimTrailingSlash(url = "") {
@@ -68,7 +70,7 @@ function getProxyConfig(context = "default") {
       || localStorage.getItem(`vbai_proxy_endpoint_${parentCtx}`)
       || (profile === "proxy_custom" ? localStorage.getItem("vbai_9router_endpoint") : endpointFromProfile)
       || localStorage.getItem("vbai_9router_endpoint")
-      || FALLBACK_9ROUTER_ENDPOINT
+      || (profile === "direct_openai" ? DEFAULT_OPENAI_ENDPOINT : FALLBACK_9ROUTER_ENDPOINT)
   );
 
   const apiKey = (
