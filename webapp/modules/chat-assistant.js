@@ -690,7 +690,13 @@ function buildSkillReferenceContext(skill) {
   return `\n### Tài liệu tham chiếu\n${renderedReferences}\n`;
 }
 
-async function fetchWebSearchResults(query) {
+function extractPotentialDocNumber(text = '') {
+  // Match patterns like: 117/2025/QH15, 30/2024/ND-CP, 15/2024/QĐ-BTC
+  const match = String(text || '').match(/\b\d+\/\d{4}\/[A-Z0-9-]+\b/i);
+  return match ? match[0].toUpperCase() : null;
+}
+
+async function fetchWebSearchResults(query, expectedDocNumber = null) {
   const googleKey = localStorage.getItem('vbai_google_search_key');
   const googleCx = localStorage.getItem('vbai_google_search_cx');
 
@@ -715,7 +721,7 @@ async function fetchWebSearchResults(query) {
   let refinedQuery = query;
   const t = normalizeVietnamese(query);
   const isLegal = /(luat|nghi dinh|thong tu|quyet dinh|quy dinh|van ban|chinh sach|huong dan|tien luong|huu tri|bao hiem|thue|dat dai|xay dung|dau thau|doanh nghiep|can bo|cong chuc)/.test(t);
-  
+
   const { current, next } = getCurrentYearContext();
   const hasSpecificYear = new RegExp(`(202\\d|203\\d)`).test(t);
 
@@ -725,7 +731,6 @@ async function fetchWebSearchResults(query) {
 
   const executeSearch = async (q) => {
     try {
-      // Increased num to 10 for broad coverage and sorted by date
       const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=10&sort=date`;
       const response = await fetch(url);
       if (!response.ok) return null;
@@ -740,14 +745,28 @@ async function fetchWebSearchResults(query) {
   // 1st attempt: Constrained to authoritative sites
   let items = await executeSearch(`${refinedQuery} (${domainClause})`);
 
-  // 2nd attempt: Broad search if first one failed to find anything useful
+  // 2nd attempt: Broad search if first one failed
   if (!items || items.length === 0) {
     items = await executeSearch(refinedQuery);
   }
 
   if (!items || items.length === 0) return "";
 
-  // Return up to 8 results for comprehensive context
+  // If an exact document number is expected, filter results to only those containing it
+  if (expectedDocNumber) {
+    const expectedUpper = expectedDocNumber.toUpperCase();
+    items = items.filter(item => {
+      const title = (item.title || '').toUpperCase();
+      const snippet = (item.snippet || '').toUpperCase();
+      return title.includes(expectedUpper) || snippet.includes(expectedUpper);
+    });
+    if (items.length === 0) {
+      // No exact match found — signal caller to not use web data
+      return "__NO_EXACT_MATCH__";
+    }
+  }
+
+  // Return up to 8 results
   return items.slice(0, 8).map(item => {
     const title = item.title || "No Title";
     const link = item.link || "#";
@@ -877,6 +896,7 @@ export async function sendMessage(text, onChunk) {
     let fullText = "";
     let useWebSearch = shouldUseProxyWebSearchTool();
     const isTimeSensitive = isTimeSensitiveQuery(rawUserText);
+    const expectedDocNumber = extractPotentialDocNumber(rawUserText);
     // Bypass cache for time-sensitive queries to ensure latest data
     const cached = (!isTimeSensitive) ? getCachedChatAnswer(rawUserText, currentModelName, true, useWebSearch) : '';
     if (cached) {
@@ -891,8 +911,10 @@ export async function sendMessage(text, onChunk) {
     let finalUserText = contextualUserText;
     if (useWebSearch && shouldPreferWebSearch(rawUserText)) {
       if (onChunk) onChunk("Đang tra cứu dữ liệu mới nhất từ Internet...\n");
-      const searchResults = await fetchWebSearchResults(rawUserText);
-      if (searchResults) {
+      const searchResults = await fetchWebSearchResults(rawUserText, expectedDocNumber);
+      if (searchResults === "__NO_EXACT_MATCH__" && expectedDocNumber) {
+        finalUserText = `${contextualUserText}\n\n[KHÔNG TÌM THẤY KẾT QUẢ KHỚP CHÍNH XÁC SỐ HIỆU ${expectedDocNumber} TRONG DỮ LIỆU TRA CỨU MỚI NHẤT TỪ INTERNET. BẠN CHỈ ĐƯỢC PHÉP TRẢ LỜI KHÔNG TÌM THẤY, KHÔNG ĐƯỢC SUY ĐOÁN SANG SỐ HIỆU GẦN GIỐNG.]`;
+      } else if (searchResults) {
         finalUserText = `${contextualUserText}\n\n[Dữ liệu trực tuyến cập nhật, tra cứu lúc ${new Date().toLocaleTimeString('vi-VN')}]:\n${searchResults}`;
       }
     }
