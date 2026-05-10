@@ -12,7 +12,7 @@ import { renderDocxTool } from './modules/docx-tool.js';
 import { renderSpellCheck } from './modules/spell-check.js';
 import { renderAdminPanel } from './modules/admin-panel.js';
 import { renderLogin } from './modules/login.js';
-import { renderChatUI } from './modules/chat-assistant.js';
+import { renderChatUI, runDailyLegalSync } from './modules/chat-assistant.js';
 import { renderMeetingMinutes } from './modules/meeting-minutes.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -147,6 +147,7 @@ function renderPage(page) {
 // ============ INIT ============
 function init() {
   applyGlobalModelDefaults();
+  runDailyLegalSync();
 
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   const auth = getAuth(app);

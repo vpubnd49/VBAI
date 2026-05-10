@@ -120,35 +120,38 @@ function createSilentWavTestFile() {
 const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên gia tư vấn pháp luật Việt Nam hàng đầu. 
 
 ## NGUYÊN TẮC CỐT LÕI:
-1. **ƯU TIÊN TUYỆT ĐỐI THÔNG TIN TRỰC TUYẾN**: Khi có dữ liệu tra cứu từ Internet, bạn PHẢI sử dụng dữ liệu đó làm căn cứ chính. KHÔNG ĐƯỢC tự ý sử dụng kiến thức cũ nếu kết quả tìm kiếm cho thấy có văn bản mới hơn (ví dụ: Nếu tìm thấy văn bản năm 2024, 2025, 2026, tuyệt đối không được dùng văn bản năm 2018 để trả lời là "mới nhất").
-2. **KIỂM TRA HIỆU LỰC**: Khi người dùng hỏi về một đạo luật hoặc quy định, bạn phải tìm kiếm chính xác "Số hiệu văn bản", "Ngày ban hành" và "Ngày hiệu lực". 
-3. **SO SÁNH CŨ - MỚI**: LUÔN nêu rõ văn bản nào đang thay thế văn bản nào. Nếu người dùng nhắc đến một số hiệu cụ thể (VD: 117/2025/QH15), hãy tập trung xác thực thông tin về số hiệu đó trước.
-4. **ƯU TIÊN NGUỒN CHÍNH THỐNG**:
-   - quochoi.vn (Cổng thông tin Quốc hội)
+1. **ƯU TIÊN TUYỆT ĐỐI THÔNG TIN TRỰC TUYẾN**: Khi có dữ liệu tra cứu từ Internet, bạn PHẢI sử dụng dữ liệu đó làm căn cứ chính. KHÔNG ĐƯỢC tự ý sử dụng kiến thức cũ (knowledge cutoff) nếu kết quả tìm kiếm cho thấy có văn bản mới hơn. 
+2. **PARANOID VỀ TÍNH CẬP NHẬT**: Hệ thống luật pháp Việt Nam thay đổi rất nhanh (đặc biệt các năm 2024, 2025, 2026). Nếu kiến thức của bạn nói về một quy định năm 2023 trở về trước, hãy LUÔN đặt nghi vấn và ưu tiên các snippet tìm kiếm có năm 2024, 2025, 2026.
+3. **KIỂM TRA HIỆU LỰC**: Khi người dùng hỏi về một đạo luật hoặc quy định, bạn phải tìm kiếm chính xác "Số hiệu văn bản", "Ngày ban hành" và "Ngày hiệu lực". 
+4. **SO SÁNH CŨ - MỚI**: LUÔN nêu rõ văn bản nào đang thay thế văn bản nào. Ví dụ: "Luật Đất đai 2024 (số 31/2024/QH15) thay thế Luật Đất đai 2013".
+5. **ƯU TIÊN NGUỒN CHÍNH THỐNG**:
+   - quochoi.vn (Quốc hội)
    - chinhphu.vn, vanban.chinhphu.vn (Chính phủ)
    - dangcongsan.vn (Đảng Cộng sản)
    - vbpl.vn (Cơ sở dữ liệu quốc gia)
    - thuvienphapluat.vn, luatvietnam.vn
 
 ## ĐỊNH DẠNG TRẢ LỜI:
-- Trả lời chuyên nghiệp, trích dẫn rõ nguồn.
+- Trả lời chuyên nghiệp, trích dẫn rõ nguồn và số hiệu văn bản.
 - Nếu phát hiện văn bản mới hơn so với kiến thức của bạn, hãy cập nhật ngay lập tức vào câu trả lời.
 - Ghi rõ: "Cập nhật từ dữ liệu trực tuyến mới nhất:" trước các thông tin tìm được từ web.
+- Cuối câu trả lời, hãy hỏi: "Bạn có muốn tôi tra cứu chi tiết hơn về [nội dung vừa trả lời] không?"
 
 ## SOẠN THẢO VĂN BẢN:
-Tuân thủ nghiêm ngặt thể thức NĐ30/HD36 khi được yêu cầu soạn thảo mẫu.`;
+Tuân thủ nghiêm ngặt thể thức NĐ30/2020/NĐ-CP (Hành chính) hoặc 36-HD/VPTW (Đảng) khi được yêu cầu soạn thảo mẫu.`;
 
 const FAST_SYSTEM_INSTRUCTION = `Bạn là Trợ lý pháp lý VBAI.
-- LUÔN ưu tiên dữ liệu mới nhất từ kết quả tìm kiếm Google đi kèm.
-- Nếu kết quả tìm kiếm có Luật/Nghị định mới hơn (ví dụ năm 2024, 2025), không được dùng văn bản cũ.
-- Trả lời ngắn gọn, chính xác, đầy đủ các ý người dùng hỏi.
-- Luôn kết thúc bằng một câu hỏi gợi ý để hỗ trợ người dùng tra cứu sâu hơn.
-`;
+- LUÔN ưu tiên dữ liệu mới nhất (2024, 2025, 2026) từ kết quả tìm kiếm Google đi kèm.
+- TUYỆT ĐỐI không được phủ nhận thông tin từ web search chỉ vì nó khác với training data của bạn.
+- Trả lời ngắn gọn, tập trung vào số hiệu văn bản và ngày có hiệu lực.
+- Luôn kết thúc bằng một câu hỏi gợi ý để hỗ trợ người dùng tra cứu sâu hơn.`;
 
 const CHAT_CACHE_STORAGE_KEY = 'vbai_chat_cache_v1';
 const CHAT_CACHE_MAX_ITEMS = 40;
 const CHAT_CACHE_TTL_MS = 5 * 60 * 1000;
 const CHAT_CACHE_TTL_TIME_SENSITIVE_MS = 60 * 1000;
+const DAILY_HOT_KNOWLEDGE_KEY = 'vbai_daily_hot_knowledge';
+const DAILY_SYNC_DATE_KEY = 'vbai_daily_sync_date';
 const CHAT_CONTEXT_MAX_TURNS = 6;
 
 let allSkills = [];
@@ -189,15 +192,26 @@ function shouldAutoExportDocx(text = "") {
   return /(\\.docx|\\.dox|\\.fox|\\bdocx\\b|\\bdox\\b|\\bfox\\b|word)/.test(t);
 }
 
+function getCurrentYearContext() {
+  const now = new Date();
+  const current = now.getFullYear();
+  const next = current + 1;
+  const prev = current - 1;
+  return { current, next, prev };
+}
+
 function isTimeSensitiveQuery(text = '') {
   const t = normalizeVietnamese(text);
-  return /(moi nhat|cap nhat|hom nay|hieu luc|sua doi|bo sung|thay the|van ban moi|nam 2026)/.test(t);
+  const { current, next, prev } = getCurrentYearContext();
+  const yearPattern = new RegExp(`nam (${current}|${next}|${prev}|202\\d|203\\d)`);
+  const isLegal = /(luat|nghi dinh|thong tu|quyet dinh|quy dinh|van ban|chinh sach|huong dan|so hieu|ngay ban hanh|hieu luc)/.test(t);
+  return /(moi nhat|cap nhat|hom nay|hieu luc|sua doi|bo sung|thay the|van ban moi)/.test(t) || yearPattern.test(t) || isLegal;
 }
 
 function shouldPreferWebSearch(text = '') {
   const t = normalizeVietnamese(text);
   if (isTimeSensitiveQuery(t)) return true;
-  return /(luat|nghi dinh|thong tu|quyet dinh|quy dinh|van ban|chinh sach|huong dan)/.test(t);
+  return /(luat|nghi dinh|thong tu|quyet dinh|quy dinh|van ban|chinh sach|huong dan|tien luong|huu tri|bao hiem|thue|dat dai|xay dung|dau thau|doanh nghiep|can bo|cong chuc)/.test(t);
 }
 
 function getChatCacheStore() {
@@ -677,15 +691,32 @@ async function fetchWebSearchResults(query) {
     'site:vbpl.vn',
     'site:luatvietnam.vn',
     'site:vanban.chinhphu.vn',
+    'site:congbao.chinhphu.vn',
     'site:chinhphu.vn',
     'site:quochoi.vn',
     'site:dangcongsan.vn',
+    'site:moj.gov.vn',
     'site:baochinhphu.vn',
+    'site:thanhchuong.com.vn',
+    'site:vanbanphapluat.com',
   ].join(' OR ');
+
+  // Refine query for legal/policy documents to ensure latest data is fetched
+  let refinedQuery = query;
+  const t = normalizeVietnamese(query);
+  const isLegal = /(luat|nghi dinh|thong tu|quyet dinh|quy dinh|van ban|chinh sach|huong dan|tien luong|huu tri|bao hiem|thue|dat dai|xay dung|dau thau|doanh nghiep|can bo|cong chuc)/.test(t);
+  
+  const { current, next } = getCurrentYearContext();
+  const hasSpecificYear = new RegExp(`(202\\d|203\\d)`).test(t);
+
+  if (isLegal && !hasSpecificYear && !t.includes("moi nhat")) {
+    refinedQuery += ` mới nhất ${current} ${next}`;
+  }
 
   const executeSearch = async (q) => {
     try {
-      const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=5&sort=date`;
+      // Increased num to 10 for broad coverage and sorted by date
+      const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=10&sort=date`;
       const response = await fetch(url);
       if (!response.ok) return null;
       const data = await response.json();
@@ -697,21 +728,55 @@ async function fetchWebSearchResults(query) {
   };
 
   // 1st attempt: Constrained to authoritative sites
-  let items = await executeSearch(`${query} (${domainClause})`);
+  let items = await executeSearch(`${refinedQuery} (${domainClause})`);
 
   // 2nd attempt: Broad search if first one failed to find anything useful
   if (!items || items.length === 0) {
-    items = await executeSearch(query);
+    items = await executeSearch(refinedQuery);
   }
 
   if (!items || items.length === 0) return "";
 
-  return items.slice(0, 5).map(item => {
+  // Return up to 8 results for comprehensive context
+  return items.slice(0, 8).map(item => {
     const title = item.title || "No Title";
     const link = item.link || "#";
     const snippet = item.snippet || "";
     return `- [${title}](${link}): ${snippet}`;
   }).join("\n\n");
+}
+
+/**
+ * Automatically fetch the latest laws at the start of the day.
+ */
+export async function runDailyLegalSync() {
+  const today = new Date().toLocaleDateString('vi-VN');
+  const lastSync = localStorage.getItem(DAILY_SYNC_DATE_KEY);
+  
+  if (lastSync === today) {
+    console.log("[VBAI] Daily sync already completed for today.");
+    return;
+  }
+
+  const googleKey = localStorage.getItem('vbai_google_search_key');
+  const googleCx = localStorage.getItem('vbai_google_search_cx');
+  if (!googleKey || !googleCx) {
+    console.warn("[VBAI] Daily sync skipped: Google Search API not configured.");
+    return;
+  }
+
+  try {
+    const query = "văn bản pháp luật mới ban hành hôm nay";
+    const results = await fetchWebSearchResults(query);
+    
+    if (results) {
+      localStorage.setItem(DAILY_HOT_KNOWLEDGE_KEY, results);
+      localStorage.setItem(DAILY_SYNC_DATE_KEY, today);
+      console.log("[VBAI] Daily legal sync successful.");
+    }
+  } catch (err) {
+    console.error("[VBAI] Daily sync failed:", err);
+  }
 }
 
 async function resetAllConfigAndSetOpenAIKey(newKey) {
@@ -784,6 +849,11 @@ export async function sendMessage(text, onChunk) {
   const normalizedText = normalizeVietnamese(rawUserText);
   const matchedSkills = allSkills.filter((s) => detectSkillMatch(s, lowerText, normalizedText));
 
+  const dailyHotKnowledge = localStorage.getItem(DAILY_HOT_KNOWLEDGE_KEY);
+  if (dailyHotKnowledge) {
+    dynamicInstruction += "\n\n## KIEN THUC CAP NHAT TRONG NGAY (HOT KNOWLEDGE):\n" + dailyHotKnowledge;
+  }
+
   if (matchedSkills.length > 0) {
     dynamicInstruction += "\n\n## KIEN THUC BO SUNG (dua tren context nguoi dung):\n";
     matchedSkills.forEach(s => {
@@ -796,7 +866,9 @@ export async function sendMessage(text, onChunk) {
   try {
     let fullText = "";
     let useWebSearch = shouldUseProxyWebSearchTool();
-    const cached = getCachedChatAnswer(rawUserText, currentModelName, true, useWebSearch);
+    const isTimeSensitive = isTimeSensitiveQuery(rawUserText);
+    // Bypass cache for time-sensitive queries to ensure latest data
+    const cached = (!isTimeSensitive) ? getCachedChatAnswer(rawUserText, currentModelName, true, useWebSearch) : '';
     if (cached) {
       pushTurn("user", rawUserText);
       pushTurn("assistant", cached);
@@ -811,7 +883,7 @@ export async function sendMessage(text, onChunk) {
       if (onChunk) onChunk("Đang tra cứu dữ liệu mới nhất từ Internet...\n");
       const searchResults = await fetchWebSearchResults(rawUserText);
       if (searchResults) {
-        finalUserText = `${contextualUserText}\n\n[Dữ liệu trực tuyến cập nhật để tham khảo]:\n${searchResults}`;
+        finalUserText = `${contextualUserText}\n\n[Dữ liệu trực tuyến cập nhật, tra cứu lúc ${new Date().toLocaleTimeString('vi-VN')}]:\n${searchResults}`;
       }
     }
 
@@ -843,7 +915,10 @@ export async function sendMessage(text, onChunk) {
 
     fullText = ensureFollowUpQuestion(fullText, rawUserText);
 
-    setCachedChatAnswer(rawUserText, currentModelName, true, useWebSearch, fullText);
+    // Only cache non-time-sensitive queries to ensure fresh data for legal/latest requests
+    if (!isTimeSensitive) {
+      setCachedChatAnswer(rawUserText, currentModelName, true, useWebSearch, fullText);
+    }
     pushTurn("user", rawUserText);
     pushTurn("assistant", fullText);
     lastUserQuery = rawUserText;
