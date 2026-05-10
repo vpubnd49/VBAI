@@ -17,6 +17,7 @@ import {
   getProxyEndpointForContext,
   isGeminiOpenAIEndpoint,
 } from './ai-proxy.js';
+import { convertToWav } from './audio-utils.js';
 
 const OPENAI_MEETING_MODEL_FALLBACK_ORDER = [
   "gpt-4o",
@@ -81,7 +82,7 @@ function doRender(c) {
 
 function renderStep1(sc, c) {
   const provider = localStorage.getItem('vbai_active_provider') || 'openai';
-  const supportedFormats = provider === 'gemini' ? 'MP3, WAV' : 'MP3, WAV, M4A, OGG, AAC';
+  const supportedFormats = 'MP3, WAV, M4A, OGG, AAC';
 
   sc.innerHTML = `
     <div class="section-title">📌 Bước 1: Tải lên file ghi âm cuộc họp (${provider === 'gemini' ? 'Gemini' : 'OpenAI'})</div>
@@ -91,7 +92,7 @@ function renderStep1(sc, c) {
         <div class="upload-zone" id="drop-zone" onclick="document.getElementById('audio-upload').click()">
           <div class="upload-icon">🎤</div>
           <div class="upload-text">Nhấp hoặc kéo thả file ghi âm vào đây</div>
-          <div class="upload-hint">Hỗ trợ: <strong>${supportedFormats}</strong> — <strong>Tối đa 200MB</strong> ${provider === 'gemini' ? '(Gemini chỉ nhận MP3/WAV)' : ''}</div>
+          <div class="upload-hint">Hỗ trợ: <strong>${supportedFormats}</strong> — <strong>Tối đa 200MB</strong></div>
           ${formState.audioFile ? `<div style="margin-top: 15px; color: var(--success); font-weight: bold;">Đã chọn: ${formState.audioFile.name} (${(formState.audioFile.size / 1024 / 1024).toFixed(1)}MB)</div>` : ''}
         </div>
       </div>
@@ -111,16 +112,8 @@ function renderStep1(sc, c) {
 
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-      const file = e.target.files[0];
-      if (provider === 'gemini') {
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (!['mp3', 'wav'].includes(ext)) {
-          alert('Google Gemini hiện chỉ hỗ trợ định dạng MP3 và WAV. Vui lòng chuyển đổi file của bạn hoặc sử dụng OpenAI.');
-          fileInput.value = '';
-          return;
-        }
-      }
-      formState.audioFile = file; doRender(c);
+      formState.audioFile = e.target.files[0];
+      doRender(c);
     }
   });
   dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--pine-500)'; });
@@ -128,15 +121,8 @@ function renderStep1(sc, c) {
   dropZone.addEventListener('drop', (e) => {
     e.preventDefault(); dropZone.style.borderColor = 'var(--border-default)';
     if (e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      if (provider === 'gemini') {
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (!['mp3', 'wav'].includes(ext)) {
-          alert('Google Gemini hiện chỉ hỗ trợ định dạng MP3 và WAV.');
-          return;
-        }
-      }
-      formState.audioFile = file; doRender(c);
+      formState.audioFile = e.dataTransfer.files[0];
+      doRender(c);
     }
   });
   btnProcess.addEventListener('click', async () => {
@@ -545,6 +531,23 @@ async function processAudioWithProxy(file, progressEl) {
   localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
   const transcribeContext = resolveMeetingTranscribeContext();
   const transcribeRouteLabel = transcribeContext === 'meeting_transcribe' ? 'API ghi am rieng' : 'Proxy';
+  const provider = localStorage.getItem('vbai_active_provider') || 'openai';
+
+  // Support for M4A on Gemini via client-side conversion to WAV
+  let activeFile = file;
+  if (provider === 'gemini') {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'm4a' || ext === 'aac' || ext === 'ogg') {
+      progressEl.textContent = "Đang chuyển đổi định dạng âm thanh cho Gemini...";
+      try {
+        activeFile = await convertToWav(file);
+      } catch (convErr) {
+        showToast("Lỗi chuyển đổi âm thanh: " + convErr.message, "error");
+        // Fallback to original file, though Gemini will likely fail
+      }
+    }
+  }
+
   if (transcribeContext === 'meeting_transcribe') {
     let rawEndpoint = (
       localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
@@ -589,12 +592,12 @@ async function processAudioWithProxy(file, progressEl) {
       try {
         progressEl.textContent = PROCESSING_TEXT;
         const text = useGeminiDirectChat
-          ? await sendAudioTranscriptionViaChat(file, modelCandidate, {
+          ? await sendAudioTranscriptionViaChat(activeFile, modelCandidate, {
             temperature: 0,
             context: transcribeContext,
             timeoutMs: safeTranscribeTimeoutMs,
           })
-          : await sendAudioTranscription(file, modelCandidate, {
+          : await sendAudioTranscription(activeFile, modelCandidate, {
             temperature: 0,
             context: transcribeContext,
             timeoutMs: safeTranscribeTimeoutMs,
@@ -624,7 +627,7 @@ async function processAudioWithProxy(file, progressEl) {
       for (const modelCandidate of chatCandidates) {
         try {
           progressEl.textContent = PROCESSING_TEXT;
-          const text = await sendAudioTranscriptionViaChat(file, modelCandidate, {
+          const text = await sendAudioTranscriptionViaChat(activeFile, modelCandidate, {
             temperature: 0,
             maxBytes: safeChunkMb * 1024 * 1024,
             chunkWhenLarge: true,
