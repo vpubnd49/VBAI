@@ -1,6 +1,5 @@
 /**
  * Chat Assistant Module — Legal & Administrative Consultant
- * Uses 9router (OpenAI-compatible) for legal lookup
  */
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -9,16 +8,14 @@ import { saveAs } from 'file-saver';
 
 import { firebaseConfig } from '../firebase-config.js';
 
-
 import {
   sendChatRequest,
-  check9routerStatus,
-  getProxyModelIds,
+  checkProxyStatus,
   sendAudioTranscriptionViaChat,
   isGeminiOpenAIEndpoint,
 } from './ai-proxy.js';
 
-const DEFAULT_MODEL = "cx/gpt-5.5";
+const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_MEETING_TRANSCRIBE_API_KEY = "AIzaSyAa4rHozoUWV4BLJ0XIOKFlqQMalQXb0X4";
 const STRICT_MEETING_AUDIO_MODEL = "gemini-2.5-pro";
 const GOOGLE_GEMINI_OPENAI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai";
@@ -26,7 +23,7 @@ const GOOGLE_GEMINI_OPENAI_ENDPOINT = "https://generativelanguage.googleapis.com
 let aiClient = null;
 let chatSession = null;
 let currentModelName = DEFAULT_MODEL;
-let use9router = localStorage.getItem('vbai_use_9router') !== 'false';
+let useProxy = (localStorage.getItem('vbai_proxy_enabled_chat') ?? 'true') === 'true';
 
 function isProxyUnavailableError(error) {
   const msg = String(error?.message || "").toLowerCase();
@@ -80,19 +77,11 @@ function isValidHttpEndpoint(value = "") {
 
 function getCurrentProxyEndpoint() {
   const endpoint = (
-    localStorage.getItem('vbai_proxy_endpoint_chat')
-    || localStorage.getItem('vbai_9router_endpoint')
-    || ((window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-      ? "http://localhost:20128/v1"
-      : "")
+    localStorage.getItem('vbai_openai_endpoint')
+    || localStorage.getItem('vbai_proxy_endpoint_chat')
+    || ""
   ).trim();
   return endpoint;
-}
-
-function keepChatProxyEnabledWhenUsing9router() {
-  if (localStorage.getItem('vbai_use_9router') !== 'false') {
-    localStorage.setItem('vbai_proxy_enabled_chat', 'true');
-  }
 }
 
 function createSilentWavTestFile() {
@@ -711,160 +700,87 @@ async function fetchWebSearchResults(query) {
   const googleKey = localStorage.getItem('vbai_google_search_key');
   const googleCx = localStorage.getItem('vbai_google_search_cx');
 
-  if (googleKey && googleCx) {
-    try {
-      const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(query)}`;
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        const items = data.items || [];
-        if (items.length > 0) {
-          return items.slice(0, 5).map(item => `- [${item.title}](${item.link}): ${item.snippet}`).join("\n\n");
-        }
-      }
-    } catch (e) {
-      console.warn("Google API failed, falling back to proxy:", e);
-    }
-  }
+  if (!googleKey || !googleCx) return "";
 
-  const proxies = [
-    (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-    (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
-  ];
+  const domainClause = [
+    'site:thuvienphapluat.vn',
+    'site:vbpl.vn',
+    'site:luatvietnam.vn',
+    'site:vanban.chinhphu.vn',
+  ].join(' OR ');
+  const constrainedQuery = `${query} (${domainClause})`;
 
-  for (const proxyFn of proxies) {
-    try {
-      const q = encodeURIComponent(query);
-      const url = `https://html.duckduckgo.com/html/?q=${q}`;
-      const proxyUrl = proxyFn(url);
-      
-      const response = await fetch(proxyUrl);
-      if (!response.ok) continue;
-      
-      let htmlStr = "";
-      if (proxyUrl.includes("allorigins")) {
-        const data = await response.json();
-        htmlStr = data.contents;
-      } else {
-        htmlStr = await response.text();
-      }
-      
-      if (!htmlStr) continue;
-      
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlStr, "text/html");
-      
-      const results = [];
-      const resultNodes = doc.querySelectorAll('.result__body');
-      const nodes = resultNodes.length > 0 ? resultNodes : doc.querySelectorAll('.result');
-      
-      for (let i = 0; i < Math.min(nodes.length, 5); i++) {
-        const node = nodes[i];
-        const a = node.querySelector('.result__title a') || node.querySelector('.result__a');
-        const s = node.querySelector('.result__snippet');
-        if (a && s) {
-          const title = a.textContent.replace(/\s+/g, ' ').trim();
-          const snippet = s.textContent.replace(/\s+/g, ' ').trim();
-          let link = a.getAttribute('href') || "";
-          if (link.startsWith('//')) link = 'https:' + link;
-          // Clean duckduckgo outgoing links if any
-          if (link.includes('uddg=')) {
-            try {
-              const u = new URL('https://duckduckgo.com' + link);
-              link = u.searchParams.get('uddg') || link;
-            } catch(e){}
-          }
-          results.push(`- [${title}](${link}): ${snippet}`);
-        }
-      }
-      if (results.length > 0) return results.join("\n\n");
-    } catch (e) {
-      console.warn("Search proxy attempt failed:", e);
-    }
+  try {
+    const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(constrainedQuery)}&num=5&sort=date`;
+    const response = await fetch(url);
+    if (!response.ok) return "";
+
+    const data = await response.json();
+    const items = (data.items || []).filter((item) => {
+      const link = String(item?.link || '').toLowerCase();
+      return (
+        link.includes('thuvienphapluat.vn')
+        || link.includes('vbpl.vn')
+        || link.includes('luatvietnam.vn')
+        || link.includes('vanban.chinhphu.vn')
+      );
+    });
+
+    if (!items.length) return "";
+    return items.slice(0, 5).map(item => `- [${item.title}](${item.link}): ${item.snippet}`).join("\n\n");
+  } catch (e) {
+    console.warn("Google API failed:", e);
+    return "";
   }
-  return "";
 }
 
-  async function resetAllConfigAndSetOpenAIKey(newKey) {
-    // 1. Clear all vbai_* keys
+async function resetAllConfigAndSetOpenAIKey(newKey) {
     Object.keys(localStorage).filter(k => k.startsWith('vbai_')).forEach(k => localStorage.removeItem(k));
     sessionStorage.removeItem('vbai_chat_cache_v1');
 
-    // 2. Set OpenAI key for all contexts (DIRECT OpenAI, no proxy)
     const contexts = ['chat', 'spellcheck', 'pdf', 'meeting', 'meeting_transcribe'];
     contexts.forEach(ctx => {
       localStorage.setItem(`vbai_proxy_api_key_${ctx}`, newKey);
       localStorage.setItem(`vbai_proxy_enabled_${ctx}`, 'true');
       localStorage.setItem(`vbai_proxy_profile_${ctx}`, 'direct_openai');
     });
-    localStorage.setItem('vbai_9router_api_key', newKey);
-    localStorage.setItem('vbai_use_9router', 'false'); // DIRECT mode
 
-    // 3. Set default models
-    localStorage.setItem('vbai_router_model', 'gpt-5.5');
-    localStorage.setItem('vbai_transcribe_model', 'gpt-4o-mini-transcribe');
-    localStorage.setItem('vbai_router_model_meeting', 'gpt-5.5');
+    localStorage.setItem('vbai_router_model', 'gpt-4o-mini');
+    localStorage.setItem('vbai_transcribe_model', 'whisper-1');
+    localStorage.setItem('vbai_router_model_meeting', 'gpt-4o-mini');
 
-    // 4. Clear any old 9router endpoint configs
-    localStorage.removeItem('vbai_9router_endpoint');
-    localStorage.removeItem('vbai_router_profile');
-    contexts.forEach(ctx => {
-      localStorage.removeItem(`vbai_proxy_endpoint_${ctx}`);
-    });
-    localStorage.removeItem('vbai_transcribe_endpoint');
-
-    // 5. Save to Firestore (system-wide config)
     try {
       const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
       await setDoc(doc(db, 'config', 'system'), {
-        router_api_key: newKey,
-        router_endpoint: '',
-        router_model: 'gpt-5.5',
-        router_transcribe_model: 'gpt-4o-mini-transcribe',
-        router_web_search_enabled: false,
+        openai_api_key: newKey,
+        openai_endpoint: '',
+        router_model: 'gpt-4o-mini',
         router_profile: 'direct_openai',
-        router_profile_chat: 'direct_openai',
-        router_profile_spellcheck: 'direct_openai',
-        router_profile_pdf: 'direct_openai',
-        router_profile_meeting: 'direct_openai',
         router_proxy_enabled_chat: true,
-        router_proxy_enabled_spellcheck: true,
-        router_proxy_enabled_pdf: true,
-        router_proxy_enabled_meeting: true,
-        router_proxy_enabled_meeting_transcribe: true,
-        router_transcribe_endpoint: '',
         router_transcribe_api_key: newKey,
-        google_search_key: '',
-        google_search_cx: '',
       }, { merge: true });
     } catch (e) {
       console.warn('Firestore save failed:', e);
     }
 
-    // 6. Re-init chat
     if (window.initChat) {
-      initChat(newKey, 'gpt-5.5');
+      initChat(newKey, 'gpt-4o-mini');
     }
 
-    alert('✅ Đã reset cấu hình và lưu OpenAI key thành công!\n\nSử dụng direct OpenAI mode.\nHãy reload trang để áp dụng.');
+    alert('✅ Đã reset cấu hình và lưu API key thành công!\nHãy reload trang để áp dụng.');
   }
 
 export function initChat(apiKey, modelName = DEFAULT_MODEL) {
-  keepChatProxyEnabledWhenUsing9router();
-  localStorage.setItem('vbai_use_9router', 'true');
-  localStorage.setItem('vbai_proxy_enabled_chat', 'true');
   const normalizedModel = normalizeModelName(
     modelName
     || localStorage.getItem('vbai_router_model')
     || DEFAULT_MODEL
   );
   currentModelName = normalizedModel || DEFAULT_MODEL;
-  use9router = true;
   
   try {
     aiClient = { proxy: true };
-    currentModelName = normalizedModel || DEFAULT_MODEL;
     chatSession = null;
     recentTurns = [];
     lastUserQuery = "";
@@ -878,9 +794,8 @@ export function initChat(apiKey, modelName = DEFAULT_MODEL) {
 }
 
 export async function sendMessage(text, onChunk) {
-  if (!aiClient) throw new Error("Chua cau hinh API Key hoac 9router");
+  if (!aiClient) throw new Error("Chua cau hinh API Key");
 
-  // Prompt gon cho tra cuu thong thuong de tang toc; prompt day du cho bai toan soan thao
   const rawUserText = String(text || "").trim();
   const drafting = isDraftRequest(rawUserText);
   const contextualUserText = buildContextAwareUserPrompt(rawUserText);
@@ -895,15 +810,13 @@ export async function sendMessage(text, onChunk) {
       dynamicInstruction += `\n### Ky nang: ${s.name}\n${s.instructions}\n`;
       dynamicInstruction += buildSkillReferenceContext(s);
     });
-    console.log("Da nap them context tu cac skills:", matchedSkills.map(s => s.name));
   }
   dynamicInstruction += "\n\nYEU CAU BAT BUOC:\n- Luon uu tien thong tin moi nhat qua web search khi kha dung.\n- Khong duoc noi rang ban khong co cong cu web/realtime.\n- Phai bao quat gan nhu day du cac y trong yeu cau cua nguoi dung, neu cau hoi co nhieu y thi tra loi theo tung muc tuong ung, khong bo sot y chinh.\n- Neu co phan goi y tra cuu tiep thi bat buoc bam sat dung chu de vua tra loi, khong duoc chuyen sang chu de khac.\n- Khong dat lai cau hoi tong quat kieu xin them chu de moi neu nguoi dung dang hoi tiep cung mot chu de.\n- Cuoi moi cau tra loi phai hoi nguoi dung co can tra cuu tiep hay khong.";
 
   try {
     let fullText = "";
-    let routeLabel = "9router";
     let useWebSearch = shouldUseProxyWebSearchTool();
-    const cached = getCachedChatAnswer(rawUserText, currentModelName, use9router, useWebSearch);
+    const cached = getCachedChatAnswer(rawUserText, currentModelName, true, useWebSearch);
     if (cached) {
       pushTurn("user", rawUserText);
       pushTurn("assistant", cached);
@@ -914,15 +827,11 @@ export async function sendMessage(text, onChunk) {
     }
 
     let finalUserText = contextualUserText;
-    routeLabel = "9router";
-
-    useWebSearch = shouldUseProxyWebSearchTool();
     if (useWebSearch && shouldPreferWebSearch(rawUserText)) {
       if (onChunk) onChunk("Đang tra cứu dữ liệu mới nhất từ Internet...\n");
       const searchResults = await fetchWebSearchResults(rawUserText);
       if (searchResults) {
         finalUserText = `${contextualUserText}\n\n[Dữ liệu trực tuyến cập nhật để tham khảo]:\n${searchResults}`;
-        routeLabel = "9router_web_search_injected";
       }
     }
 
@@ -946,27 +855,15 @@ export async function sendMessage(text, onChunk) {
     try {
       fullText = await sendChatRequest(messages, currentModelName, streamOptions);
       if (!String(fullText || "").trim()) {
-        throw new Error("Proxy tra ve phan hoi rong. Vui long kiem tra model ho tro text output.");
+        throw new Error("AI trả về phản hồi rỗng.");
       }
-
     } catch (proxyError) {
-      const endpoint = getCurrentProxyEndpoint();
-      if (isProxyUnavailableError(proxyError)) {
-        const alive = await check9routerStatus('chat').catch(() => false);
-        if (alive) {
-          throw new Error(`9router dang chay (${endpoint || "chua cau hinh endpoint"}) nhung model/credential provider chua san sang. Vui long mo 9router va nap credential provider cho model dang dung.`);
-        }
-        throw new Error(`Khong ket noi duoc 9router (${endpoint || "chua cau hinh endpoint"}). He thong dang o che do 9router 100%, khong fallback.`);
-      }
-      throw new Error(`Loi 9router: ${proxyError?.message || proxyError}. He thong dang o che do 9router 100%, khong fallback.`);
+      throw new Error(`Lỗi AI: ${proxyError?.message || proxyError}. Vui lòng kiểm tra lại API Key hoặc Endpoint.`);
     }
 
-    if (!String(fullText || "").trim()) {
-      throw new Error("Khong nhan duoc noi dung tra loi tu model. Vui long doi model khac hoac kiem tra cau hinh 9router.");
-    }
     fullText = ensureFollowUpQuestion(fullText, rawUserText);
 
-    setCachedChatAnswer(rawUserText, currentModelName, use9router, useWebSearch, fullText);
+    setCachedChatAnswer(rawUserText, currentModelName, true, useWebSearch, fullText);
     pushTurn("user", rawUserText);
     pushTurn("assistant", fullText);
     lastUserQuery = rawUserText;
@@ -977,7 +874,7 @@ export async function sendMessage(text, onChunk) {
       const db = getFirestore(app);
       addDoc(collection(db, "search_logs"), {
         query: rawUserText,
-        model: `${currentModelName} (${routeLabel})`,
+        model: `${currentModelName}`,
         userEmail: window.currentUser?.email || "Unknown",
         timestamp: serverTimestamp(),
         skillsApplied: matchedSkills.map(s => s.id)
@@ -993,11 +890,21 @@ export async function sendMessage(text, onChunk) {
 }
 
 export async function renderChatUI(container) {
-  keepChatProxyEnabledWhenUsing9router();
+  const savedProvider = localStorage.getItem('vbai_active_provider') || 'openai';
   const savedModel = normalizeModelName(
-    localStorage.getItem('vbai_router_model')
-    || DEFAULT_MODEL
+    savedProvider === 'gemini' 
+    ? (localStorage.getItem('vbai_gemini_model') || 'gemini-2.0-pro-exp-02-05')
+    : (localStorage.getItem('vbai_router_model') || DEFAULT_MODEL)
   ) || DEFAULT_MODEL;
+  
+  const savedKey = localStorage.getItem('vbai_openai_api_key') || '';
+  const savedEndpoint = localStorage.getItem('vbai_openai_endpoint') || 'https://api.openai.com/v1';
+  
+  const savedGeminiKey = localStorage.getItem('vbai_gemini_api_key') || '';
+  const savedGeminiModel = localStorage.getItem('vbai_gemini_model') || 'gemini-2.0-pro-exp-02-05';
+
+  const savedGoogleSearchKey = localStorage.getItem('vbai_google_search_key') || '';
+  const savedGoogleSearchCx = localStorage.getItem('vbai_google_search_cx') || '';
   
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -1005,7 +912,7 @@ export async function renderChatUI(container) {
         <div class="panel-header-icon">⚖️</div>
         Trợ Lý Tra Cứu Pháp Luật & Quy Định Đảng AI
         <div style="flex:1"></div>
-        <button id="chat-settings-btn" class="btn-icon" title="Cấu hình" style="width:28px; height:28px; font-size:0.8rem">⚙️</button>
+        <button id="chat-settings-openai-btn" class="btn-icon" title="Cấu hình AI" style="width:28px; height:28px; font-size:0.72rem; margin-left:6px">🧩</button>
       </div>
       <div class="panel-body">
         <div id="chat-messages" class="chat-messages-area">
@@ -1027,240 +934,171 @@ export async function renderChatUI(container) {
       </div>
     </div>
 
-    <!-- API Key Modal -->
-    <div id="key-modal" class="modal-overlay" style="display:none">
-      <div class="modal-content panel-group config-ai-modal">
-        <div class="panel-header">Cau hinh Tro ly AI - 9router la chinh</div>
-          <div class="panel-body config-ai-modal-body">
-          <div class="config-ai-alert">
-            <p style="font-size:0.86rem; margin:0; color:var(--text-primary); font-weight:700">Che do cau hinh toi gian</p>
-            <p style="font-size:0.78rem; margin:6px 0 0; color:var(--text-secondary)">Tra cuu/soan thao dung 9router. Ghi am dung model co dinh gemini-2.5-pro voi endpoint/key rieng (neu khai bao).</p>
-          </div>
-
+    <!-- AI Config Modal -->
+    <div id="key-modal-openai" class="modal-overlay" style="display:none">
+      <div class="modal-content panel-group config-ai-modal" style="max-width:500px">
+        <div class="panel-header">Cấu hình AI & Tìm kiếm pháp luật</div>
+        <div class="panel-body config-ai-modal-body" style="max-height:80vh; overflow-y:auto">
+          
           <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">9router API Key (chinh)</label>
-            <input type="password" id="api-key-input" class="form-input" value="" placeholder="Dan 9router API key chinh">
-            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Bat buoc neu ban dung 9router cho toan app.</p>
-          </div>
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">9router Endpoint</label>
-            <input type="text" id="router-endpoint-input" class="form-input" value="" placeholder="http://localhost:20128/v1">
-            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Vi du: http://localhost:20128/v1 hoac endpoint public OpenAI-compatible.</p>
-          </div>
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">Model ghi am (co dinh)</label>
-            <input type="text" class="form-input" value="${STRICT_MEETING_AUDIO_MODEL}" readonly>
-            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Ghi am dang duoc siet chi dung ${STRICT_MEETING_AUDIO_MODEL}.</p>
-          </div>
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">API ghi am rieng - Endpoint (neu 9router khong ho tro)</label>
-            <input type="text" id="transcribe-endpoint-input" class="form-input" value="" placeholder="Vi du: https://your-openai-compatible-endpoint/v1">
-            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">De trong neu muon ke thua endpoint chung. Neu nhap, module ghi am se uu tien endpoint nay.</p>
-            <p style="font-size:0.74rem; color:var(--daquy-400); margin-top:4px">Neu dung Gemini OpenAI endpoint, he thong se goi chat/input_audio truc tiep (khong phu thuoc /audio/transcriptions).</p>
-          </div>
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">API ghi am rieng - Key</label>
-            <input type="password" id="transcribe-api-key-input" class="form-input" value="" placeholder="Dan API key danh rieng cho transcription">
-            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">De trong neu muon dung chung key 9router. Neu nhap, chi ap dung cho xu ly ghi am.</p>
-          </div>
-
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">Model AI (nhap tay de luu chinh xac)</label>
-            <input type="text" id="model-select" class="form-input" value="${savedModel}" placeholder="Vi du: gpt-5.5 hoac gpt-5.4-review">
-            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Model nay se duoc dung xuyen suot khi goi qua 9router.</p>
-          </div>
-
-          <div style="padding:12px; background:rgba(230,162,0,0.1); border-radius:10px; margin-bottom:16px; border: 1px solid rgba(230,162,0,0.2); display:flex; align-items:center; justify-content:space-between; gap:12px;">
-            <div>
-              <p style="font-size:0.75rem; color:var(--daquy-400); margin:0; font-weight:600">🔍 Web Search (Google/DuckDuckGo)</p>
-              <p style="font-size:0.7rem; color:var(--text-secondary); margin:4px 0 0">Tự động tra cứu thông tin mới từ Internet khi cần thiết.</p>
+            <label class="form-label">Nhà cung cấp AI đang dùng</label>
+            <div style="display:flex; gap:12px; margin-top:4px">
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+                <input type="radio" name="ai-provider" value="openai" ${savedProvider === 'openai' ? 'checked' : ''}> OpenAI
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+                <input type="radio" name="ai-provider" value="gemini" ${savedProvider === 'gemini' ? 'checked' : ''}> Google Gemini
+              </label>
             </div>
-            <label class="switch-toggle">
-              <input type="checkbox" id="use-web-search-chk" ${(localStorage.getItem('vbai_proxy_web_search') ?? 'true') !== 'false' ? 'checked' : ''}>
-              <span class="slider-round"></span>
-            </label>
           </div>
 
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">Google Search API Key (Ưu tiên)</label>
-            <input type="password" id="google-search-key-input" class="form-input" value="${localStorage.getItem('vbai_google_search_key') || ''}" placeholder="AIza...">
-            <p style="font-size:0.76rem; color:var(--text-secondary); margin-top:4px">Dùng Google API chính thống. Để trống để dùng DuckDuckGo miễn phí thông qua proxy.</p>
-          </div>
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">Google Search Engine ID (CX)</label>
-            <input type="text" id="google-search-cx-input" class="form-input" value="${localStorage.getItem('vbai_google_search_cx') || ''}" placeholder="Ví dụ: 789...:abc...">
+          <div id="section-openai" style="display:${savedProvider === 'openai' ? 'block' : 'none'}; border:1px solid var(--border-subtle); padding:12px; border-radius:8px; margin-bottom:16px">
+            <p style="font-weight:700; font-size:0.85rem; margin:0 0 10px; color:var(--daquy-600)">⚙️ Cấu hình OpenAI</p>
+            <div class="form-group" style="margin-bottom:12px">
+              <label class="form-label">OpenAI API Key</label>
+              <input type="password" id="openai-api-key-input" class="form-input" value="${savedKey}" placeholder="sk-...">
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label class="form-label">OpenAI Endpoint</label>
+              <input type="text" id="openai-endpoint-input" class="form-input" value="${savedEndpoint}" placeholder="https://api.openai.com/v1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Model AI</label>
+              <input type="text" id="openai-model-select" class="form-input" value="${savedModel}" placeholder="gpt-4o-mini">
+            </div>
           </div>
 
-          <div class="btn-row" style="margin-bottom:12px">
-            <button id="test-proxy-btn" class="btn btn-secondary">Kiem tra ket noi proxy</button>
-            <button id="test-transcribe-btn" class="btn btn-secondary">Kiem tra key ghi am</button>
+          <div id="section-gemini" style="display:${savedProvider === 'gemini' ? 'block' : 'none'}; border:1px solid var(--border-subtle); padding:12px; border-radius:8px; margin-bottom:16px">
+            <p style="font-weight:700; font-size:0.85rem; margin:0 0 10px; color:var(--pine-600)">⚙️ Cấu hình Google Gemini</p>
+            <div class="form-group" style="margin-bottom:12px">
+              <label class="form-label">Gemini API Key</label>
+              <input type="password" id="gemini-api-key-input" class="form-input" value="${savedGeminiKey}" placeholder="AIza...">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Model Gemini</label>
+              <input type="text" id="gemini-model-input" class="form-input" value="${savedGeminiModel}" placeholder="gemini-2.0-pro-exp-02-05">
+            </div>
+            <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px">Gemini sẽ tự động kết nối qua OpenAI-compatible endpoint của Google.</p>
           </div>
-          <div class="btn-row" style="margin-top:20px">
-            <button id="save-key-btn" class="btn btn-primary">Lưu cấu hình</button>
-            <button id="close-modal-btn" class="btn btn-secondary">Đóng</button>
+
+          <div style="padding:10px; background:rgba(16,185,129,0.05); border-radius:8px; margin-bottom:12px; border:1px solid rgba(16,185,129,0.1);">
+            <p style="font-size:0.8rem; color:var(--pine-600); font-weight:700; margin:0 0 4px">🔍 Tra cứu pháp luật (Google CSE)</p>
+            <p style="font-size:0.74rem; color:var(--text-secondary); margin:0">Cấu hình để AI có thể tìm kiếm dữ liệu mới nhất trên Internet.</p>
           </div>
-          <div class="btn-row" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border-default)">
-            <button id="reset-config-btn" class="btn" style="background:#dc2626; color:#fff; border:none; width:100%;">🗑️ Reset & Set OpenAI Key</button>
+
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Google CSE API Key</label>
+            <input type="password" id="google-cse-key-input" class="form-input" value="${savedGoogleSearchKey}" placeholder="AIza...">
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">Google CSE Engine ID (CX)</label>
+            <input type="text" id="google-cse-cx-input" class="form-input" value="${savedGoogleSearchCx}" placeholder="Ví dụ: 123abc:xyz...">
+          </div>
+
+          <div class="btn-row" style="margin-top:20px; border-top:1px solid var(--border-subtle); padding-top:16px">
+            <button id="save-openai-config-btn" class="btn btn-primary" style="flex:1">Lưu cấu hình</button>
+            <button id="close-openai-config-btn" class="btn btn-secondary">Đóng</button>
           </div>
         </div>
       </div>
     </div>
   `;
 
+  const msgsArea = container.querySelector('#chat-messages');
   const input = container.querySelector('#chat-input');
   const sendBtn = container.querySelector('#chat-send-btn');
-  const msgsArea = container.querySelector('#chat-messages');
-  const settingsBtn = container.querySelector('#chat-settings-btn');
-  const keyModal = container.querySelector('#key-modal');
-  const apiKeyInput = container.querySelector('#api-key-input');
-  const routerEndpointInput = container.querySelector('#router-endpoint-input');
-  const transcribeEndpointInput = container.querySelector('#transcribe-endpoint-input');
-  const transcribeApiKeyInput = container.querySelector('#transcribe-api-key-input');
-  const useWebSearchChk = container.querySelector('#use-web-search-chk');
-  const googleKeyInput = container.querySelector('#google-search-key-input');
-  const googleCxInput = container.querySelector('#google-search-cx-input');
-  const testProxyBtn = container.querySelector('#test-proxy-btn');
-  const testTranscribeBtn = container.querySelector('#test-transcribe-btn');
-  const modelSelect = container.querySelector('#model-select');
-  const resetConfigBtn = container.querySelector('#reset-config-btn');
 
-  // Khởi tạo Firebase và tải API Key
-  let apiKey = '';
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  const db = getFirestore(app);
+  const settingsBtn = container.querySelector('#chat-settings-openai-btn');
+  const keyModalOpenAI = container.querySelector('#key-modal-openai');
+  
+  // Section toggle logic
+  const providerRadios = container.querySelectorAll('input[name="ai-provider"]');
+  const sectionOpenAI = container.querySelector('#section-openai');
+  const sectionGemini = container.querySelector('#section-gemini');
 
-  try {
-    const configDoc = await getDoc(doc(db, 'config', 'system'));
-    if (configDoc.exists()) {
-      const data = configDoc.data();
-      const routerKey = data.router_api_key || '';
-      const routerEndpoint = data.router_endpoint || '';
-      const routerTranscribeEndpoint = data.router_transcribe_endpoint || '';
-      const routerTranscribeApiKey = data.router_transcribe_api_key || '';
-      const routerModel = normalizeModelName(data.router_model || '');
-      const routerWebSearchEnabled = data.router_web_search_enabled;
-      const routerProxyEnabledChat = data.router_proxy_enabled_chat;
-      apiKey = routerKey || localStorage.getItem('vbai_9router_api_key') || '';
-      localStorage.setItem('vbai_use_9router', 'true');
-      localStorage.setItem('vbai_proxy_enabled_chat', 'true');
-      if (routerKey && !localStorage.getItem('vbai_9router_api_key')) localStorage.setItem('vbai_9router_api_key', routerKey);
-      if (routerEndpoint) localStorage.setItem('vbai_9router_endpoint', routerEndpoint);
-      localStorage.setItem('vbai_transcribe_model', STRICT_MEETING_AUDIO_MODEL);
-      localStorage.setItem('vbai_transcribe_model_meeting', STRICT_MEETING_AUDIO_MODEL);
-      if ('router_transcribe_endpoint' in data) {
-        const cleanEndpoint = String(routerTranscribeEndpoint || '').trim();
-        if (cleanEndpoint && isLikelyApiKey(cleanEndpoint)) {
-          localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
-          localStorage.setItem('vbai_transcribe_api_key', cleanEndpoint);
-          localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', cleanEndpoint);
-          localStorage.removeItem('vbai_transcribe_endpoint');
-          localStorage.removeItem('vbai_proxy_endpoint_meeting_transcribe');
-        } else if (cleanEndpoint) {
-          localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
-          localStorage.setItem('vbai_transcribe_endpoint', cleanEndpoint);
-          localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', cleanEndpoint);
-          localStorage.setItem('vbai_proxy_profile_meeting_transcribe', 'proxy_custom');
-        }
-      }
-      if ('router_transcribe_api_key' in data) {
-        const cleanApiKey = String(routerTranscribeApiKey || '').trim();
-        if (cleanApiKey) {
-          localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
-          localStorage.setItem('vbai_transcribe_api_key', cleanApiKey);
-          localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', cleanApiKey);
-          const currentEndpoint = (
-            localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
-            || localStorage.getItem('vbai_transcribe_endpoint')
-            || ''
-          ).trim();
-          if (!currentEndpoint && isLikelyGoogleApiKey(cleanApiKey)) {
-            localStorage.setItem('vbai_transcribe_endpoint', GOOGLE_GEMINI_OPENAI_ENDPOINT);
-            localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', GOOGLE_GEMINI_OPENAI_ENDPOINT);
-            localStorage.setItem('vbai_proxy_profile_meeting_transcribe', 'proxy_custom');
-          }
-        }
-      }
-      const hasDedicatedEndpoint = !!(localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe') || localStorage.getItem('vbai_transcribe_endpoint'));
-      const hasDedicatedKey = !!(localStorage.getItem('vbai_proxy_api_key_meeting_transcribe') || localStorage.getItem('vbai_transcribe_api_key'));
-      if (!hasDedicatedEndpoint && !hasDedicatedKey) {
-        localStorage.setItem('vbai_transcribe_use_dedicated', 'false');
-      }
-      if (routerModel) {
-        localStorage.setItem('vbai_router_model', routerModel);
-      }
-      if (typeof routerWebSearchEnabled === 'boolean') {
-        localStorage.setItem('vbai_proxy_web_search', routerWebSearchEnabled ? 'true' : 'false');
-      }
-      localStorage.setItem('vbai_router_profile', 'proxy_custom');
-      localStorage.setItem('vbai_proxy_profile_chat', 'proxy_custom');
-      localStorage.setItem('vbai_proxy_profile_spellcheck', 'proxy_custom');
-      localStorage.setItem('vbai_proxy_profile_pdf', 'proxy_custom');
-      localStorage.setItem('vbai_proxy_profile_meeting', 'proxy_custom');
-      if (typeof routerProxyEnabledChat === 'boolean') {
-        localStorage.setItem('vbai_proxy_enabled_chat', 'true');
-      }
-      keepChatProxyEnabledWhenUsing9router();
-      if(apiKeyInput) apiKeyInput.value = apiKey;
-    }
-  } catch (e) {
-    console.warn("Lỗi tải API Key:", e);
-  }
-  const fallbackEndpoint = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
-    ? "http://localhost:20128/v1"
-    : "https://your-9router-public-url.com/v1";
-  if (routerEndpointInput) {
-    routerEndpointInput.value = localStorage.getItem('vbai_9router_endpoint') || fallbackEndpoint;
-  }
-  localStorage.setItem('vbai_transcribe_model', STRICT_MEETING_AUDIO_MODEL);
-  localStorage.setItem('vbai_transcribe_model_meeting', STRICT_MEETING_AUDIO_MODEL);
-  if (transcribeEndpointInput) {
-    transcribeEndpointInput.value =
-      localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
-      || localStorage.getItem('vbai_transcribe_endpoint')
-      || (isLikelyGoogleApiKey(localStorage.getItem('vbai_proxy_api_key_meeting_transcribe') || localStorage.getItem('vbai_transcribe_api_key') || '')
-        ? GOOGLE_GEMINI_OPENAI_ENDPOINT
-        : '')
-      || '';
-  }
-  if (transcribeApiKeyInput) {
-    transcribeApiKeyInput.value =
-      localStorage.getItem('vbai_proxy_api_key_meeting_transcribe')
-      || localStorage.getItem('vbai_transcribe_api_key')
-      || DEFAULT_MEETING_TRANSCRIBE_API_KEY
-      || '';
-  }
-  if (modelSelect) {
-    modelSelect.value = normalizeModelName(
-      localStorage.getItem('vbai_router_model')
-      || savedModel
-    );
-  }
-  if (useWebSearchChk) {
-    useWebSearchChk.checked = (localStorage.getItem('vbai_proxy_web_search') ?? 'true') !== 'false';
-  }
-  localStorage.setItem('vbai_router_profile', 'proxy_custom');
-  localStorage.setItem('vbai_proxy_profile_chat', 'proxy_custom');
-  localStorage.setItem('vbai_proxy_profile_spellcheck', 'proxy_custom');
-  localStorage.setItem('vbai_proxy_profile_pdf', 'proxy_custom');
-  localStorage.setItem('vbai_proxy_profile_meeting', 'proxy_custom');
-  if (localStorage.getItem('vbai_proxy_enabled_chat') === null) {
-    localStorage.setItem('vbai_proxy_enabled_chat', localStorage.getItem('vbai_use_9router') !== 'false' ? 'true' : 'false');
-  }
-  keepChatProxyEnabledWhenUsing9router();
-  if (localStorage.getItem('vbai_proxy_enabled_spellcheck') === null) localStorage.setItem('vbai_proxy_enabled_spellcheck', 'true');
-  if (localStorage.getItem('vbai_proxy_enabled_pdf') === null) localStorage.setItem('vbai_proxy_enabled_pdf', 'true');
-  if (localStorage.getItem('vbai_proxy_enabled_meeting') === null) localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
-  if (localStorage.getItem('vbai_proxy_enabled_meeting_transcribe') === null) localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
+  providerRadios.forEach(radio => {
+    radio.onchange = () => {
+      sectionOpenAI.style.display = radio.value === 'openai' ? 'block' : 'none';
+      sectionGemini.style.display = radio.value === 'gemini' ? 'block' : 'none';
+    };
+  });
 
-  // Init chat: with 9router, API key can be empty on local proxy
-  initChat(
-    '',
-    (
-      modelSelect?.value
-      || localStorage.getItem('vbai_router_model')
-      || savedModel
-    ).trim()
-  );
+  const openaiKeyInput = container.querySelector('#openai-api-key-input');
+  const openaiEndpointInput = container.querySelector('#openai-endpoint-input');
+  const openaiModelSelect = container.querySelector('#openai-model-select');
+  
+  const geminiKeyInput = container.querySelector('#gemini-api-key-input');
+  const geminiModelInput = container.querySelector('#gemini-model-input');
+
+  const googleCseKeyInput = container.querySelector('#google-cse-key-input');
+  const googleCseCxInput = container.querySelector('#google-cse-cx-input');
+  const saveOpenAIConfigBtn = container.querySelector('#save-openai-config-btn');
+  const closeOpenAIConfigBtn = container.querySelector('#close-openai-config-btn');
+
+  if (settingsBtn) {
+    settingsBtn.onclick = () => {
+      if (keyModalOpenAI) keyModalOpenAI.style.display = 'flex';
+    };
+  }
+  if (closeOpenAIConfigBtn) {
+    closeOpenAIConfigBtn.onclick = () => {
+      if (keyModalOpenAI) keyModalOpenAI.style.display = 'none';
+    };
+  }
+  if (saveOpenAIConfigBtn) {
+    saveOpenAIConfigBtn.onclick = async () => {
+      const activeProvider = container.querySelector('input[name="ai-provider"]:checked')?.value || 'openai';
+      
+      const openaiKey = (openaiKeyInput?.value || '').trim();
+      const openaiEndpoint = (openaiEndpointInput?.value || '').trim() || 'https://api.openai.com/v1';
+      const openaiModel = normalizeModelName(openaiModelSelect?.value || '') || 'gpt-4o-mini';
+      
+      const geminiKey = (geminiKeyInput?.value || '').trim();
+      const geminiModel = (geminiModelInput?.value || '').trim() || 'gemini-2.0-pro-exp-02-05';
+
+      const googleKey = (googleCseKeyInput?.value || '').trim();
+      const googleCx = (googleCseCxInput?.value || '').trim();
+
+      // Basic validation
+      if (activeProvider === 'openai' && !openaiKey) { alert('Vui lòng nhập OpenAI API key.'); return; }
+      if (activeProvider === 'gemini' && !geminiKey) { alert('Vui lòng nhập Gemini API key.'); return; }
+
+      // Save to localStorage
+      localStorage.setItem('vbai_active_provider', activeProvider);
+      localStorage.setItem('vbai_openai_api_key', openaiKey);
+      localStorage.setItem('vbai_openai_endpoint', openaiEndpoint);
+      localStorage.setItem('vbai_router_model', openaiModel);
+      
+      localStorage.setItem('vbai_gemini_api_key', geminiKey);
+      localStorage.setItem('vbai_gemini_model', geminiModel);
+
+      localStorage.setItem('vbai_google_search_key', googleKey);
+      localStorage.setItem('vbai_google_search_cx', googleCx);
+
+      try {
+        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        const db = getFirestore(app);
+        await setDoc(doc(db, 'config', 'system'), {
+          active_provider: activeProvider,
+          openai_api_key: openaiKey,
+          openai_endpoint: openaiEndpoint,
+          router_model: openaiModel,
+          gemini_api_key: geminiKey,
+          gemini_model: geminiModel,
+          google_search_key: googleKey,
+          google_search_cx: googleCx,
+        }, { merge: true });
+      } catch (e) {
+        console.warn('Firestore save failed:', e);
+      }
+
+      alert('Đã lưu cấu hình thành công!');
+      if (keyModalOpenAI) keyModalOpenAI.style.display = 'none';
+      window.location.reload();
+    };
+  }
+
+  initChat('', savedModel);
 
   const addMsg = (text, role) => {
     const div = document.createElement('div');
@@ -1329,7 +1167,8 @@ export async function renderChatUI(container) {
   const handleSend = async () => {
     const text = input.value.trim();
     if (!text) return;
-    if (!aiClient) {
+    const currentKey = (localStorage.getItem('vbai_openai_api_key') || '').trim();
+    if (!currentKey) {
       alert("Vui lòng cấu hình API Key trước (bấm vào icon ⚙️)");
       return;
     }
@@ -1364,277 +1203,7 @@ export async function renderChatUI(container) {
     }
   };
 
-  sendBtn.onclick = handleSend;
-  input.onkeypress = (e) => { if(e.key==='Enter') handleSend(); };
-  settingsBtn.onclick = () => keyModal.style.display = 'flex';
-  container.querySelector('#close-modal-btn').onclick = () => keyModal.style.display = 'none';
-  if (testProxyBtn) {
-    testProxyBtn.onclick = async () => {
-      const oldEndpoint = localStorage.getItem('vbai_9router_endpoint');
-      const oldKey = localStorage.getItem('vbai_9router_api_key');
-      const endpoint = (routerEndpointInput?.value || '').trim();
-      const key = (apiKeyInput?.value || '').trim();
-      if (endpoint) localStorage.setItem('vbai_9router_endpoint', endpoint);
-      if (key) localStorage.setItem('vbai_9router_api_key', key);
-      localStorage.setItem('vbai_use_9router', 'true');
-      localStorage.setItem('vbai_proxy_enabled_chat', 'true');
-      testProxyBtn.disabled = true;
-      const prevText = testProxyBtn.innerText;
-      testProxyBtn.innerText = 'Dang kiem tra...';
-      try {
-        const ok = await check9routerStatus('chat');
-        alert(ok ? 'Ket noi proxy thanh cong.' : 'Khong ket noi duoc proxy.');
-      } catch (e) {
-        alert('Loi kiem tra proxy: ' + e.message);
-      } finally {
-        if (oldEndpoint === null) localStorage.removeItem('vbai_9router_endpoint'); else localStorage.setItem('vbai_9router_endpoint', oldEndpoint);
-        if (oldKey === null) localStorage.removeItem('vbai_9router_api_key'); else localStorage.setItem('vbai_9router_api_key', oldKey);
-        localStorage.setItem('vbai_use_9router', 'true');
-        localStorage.setItem('vbai_proxy_enabled_chat', 'true');
-        testProxyBtn.disabled = false;
-        testProxyBtn.innerText = prevText;
-      }
-    };
-  }
-  if (testTranscribeBtn) {
-    testTranscribeBtn.onclick = async () => {
-      let endpoint = (transcribeEndpointInput?.value || '').trim();
-      let key = (transcribeApiKeyInput?.value || '').trim();
-
-      if (endpoint && isLikelyApiKey(endpoint) && !key) {
-        key = endpoint;
-        endpoint = '';
-      }
-      if (!endpoint && isLikelyGoogleApiKey(key)) {
-        endpoint = GOOGLE_GEMINI_OPENAI_ENDPOINT;
-      }
-      if (!endpoint) {
-        endpoint = (routerEndpointInput?.value || '').trim();
-      }
-      if (!endpoint || !isValidHttpEndpoint(endpoint)) {
-        alert('Endpoint ghi am khong hop le. Vui long nhap URL bat dau bang http(s)://');
-        return;
-      }
-      if (!key) {
-        alert('Chua co API key ghi am. Vui long nhap key tai o "API ghi am rieng - Key".');
-        return;
-      }
-
-      const backup = {
-        endpoint: localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe'),
-        endpoint2: localStorage.getItem('vbai_transcribe_endpoint'),
-        key: localStorage.getItem('vbai_proxy_api_key_meeting_transcribe'),
-        key2: localStorage.getItem('vbai_transcribe_api_key'),
-        profile: localStorage.getItem('vbai_proxy_profile_meeting_transcribe'),
-        useDedicated: localStorage.getItem('vbai_transcribe_use_dedicated'),
-        enabled: localStorage.getItem('vbai_proxy_enabled_meeting_transcribe'),
-      };
-
-      localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', endpoint);
-      localStorage.setItem('vbai_transcribe_endpoint', endpoint);
-      localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', key);
-      localStorage.setItem('vbai_transcribe_api_key', key);
-      localStorage.setItem('vbai_proxy_profile_meeting_transcribe', 'proxy_custom');
-      localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
-      localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
-
-      testTranscribeBtn.disabled = true;
-      const prevText = testTranscribeBtn.innerText;
-      testTranscribeBtn.innerText = 'Dang kiem tra...';
-      try {
-        if (isGeminiOpenAIEndpoint(endpoint)) {
-          const testFile = createSilentWavTestFile();
-          const probe = await sendAudioTranscriptionViaChat(testFile, STRICT_MEETING_AUDIO_MODEL, {
-            context: 'meeting_transcribe',
-            temperature: 0,
-            chunkWhenLarge: false,
-            timeoutMs: 45000,
-            prompt: 'Transcribe this very short audio and return plain text only.',
-          });
-          const preview = String(probe || '').trim();
-          if (preview) {
-            alert(`Ket noi ghi am Gemini OK qua chat/input_audio. Mau transcript: "${preview.slice(0, 80)}${preview.length > 80 ? '...' : ''}"`);
-          } else {
-            alert('Ket noi ghi am Gemini OK qua chat/input_audio. File test im lang nen transcript co the rong.');
-          }
-        } else {
-          const ids = await getProxyModelIds('meeting_transcribe');
-          if (!ids.length) {
-            alert(`Khong lay duoc danh sach model tu endpoint ghi am: ${endpoint}`);
-            return;
-          }
-          const gemini = ids.find((id) => String(id).toLowerCase().includes('gemini-2.5-pro'));
-          if (gemini) {
-            alert(`Ket noi ghi am OK. Tim thay model: ${gemini}`);
-          } else {
-            alert(`Ket noi duoc nhung khong co gemini-2.5-pro. Model hien co: ${ids.slice(0, 12).join(', ')}`);
-          }
-        }
-      } catch (e) {
-        alert('Loi kiem tra key ghi am: ' + (e?.message || e));
-      } finally {
-        if (backup.endpoint === null) localStorage.removeItem('vbai_proxy_endpoint_meeting_transcribe'); else localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', backup.endpoint);
-        if (backup.endpoint2 === null) localStorage.removeItem('vbai_transcribe_endpoint'); else localStorage.setItem('vbai_transcribe_endpoint', backup.endpoint2);
-        if (backup.key === null) localStorage.removeItem('vbai_proxy_api_key_meeting_transcribe'); else localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', backup.key);
-        if (backup.key2 === null) localStorage.removeItem('vbai_transcribe_api_key'); else localStorage.setItem('vbai_transcribe_api_key', backup.key2);
-        if (backup.profile === null) localStorage.removeItem('vbai_proxy_profile_meeting_transcribe'); else localStorage.setItem('vbai_proxy_profile_meeting_transcribe', backup.profile);
-        if (backup.useDedicated === null) localStorage.removeItem('vbai_transcribe_use_dedicated'); else localStorage.setItem('vbai_transcribe_use_dedicated', backup.useDedicated);
-        if (backup.enabled === null) localStorage.removeItem('vbai_proxy_enabled_meeting_transcribe'); else localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', backup.enabled);
-        testTranscribeBtn.disabled = false;
-        testTranscribeBtn.innerText = prevText;
-      }
-    };
-  }
-  if (resetConfigBtn) {
-    resetConfigBtn.onclick = async () => {
-      const raw = prompt('Nhập OpenAI API key (sk-...):', '');
-      const key = String(raw || '').trim();
-      if (!key) return;
-      if (!/^sk-[a-zA-Z0-9_-]{20,}$/.test(key)) {
-        alert('API key không hợp lệ. Format: sk-...');
-        return;
-      }
-      const ok = confirm('CẢNH BÁO: Sẽ xóa TẤT CẢ cấu hình cũ và đặt OpenAI key mới. Tiếp tục?');
-      if (!ok) return;
-      try {
-        resetConfigBtn.disabled = true;
-        const prev = resetConfigBtn.textContent;
-        resetConfigBtn.textContent = 'Đang reset...';
-        await resetAllConfigAndSetOpenAIKey(key);
-        keyModal.style.display = 'none';
-        window.location.reload();
-        resetConfigBtn.textContent = prev;
-      } catch (e) {
-        alert('Lỗi reset cấu hình: ' + (e?.message || e));
-      } finally {
-        resetConfigBtn.disabled = false;
-      }
-    };
-  }
-
-  container.querySelector('#save-key-btn').onclick = async () => {
-    const routerKey = apiKeyInput.value.trim();
-    const routerEndpoint = (routerEndpointInput?.value || '').trim();
-    const transcribeModel = STRICT_MEETING_AUDIO_MODEL;
-    const transcribeEndpointInputValue = (transcribeEndpointInput?.value || '').trim();
-    const transcribeApiKeyInputValue = (transcribeApiKeyInput?.value || '').trim();
-    let transcribeEndpoint = transcribeEndpointInputValue
-      || localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
-      || localStorage.getItem('vbai_transcribe_endpoint')
-      || '';
-    let transcribeApiKey = transcribeApiKeyInputValue
-      || localStorage.getItem('vbai_proxy_api_key_meeting_transcribe')
-      || localStorage.getItem('vbai_transcribe_api_key')
-      || DEFAULT_MEETING_TRANSCRIBE_API_KEY
-      || '';
-    const selectedProfile = 'proxy_custom';
-    const useProxyWebSearch = useWebSearchChk?.checked !== false;
-    const googleSearchKey = googleKeyInput?.value.trim() || '';
-    const googleSearchCx = googleCxInput?.value.trim() || '';
-    const model = normalizeModelName(modelSelect?.value || '') || DEFAULT_MODEL;
-    const profileChat = 'proxy_custom';
-    const profileSpell = 'proxy_custom';
-    const profilePdf = 'proxy_custom';
-    const profileMeeting = 'proxy_custom';
-
-    if (routerEndpoint && !isValidHttpEndpoint(routerEndpoint)) {
-      alert('9router Endpoint khong hop le. Vui long nhap URL bat dau bang http(s)://');
-      return;
-    }
-    if (transcribeEndpoint && !isValidHttpEndpoint(transcribeEndpoint)) {
-      if (isLikelyApiKey(transcribeEndpoint)) {
-        transcribeApiKey = transcribeApiKeyInputValue || transcribeEndpoint;
-        transcribeEndpoint = '';
-      } else {
-        alert('API ghi am rieng - Endpoint khong hop le. Vui long nhap URL bat dau bang http(s)://');
-        return;
-      }
-    }
-    if (!transcribeEndpoint && isLikelyGoogleApiKey(transcribeApiKey)) {
-      transcribeEndpoint = GOOGLE_GEMINI_OPENAI_ENDPOINT;
-    }
-    
-    localStorage.setItem('vbai_use_9router', 'true');
-    localStorage.setItem('vbai_proxy_enabled_chat', 'true');
-    localStorage.setItem('vbai_proxy_enabled_spellcheck', 'true');
-    localStorage.setItem('vbai_proxy_enabled_pdf', 'true');
-    localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
-    localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
-    localStorage.setItem('vbai_router_model', model);
-    localStorage.setItem('vbai_transcribe_model', transcribeModel);
-    localStorage.setItem('vbai_transcribe_model_meeting', transcribeModel);
-    localStorage.setItem('vbai_router_profile', selectedProfile);
-    localStorage.setItem('vbai_proxy_web_search', useProxyWebSearch ? 'true' : 'false');
-    localStorage.setItem('vbai_google_search_key', googleSearchKey);
-    localStorage.setItem('vbai_google_search_cx', googleSearchCx);
-    localStorage.setItem('vbai_proxy_profile_chat', profileChat);
-    localStorage.setItem('vbai_proxy_profile_spellcheck', profileSpell);
-    localStorage.setItem('vbai_proxy_profile_pdf', profilePdf);
-    localStorage.setItem('vbai_proxy_profile_meeting', profileMeeting);
-    if (routerEndpoint) {
-      localStorage.setItem('vbai_proxy_endpoint_chat', routerEndpoint);
-      localStorage.setItem('vbai_proxy_endpoint_spellcheck', routerEndpoint);
-      localStorage.setItem('vbai_proxy_endpoint_pdf', routerEndpoint);
-      localStorage.setItem('vbai_proxy_endpoint_meeting', routerEndpoint);
-    }
-    if (routerEndpoint) {
-      localStorage.setItem('vbai_9router_endpoint', routerEndpoint);
-    }
-    if (routerKey) {
-      localStorage.setItem('vbai_9router_api_key', routerKey);
-      localStorage.setItem('vbai_proxy_api_key_chat', routerKey);
-      localStorage.setItem('vbai_proxy_api_key_spellcheck', routerKey);
-      localStorage.setItem('vbai_proxy_api_key_pdf', routerKey);
-      localStorage.setItem('vbai_proxy_api_key_meeting', routerKey);
-    }
-    if (transcribeEndpoint) {
-      localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
-      localStorage.setItem('vbai_transcribe_endpoint', transcribeEndpoint);
-      localStorage.setItem('vbai_proxy_endpoint_meeting_transcribe', transcribeEndpoint);
-      localStorage.setItem('vbai_proxy_profile_meeting_transcribe', 'proxy_custom');
-    }
-    if (transcribeApiKey) {
-      localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
-      localStorage.setItem('vbai_transcribe_api_key', transcribeApiKey);
-      localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', transcribeApiKey);
-    }
-    
-    try {
-      const payload = {
-        router_model: model,
-        router_web_search_enabled: useProxyWebSearch,
-        router_transcribe_model: transcribeModel,
-        router_transcribe_endpoint: transcribeEndpoint,
-        router_transcribe_api_key: transcribeApiKey,
-        router_profile: 'proxy_custom',
-        router_profile_chat: 'proxy_custom',
-        router_profile_spellcheck: 'proxy_custom',
-        router_profile_pdf: 'proxy_custom',
-        router_profile_meeting: 'proxy_custom',
-        router_proxy_enabled_chat: true,
-        router_proxy_enabled_meeting_transcribe: true
-      };
-      if (routerEndpoint) payload.router_endpoint = routerEndpoint;
-      if (routerKey) payload.router_api_key = routerKey;
-      if (googleSearchKey) payload.google_search_key = googleSearchKey;
-      if (googleSearchCx) payload.google_search_cx = googleSearchCx;
-      
-      try {
-        await setDoc(doc(db, 'config', 'system'), payload, { merge: true });
-      } catch (firestoreError) {
-        console.warn("Lỗi lưu cấu hình lên server (Firestore), nhưng đã lưu cục bộ trên máy bạn:", firestoreError);
-      }
-      
-      if(initChat('', model)) {
-        alert("Đã lưu cấu hình thành công!");
-        keyModal.style.display = 'none';
-      } else {
-        alert("Lỗi khi khởi tạo Model!");
-      }
-    } catch (e) {
-      console.error("Lưu cấu hình lỗi:", e);
-      alert("Lỗi lưu cấu hình: " + e.message);
-    }
-  };
+  if (sendBtn) sendBtn.onclick = handleSend;
+  if (input) input.onkeypress = (e) => { if(e.key==='Enter') handleSend(); };
 }
 

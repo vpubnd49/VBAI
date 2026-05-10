@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Meeting Minutes Module — Redesigned
  * Chuyển đổi audio cuộc họp thành Thông báo kết luận (NĐ30/HD36)
  * Dung OpenAI-compatible API cho xu ly ghi am va phan tich noi dung
@@ -111,7 +111,7 @@ function renderStep1(sc, c) {
     if (!formState.audioFile) return;
     formState.isProcessing = true; btnProcess.disabled = true; indicator.style.display = 'block';
     try {
-      await processAudioWith9router(formState.audioFile, sc.querySelector('#processing-text'));
+      await processAudioWithProxy(formState.audioFile, sc.querySelector('#processing-text'));
       formState.isProcessing = false; formState.step = 2; doRender(c);
     } catch (error) {
       console.error(error); showToast('Lỗi khi phân tích audio: ' + error.message, 'error');
@@ -304,7 +304,7 @@ function renderStep3(sc, c) {
 }
 
 // ==============================================
-// XỬ LÝ GHI ÂM QUA 9ROUTER (OPENAI-COMPATIBLE)
+// XỬ LÝ GHI ÂM QUA PROXY (OPENAI-COMPATIBLE)
 // ==============================================
 function normalizeModelName(model = "") {
   return String(model || "")
@@ -394,8 +394,8 @@ function getTranscribeEndpointForError(context = 'meeting') {
   }
   return maskSensitive((
     localStorage.getItem('vbai_proxy_endpoint_meeting')
-    || localStorage.getItem('vbai_9router_endpoint')
-    || 'http://localhost:20128/v1'
+    || localStorage.getItem('vbai_openai_endpoint')
+    || ''
   ).trim());
 }
 
@@ -507,12 +507,11 @@ Trả về JSON:
 }
 CHỈ trả về JSON.`;
 
-async function processAudioWith9router(file, progressEl) {
-  localStorage.setItem('vbai_use_9router', 'true');
+async function processAudioWithProxy(file, progressEl) {
   localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
   localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
   const transcribeContext = resolveMeetingTranscribeContext();
-  const transcribeRouteLabel = transcribeContext === 'meeting_transcribe' ? 'API ghi am rieng' : '9router';
+  const transcribeRouteLabel = transcribeContext === 'meeting_transcribe' ? 'API ghi am rieng' : 'Proxy';
   if (transcribeContext === 'meeting_transcribe') {
     let rawEndpoint = (
       localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
@@ -669,7 +668,6 @@ async function processAudioWith9router(file, progressEl) {
 }
 
 async function reanalyzeTranscript() {
-  localStorage.setItem('vbai_use_9router', 'true');
   localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
   localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
   const transcribeContext = resolveMeetingTranscribeContext();

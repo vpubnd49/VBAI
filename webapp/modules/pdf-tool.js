@@ -88,7 +88,7 @@ async function handlePdf(file, container) {
     ocrBtn.onclick = async () => {
       ocrBtn.disabled = true;
       ocrBtn.textContent = '⏳ Đang quét AI...';
-      textContentArea.textContent = 'Đang chuyển trang thành ảnh và gửi lên AI qua 9router... Vui lòng chờ vài giây...';
+      textContentArea.textContent = 'Đang chuyển trang thành ảnh và gửi lên AI... Vui lòng chờ vài giây...';
       
       try {
         const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -119,7 +119,7 @@ async function handlePdf(file, container) {
         // Log OCR usage
         addDoc(collection(db, 'search_logs'), {
           query: `[OCR PDF] Quét ảnh Scan: ${file.name} (${limitPages} trang)`,
-          model: `${model} (via 9router OCR)`,
+          model: `${model} (OCR)`,
           userEmail: window.currentUser?.email || 'Unknown',
           timestamp: serverTimestamp()
         }).catch(e => console.warn(e));

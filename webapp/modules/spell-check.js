@@ -135,7 +135,7 @@ function detectDocType(state) {
 async function checkSpellingAI(paragraphs, progressTextEl) {
   const errors = [];
   
-  progressTextEl.innerText = "Dang ket noi 9router...";
+  progressTextEl.innerText = "Đang kết nối AI...";
   const modelName = (localStorage.getItem('vbai_router_model') || 'cx/gpt-5.5');
 
   // 2. Batching paragraphs — batch nhỏ hơn để AI chính xác hơn

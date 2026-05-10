@@ -1,15 +1,10 @@
 /**
- * AI Proxy Module for 9router (OpenAI-compatible)
+ * AI Proxy Module (OpenAI-compatible)
  */
 
-const FALLBACK_9ROUTER_ENDPOINT =
-  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "http://localhost:20128/v1"
-    : "https://your-9router-public-url.com/v1";
-const DEFAULT_PROXY_MODEL = "cx/gpt-5.5";
+const DEFAULT_PROXY_MODEL = "gpt-4o-mini";
 const DEFAULT_OPENAI_ENDPOINT = "https://api.openai.com/v1";
 const PROXY_PRESETS = {
-  proxy_9router_local: "http://localhost:20128/v1",
   direct_openai: DEFAULT_OPENAI_ENDPOINT,
 };
 
@@ -20,8 +15,26 @@ function trimTrailingSlash(url = "") {
 function normalizeModelName(model = "") {
   return String(model || "")
     .trim()
-    // Support locale-style decimal model names: gpt-5,5 -> gpt-5.5
     .replace(/(\d),(\d)/g, "$1.$2");
+}
+
+function isReasoningModel(model = "") {
+  const m = String(model || "").toLowerCase();
+  return m.includes("o1") || m.includes("o3");
+}
+
+function normalizeMessagesForOpenAI(messages = [], model = "") {
+  const m = String(model || "").toLowerCase();
+  const useDeveloperRole = m.includes("o1") || m.includes("o3") || m.includes("gpt-4o");
+  
+  if (!useDeveloperRole || !Array.isArray(messages)) return messages;
+
+  return messages.map(msg => {
+    if (msg.role === "system") {
+      return { ...msg, role: "developer" };
+    }
+    return msg;
+  });
 }
 
 function normalizeContext(context = "default") {
@@ -47,51 +60,47 @@ export function isGeminiOpenAIEndpoint(endpoint = "") {
   return raw.includes("generativelanguage.googleapis.com/v1beta/openai");
 }
 
+const DEFAULT_GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai";
+
 function getProxyConfig(context = "default") {
   const ctx = normalizeContext(context);
-  const parentCtx = ctx === "meeting_transcribe" ? "meeting" : "default";
-  const enabledRaw = localStorage.getItem(`vbai_proxy_enabled_${ctx}`)
-    || (ctx === "meeting_transcribe" ? localStorage.getItem("vbai_transcribe_enabled") : "")
-    || localStorage.getItem(`vbai_proxy_enabled_${parentCtx}`);
-  const useProxy = (localStorage.getItem("vbai_use_9router") ?? "true") !== "false";
-  const enabled = ctx === "chat"
-    ? useProxy
-    : (enabledRaw ?? localStorage.getItem("vbai_use_9router") ?? "true") === "true";
-  const profile = localStorage.getItem(`vbai_proxy_profile_${ctx}`)
-    || (ctx === "meeting_transcribe" ? localStorage.getItem("vbai_transcribe_profile") : "")
-    || localStorage.getItem(`vbai_proxy_profile_${parentCtx}`)
-    || localStorage.getItem("vbai_router_profile")
-    || "proxy_9router_local";
+  const activeProvider = localStorage.getItem('vbai_active_provider') || 'openai';
 
-  const endpointFromProfile = PROXY_PRESETS[profile] || "";
-  const endpoint = trimTrailingSlash(
-    localStorage.getItem(`vbai_proxy_endpoint_${ctx}`)
-      || (ctx === "meeting_transcribe" ? localStorage.getItem("vbai_transcribe_endpoint") : "")
-      || localStorage.getItem(`vbai_proxy_endpoint_${parentCtx}`)
-      || (profile === "proxy_custom" ? localStorage.getItem("vbai_9router_endpoint") : endpointFromProfile)
-      || localStorage.getItem("vbai_9router_endpoint")
-      || (profile === "direct_openai" ? DEFAULT_OPENAI_ENDPOINT : FALLBACK_9ROUTER_ENDPOINT)
-  );
+  let apiKey = "";
+  let endpoint = "";
 
-  const apiKey = (
-    localStorage.getItem(`vbai_proxy_api_key_${ctx}`)
-    || (ctx === "meeting_transcribe" ? localStorage.getItem("vbai_transcribe_api_key") : "")
-    || localStorage.getItem(`vbai_proxy_api_key_${parentCtx}`)
-    || localStorage.getItem("vbai_9router_api_key")
-    || ""
-  ).trim();
-  return { endpoint, apiKey, enabled, profile, context: ctx };
+  if (activeProvider === 'gemini') {
+    apiKey = (localStorage.getItem('vbai_gemini_api_key') || "").trim();
+    endpoint = DEFAULT_GEMINI_ENDPOINT;
+  } else {
+    // Default to OpenAI
+    apiKey = (localStorage.getItem('vbai_openai_api_key') || "").trim();
+    endpoint = trimTrailingSlash(
+      localStorage.getItem('vbai_openai_endpoint') 
+      || localStorage.getItem(`vbai_proxy_endpoint_${ctx}`)
+      || DEFAULT_OPENAI_ENDPOINT
+    );
+  }
+  
+  const enabled = (localStorage.getItem(`vbai_proxy_enabled_${ctx}`) || 'true') === 'true';
+  const profile = localStorage.getItem(`vbai_proxy_profile_${ctx}`) || 'direct_openai';
+
+  return { endpoint, apiKey, enabled, profile, context: ctx, provider: activeProvider };
 }
+
 
 export function getProxyEndpointForContext(context = "default") {
   return getProxyConfig(context).endpoint;
 }
 
 function buildAuthHeaders(context = "default", extraHeaders = {}) {
-  const { apiKey, endpoint } = getProxyConfig(context);
+  const { apiKey, endpoint, provider } = getProxyConfig(context);
   const headers = { ...extraHeaders };
-  if (shouldAttachAuthorization(endpoint, apiKey)) {
+  if (apiKey) {
     headers.Authorization = `Bearer ${apiKey}`;
+    if (provider === 'gemini') {
+      headers["x-goog-api-key"] = apiKey;
+    }
   }
   return headers;
 }
@@ -162,7 +171,7 @@ function buildTranscribeError(routeKind, endpoint, model, detail) {
 }
 
 /**
- * Send chat completion request via 9router.
+ * Send chat completion request via Proxy.
  */
 export async function sendChatRequest(messages, model, options = {}) {
   const context = options.context || "default";
@@ -184,13 +193,27 @@ export async function sendChatRequest(messages, model, options = {}) {
   const onDelta = typeof requestOptions.onDelta === "function" ? requestOptions.onDelta : null;
   delete requestOptions.onDelta;
   const resolvedModel = resolveChatModel(model);
+  const isReasoning = isReasoningModel(resolvedModel);
+
   const payload = {
     model: resolvedModel,
-    messages,
-    temperature: requestOptions.temperature ?? 0.7,
+    messages: normalizeMessagesForOpenAI(messages, resolvedModel),
     stream: requestOptions.stream ?? false,
     ...requestOptions,
   };
+
+  if (isReasoning) {
+    delete payload.temperature;
+    delete payload.top_p;
+    if (payload.max_tokens) {
+      payload.max_completion_tokens = payload.max_tokens;
+      delete payload.max_tokens;
+    }
+  } else {
+    if (payload.temperature === undefined) {
+      payload.temperature = 0.7;
+    }
+  }
   if (Array.isArray(payload.tools) && payload.tools.length > 0 && payload.tool_choice === undefined) {
     payload.tool_choice = "auto";
   }
@@ -202,8 +225,8 @@ export async function sendChatRequest(messages, model, options = {}) {
       body: JSON.stringify(payload),
     }, timeoutMs ?? 120000);
   } catch (e) {
-    if (String(e?.name || "").toLowerCase() === "aborterror") {
-      throw new Error("Ket noi 9router bi timeout. Vui long kiem tra endpoint/mang va thu lai.");
+    if (String(e?.message || "").toLowerCase().includes("timeout")) {
+      throw new Error("Ket noi Proxy bi timeout. Vui long kiem tra endpoint/mang va thu lai.");
     }
     throw e;
   }
@@ -223,18 +246,20 @@ export async function sendChatRequest(messages, model, options = {}) {
       response.status === 401
       || normalized.includes("no active credentials")
       || normalized.includes("unauthorized")
-      || normalized.includes("model_not_found")
-      || normalized.includes("not found")
+      || normalized.includes("invalid_api_key")
     ) {
-      if (!retryAlias && !disableAliasRetry) {
-        const aliasModel = getAliasModelCandidate(resolvedModel);
-        if (aliasModel && aliasModel !== resolvedModel) {
-          localStorage.setItem("vbai_router_model", aliasModel);
-          return sendChatRequest(messages, aliasModel, { ...options, context, __retryAlias: true });
-        }
-      }
       throw new Error(
-        `Khong the dung model "${resolvedModel}" tren proxy hien tai. Can ket noi/nap credential provider tuong ung trong 9router hoac cap quyen model cho API key.`
+        `Lỗi xác thực: API Key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại cấu hình AI.`
+      );
+    }
+    if (response.status === 429 || normalized.includes("quota") || normalized.includes("limit")) {
+      throw new Error(
+        `Lỗi hạn mức (Quota): Tài khoản AI của bạn đã hết tiền hoặc vượt quá giới hạn lượt gọi. Vui lòng nạp thêm tiền hoặc đổi API Key khác.`
+      );
+    }
+    if (isModelMissing) {
+      throw new Error(
+        `Model "${resolvedModel}" khong ton tai hoac khong duoc ho tro boi Endpoint nay. Vui long chon model khac.`
       );
     }
     throw new Error(rawMessage);
@@ -265,7 +290,7 @@ export async function sendChatRequest(messages, model, options = {}) {
   }
   const contentType = response.headers.get("content-type") || "";
 
-  // Some 9router setups return SSE chunks even with stream=false.
+  // Some Proxy setups return SSE chunks even with stream=false.
   if (contentType.includes("text/event-stream")) {
     const raw = await response.text();
     return extractContentFromSse(raw);
@@ -375,7 +400,7 @@ async function consumeSseResponse(response, onDelta) {
 }
 
 /**
- * Send audio transcription request via 9router (OpenAI-compatible).
+ * Send audio transcription request via Proxy (OpenAI-compatible).
  */
 export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, options = {}) {
   const context = options.context || "default";
@@ -426,7 +451,7 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
     }, timeoutMs ?? 180000);
   } catch (e) {
     if (String(e?.name || "").toLowerCase() === "aborterror") {
-      throw new Error("Transcription qua 9router bi timeout. Vui long thu lai hoac giam kich thuoc file.");
+      throw new Error("Transcription qua Proxy bi timeout. Vui long thu lai hoac giam kich thuoc file.");
     }
     throw e;
   }
@@ -464,7 +489,7 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
 
 /**
  * Fallback transcription by sending audio as input_audio to chat/completions.
- * Useful when /audio/transcriptions is unavailable on the 9router instance.
+ * Useful when /audio/transcriptions is unavailable on the Proxy instance.
  */
 export async function sendAudioTranscriptionViaChat(file, model = DEFAULT_PROXY_MODEL, options = {}) {
   const context = options.context || "default";
@@ -488,7 +513,7 @@ export async function sendAudioTranscriptionViaChat(file, model = DEFAULT_PROXY_
   }
 
   const prompt = options.prompt
-    || "Hay chuyen toan bo audio nay thanh van ban tieng Viet. Chi tra ve transcript thuần text, khong giai thich.";
+    || "Hay chuyen toan bo audio nay thanh van ban tieng Viet. Chi tra ve transcript thuan text, khong giai thich.";
 
   const base64 = await fileToBase64(file);
   const { format } = resolveAudioFormatForEndpoint(file, getProxyEndpointForContext(context));
@@ -541,7 +566,7 @@ async function transcribeAudioViaChatChunked(file, model = DEFAULT_PROXY_MODEL, 
         part: i + 1,
         total: totalChunks,
         bytes: end - start,
-        message: `Dang boc bang phan ${i + 1}/${totalChunks} qua 9router...`,
+      message: `Dang boc bang phan ${i + 1}/${totalChunks} qua Proxy...`,
       });
     }
 
@@ -549,7 +574,7 @@ async function transcribeAudioViaChatChunked(file, model = DEFAULT_PROXY_MODEL, 
       `Day la PHAN ${i + 1}/${totalChunks} cua cung mot file ghi am dai.`,
       "Hay chuyen chinh xac noi dung audio thanh transcript tieng Viet.",
       "Chi tra ve van ban transcript thuan text, khong tom tat, khong giai thich, khong them nhan xet.",
-      "Giữ đúng thứ tự câu từ trong phần audio này.",
+      "Giu dung thu tu cau tu trong phan audio nay.",
     ].join(" ");
 
     const partText = await sendAudioTranscriptionViaChat(chunkFile, model, {
@@ -572,6 +597,12 @@ async function transcribeAudioViaChatChunked(file, model = DEFAULT_PROXY_MODEL, 
 function resolveChatModel(model) {
   const requested = normalizeModelName(model);
   if (requested) return requested;
+
+  const activeProvider = localStorage.getItem('vbai_active_provider') || 'openai';
+  if (activeProvider === 'gemini') {
+    return normalizeModelName(localStorage.getItem('vbai_gemini_model') || 'gemini-2.0-pro-exp-02-05');
+  }
+
   const saved = normalizeModelName(
     localStorage.getItem("vbai_router_model")
     || ""
@@ -580,9 +611,9 @@ function resolveChatModel(model) {
 }
 
 /**
- * Check whether 9router endpoint is reachable.
+ * Check whether AI Proxy endpoint is reachable.
  */
-export async function check9routerStatus(context = "default") {
+export async function checkProxyStatus(context = "default") {
   const { endpoint, enabled } = getProxyConfig(context);
   if (!enabled) return false;
   try {
@@ -948,12 +979,5 @@ function isChatLikeModelId(modelId = "") {
 }
 
 function getAliasModelCandidate(model = "") {
-  const m = String(model || "").trim();
-  if (!m) return "";
-  if (/(transcribe|whisper|audio)/i.test(m)) return "";
-
-  // Prefer cx/ namespace on local 9router codex provider.
-  if (m.startsWith("v1/cx/")) return m.replace(/^v1\/cx\//, "cx/");
-  if (!m.includes("/")) return `cx/${m}`;
   return "";
 }

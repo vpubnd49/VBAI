@@ -50,5 +50,16 @@ To restore:
 1. Copy the contents of `backup_agents/Skill_...` to their respective directories in the project root.
 2. Ensure `node_modules` are installed in the `webapp` folder (`npm install`).
 
-## 5. Security Note
+## 6. AI Provider Configuration
+The application has been migrated to a **provider-agnostic architecture**. It no longer relies on hardcoded legacy proxies (like 9Router).
+
+To enable AI features:
+1. Open the **Chat Assistant** in the web app.
+2. Click the **🧩 Configuration (Settings)** icon.
+3. Enter your **OpenAI API Key** and **Endpoint** (default: `https://api.openai.com/v1`).
+4. Enter your **Google Search API Key** and **CX** to enable real-time legal search.
+
+The configuration will be saved to your local browser storage and synchronized with your Firebase account for persistent access across devices.
+
+## 7. Security Note
 A backup of the current `github-sa-key.json` is located in `backup_agents/github-sa-key.json`. **Do not commit this file to public repositories.**
