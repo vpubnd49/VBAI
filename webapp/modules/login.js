@@ -7,6 +7,26 @@ import { firebaseConfig } from '../firebase-config.js';
 
 let isRegistering = false;
 
+async function updateAdminState(user) {
+  try {
+    if (!user) {
+      window.isAdmin = false;
+      localStorage.setItem('vbai_is_admin', 'false');
+      return false;
+    }
+    const tokenResult = await user.getIdTokenResult(true);
+    const admin = tokenResult?.claims?.admin === true;
+    window.isAdmin = admin;
+    localStorage.setItem('vbai_is_admin', admin ? 'true' : 'false');
+    return admin;
+  } catch (e) {
+    console.warn('Khong the doc custom claims admin:', e);
+    window.isAdmin = false;
+    localStorage.setItem('vbai_is_admin', 'false');
+    return false;
+  }
+}
+
 function shouldPreferRedirectLogin() {
   const ua = String(navigator.userAgent || "").toLowerCase();
   const isMobile = /android|iphone|ipad|ipod|mobile/.test(ua);
@@ -208,6 +228,7 @@ export function renderLogin(container) {
     .then(async (result) => {
       if (result?.user) {
         await saveUserToDb(db, result.user);
+        await updateAdminState(result.user);
         showToast('Dang nhap thanh cong!');
       }
     })
@@ -287,9 +308,11 @@ export function renderLogin(container) {
       if (isRegistering) {
         const result = await createUserWithEmailAndPassword(auth, email, pwd);
         await saveUserToDb(db, result.user);
+        await updateAdminState(result.user);
         showToast('Đăng ký thành công!');
       } else {
-        await signInWithEmailAndPassword(auth, email, pwd);
+        const result = await signInWithEmailAndPassword(auth, email, pwd);
+        await updateAdminState(result.user);
         showToast('Đăng nhập thành công!');
       }
     } catch (error) {

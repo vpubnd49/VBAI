@@ -11,45 +11,49 @@ import { firebaseConfig } from '../firebase-config.js';
 import {
   sendChatRequest,
   checkProxyStatus,
-  sendAudioTranscriptionViaChat,
-  isGeminiOpenAIEndpoint,
+  sendAudioTranscription,
+  sendWebSearchRequest,
 } from './ai-proxy.js';
 
-const DEFAULT_MODEL = "gpt-4o-mini";
-const DEFAULT_MEETING_TRANSCRIBE_API_KEY = "AIzaSyAa4rHozoUWV4BLJ0XIOKFlqQMalQXb0X4";
-const STRICT_MEETING_AUDIO_MODEL = "gemini-2.5-pro";
-const GOOGLE_GEMINI_OPENAI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai";
+import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig } from './system-config.js';
+
+const DEFAULT_MODEL = 'gpt-4o-mini';
+const STRICT_MEETING_AUDIO_MODEL = 'gemini-2.5-pro';
 
 let aiClient = null;
 let chatSession = null;
 let currentModelName = DEFAULT_MODEL;
-let useProxy = (localStorage.getItem('vbai_proxy_enabled_chat') ?? 'true') === 'true';
+let systemConfigCache = null;
+
+async function loadSystemConfig() {
+  try {
+    systemConfigCache = await fetchSystemConfig();
+  } catch (e) {
+    console.warn('Không thể tải cấu hình hệ thống:', e);
+  }
+}
 
 function isProxyUnavailableError(error) {
-  const msg = String(error?.message || "").toLowerCase();
+  const msg = String(error?.message || '').toLowerCase();
   return (
-    msg.includes("failed to fetch")
-    || msg.includes("networkerror")
-    || msg.includes("load failed")
-    || msg.includes("timeout")
-    || msg.includes("khong ket noi")
-    || msg.includes("cors")
+    msg.includes('failed to fetch')
+    || msg.includes('networkerror')
+    || msg.includes('load failed')
+    || msg.includes('timeout')
+    || msg.includes('khong ket noi')
+    || msg.includes('cors')
   );
 }
 
 function isProxyToolUnsupportedError(error) {
-  const msg = String(error?.message || "").toLowerCase();
+  const msg = String(error?.message || '').toLowerCase();
   return (
-    msg.includes("tool")
-    || msg.includes("web_search")
-    || msg.includes("unsupported")
-    || msg.includes("invalid_request_error")
-    || msg.includes("unknown field")
+    msg.includes('tool')
+    || msg.includes('web_search')
+    || msg.includes('unsupported')
+    || msg.includes('invalid_request_error')
+    || msg.includes('unknown field')
   );
-}
-
-function shouldUseProxyWebSearchTool() {
-  return (localStorage.getItem('vbai_proxy_web_search') ?? 'true') === 'true';
 }
 
 function normalizeModelName(model = "") {
@@ -73,15 +77,6 @@ function isValidHttpEndpoint(value = "") {
   if (!v) return false;
   if (isLikelyApiKey(v)) return false;
   return /^https?:\/\//i.test(v);
-}
-
-function getCurrentProxyEndpoint() {
-  const endpoint = (
-    localStorage.getItem('vbai_openai_endpoint')
-    || localStorage.getItem('vbai_proxy_endpoint_chat')
-    || ""
-  ).trim();
-  return endpoint;
 }
 
 function createSilentWavTestFile() {
@@ -218,6 +213,12 @@ function isTimeSensitiveQuery(text = '') {
   return /(moi nhat|cap nhat|hom nay|hieu luc|sua doi|bo sung|thay the|van ban moi)/.test(t) || yearPattern.test(t) || isLegal;
 }
 
+function buildFreshnessGuardMessage(query = '', reason = '') {
+  const topic = String(query || '').trim() || 'nội dung này';
+  const reasonText = reason ? ` ${reason}` : '';
+  return `Tôi chưa thể xác minh dữ liệu mới nhất từ Internet cho yêu cầu: "${topic}".${reasonText} Vui lòng nêu rõ hơn số hiệu văn bản, năm ban hành/hiệu lực hoặc kiểm tra thêm từ nguồn chính thức như vbpl.vn, chinhphu.vn, quochoi.vn.`;
+}
+
 function shouldPreferWebSearch(text = '') {
   const t = normalizeVietnamese(text);
   if (isTimeSensitiveQuery(t)) return true;
@@ -241,18 +242,18 @@ function saveChatCacheStore(store) {
   } catch {}
 }
 
-function makeChatCacheKey(text, model, useProxy, useWebSearch) {
+function makeChatCacheKey(text, model, useWebSearch) {
   return [
     normalizeVietnamese(text).replace(/\s+/g, ' ').trim(),
     String(model || '').trim().toLowerCase(),
-    useProxy ? 'proxy' : 'direct',
+    'proxy',
     useWebSearch ? 'ws1' : 'ws0'
   ].join('||');
 }
 
-function getCachedChatAnswer(text, model, useProxy, useWebSearch) {
+function getCachedChatAnswer(text, model, useWebSearch) {
   const store = getChatCacheStore();
-  const key = makeChatCacheKey(text, model, useProxy, useWebSearch);
+  const key = makeChatCacheKey(text, model, useWebSearch);
   const hit = store[key];
   if (!hit || typeof hit !== 'object') return '';
   if (!hit.expiresAt || Date.now() > hit.expiresAt) {
@@ -263,13 +264,13 @@ function getCachedChatAnswer(text, model, useProxy, useWebSearch) {
   return typeof hit.text === 'string' ? hit.text : '';
 }
 
-function setCachedChatAnswer(text, model, useProxy, useWebSearch, answer) {
+function setCachedChatAnswer(text, model, useWebSearch, answer) {
   const cleaned = String(answer || '').trim();
   if (!cleaned) return;
 
   const ttl = isTimeSensitiveQuery(text) ? CHAT_CACHE_TTL_TIME_SENSITIVE_MS : CHAT_CACHE_TTL_MS;
   const store = getChatCacheStore();
-  const key = makeChatCacheKey(text, model, useProxy, useWebSearch);
+  const key = makeChatCacheKey(text, model, useWebSearch);
   store[key] = {
     text: cleaned,
     updatedAt: Date.now(),
@@ -696,160 +697,44 @@ function extractPotentialDocNumber(text = '') {
   return match ? match[0].toUpperCase() : null;
 }
 
-async function fetchWebSearchResults(query, expectedDocNumber = null) {
-  const googleKey = localStorage.getItem('vbai_google_search_key');
-  const googleCx = localStorage.getItem('vbai_google_search_cx');
-
-  if (!googleKey || !googleCx) return "";
-
-  const domainClause = [
-    'site:thuvienphapluat.vn',
-    'site:vbpl.vn',
-    'site:luatvietnam.vn',
-    'site:vanban.chinhphu.vn',
-    'site:congbao.chinhphu.vn',
-    'site:chinhphu.vn',
-    'site:quochoi.vn',
-    'site:dangcongsan.vn',
-    'site:moj.gov.vn',
-    'site:baochinhphu.vn',
-    'site:thanhchuong.com.vn',
-    'site:vanbanphapluat.com',
-  ].join(' OR ');
-
-  // Refine query for legal/policy documents to ensure latest data is fetched
-  let refinedQuery = query;
-  const t = normalizeVietnamese(query);
-  const isLegal = /(luat|nghi dinh|thong tu|quyet dinh|quy dinh|van ban|chinh sach|huong dan|tien luong|huu tri|bao hiem|thue|dat dai|xay dung|dau thau|doanh nghiep|can bo|cong chuc)/.test(t);
-
-  const { current, next } = getCurrentYearContext();
-  const hasSpecificYear = new RegExp(`(202\\d|203\\d)`).test(t);
-
-  if (isLegal && !hasSpecificYear && !t.includes("moi nhat")) {
-    refinedQuery += ` mới nhất ${current} ${next}`;
-  }
-
-  const executeSearch = async (q) => {
-    try {
-      const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${googleCx}&q=${encodeURIComponent(q)}&num=10&sort=date`;
-      const response = await fetch(url);
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data.items || [];
-    } catch (e) {
-      console.warn("Google API error:", e);
-      return null;
-    }
-  };
-
-  // 1st attempt: Constrained to authoritative sites
-  let items = await executeSearch(`${refinedQuery} (${domainClause})`);
-
-  // 2nd attempt: Broad search if first one failed
-  if (!items || items.length === 0) {
-    items = await executeSearch(refinedQuery);
-  }
-
-  if (!items || items.length === 0) return "";
-
-  // If an exact document number is expected, filter results to only those containing it
-  if (expectedDocNumber) {
-    const expectedUpper = expectedDocNumber.toUpperCase();
-    items = items.filter(item => {
-      const title = (item.title || '').toUpperCase();
-      const snippet = (item.snippet || '').toUpperCase();
-      return title.includes(expectedUpper) || snippet.includes(expectedUpper);
-    });
-    if (items.length === 0) {
-      // No exact match found — signal caller to not use web data
-      return "__NO_EXACT_MATCH__";
-    }
-  }
-
-  // Return up to 8 results
-  return items.slice(0, 8).map(item => {
-    const title = item.title || "No Title";
-    const link = item.link || "#";
-    const snippet = item.snippet || "";
-    return `- [${title}](${link}): ${snippet}`;
-  }).join("\n\n");
-}
-
 /**
  * Automatically fetch the latest laws at the start of the day.
  */
 export async function runDailyLegalSync() {
   const today = new Date().toLocaleDateString('vi-VN');
   const lastSync = localStorage.getItem(DAILY_SYNC_DATE_KEY);
-  
+
   if (lastSync === today) {
     console.log("[VBAI] Daily sync already completed for today.");
     return;
   }
 
-  const googleKey = localStorage.getItem('vbai_google_search_key');
-  const googleCx = localStorage.getItem('vbai_google_search_cx');
-  if (!googleKey || !googleCx) {
-    console.warn("[VBAI] Daily sync skipped: Google Search API not configured.");
-    return;
-  }
-
   try {
+    // Check if system has Google Search configured (may need to load config)
+    const config = systemConfigCache || await fetchSystemConfig();
+    if (!config?.google_search_configured) {
+      console.log("[VBAI] Daily sync skipped: Google Search not configured in system.");
+      return;
+    }
+
     const query = "văn bản pháp luật mới ban hành hôm nay";
-    const results = await fetchWebSearchResults(query);
-    
+    const results = await sendWebSearchRequest(query);
+
     if (results) {
       localStorage.setItem(DAILY_HOT_KNOWLEDGE_KEY, results);
       localStorage.setItem(DAILY_SYNC_DATE_KEY, today);
       console.log("[VBAI] Daily legal sync successful.");
     }
   } catch (err) {
-    console.error("[VBAI] Daily sync failed:", err);
+    // Not critical; log warning but don't spam errors
+    console.warn("[VBAI] Daily sync skipped or failed:", err.message);
   }
 }
 
-async function resetAllConfigAndSetOpenAIKey(newKey) {
-    Object.keys(localStorage).filter(k => k.startsWith('vbai_')).forEach(k => localStorage.removeItem(k));
-    sessionStorage.removeItem('vbai_chat_cache_v1');
-
-    const contexts = ['chat', 'spellcheck', 'pdf', 'meeting', 'meeting_transcribe'];
-    contexts.forEach(ctx => {
-      localStorage.setItem(`vbai_proxy_api_key_${ctx}`, newKey);
-      localStorage.setItem(`vbai_proxy_enabled_${ctx}`, 'true');
-      localStorage.setItem(`vbai_proxy_profile_${ctx}`, 'direct_openai');
-    });
-
-    localStorage.setItem('vbai_router_model', 'gpt-4o-mini');
-    localStorage.setItem('vbai_transcribe_model', 'whisper-1');
-    localStorage.setItem('vbai_router_model_meeting', 'gpt-4o-mini');
-
-    try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      await setDoc(doc(db, 'config', 'system'), {
-        openai_api_key: newKey,
-        openai_endpoint: '',
-        router_model: 'gpt-4o-mini',
-        router_profile: 'direct_openai',
-        router_proxy_enabled_chat: true,
-        router_transcribe_api_key: newKey,
-      }, { merge: true });
-    } catch (e) {
-      console.warn('Firestore save failed:', e);
-    }
-
-    if (window.initChat) {
-      initChat(newKey, 'gpt-4o-mini');
-    }
-
-    alert('✅ Đã reset cấu hình và lưu API key thành công!\nHãy reload trang để áp dụng.');
-  }
 
 export function initChat(apiKey, modelName = DEFAULT_MODEL) {
   const normalizedModel = normalizeModelName(
-    modelName
-    || localStorage.getItem('vbai_router_model')
-    || DEFAULT_MODEL
+    modelName || DEFAULT_MODEL
   );
   currentModelName = normalizedModel || DEFAULT_MODEL;
   
@@ -894,11 +779,11 @@ export async function sendMessage(text, onChunk) {
 
   try {
     let fullText = "";
-    let useWebSearch = shouldUseProxyWebSearchTool();
+    let useWebSearch = !!systemConfigCache?.google_search_configured;
     const isTimeSensitive = isTimeSensitiveQuery(rawUserText);
     const expectedDocNumber = extractPotentialDocNumber(rawUserText);
     // Bypass cache for time-sensitive queries to ensure latest data
-    const cached = (!isTimeSensitive) ? getCachedChatAnswer(rawUserText, currentModelName, true, useWebSearch) : '';
+    const cached = (!isTimeSensitive) ? getCachedChatAnswer(rawUserText, currentModelName, useWebSearch) : '';
     if (cached) {
       pushTurn("user", rawUserText);
       pushTurn("assistant", cached);
@@ -911,11 +796,25 @@ export async function sendMessage(text, onChunk) {
     let finalUserText = contextualUserText;
     if (useWebSearch && shouldPreferWebSearch(rawUserText)) {
       if (onChunk) onChunk("Đang tra cứu dữ liệu mới nhất từ Internet...\n");
-      const searchResults = await fetchWebSearchResults(rawUserText, expectedDocNumber);
+      const searchResults = await sendWebSearchRequest(rawUserText, expectedDocNumber);
       if (searchResults === "__NO_EXACT_MATCH__" && expectedDocNumber) {
-        finalUserText = `${contextualUserText}\n\n[KHÔNG TÌM THẤY KẾT QUẢ KHỚP CHÍNH XÁC SỐ HIỆU ${expectedDocNumber} TRONG DỮ LIỆU TRA CỨU MỚI NHẤT TỪ INTERNET. BẠN CHỈ ĐƯỢC PHÉP TRẢ LỜI KHÔNG TÌM THẤY, KHÔNG ĐƯỢC SUY ĐOÁN SANG SỐ HIỆU GẦN GIỐNG.]`;
+        const guardText = buildFreshnessGuardMessage(rawUserText, `Không tìm thấy văn bản có số hiệu ${expectedDocNumber} trong dữ liệu tra cứu mới nhất.`);
+        pushTurn("user", rawUserText);
+        pushTurn("assistant", guardText);
+        lastUserQuery = rawUserText;
+        lastAssistantReply = guardText;
+        if (onChunk) onChunk(guardText);
+        return guardText;
       } else if (searchResults) {
         finalUserText = `${contextualUserText}\n\n[Dữ liệu trực tuyến cập nhật, tra cứu lúc ${new Date().toLocaleTimeString('vi-VN')}]:\n${searchResults}`;
+      } else {
+        const guardText = buildFreshnessGuardMessage(rawUserText, 'Không có kết quả tra cứu phù hợp từ Internet.');
+        pushTurn("user", rawUserText);
+        pushTurn("assistant", guardText);
+        lastUserQuery = rawUserText;
+        lastAssistantReply = guardText;
+        if (onChunk) onChunk(guardText);
+        return guardText;
       }
     }
 
@@ -949,7 +848,7 @@ export async function sendMessage(text, onChunk) {
 
     // Only cache non-time-sensitive queries to ensure fresh data for legal/latest requests
     if (!isTimeSensitive) {
-      setCachedChatAnswer(rawUserText, currentModelName, true, useWebSearch, fullText);
+      setCachedChatAnswer(rawUserText, currentModelName, useWebSearch, fullText);
     }
     pushTurn("user", rawUserText);
     pushTurn("assistant", fullText);
@@ -977,29 +876,24 @@ export async function sendMessage(text, onChunk) {
 }
 
 export async function renderChatUI(container) {
-  const savedProvider = localStorage.getItem('vbai_active_provider') || 'openai';
+  await loadSystemConfig();
+  const isAdmin = isCurrentUserAdmin();
+  const activeProvider = systemConfigCache?.active_provider || 'openai';
   const savedModel = normalizeModelName(
-    savedProvider === 'gemini' 
-    ? (localStorage.getItem('vbai_gemini_model') || 'gemini-2.0-pro-exp-02-05')
-    : (localStorage.getItem('vbai_router_model') || DEFAULT_MODEL)
+    activeProvider === 'gemini'
+      ? (systemConfigCache?.gemini_model || 'gemini-2.0-pro-exp-02-05')
+      : (systemConfigCache?.router_model || DEFAULT_MODEL)
   ) || DEFAULT_MODEL;
-  
-  const savedKey = localStorage.getItem('vbai_openai_api_key') || '';
-  const savedEndpoint = localStorage.getItem('vbai_openai_endpoint') || 'https://api.openai.com/v1';
-  
-  const savedGeminiKey = localStorage.getItem('vbai_gemini_api_key') || '';
-  const savedGeminiModel = localStorage.getItem('vbai_gemini_model') || 'gemini-2.0-pro-exp-02-05';
+  const openaiModel = systemConfigCache?.router_model || 'gpt-4o-mini';
+  const geminiModel = systemConfigCache?.gemini_model || 'gemini-2.0-pro-exp-02-05';
 
-  const savedGoogleSearchKey = localStorage.getItem('vbai_google_search_key') || '';
-  const savedGoogleSearchCx = localStorage.getItem('vbai_google_search_cx') || '';
-  
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
       <div class="panel-header">
-        <div class="panel-header-icon">⚖️</div>
-        Trợ Lý Tra Cứu Pháp Luật & Quy Định Đảng AI
+        <div class="panel-header-icon">\u2696\uFE0F</div>
+        Tr\u1EE3 L\u00FD Tra C\u1EE9u Ph\u00E1p Lu\u1EADt & Quy \u0111\u1ECBnh \u0110\u1EA3ng AI
         <div style="flex:1"></div>
-        <button id="chat-settings-openai-btn" class="btn-icon" title="Cấu hình AI" style="width:28px; height:28px; font-size:0.72rem; margin-left:6px">🧩</button>
+        <button id="chat-settings-openai-btn" class="btn-icon" title="Th\u00F4ng tin c\u1EA5u h\u00ECnh AI" style="width:28px; height:28px; font-size:0.72rem; margin-left:6px">\u{1F9E9}</button>
       </div>
       <div class="panel-body">
         <div id="chat-messages" class="chat-messages-area">
@@ -1008,7 +902,7 @@ export async function renderChatUI(container) {
             Tôi hỗ trợ tra cứu các quy định pháp luật và các quy định, hướng dẫn của cơ quan Hành chính và cơ quan Đảng mới nhất.
           </div>
         </div>
-        
+
         <div class="chat-input-wrapper">
           <input type="text" id="chat-input" placeholder="Nhập nội dung cần tra cứu..." class="form-input chat-input-field">
           <button id="chat-send-btn" class="btn btn-primary chat-send-btn">
@@ -1021,71 +915,88 @@ export async function renderChatUI(container) {
       </div>
     </div>
 
-    <!-- AI Config Modal -->
     <div id="key-modal-openai" class="modal-overlay" style="display:none">
       <div class="modal-content panel-group config-ai-modal" style="max-width:500px">
-        <div class="panel-header">Cấu hình AI & Tìm kiếm pháp luật</div>
+        <div class="panel-header">Thông tin cấu hình AI hệ thống</div>
         <div class="panel-body config-ai-modal-body" style="max-height:80vh; overflow-y:auto">
-          
-          <div class="form-group" style="margin-bottom:16px">
-            <label class="form-label">Nhà cung cấp AI đang dùng</label>
-            <div style="display:flex; gap:12px; margin-top:4px">
-              <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
-                <input type="radio" name="ai-provider" value="openai" ${savedProvider === 'openai' ? 'checked' : ''}> OpenAI
-              </label>
-              <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
-                <input type="radio" name="ai-provider" value="gemini" ${savedProvider === 'gemini' ? 'checked' : ''}> Google Gemini
-              </label>
-            </div>
-          </div>
-
-          <div id="section-openai" style="display:${savedProvider === 'openai' ? 'block' : 'none'}; border:1px solid var(--border-subtle); padding:12px; border-radius:8px; margin-bottom:16px">
-            <p style="font-weight:700; font-size:0.85rem; margin:0 0 10px; color:var(--daquy-600)">⚙️ Cấu hình OpenAI</p>
-            <div class="form-group" style="margin-bottom:12px">
-              <label class="form-label">OpenAI API Key</label>
-              <input type="password" id="openai-api-key-input" class="form-input" value="${savedKey}" placeholder="sk-...">
-            </div>
-            <div class="form-group" style="margin-bottom:12px">
-              <label class="form-label">OpenAI Endpoint</label>
-              <input type="text" id="openai-endpoint-input" class="form-input" value="${savedEndpoint}" placeholder="https://api.openai.com/v1">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Model AI</label>
-              <input type="text" id="openai-model-select" class="form-input" value="${savedModel}" placeholder="gpt-4o-mini">
-            </div>
-          </div>
-
-          <div id="section-gemini" style="display:${savedProvider === 'gemini' ? 'block' : 'none'}; border:1px solid var(--border-subtle); padding:12px; border-radius:8px; margin-bottom:16px">
-            <p style="font-weight:700; font-size:0.85rem; margin:0 0 10px; color:var(--pine-600)">⚙️ Cấu hình Google Gemini</p>
-            <div class="form-group" style="margin-bottom:12px">
-              <label class="form-label">Gemini API Key</label>
-              <input type="password" id="gemini-api-key-input" class="form-input" value="${savedGeminiKey}" placeholder="AIza...">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Model Gemini</label>
-              <input type="text" id="gemini-model-input" class="form-input" value="${savedGeminiModel}" placeholder="gemini-2.0-pro-exp-02-05">
-            </div>
-            <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px">Gemini sẽ tự động kết nối qua OpenAI-compatible endpoint của Google.</p>
-          </div>
-
           <div style="padding:10px; background:rgba(16,185,129,0.05); border-radius:8px; margin-bottom:12px; border:1px solid rgba(16,185,129,0.1);">
-            <p style="font-size:0.8rem; color:var(--pine-600); font-weight:700; margin:0 0 4px">🔍 Tra cứu pháp luật (Google CSE)</p>
-            <p style="font-size:0.74rem; color:var(--text-secondary); margin:0">Cấu hình để AI có thể tìm kiếm dữ liệu mới nhất trên Internet.</p>
+            <p style="font-size:0.8rem; color:var(--pine-600); font-weight:700; margin:0 0 8px">Nhà cung cấp hiện tại</p>
+            ${isAdmin ? `
+            <div id="modal-active-provider" style="display:flex; gap:12px; flex-wrap:wrap; font-size:0.85rem; margin:0;">
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer"><input type="radio" name="modal_active_provider" value="openai" ${activeProvider !== 'gemini' ? 'checked' : ''}> OpenAI</label>
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer"><input type="radio" name="modal_active_provider" value="gemini" ${activeProvider === 'gemini' ? 'checked' : ''}> Gemini</label>
+            </div>
+            ` : `
+            <p id="modal-active-provider" style="font-size:0.85rem; margin:0">${activeProvider === 'gemini' ? 'Google Gemini' : 'OpenAI'}</p>
+            `}
           </div>
+          
+          <form id="modal-config-form">
+            ${isAdmin ? `
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:12px;">
+              <div style="padding:12px; border:1px solid rgba(16,185,129,0.12); border-radius:8px; background:rgba(16,185,129,0.04);">
+                <div style="font-size:0.82rem; font-weight:700; color:var(--pine-700); margin-bottom:10px;">OpenAI</div>
+                <div class="form-group" style="margin-bottom:12px">
+                  <label class="form-label">Model (GPT/OpenAI)</label>
+                  <input type="text" id="modal-router-model" class="form-input" value="${openaiModel}">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">OpenAI API Key</label>
+                  <input type="password" id="modal-openai-key" class="form-input" placeholder="${systemConfigCache?.has_openai_key ? '••••••••••••••••' : 'sk-...'}" data-has-key="${!!systemConfigCache?.has_openai_key}">
+                </div>
+              </div>
+              <div style="padding:12px; border:1px solid rgba(16,185,129,0.12); border-radius:8px; background:rgba(16,185,129,0.04);">
+                <div style="font-size:0.82rem; font-weight:700; color:var(--pine-700); margin-bottom:10px;">Gemini</div>
+                <div class="form-group" style="margin-bottom:12px">
+                  <label class="form-label">Model Gemini</label>
+                  <input type="text" id="modal-gemini-model" class="form-input" value="${geminiModel}">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label class="form-label">Gemini API Key</label>
+                  <input type="password" id="modal-gemini-key" class="form-input" placeholder="${systemConfigCache?.has_gemini_key ? '••••••••••••••••' : 'AIza...'}" data-has-key="${!!systemConfigCache?.has_gemini_key}">
+                </div>
+              </div>
+            </div>
+            <div style="padding:12px; border:1px solid rgba(16,185,129,0.12); border-radius:8px; background:rgba(16,185,129,0.04); margin-bottom:12px;">
+              <div style="font-size:0.82rem; font-weight:700; color:var(--pine-700); margin-bottom:10px;">Cấu hình dùng chung</div>
+              <div class="form-group" style="margin-bottom:12px">
+                <label class="form-label">Google Search API Key</label>
+                <input type="password" id="modal-search-key" class="form-input" placeholder="${systemConfigCache?.google_search_configured ? '••••••••••••••••' : 'AIza...'}" data-has-key="${!!systemConfigCache?.google_search_configured}">
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">Google Search CX</label>
+                <input type="password" id="modal-search-cx" class="form-input" placeholder="${systemConfigCache?.google_search_configured ? '••••••••••••••••' : 'CX ID...'}" data-has-key="${!!systemConfigCache?.google_search_configured}">
+              </div>
+            </div>
+            ` : `
+            <div class="form-group" style="margin-bottom:12px">
+              <label class="form-label">Model chat hiện tại</label>
+              <input type="text" class="form-input" value="${savedModel}" readonly>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label class="form-label">Model transcription</label>
+              <input type="text" class="form-input" value="${systemConfigCache?.transcribe_model || 'whisper-1'}" readonly>
+            </div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label class="form-label">Trạng thái cấu hình</label>
+              <input type="text" class="form-input" value="${(activeProvider === 'gemini' ? systemConfigCache?.has_gemini_key : systemConfigCache?.has_openai_key) ? 'Đã cấu hình' : 'Chưa cấu hình'}" readonly>
+            </div>
+            `}
 
-          <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label">Google CSE API Key</label>
-            <input type="password" id="google-cse-key-input" class="form-input" value="${savedGoogleSearchKey}" placeholder="AIza...">
-          </div>
-          <div class="form-group" style="margin-bottom:12px">
-            <label class="form-label">Google CSE Engine ID (CX)</label>
-            <input type="text" id="google-cse-cx-input" class="form-input" value="${savedGoogleSearchCx}" placeholder="Ví dụ: 123abc:xyz...">
-          </div>
+            <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:8px">
+              ${isAdmin ? 'Bạn là quản trị viên. Bạn có thể cập nhật trực tiếp cấu hình AI theo từng nhà cung cấp tại đây.' : 'Cấu hình AI do quản trị viên hệ thống quản lý. Người dùng không cần nhập API key.'}
+            </div>
 
-          <div class="btn-row" style="margin-top:20px; border-top:1px solid var(--border-subtle); padding-top:16px">
-            <button id="save-openai-config-btn" class="btn btn-primary" style="flex:1">Lưu cấu hình</button>
-            <button id="close-openai-config-btn" class="btn btn-secondary">Đóng</button>
-          </div>
+            <div id="modal-save-status" style="margin-top:10px; font-size:0.85rem; min-height:1.2em"></div>
+
+            <div class="btn-row" style="margin-top:20px; border-top:1px solid var(--border-subtle); padding-top:16px">
+              ${isAdmin ? `
+                <button type="button" id="modal-save-config-btn" class="btn btn-primary" style="flex:1">Lưu & Áp dụng</button>
+                <button type="button" id="go-admin-config-btn" class="btn btn-secondary" title="Cấu hình nâng cao">⚙️</button>
+              ` : ''}
+              <button type="button" id="close-openai-config-btn" class="btn btn-secondary">Đóng</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -1097,33 +1008,12 @@ export async function renderChatUI(container) {
 
   const settingsBtn = container.querySelector('#chat-settings-openai-btn');
   const keyModalOpenAI = container.querySelector('#key-modal-openai');
-  
-  // Section toggle logic
-  const providerRadios = container.querySelectorAll('input[name="ai-provider"]');
-  const sectionOpenAI = container.querySelector('#section-openai');
-  const sectionGemini = container.querySelector('#section-gemini');
-
-  providerRadios.forEach(radio => {
-    radio.onchange = () => {
-      sectionOpenAI.style.display = radio.value === 'openai' ? 'block' : 'none';
-      sectionGemini.style.display = radio.value === 'gemini' ? 'block' : 'none';
-    };
-  });
-
-  const openaiKeyInput = container.querySelector('#openai-api-key-input');
-  const openaiEndpointInput = container.querySelector('#openai-endpoint-input');
-  const openaiModelSelect = container.querySelector('#openai-model-select');
-  
-  const geminiKeyInput = container.querySelector('#gemini-api-key-input');
-  const geminiModelInput = container.querySelector('#gemini-model-input');
-
-  const googleCseKeyInput = container.querySelector('#google-cse-key-input');
-  const googleCseCxInput = container.querySelector('#google-cse-cx-input');
-  const saveOpenAIConfigBtn = container.querySelector('#save-openai-config-btn');
   const closeOpenAIConfigBtn = container.querySelector('#close-openai-config-btn');
+  const goAdminConfigBtn = container.querySelector('#go-admin-config-btn');
 
   if (settingsBtn) {
-    settingsBtn.onclick = () => {
+    settingsBtn.onclick = async () => {
+      await loadSystemConfig();
       if (keyModalOpenAI) keyModalOpenAI.style.display = 'flex';
     };
   }
@@ -1132,57 +1022,73 @@ export async function renderChatUI(container) {
       if (keyModalOpenAI) keyModalOpenAI.style.display = 'none';
     };
   }
-  if (saveOpenAIConfigBtn) {
-    saveOpenAIConfigBtn.onclick = async () => {
-      const activeProvider = container.querySelector('input[name="ai-provider"]:checked')?.value || 'openai';
-      
-      const openaiKey = (openaiKeyInput?.value || '').trim();
-      const openaiEndpoint = (openaiEndpointInput?.value || '').trim() || 'https://api.openai.com/v1';
-      const openaiModel = normalizeModelName(openaiModelSelect?.value || '') || 'gpt-4o-mini';
-      
-      const geminiKey = (geminiKeyInput?.value || '').trim();
-      const geminiModel = (geminiModelInput?.value || '').trim() || 'gemini-2.0-pro-exp-02-05';
-
-      const googleKey = (googleCseKeyInput?.value || '').trim();
-      const googleCx = (googleCseCxInput?.value || '').trim();
-
-      // Basic validation
-      if (activeProvider === 'openai' && !openaiKey) { alert('Vui lòng nhập OpenAI API key.'); return; }
-      if (activeProvider === 'gemini' && !geminiKey) { alert('Vui lòng nhập Gemini API key.'); return; }
-
-      // Save to localStorage
-      localStorage.setItem('vbai_active_provider', activeProvider);
-      localStorage.setItem('vbai_openai_api_key', openaiKey);
-      localStorage.setItem('vbai_openai_endpoint', openaiEndpoint);
-      localStorage.setItem('vbai_router_model', openaiModel);
-      
-      localStorage.setItem('vbai_gemini_api_key', geminiKey);
-      localStorage.setItem('vbai_gemini_model', geminiModel);
-
-      localStorage.setItem('vbai_google_search_key', googleKey);
-      localStorage.setItem('vbai_google_search_cx', googleCx);
-
-      try {
-        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        const db = getFirestore(app);
-        await setDoc(doc(db, 'config', 'system'), {
-          active_provider: activeProvider,
-          openai_api_key: openaiKey,
-          openai_endpoint: openaiEndpoint,
-          router_model: openaiModel,
-          gemini_api_key: geminiKey,
-          gemini_model: geminiModel,
-          google_search_key: googleKey,
-          google_search_cx: googleCx,
-        }, { merge: true });
-      } catch (e) {
-        console.warn('Firestore save failed:', e);
-      }
-
-      alert('Đã lưu cấu hình thành công!');
+  if (goAdminConfigBtn) {
+    goAdminConfigBtn.onclick = () => {
       if (keyModalOpenAI) keyModalOpenAI.style.display = 'none';
-      window.location.reload();
+      document.getElementById('nav-admin-panel')?.click();
     };
+  }
+
+  // Handle Save in Modal (Admin only)
+  if (isAdmin) {
+    const modalSaveBtn = container.querySelector('#modal-save-config-btn');
+    const modalStatus = container.querySelector('#modal-save-status');
+    const modalRouterInput = container.querySelector('#modal-router-model');
+    const modalGeminiModelInput = container.querySelector('#modal-gemini-model');
+    const modalOpenAIKey = container.querySelector('#modal-openai-key');
+    const modalGeminiKey = container.querySelector('#modal-gemini-key');
+    const modalSearchKey = container.querySelector('#modal-search-key');
+    const modalSearchCx = container.querySelector('#modal-search-cx');
+
+    if (modalSaveBtn) {
+      modalSaveBtn.onclick = async () => {
+        modalSaveBtn.disabled = true;
+        modalSaveBtn.textContent = 'Đang lưu...';
+        modalStatus.textContent = '';
+        modalStatus.style.color = 'var(--text-muted)';
+
+        try {
+          const selectedProvider = container.querySelector('input[name="modal_active_provider"]:checked')?.value || 'openai';
+          const configUpdate = {
+            active_provider: selectedProvider,
+            router_model: modalRouterInput.value.trim(),
+            gemini_model: modalGeminiModelInput.value.trim()
+          };
+
+          if (modalOpenAIKey.value.trim()) configUpdate.openai_api_key = modalOpenAIKey.value.trim();
+          if (modalGeminiKey.value.trim()) configUpdate.gemini_api_key = modalGeminiKey.value.trim();
+          if (modalSearchKey.value.trim()) configUpdate.google_search_key = modalSearchKey.value.trim();
+          if (modalSearchCx.value.trim()) configUpdate.google_search_cx = modalSearchCx.value.trim();
+
+          await updateSystemConfig(configUpdate);
+
+          modalStatus.textContent = '✅ Đã lưu cấu hình!';
+          modalStatus.style.color = '#16a34a';
+
+          modalOpenAIKey.value = '';
+          modalGeminiKey.value = '';
+          modalSearchKey.value = '';
+          modalSearchCx.value = '';
+
+          await loadSystemConfig();
+          const newProvider = systemConfigCache?.active_provider || 'openai';
+          const providerRadio = container.querySelector(`input[name="modal_active_provider"][value="${newProvider}"]`);
+          if (providerRadio) providerRadio.checked = true;
+          if (modalRouterInput) modalRouterInput.value = systemConfigCache?.router_model || 'gpt-4o-mini';
+          if (modalGeminiModelInput) modalGeminiModelInput.value = systemConfigCache?.gemini_model || 'gemini-2.0-pro-exp-02-05';
+
+          setTimeout(() => {
+            modalStatus.textContent = '';
+          }, 3000);
+        } catch (err) {
+          modalStatus.textContent = '❌ Lỗi: ' + err.message;
+          modalStatus.style.color = '#dc2626';
+        } finally {
+          modalSaveBtn.disabled = false;
+          modalSaveBtn.textContent = 'Lưu & Áp dụng';
+        }
+      };
+    }
   }
 
   initChat('', savedModel);
@@ -1254,17 +1160,6 @@ export async function renderChatUI(container) {
   const handleSend = async () => {
     const text = input.value.trim();
     if (!text) return;
-    const provider = localStorage.getItem('vbai_active_provider') || 'openai';
-    const currentKey = (
-      provider === 'gemini' 
-      ? localStorage.getItem('vbai_gemini_api_key') 
-      : localStorage.getItem('vbai_openai_api_key')
-    ) || '';
-
-    if (!currentKey.trim()) {
-      alert("Vui lòng cấu hình API Key trước (bấm vào icon 🧩)");
-      return;
-    }
 
     input.value = '';
     sendBtn.disabled = true;

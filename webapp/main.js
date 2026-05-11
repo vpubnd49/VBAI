@@ -22,7 +22,6 @@ import { firebaseConfig } from './firebase-config.js';
 const GLOBAL_AI_MODEL = 'gpt-4o-mini';
 const GLOBAL_MEETING_MODEL = 'gemini-2.5-pro';
 const GLOBAL_TRANSCRIBE_MODEL = 'whisper-1';
-const DEFAULT_MEETING_TRANSCRIBE_API_KEY = 'AIzaSyAa4rHozoUWV4BLJ0XIOKFlqQMalQXb0X4';
 
 function applyGlobalModelDefaults() {
   if (!localStorage.getItem('vbai_router_model')) {
@@ -36,13 +35,6 @@ function applyGlobalModelDefaults() {
   }
   if (!localStorage.getItem('vbai_transcribe_model_meeting')) {
     localStorage.setItem('vbai_transcribe_model_meeting', GLOBAL_MEETING_MODEL);
-  }
-
-  if (!localStorage.getItem('vbai_transcribe_api_key') && DEFAULT_MEETING_TRANSCRIBE_API_KEY) {
-    localStorage.setItem('vbai_transcribe_api_key', DEFAULT_MEETING_TRANSCRIBE_API_KEY);
-  }
-  if (!localStorage.getItem('vbai_proxy_api_key_meeting_transcribe') && DEFAULT_MEETING_TRANSCRIBE_API_KEY) {
-    localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', DEFAULT_MEETING_TRANSCRIBE_API_KEY);
   }
 }
 
@@ -133,8 +125,8 @@ function renderPage(page) {
     case 'docx-tool': renderDocxTool(container); break;
     case 'spell-check': renderSpellCheck(container); break;
     case 'meeting-minutes': renderMeetingMinutes(container); break;
-    case 'admin-panel': 
-      if (localStorage.getItem('vbai_admin') === 'true') {
+    case 'admin-panel':
+      if (window.isAdmin === true || localStorage.getItem('vbai_is_admin') === 'true') {
         renderAdminPanel(container);
       } else {
         container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔒</div><div class="empty-text">Bạn không có quyền truy cập</div></div>';
@@ -146,22 +138,34 @@ function renderPage(page) {
 
 // ============ INIT ============
 function init() {
+  console.log('Main: init() starting...');
   applyGlobalModelDefaults();
   runDailyLegalSync();
 
+  console.log('Main: Firebase initializing...');
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   const auth = getAuth(app);
 
-  onAuthStateChanged(auth, (user) => {
+  console.log('Main: Setting up onAuthStateChanged...');
+  onAuthStateChanged(auth, async (user) => {
+    console.log('Main: Auth state changed, user:', user ? user.email : 'null');
     const loginOverlay = document.getElementById('login-overlay');
     const mainApp = document.getElementById('app');
     if (!loginOverlay || !mainApp) return;
-    
+
     if (user) {
       window.currentUser = user;
+      try {
+        const tokenResult = await user.getIdTokenResult(true);
+        window.isAdmin = tokenResult?.claims?.admin === true;
+        localStorage.setItem('vbai_is_admin', window.isAdmin ? 'true' : 'false');
+      } catch (e) {
+        window.isAdmin = false;
+        localStorage.setItem('vbai_is_admin', 'false');
+      }
       loginOverlay.style.display = 'none';
       mainApp.style.display = 'flex';
-      
+
       // Update breadcrumb with user info
       document.querySelector('.top-bar-actions').innerHTML = `
         <div style="font-size:0.85rem; font-weight:500; color:var(--text-secondary); margin-right:16px;">
@@ -170,6 +174,9 @@ function init() {
         <div class="dalat-time" id="dalat-clock"></div>
       `;
       updateClock();
+
+      const adminBtn = document.getElementById('nav-admin-panel');
+      if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
 
       // Ensure a valid page is rendered
       if (!state.currentPage || !PAGE_TITLES[state.currentPage]) {
@@ -186,6 +193,8 @@ function init() {
       }
     } else {
       window.currentUser = null;
+      window.isAdmin = false;
+      localStorage.setItem('vbai_is_admin', 'false');
       mainApp.style.display = 'none';
       loginOverlay.style.display = 'block';
       renderLogin(loginOverlay);
@@ -197,18 +206,6 @@ function init() {
       showToast('Đã đăng xuất');
     });
   });
-
-  // Check admin url param
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('admin') === 'true') {
-    localStorage.setItem('vbai_admin', 'true');
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-
-  if (localStorage.getItem('vbai_admin') === 'true') {
-    const adminBtn = document.getElementById('nav-admin-panel');
-    if (adminBtn) adminBtn.style.display = 'flex';
-  }
 
   // Sidebar toggle logic
   const sidebar = document.getElementById('sidebar');
@@ -281,4 +278,5 @@ function init() {
   window.firstLoad = true;
 }
 
+console.log('Main: Script loaded, adding DOMContentLoaded listener...');
 document.addEventListener('DOMContentLoaded', init);

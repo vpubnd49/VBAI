@@ -27,7 +27,20 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Deploy to Cloud Run
+      - name: Deploy backend proxy
+        id: deploy-proxy
+        run: |
+          gcloud run deploy vbai-proxy \
+            --source ./proxy \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 256Mi \
+            --max-instances 3
+          PROXY_URL=$(gcloud run services describe vbai-proxy --region ${{ env.REGION }} --format='value(status.url)')
+          echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
+
+      - name: Deploy frontend
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source ./webapp \
@@ -35,4 +48,5 @@ jobs:
             --allow-unauthenticated \
             --port 8080 \
             --memory 256Mi \
-            --max-instances 3
+            --max-instances 3 \
+            --set-env-vars API_BASE_URL=${{ steps.deploy-proxy.outputs.proxy_url }}

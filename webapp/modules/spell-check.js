@@ -6,6 +6,7 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from '../main.js';
 import { sendChatRequest } from './ai-proxy.js';
+import { fetchSystemConfig } from './system-config.js';
 import { SPELLING_ERRORS, CAPITALIZATION_RULES, TITLE_CONTEXT_RULES, OFFICIAL_TITLES, WHITELIST } from './vn-dictionary.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -136,7 +137,12 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
   const errors = [];
   
   progressTextEl.innerText = "Đang kết nối AI...";
-  const modelName = (localStorage.getItem('vbai_router_model') || 'cx/gpt-5.5');
+  const config = await fetchSystemConfig();
+  const modelName = (
+    config?.active_provider === 'gemini'
+      ? (config?.gemini_model || 'gemini-2.0-pro-exp-02-05')
+      : (config?.router_model || 'gpt-4o-mini')
+  );
 
   // 2. Batching paragraphs — batch nhỏ hơn để AI chính xác hơn
   const validParas = paragraphs.filter(p => p.text.trim().length > 10);

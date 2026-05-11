@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // System config: no direct client access; only backend via Admin SDK
+    match /config/{doc=**} {
+      allow read, write: if false;
+    }
+
+    // Users: users can manage own profile; admins can read all
+    match /users/{userId} {
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || request.auth.token.admin == true);
+    }
+
+    // Search logs: any authenticated user can create; only admins can read/delete
+    match /search_logs/{logId} {
+      allow create: if request.auth != null;
+      allow read, delete: if request.auth != null && request.auth.token.admin == true;
+    }
+  }
+}

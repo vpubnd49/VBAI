@@ -12,12 +12,23 @@ import { firebaseConfig } from '../firebase-config.js';
 import {
   sendChatRequest,
   sendAudioTranscription,
-  sendAudioTranscriptionViaChat,
   getProxyModelIds,
   getProxyEndpointForContext,
-  isGeminiOpenAIEndpoint,
 } from './ai-proxy.js';
 import { convertToWav } from './audio-utils.js';
+import { fetchSystemConfig } from './system-config.js';
+
+let systemConfigCache = null;
+
+async function ensureSystemConfig() {
+  if (systemConfigCache) return systemConfigCache;
+  try {
+    systemConfigCache = await fetchSystemConfig();
+  } catch (e) {
+    console.warn('Không thể tải cấu hình hệ thống cho module ghi âm:', e);
+  }
+  return systemConfigCache;
+}
 
 const OPENAI_MEETING_MODEL_FALLBACK_ORDER = [
   "gpt-4o",
@@ -32,7 +43,7 @@ const GEMINI_MEETING_MODEL_FALLBACK_ORDER = [
 ];
 
 function getMeetingModelFallbackOrder() {
-  const provider = localStorage.getItem('vbai_active_provider') || 'openai';
+  const provider = systemConfigCache?.active_provider || 'openai';
   return provider === 'gemini' ? GEMINI_MEETING_MODEL_FALLBACK_ORDER : OPENAI_MEETING_MODEL_FALLBACK_ORDER;
 }
 
@@ -55,6 +66,11 @@ export function renderMeetingMinutes(container) {
     formState.ngay = String(now.getDate()).padStart(2, '0');
     formState.thang = String(now.getMonth() + 1).padStart(2, '0');
     formState.nam = String(now.getFullYear());
+  }
+  if (!systemConfigCache) {
+    ensureSystemConfig().then(() => {
+      if (container?.isConnected) doRender(container);
+    }).catch(() => {});
   }
   doRender(container);
 }
@@ -81,7 +97,7 @@ function doRender(c) {
 }
 
 function renderStep1(sc, c) {
-  const provider = localStorage.getItem('vbai_active_provider') || 'openai';
+  const provider = systemConfigCache?.active_provider || 'openai';
   const supportedFormats = 'MP3, WAV, M4A, OGG, AAC';
 
   sc.innerHTML = `
@@ -354,67 +370,12 @@ function resolveMeetingTranscribeModel() {
   return getMeetingModelFallbackOrder()[0];
 }
 
-function getTranscribeModelPoolRaw() {
-  return (
-    localStorage.getItem('vbai_transcribe_model_meeting')
-    || localStorage.getItem('vbai_transcribe_model')
-    || ""
-  );
-}
-
-function isLikelyApiKey(value = "") {
-  const v = String(value || "").trim();
-  return /^sk-[a-z0-9\-]{10,}$/i.test(v);
-}
-
-function isValidHttpEndpoint(value = "") {
-  const v = String(value || "").trim();
-  if (!v) return false;
-  if (isLikelyApiKey(v)) return false;
-  return /^https?:\/\//i.test(v);
-}
-
-function maskSensitive(value = "") {
-  const v = String(value || "").trim();
-  if (!v) return "(trong)";
-  if (isLikelyApiKey(v)) return `${v.slice(0, 6)}***${v.slice(-4)}`;
-  return v;
-}
-
-function hasDedicatedTranscribeApi() {
-  const endpoint = (
-    localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
-    || localStorage.getItem('vbai_transcribe_endpoint')
-    || ""
-  ).trim();
-  const profile = (
-    localStorage.getItem('vbai_proxy_profile_meeting_transcribe')
-    || localStorage.getItem('vbai_transcribe_profile')
-    || ""
-  ).trim();
-  const useDedicated = (localStorage.getItem('vbai_transcribe_use_dedicated') || '').trim().toLowerCase() === 'true';
-  const hasValidEndpoint = !endpoint || isValidHttpEndpoint(endpoint);
-  return !!(useDedicated || (endpoint && hasValidEndpoint) || profile === 'proxy_custom');
-}
-
 function resolveMeetingTranscribeContext() {
-  return hasDedicatedTranscribeApi() ? 'meeting_transcribe' : 'meeting';
+  return 'meeting';
 }
 
 function getTranscribeEndpointForError(context = 'meeting') {
-  if (context === 'meeting_transcribe') {
-    const specific = (
-      localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
-      || localStorage.getItem('vbai_transcribe_endpoint')
-      || ""
-    ).trim();
-    if (specific) return maskSensitive(specific);
-  }
-  return maskSensitive((
-    localStorage.getItem('vbai_proxy_endpoint_meeting')
-    || localStorage.getItem('vbai_openai_endpoint')
-    || ''
-  ).trim());
+  return getProxyEndpointForContext('meeting');
 }
 
 function isAudioCapableModelName(model = "") {
@@ -527,11 +488,10 @@ Trả về JSON:
 CHỈ trả về JSON.`;
 
 async function processAudioWithProxy(file, progressEl) {
-  localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
-  localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
-  const transcribeContext = resolveMeetingTranscribeContext();
-  const transcribeRouteLabel = transcribeContext === 'meeting_transcribe' ? 'API ghi am rieng' : 'Proxy';
-  const provider = localStorage.getItem('vbai_active_provider') || 'openai';
+  await ensureSystemConfig();
+  const transcribeContext = 'meeting'; // always use proxy context
+  const transcribeRouteLabel = 'Proxy';
+  const provider = systemConfigCache?.active_provider || 'openai';
 
   // Support for M4A on Gemini via client-side conversion to WAV
   let activeFile = file;
@@ -548,26 +508,6 @@ async function processAudioWithProxy(file, progressEl) {
     }
   }
 
-  if (transcribeContext === 'meeting_transcribe') {
-    let rawEndpoint = (
-      localStorage.getItem('vbai_proxy_endpoint_meeting_transcribe')
-      || localStorage.getItem('vbai_transcribe_endpoint')
-      || ""
-    ).trim();
-    if (isLikelyApiKey(rawEndpoint)) {
-      localStorage.setItem('vbai_transcribe_use_dedicated', 'true');
-      localStorage.setItem('vbai_transcribe_api_key', rawEndpoint);
-      localStorage.setItem('vbai_proxy_api_key_meeting_transcribe', rawEndpoint);
-      localStorage.removeItem('vbai_transcribe_endpoint');
-      localStorage.removeItem('vbai_proxy_endpoint_meeting_transcribe');
-      rawEndpoint = '';
-    }
-    if (rawEndpoint && !isValidHttpEndpoint(rawEndpoint)) {
-      throw new Error(
-        `Endpoint API ghi am rieng khong hop le: "${maskSensitive(rawEndpoint)}". Vui long nhap dung URL bat dau bang http(s)://.`
-      );
-    }
-  }
   const analysisContext = transcribeContext;
   const modelCandidates = await resolveMeetingAudioModelCandidates(transcribeContext);
   if (!modelCandidates.length) {
@@ -577,8 +517,7 @@ async function processAudioWithProxy(file, progressEl) {
   progressEl.textContent = PROCESSING_TEXT;
 
   const transcriptEndpoint = getProxyEndpointForContext(transcribeContext);
-  const useGeminiDirectChat = transcribeContext === 'meeting_transcribe'
-    && isGeminiOpenAIEndpoint(transcriptEndpoint);
+  const useGeminiDirectChat = false;
   const transcriptModel = chatModel;
   let transcript = '';
   let usedTranscriptModel = chatModel;
@@ -592,7 +531,7 @@ async function processAudioWithProxy(file, progressEl) {
       try {
         progressEl.textContent = PROCESSING_TEXT;
         const text = useGeminiDirectChat
-          ? await sendAudioTranscriptionViaChat(activeFile, modelCandidate, {
+          ? await sendAudioTranscription(activeFile, modelCandidate, {
             temperature: 0,
             context: transcribeContext,
             timeoutMs: safeTranscribeTimeoutMs,
@@ -618,8 +557,8 @@ async function processAudioWithProxy(file, progressEl) {
   } catch (e) {
     progressEl.textContent = PROCESSING_TEXT;
     try {
-      const defaultChunkMb = useGeminiDirectChat ? 12 : 24;
-      const minChunkMb = useGeminiDirectChat ? 4 : 8;
+      const defaultChunkMb = 24;
+      const minChunkMb = 8;
       const maxChunkMb = Number(localStorage.getItem('vbai_transcribe_chunk_mb') || String(defaultChunkMb));
       const safeChunkMb = Number.isFinite(maxChunkMb) && maxChunkMb >= minChunkMb ? maxChunkMb : defaultChunkMb;
       let lastFallbackErr = null;
@@ -627,7 +566,7 @@ async function processAudioWithProxy(file, progressEl) {
       for (const modelCandidate of chatCandidates) {
         try {
           progressEl.textContent = PROCESSING_TEXT;
-          const text = await sendAudioTranscriptionViaChat(activeFile, modelCandidate, {
+          const text = await sendAudioTranscription(activeFile, modelCandidate, {
             temperature: 0,
             maxBytes: safeChunkMb * 1024 * 1024,
             chunkWhenLarge: true,
@@ -705,11 +644,10 @@ async function processAudioWithProxy(file, progressEl) {
 }
 
 async function reanalyzeTranscript() {
-  localStorage.setItem('vbai_proxy_enabled_meeting', 'true');
-  localStorage.setItem('vbai_proxy_enabled_meeting_transcribe', 'true');
-  const transcribeContext = resolveMeetingTranscribeContext();
+  await ensureSystemConfig();
+  const transcribeContext = 'meeting';
   const modelCandidates = await resolveMeetingAudioModelCandidates(transcribeContext);
-  const activeProvider = localStorage.getItem('vbai_active_provider') || 'openai';
+  const activeProvider = systemConfigCache?.active_provider || 'openai';
   const defaultModel = activeProvider === 'gemini' ? 'gemini-2.5-pro' : 'gpt-4o';
   const strictModel = modelCandidates[0] || defaultModel;
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:

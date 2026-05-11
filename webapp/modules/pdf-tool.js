@@ -5,6 +5,7 @@ import { showToast } from '../main.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { sendChatRequest } from './ai-proxy.js';
+import { fetchSystemConfig } from './system-config.js';
 
 import { firebaseConfig } from '../firebase-config.js';
 
@@ -109,7 +110,12 @@ async function handlePdf(file, container) {
           content.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } });
         }
 
-        const model = (localStorage.getItem('vbai_router_model') || 'cx/gpt-5.5');
+        const config = await fetchSystemConfig();
+        const model = (
+          config?.active_provider === 'gemini'
+            ? (config?.gemini_model || 'gemini-2.0-pro-exp-02-05')
+            : (config?.router_model || 'gpt-4o-mini')
+        );
         fullText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'pdf' });
         fullText = fullText || "Không quét được nội dung.";
         textContentArea.textContent = fullText;
