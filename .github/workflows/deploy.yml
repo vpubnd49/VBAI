@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  PROJECT_ID: vbai-496023
+  PROJECT_ID: alvb-app-83921
   SERVICE_NAME: vbai-app
   REGION: asia-southeast1
 

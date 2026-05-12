@@ -1,9 +1,9 @@
 export const firebaseConfig = {
-  apiKey: "AIzaSyDYcGJ5-OwY0q9Rii36FCTM4zXD144R894",
-  authDomain: "vbai-496023.firebaseapp.com",
-  projectId: "vbai-496023",
-  storageBucket: "vbai-496023.firebasestorage.app",
-  messagingSenderId: "442466015672",
-  appId: "1:442466015672:web:34619d93bbd00bf2d7974d",
-  measurementId: "G-DV183TNJ67"
+  apiKey: "AIzaSyA9S62IKocGEywRHua2-hz_M4WdN4g9l-s",
+  authDomain: "alvb-app-83921.firebaseapp.com",
+  projectId: "alvb-app-83921",
+  storageBucket: "alvb-app-83921.firebasestorage.app",
+  messagingSenderId: "798522156920",
+  appId: "1:798522156920:web:1298e3d8d561d49b01ca8d",
+  measurementId: "G-GGFZY03Z6R"
 };
