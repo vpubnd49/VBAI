@@ -1,6 +1,6 @@
 import { fetchSystemConfig, getCachedSystemConfig } from './system-config.js';
 
-const DEFAULT_PROXY_MODEL = 'gpt-4o-mini';
+const DEFAULT_PROXY_MODEL = 'gpt-4.4';
 const DEFAULT_BACKEND_BASE = '/api';
 const DEFAULT_GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai';
 
@@ -108,7 +108,7 @@ async function getSystemConfigSafe() {
   return await fetchSystemConfig() || getCachedSystemConfig() || {
     active_provider: 'openai',
     router_model: DEFAULT_PROXY_MODEL,
-    gemini_model: 'gemini-2.0-pro-exp-02-05',
+    gemini_model: 'gemini-2.5-pro',
     openai_endpoint: 'https://api.openai.com/v1',
     gemini_endpoint: DEFAULT_GEMINI_ENDPOINT,
     transcribe_model: 'whisper-1',

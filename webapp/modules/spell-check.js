@@ -140,8 +140,8 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
   const config = await fetchSystemConfig();
   const modelName = (
     config?.active_provider === 'gemini'
-      ? (config?.gemini_model || 'gemini-2.0-pro-exp-02-05')
-      : (config?.router_model || 'gpt-4o-mini')
+      ? (config?.gemini_model || 'gemini-2.5-pro')
+      : (config?.router_model || 'gpt-4.4')
   );
 
   // 2. Batching paragraphs — batch nhỏ hơn để AI chính xác hơn

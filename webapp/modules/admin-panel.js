@@ -48,7 +48,7 @@ export function renderAdminPanel(container) {
           </div>
           <div class="form-group" style="margin-bottom:12px;">
             <label class="form-label">Model (GPT/OpenAI)</label>
-            <input type="text" id="router_model" class="form-input" placeholder="gpt-4o-mini">
+            <input type="text" id="router_model" class="form-input" placeholder="gpt-4.4">
           </div>
           <div style="margin:16px 0 8px; font-size:0.82rem; font-weight:700; color:var(--pine-600);">Cấu hình Gemini</div>
           <div class="form-group" style="margin-bottom:12px;">
@@ -58,7 +58,7 @@ export function renderAdminPanel(container) {
           </div>
           <div class="form-group" style="margin-bottom:12px;">
             <label class="form-label">Model Gemini</label>
-            <input type="text" id="gemini_model" class="form-input" placeholder="gemini-2.0-pro-exp-02-05">
+            <input type="text" id="gemini_model" class="form-input" placeholder="gemini-2.5-pro">
           </div>
           <div class="form-group" style="margin-bottom:12px;">
             <label class="form-label">Google Search API Key</label>

@@ -113,8 +113,8 @@ async function handlePdf(file, container) {
         const config = await fetchSystemConfig();
         const model = (
           config?.active_provider === 'gemini'
-            ? (config?.gemini_model || 'gemini-2.0-pro-exp-02-05')
-            : (config?.router_model || 'gpt-4o-mini')
+            ? (config?.gemini_model || 'gemini-2.5-pro')
+            : (config?.router_model || 'gpt-4.4')
         );
         fullText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'pdf' });
         fullText = fullText || "Không quét được nội dung.";

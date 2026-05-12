@@ -31,8 +31,8 @@ async function ensureSystemConfig() {
 }
 
 const OPENAI_MEETING_MODEL_FALLBACK_ORDER = [
+  "gpt-4.4",
   "gpt-4o",
-  "gpt-4o-mini",
 ];
 
 const GEMINI_MEETING_MODEL_FALLBACK_ORDER = [

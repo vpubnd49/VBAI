@@ -19,7 +19,7 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
 
 import { firebaseConfig } from './firebase-config.js';
 
-const GLOBAL_AI_MODEL = 'gpt-4o-mini';
+const GLOBAL_AI_MODEL = 'gpt-4.4';
 const GLOBAL_MEETING_MODEL = 'gemini-2.5-pro';
 const GLOBAL_TRANSCRIBE_MODEL = 'whisper-1';
 

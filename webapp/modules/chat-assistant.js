@@ -17,7 +17,7 @@ import {
 
 import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig } from './system-config.js';
 
-const DEFAULT_MODEL = 'gpt-4o-mini';
+const DEFAULT_MODEL = 'gpt-4.4';
 const STRICT_MEETING_AUDIO_MODEL = 'gemini-2.5-pro';
 
 let aiClient = null;
@@ -881,11 +881,11 @@ export async function renderChatUI(container) {
   const activeProvider = systemConfigCache?.active_provider || 'openai';
   const savedModel = normalizeModelName(
     activeProvider === 'gemini'
-      ? (systemConfigCache?.gemini_model || 'gemini-2.0-pro-exp-02-05')
+      ? (systemConfigCache?.gemini_model || 'gemini-2.5-pro')
       : (systemConfigCache?.router_model || DEFAULT_MODEL)
   ) || DEFAULT_MODEL;
-  const openaiModel = systemConfigCache?.router_model || 'gpt-4o-mini';
-  const geminiModel = systemConfigCache?.gemini_model || 'gemini-2.0-pro-exp-02-05';
+  const openaiModel = systemConfigCache?.router_model || 'gpt-4.4';
+  const geminiModel = systemConfigCache?.gemini_model || 'gemini-2.5-pro';
 
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -1074,8 +1074,8 @@ export async function renderChatUI(container) {
           const newProvider = systemConfigCache?.active_provider || 'openai';
           const providerRadio = container.querySelector(`input[name="modal_active_provider"][value="${newProvider}"]`);
           if (providerRadio) providerRadio.checked = true;
-          if (modalRouterInput) modalRouterInput.value = systemConfigCache?.router_model || 'gpt-4o-mini';
-          if (modalGeminiModelInput) modalGeminiModelInput.value = systemConfigCache?.gemini_model || 'gemini-2.0-pro-exp-02-05';
+          if (modalRouterInput) modalRouterInput.value = systemConfigCache?.router_model || 'gpt-4.4';
+          if (modalGeminiModelInput) modalGeminiModelInput.value = systemConfigCache?.gemini_model || 'gemini-2.5-pro';
 
           setTimeout(() => {
             modalStatus.textContent = '';
