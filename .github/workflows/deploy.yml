@@ -7,7 +7,7 @@ on:
 
 env:
   PROJECT_ID: alvb-app-83921
-  SERVICE_NAME: vbai-app
+  SERVICE_NAME: vbai
   REGION: asia-southeast1
 
 jobs:
