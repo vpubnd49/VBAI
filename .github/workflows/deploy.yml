@@ -1,75 +1,68 @@
 name: Deploy to Google Cloud Run
 
-  on:
-    push:
-      branches:
-        - main
+on:
+  push:
+    branches:
+      - main
 
-  env:
-    PROJECT_ID: vbai-496023
-    SERVICE_NAME: vbai-app
-    REGION: asia-southeast1
+env:
+  PROJECT_ID: vbai-496023
+  SERVICE_NAME: vbai-app
+  REGION: asia-southeast1
 
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        - name: Google Auth
-          id: auth
-          uses: google-github-actions/auth@v2  
-          with:
-            credentials_json: ${{
-  secrets.GCP_SA_KEY }}
-            project_id: ${{ env.PROJECT_ID }}  
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ env.PROJECT_ID }}
 
-        - name: Set up Cloud SDK
-          uses:
-  google-github-actions/setup-gcloud@v2        
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
-        - name: Select GCP project
-          run: gcloud config set project ${{   
-  env.PROJECT_ID }}
+      - name: Select GCP project
+        run: gcloud config set project ${{ env.PROJECT_ID }}
 
-        - name: Enable required APIs
-          run: |
-            gcloud services enable \
-              run.googleapis.com \
-              cloudbuild.googleapis.com \      
-              artifactregistry.googleapis.com \
-              --project ${{ env.PROJECT_ID }}  
+      - name: Enable required APIs
+        run: |
+          gcloud services enable \
+            run.googleapis.com \
+            cloudbuild.googleapis.com \
+            artifactregistry.googleapis.com \
+            --project ${{ env.PROJECT_ID }}
 
-        - name: Deploy backend proxy
-          id: deploy-proxy
-          run: |
-            gcloud run deploy vbai-proxy \     
-              --project ${{ env.PROJECT_ID }} \
-              --source ./proxy \
-              --region ${{ env.REGION }} \     
-              --allow-unauthenticated \        
-              --port 8080 \
-              --memory 256Mi \
-              --max-instances 3
-            PROXY_URL=$(gcloud run services    
-  describe vbai-proxy --project ${{
-  env.PROJECT_ID }} --region ${{ env.REGION }} 
-  --format='value(status.url)')
-            echo "proxy_url=$PROXY_URL" >>     
-  $GITHUB_OUTPUT
+      - name: Deploy backend proxy
+        id: deploy-proxy
+        run: |
+          gcloud run deploy vbai-proxy \
+            --quiet \
+            --project ${{ env.PROJECT_ID }} \
+            --source ./proxy \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 256Mi \
+            --max-instances 3
+          PROXY_URL=$(gcloud run services describe vbai-proxy --project ${{ env.PROJECT_ID }} --region ${{ env.REGION }} --format='value(status.url)')
+          echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
 
-        - name: Deploy frontend
-          run: |
-            gcloud run deploy ${{
-  env.SERVICE_NAME }} \
-              --project ${{ env.PROJECT_ID }} \
-              --source ./webapp \
-              --region ${{ env.REGION }} \     
-              --allow-unauthenticated \        
-              --port 8080 \
-              --memory 256Mi \
-              --max-instances 3 \
-              --set-env-vars API_BASE_URL=${{  
-  steps.deploy-proxy.outputs.proxy_url }} 
+      - name: Deploy frontend
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --quiet \
+            --project ${{ env.PROJECT_ID }} \
+            --source ./webapp \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 256Mi \
+            --max-instances 3 \
+            --set-env-vars API_BASE_URL=${{ steps.deploy-proxy.outputs.proxy_url }}
