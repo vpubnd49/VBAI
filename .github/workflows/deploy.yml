@@ -31,13 +31,7 @@ jobs:
       - name: Select GCP project
         run: gcloud config set project ${{ env.PROJECT_ID }}
 
-      - name: Enable required APIs
-        run: |
-          gcloud services enable \
-            run.googleapis.com \
-            cloudbuild.googleapis.com \
-            artifactregistry.googleapis.com \
-            --project ${{ env.PROJECT_ID }}
+
 
       - name: Deploy backend proxy
         id: deploy-proxy
