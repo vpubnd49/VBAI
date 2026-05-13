@@ -2,7 +2,7 @@
  * Chat Assistant Module — Legal & Administrative Consultant
  */
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 

@@ -12,4 +12,15 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/docx')) return 'docx';
+          if (id.includes('node_modules/file-saver')) return 'file-saver';
+          if (id.includes('node_modules')) return 'vendor';
+        },
+      },
+    },
+  },
 });
