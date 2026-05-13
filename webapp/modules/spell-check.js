@@ -279,7 +279,7 @@ function checkSpellingLocal(paragraphs) {
           length: wrong.length,
           original: p.text.substring(pos, pos + wrong.length),
           suggestion: correct,
-          reason: 'Lỗi chính tả (Từ điển VBAI)',
+          reason: 'Lỗi chính tả (Từ điển Trợ lý hành chính)',
           message: `"${p.text.substring(pos, pos + wrong.length)}" \u2192 "${correct}"`
         });
       }

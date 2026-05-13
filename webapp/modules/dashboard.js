@@ -12,10 +12,10 @@ export async function renderDashboard(container, navigateTo) {
       <section class="dashboard-chat-shell">
         <div class="dashboard-compact-hero">
           <div class="dashboard-brand-row">
-            <img src="/vbai_logo.png" alt="VBAI" class="dashboard-main-logo">
+            <img src="/admin-assistant-logo.svg" alt="Trợ lý hành chính" class="dashboard-main-logo">
             <div>
-              <h1 class="hero-title">Trợ Lý Soạn Văn Bản AI</h1>
-              <p class="hero-sub">Tra cứu quy định, soạn thảo văn bản hành chính và văn bản Đảng chuẩn thể thức.</p>
+              <h1 class="hero-title">Trợ lý hành chính</h1>
+              <p class="hero-sub">Hỗ trợ hành chính số, tra cứu quy định, soạn thảo văn bản và xử lý nghiệp vụ hằng ngày cho cơ quan, đơn vị.</p>
             </div>
           </div>
           <div class="dashboard-focus-badge">Ưu tiên tra cứu</div>
@@ -67,8 +67,8 @@ export async function renderDashboard(container, navigateTo) {
         <div>
           <h3>Lưu ý quan trọng & kiểm soát rủi ro</h3>
           <p>
-            VBAI là công cụ hỗ trợ, không thay thế trách nhiệm của cán bộ, công chức trong việc kiểm tra, thẩm định nội dung tham mưu.
-            Kết quả do Trợ lý AI cung cấp cần được đối chiếu với văn bản pháp luật chính thức.
+            Trợ lý hành chính là công cụ hỗ trợ, không thay thế trách nhiệm của cán bộ, công chức trong việc kiểm tra, thẩm định nội dung tham mưu.
+            Kết quả do trợ lý AI cung cấp cần được đối chiếu với văn bản pháp luật chính thức.
           </p>
           <p>
             <strong>An toàn thông tin:</strong> Tuyệt đối không đưa lên hệ thống các tài liệu mật, tài liệu nhạy cảm hoặc thông tin chưa được phép xử lý trên môi trường mạng.

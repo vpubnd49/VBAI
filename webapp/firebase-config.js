@@ -1,9 +1,8 @@
 export const firebaseConfig = {
-  apiKey: "AIzaSyA9S62IKocGEywRHua2-hz_M4WdN4g9l-s",
-  authDomain: "alvb-app-83921.firebaseapp.com",
-  projectId: "alvb-app-83921",
-  storageBucket: "alvb-app-83921.firebasestorage.app",
-  messagingSenderId: "798522156920",
-  appId: "1:798522156920:web:1298e3d8d561d49b01ca8d",
-  measurementId: "G-GGFZY03Z6R"
+  apiKey: "AIzaSyC_abC-4uR72rFd8SXnaHFYY_kJ2R0CFcA",
+  authDomain: "vbai.tracuu.lamdong.vn",
+  projectId: "gen-lang-client-0462350485",
+  storageBucket: "gen-lang-client-0462350485.firebasestorage.app",
+  messagingSenderId: "419728335518",
+  appId: "1:419728335518:web:d62ad8064acf7df8fa118f"
 };

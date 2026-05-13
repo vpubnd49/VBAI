@@ -51,8 +51,8 @@ export function renderLogin(container) {
     <div class="login-wrapper">
       <div class="login-card">
         <div class="login-logo">
-          <img src="/vbai_logo.png" alt="VBAI Logo" style="width: 80px; height: 80px; margin: 0 auto 15px auto; display: block; border-radius: 12px;">
-          <h2>Đăng nhập vào VBAI</h2>
+          <img src="/admin-assistant-logo.svg" alt="Logo Trợ lý hành chính" style="width: 80px; height: 80px; margin: 0 auto 15px auto; display: block; border-radius: 12px;">
+          <h2>Đăng nhập vào Trợ lý hành chính</h2>
         </div>
         
         <button id="btn-google-login" class="btn-google">
@@ -100,23 +100,26 @@ export function renderLogin(container) {
         justify-content: center;
         align-items: center;
         min-height: 100vh;
-        background: #fdfaf6; /* soft warm background */
+        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.22), transparent 35%), linear-gradient(135deg, #081120 0%, #0f1f38 55%, #132a4a 100%);
         font-family: 'Inter', sans-serif;
       }
       .login-card {
-        background: white;
+        background: rgba(15, 31, 56, 0.82);
         width: 100%;
         max-width: 400px;
         padding: 40px;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        border-radius: 18px;
+        box-shadow: 0 18px 48px rgba(15, 23, 42, 0.45), 0 0 30px rgba(59, 130, 246, 0.14);
         text-align: center;
+        border: 1px solid rgba(96, 165, 250, 0.2);
+        backdrop-filter: blur(16px);
       }
       .login-logo h2 {
         font-size: 1.2rem;
-        color: #333;
-        font-weight: 500;
+        color: #e6f1ff;
+        font-weight: 600;
         margin-bottom: 24px;
+        letter-spacing: 0.3px;
       }
       .btn-google {
         display: flex;
@@ -124,21 +127,22 @@ export function renderLogin(container) {
         justify-content: center;
         width: 100%;
         padding: 10px;
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(96, 165, 250, 0.18);
+        border-radius: 10px;
         font-size: 0.9rem;
         font-weight: 500;
-        color: #333;
+        color: #cfe4ff;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background 0.2s, box-shadow 0.2s;
         margin-bottom: 24px;
       }
       .btn-google img {
         margin-right: 10px;
       }
       .btn-google:hover {
-        background: #f9f9f9;
+        background: rgba(59, 130, 246, 0.12);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.18);
       }
       .divider {
         display: flex;
@@ -149,11 +153,11 @@ export function renderLogin(container) {
       .divider::before, .divider::after {
         content: '';
         flex: 1;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid rgba(96, 165, 250, 0.18);
       }
       .divider span {
         padding: 0 10px;
-        color: #999;
+        color: rgba(226, 241, 255, 0.58);
         font-size: 0.8rem;
         font-weight: 500;
       }
@@ -165,22 +169,25 @@ export function renderLogin(container) {
         display: block;
         font-size: 0.75rem;
         font-weight: 600;
-        color: #555;
+        color: rgba(226, 241, 255, 0.78);
         margin-bottom: 6px;
         letter-spacing: 0.5px;
       }
       .form-group input {
         width: 100%;
         padding: 10px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        border: 1px solid rgba(96, 165, 250, 0.2);
+        border-radius: 8px;
         font-size: 0.9rem;
         outline: none;
-        transition: border-color 0.2s;
+        transition: border-color 0.2s, box-shadow 0.2s;
         box-sizing: border-box;
+        background: rgba(8, 17, 32, 0.55);
+        color: #e6f1ff;
       }
       .form-group input:focus {
-        border-color: #b71c1c;
+        border-color: #60A5FA;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
       }
       .forgot-pwd {
         text-align: right;
@@ -188,33 +195,43 @@ export function renderLogin(container) {
       }
       .forgot-pwd a {
         font-size: 0.8rem;
-        color: #666;
+        color: #93C5FD;
         text-decoration: none;
+        font-weight: 500;
+      }
+      .forgot-pwd a:hover {
+        text-decoration: underline;
       }
       .btn-submit {
         width: 100%;
         padding: 12px;
-        background: #b71c1c; /* Deep red matching the design */
+        background: linear-gradient(135deg, #1E40AF, #2563EB);
         color: white;
         border: none;
-        border-radius: 4px;
+        border-radius: 8px;
         font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.28);
       }
       .btn-submit:hover {
-        background: #9a1717;
+        transform: translateY(-1px);
+        box-shadow: 0 10px 28px rgba(37, 99, 235, 0.35);
+        filter: brightness(1.05);
       }
       .login-footer {
         margin-top: 24px;
         font-size: 0.85rem;
-        color: #666;
+        color: rgba(226, 241, 255, 0.62);
       }
       .login-footer a {
-        color: #333;
+        color: #93C5FD;
         font-weight: 600;
         text-decoration: none;
+      }
+      .login-footer a:hover {
+        text-decoration: underline;
       }
     `;
     document.head.appendChild(style);

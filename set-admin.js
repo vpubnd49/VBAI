@@ -2,7 +2,7 @@ const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
 
-const SERVICE_ACCOUNT_PATH = path.join(__dirname, 'service-account-alvb-app-83921.json');
+const SERVICE_ACCOUNT_PATH = path.join(__dirname, 'webapp', 'github-sa-key.json');
 const TARGET_EMAIL = 'haichau2404@gmail.com';
 
 async function main() {

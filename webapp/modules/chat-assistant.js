@@ -112,7 +112,7 @@ function createSilentWavTestFile() {
   return new File([buffer], 'vbai_transcribe_test.wav', { type: 'audio/wav' });
 }
 
-const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên gia tư vấn pháp luật Việt Nam.
+const SYSTEM_INSTRUCTION = `Bạn là Trợ lý hành chính pháp lý — một chuyên gia tư vấn pháp luật và nghiệp vụ hành chính Việt Nam.
 
 ## QUY TẮC BẮT BUỘC (KHÔNG ĐƯỢC PHÁT HIỆN):
 
@@ -140,7 +140,7 @@ const SYSTEM_INSTRUCTION = `Bạn là Trợ Lý Pháp Lý VBAI — một chuyên
 - Nếu web data rỗng hoặc không liên quan, nói rõ: "Không tìm thấy dữ liệu phù hợp từ Internet." và dừng lại, không tự ý trả lời bằng kiến thức cũ.
 - Không được phép nói "Tôi không có truy cập Internet" hoặc "Tôi không có công cụ tra cứu".`;
 
-const FAST_SYSTEM_INSTRUCTION = `Bạn là Trợ lý pháp lý VBAI.
+const FAST_SYSTEM_INSTRUCTION = `Bạn là Trợ lý hành chính pháp lý.
 
 ## QUY TẮC CỨNG:
 1. Chỉ trả lời dựa trên dữ liệu tra cứu mới nhất từ Google. KHÔNG ĐƯỢC dùng kiến thức cũ khi có web data.
@@ -891,15 +891,15 @@ export async function renderChatUI(container) {
     <div class="chat-assistant-panel panel-group">
       <div class="panel-header">
         <div class="panel-header-icon">\u2696\uFE0F</div>
-        Tr\u1EE3 L\u00FD Tra C\u1EE9u Ph\u00E1p Lu\u1EADt & Quy \u0111\u1ECBnh \u0110\u1EA3ng AI
+        Tr\u1EE3 l\u00FD tra c\u1EE9u h\u00E0nh ch\u00EDnh & ph\u00E1p lu\u1EADt
         <div style="flex:1"></div>
         <button id="chat-settings-openai-btn" class="btn-icon" title="Th\u00F4ng tin c\u1EA5u h\u00ECnh AI" style="width:28px; height:28px; font-size:0.72rem; margin-left:6px">\u{1F9E9}</button>
       </div>
       <div class="panel-body">
         <div id="chat-messages" class="chat-messages-area">
           <div class="chat-msg ai">
-            <strong>Xin chào! Tôi là Trợ lý VBAI.</strong><br>
-            Tôi hỗ trợ tra cứu các quy định pháp luật và các quy định, hướng dẫn của cơ quan Hành chính và cơ quan Đảng mới nhất.
+            <strong>Xin chào! Tôi là Trợ lý hành chính.</strong><br>
+            Tôi hỗ trợ tra cứu các quy định pháp luật, xử lý nghiệp vụ hành chính và tổng hợp thông tin phục vụ công việc hằng ngày.
           </div>
         </div>
 
@@ -909,8 +909,8 @@ export async function renderChatUI(container) {
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10l15-7.5L10 10l7.5 7.5L2.5 10z" fill="currentColor"/></svg>
           </button>
         </div>
-        <div class="chat-disclaimer" style="margin-top: 12px; padding: 10px; background: rgba(239, 68, 68, 0.05); border-left: 3px solid #ef4444; border-radius: 4px; font-size: 0.75rem; color: var(--text-secondary);">
-          <strong>⚠️ CẢNH BÁO RỦI RO:</strong> VBAI là công cụ hỗ trợ dựa trên AI, không thay thế trách nhiệm của cán bộ, công chức trong việc kiểm tra, đối chiếu với văn bản pháp luật chính thức. Kết quả do AI cung cấp chỉ mang tính chất gợi ý, người dùng cần kiểm tra hiệu lực văn bản trước khi đưa vào dự thảo.
+        <div class="chat-disclaimer" style="margin-top: 12px; padding: 10px; background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(30, 64, 175, 0.08)); border-left: 3px solid #60a5fa; border-radius: 4px; font-size: 0.75rem; color: var(--text-secondary);">
+          <strong>⚠️ CẢNH BÁO RỦI RO:</strong> Trợ lý hành chính là công cụ hỗ trợ dựa trên AI, không thay thế trách nhiệm của cán bộ, công chức trong việc kiểm tra, đối chiếu với văn bản pháp luật chính thức. Kết quả do AI cung cấp chỉ mang tính chất gợi ý, người dùng cần kiểm tra hiệu lực văn bản trước khi đưa vào dự thảo.
         </div>
       </div>
     </div>

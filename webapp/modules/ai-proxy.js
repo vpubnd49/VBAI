@@ -1,6 +1,6 @@
 import { fetchSystemConfig, getCachedSystemConfig } from './system-config.js';
 
-const DEFAULT_PROXY_MODEL = 'gpt-4.4';
+const DEFAULT_PROXY_MODEL = 'gpt-4o-mini';
 const DEFAULT_BACKEND_BASE = '/api';
 const DEFAULT_GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai';
 
@@ -105,16 +105,22 @@ async function backendFetch(path, { method = 'GET', headers = {}, body, timeoutM
 }
 
 async function getSystemConfigSafe() {
-  return await fetchSystemConfig() || getCachedSystemConfig() || {
+  const config = await fetchSystemConfig() || getCachedSystemConfig() || {
     active_provider: 'openai',
-    router_model: DEFAULT_PROXY_MODEL,
-    gemini_model: 'gemini-2.5-pro',
+    router_model: 'gpt-4o-mini',
+    gemini_model: 'gemini-1.5-flash',
     openai_endpoint: 'https://api.openai.com/v1',
     gemini_endpoint: DEFAULT_GEMINI_ENDPOINT,
     transcribe_model: 'whisper-1',
     has_openai_key: false,
     has_gemini_key: false,
   };
+  
+  // Normalize endpoints
+  if (config.openai_endpoint) config.openai_endpoint = trimTrailingSlash(config.openai_endpoint);
+  if (config.gemini_endpoint) config.gemini_endpoint = trimTrailingSlash(config.gemini_endpoint);
+  
+  return config;
 }
 
 export async function sendChatRequest(messages, model, options = {}) {
@@ -163,7 +169,7 @@ export async function sendChatRequest(messages, model, options = {}) {
       throw new Error('Phiên đăng nhập hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.');
     }
     if (response.status === 403) {
-      throw new Error('Bạn không có quyền sử dụng cấu hình hệ thống AI này.');
+      throw new Error(`Bạn không có quyền sử dụng AI này: ${rawMessage}`);
     }
     if (response.status === 429 || normalized.includes('quota') || normalized.includes('limit')) {
       throw new Error('Hệ thống AI đã vượt hạn mức hoặc hết quota. Vui lòng liên hệ quản trị viên.');

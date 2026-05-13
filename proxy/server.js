@@ -99,13 +99,15 @@ app.get('/api/system-config-summary', async (req, res) => {
     res.json({
       active_provider: data.active_provider || 'openai',
       router_model: data.router_model || 'gpt-4o-mini',
-      gemini_model: data.gemini_model || 'gemini-2.0-pro-exp-02-05',
+      gemini_model: data.gemini_model || 'gemini-1.5-flash',
       openai_endpoint: data.openai_endpoint || 'https://api.openai.com/v1',
       gemini_endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
       google_search_configured: !!(data.google_search_key && data.google_search_cx),
       has_openai_key: !!data.openai_api_key,
       has_gemini_key: !!data.gemini_api_key,
       transcribe_model: data.transcribe_model || (data.active_provider === 'gemini' ? data.gemini_model : 'whisper-1'),
+      openai_models: Array.isArray(data.openai_models) ? data.openai_models : [],
+      gemini_models: Array.isArray(data.gemini_models) ? data.gemini_models : [],
       updated_at: data.updated_at?.toDate ? data.updated_at.toDate().toISOString() : data.updated_at,
       updated_by: data.updated_by
     });
@@ -133,7 +135,9 @@ app.post('/api/admin/system-config', async (req, res) => {
       gemini_model,
       google_search_key,
       google_search_cx,
-      transcribe_model
+      transcribe_model,
+      openai_models,
+      gemini_models
     } = req.body;
 
     // Validate allowed values
@@ -145,8 +149,8 @@ app.post('/api/admin/system-config', async (req, res) => {
     const updateData = {
       active_provider: active_provider || 'openai',
       router_model: router_model || 'gpt-4o-mini',
-      gemini_model: gemini_model || 'gemini-2.0-pro-exp-02-05',
-      openai_endpoint: openai_endpoint || 'https://api.openai.com/v1',
+      gemini_model: gemini_model || 'gemini-1.5-flash',
+      openai_endpoint: String(openai_endpoint || 'https://api.openai.com/v1').replace(/\/+$/, ''),
       transcribe_model: transcribe_model || 'whisper-1',
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
       updated_by: decoded.email || decoded.uid
@@ -164,6 +168,13 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
     if (google_search_cx && google_search_cx.trim()) {
       updateData.google_search_cx = google_search_cx.trim();
+    }
+    // Update model lists (always overwrite)
+    if (Array.isArray(openai_models)) {
+      updateData.openai_models = openai_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim());
+    }
+    if (Array.isArray(gemini_models)) {
+      updateData.gemini_models = gemini_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim());
     }
 
     await getSystemConfigRef().set(updateData, { merge: true });
@@ -193,9 +204,9 @@ app.post('/api/chat', async (req, res) => {
     const config = snap.data();
 
     const provider = config.active_provider || 'openai';
-    const endpoint = provider === 'gemini'
+    const endpoint = String(provider === 'gemini'
       ? config.gemini_endpoint || 'https://generativelanguage.googleapis.com/v1beta/openai'
-      : (config.openai_endpoint || 'https://api.openai.com/v1');
+      : (config.openai_endpoint || 'https://api.openai.com/v1')).replace(/\/+$/, '');
     const apiKey = provider === 'gemini' ? config.gemini_api_key : config.openai_api_key;
     const effectiveModel = model || (provider === 'gemini' ? config.gemini_model : config.router_model);
 

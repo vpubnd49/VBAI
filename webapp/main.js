@@ -74,7 +74,7 @@ export function showToast(msg, type = 'success') {
 // ============ NAVIGATION ============
 const PAGE_TITLES = {
   dashboard: 'Tổng quan',
-  'chat-assistant': 'Trợ lý tra cứu pháp luật',
+  'chat-assistant': 'Tra cứu hành chính & pháp luật',
   'vb-dang': 'Soạn VB Đảng (HD36)',
   'vb-nd30': 'Soạn VB Hành chính (NĐ30)',
   'pdf-tool': 'Xử lý PDF / OCR',
@@ -178,12 +178,22 @@ function init() {
       const adminBtn = document.getElementById('nav-admin-panel');
       if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
 
+      // Admin auto-redirect: nếu là admin và chưa navigate đi đâu, vào thẳng trang quản trị
+      if (window.isAdmin && (!state.currentPage || state.currentPage === 'dashboard')) {
+        state.currentPage = 'admin-panel';
+      }
+
       // Ensure a valid page is rendered
       if (!state.currentPage || !PAGE_TITLES[state.currentPage]) {
         state.currentPage = 'dashboard';
       }
       try {
         renderPage(state.currentPage);
+        // Update breadcrumb and nav active state for the auto-redirected page
+        document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[state.currentPage]}</span>`;
+        document.querySelectorAll('.nav-item').forEach(item => {
+          item.classList.toggle('active', item.dataset.page === state.currentPage);
+        });
       } catch (err) {
         console.error('Render page failed after login:', err);
         const container = document.getElementById('page-content');
