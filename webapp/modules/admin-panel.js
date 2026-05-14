@@ -32,8 +32,24 @@ export function renderAdminPanel(container) {
           <div class="form-group" style="margin-bottom:12px;">
             <label class="form-label">Nhà cung cấp AI mặc định</label>
             <div style="display:flex; gap:12px; margin-top:4px">
-              <label style="display:flex; align-items:center; gap:6px; cursor:pointer"><input type="radio" name="active_provider" value="openai" checked> OpenAI</label>
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer"><input type="radio" name="active_provider" value="openai"> OpenAI</label>
               <label style="display:flex; align-items:center; gap:6px; cursor:pointer"><input type="radio" name="active_provider" value="gemini"> Gemini</label>
+              <label style="display:flex; align-items:center; gap:6px; cursor:pointer"><input type="radio" name="active_provider" value="vertex"> Vertex AI</label>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">Chế độ Tra cứu Web / RAG</label>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px">
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer">
+                <input type="radio" name="search_mode" value="google_cse" checked> 
+                <span>Tìm kiếm Google (CSE) - Truyền thống</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer">
+                <input type="radio" name="search_mode" value="vertex_answer"> 
+                <span style="color:var(--primary-color); font-weight:600;">Vertex AI Answer (Native RAG)</span>
+                <span style="font-size:0.7rem; background:#dbeafe; color:#1e40af; padding:2px 6px; border-radius:10px; margin-left:4px">Khuyên dùng</span>
+              </label>
             </div>
           </div>
 
@@ -86,6 +102,26 @@ export function renderAdminPanel(container) {
                 <button type="button" id="add-gemini-model-btn" class="btn btn-primary" style="padding:6px 14px; font-size:0.82rem; white-space:nowrap;">+ Thêm</button>
               </div>
               <div id="gemini-models-list" style="display:flex; flex-wrap:wrap; gap:6px; min-height:32px;"></div>
+            </div>
+          </div>
+
+          <!-- ===== Vertex AI Section ===== -->
+          <div style="margin:16px 0 8px; padding:10px 14px; background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius:8px; border-left:4px solid #64748b;">
+            <div style="font-size:0.9rem; font-weight:700; color:#475569; margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+              <span style="font-size:1.1rem;">🟣</span> Cấu hình Vertex AI
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label">Google Cloud Project ID</label>
+              <input type="text" id="vertex_project_id" class="form-input" placeholder="vbai-project-123">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label">Vertex Location (Region)</label>
+              <input type="text" id="vertex_location" class="form-input" placeholder="us-central1">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label">Vertex AI Search Data Store ID</label>
+              <input type="text" id="vertex_data_store_id" class="form-input" placeholder="legal-data-store-id">
+              <small style="color:var(--text-muted); font-size:0.75rem">Bắt buộc nếu dùng Vertex AI Answer API</small>
             </div>
           </div>
 
@@ -224,6 +260,27 @@ export function renderAdminPanel(container) {
       btn.textContent = 'Xóa tất cả';
     }
   });
+
+  // Individual log deletion
+  container.querySelector('#logs-table-body').addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-delete')) {
+      const logId = e.target.dataset.id;
+      if (!confirm('Bạn có chắc muốn xóa bản ghi này?')) return;
+      
+      e.target.disabled = true;
+      e.target.textContent = '...';
+      try {
+        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        const db = getFirestore(app);
+        await deleteDoc(doc(db, "search_logs", logId));
+        loadLogs(container);
+      } catch (err) {
+        alert('Lỗi xóa: ' + err.message);
+        e.target.disabled = false;
+        e.target.textContent = 'Xóa';
+      }
+    }
+  });
 }
 
 async function initSystemConfigPanel(container) {
@@ -234,11 +291,15 @@ async function initSystemConfigPanel(container) {
   const saveStatusEl = container.querySelector('#config-save-status');
 
   const providerRadios = formEl.querySelectorAll('input[name="active_provider"]');
+  const searchModeRadios = formEl.querySelectorAll('input[name="search_mode"]');
   const openaiEndpointInput = formEl.querySelector('#openai_endpoint');
   const openaiKeyInput = formEl.querySelector('#openai_api_key');
   const routerModelInput = formEl.querySelector('#router_model');
   const geminiKeyInput = formEl.querySelector('#gemini_api_key');
   const geminiModelInput = formEl.querySelector('#gemini_model');
+  const vertexProjectIdInput = formEl.querySelector('#vertex_project_id');
+  const vertexLocationInput = formEl.querySelector('#vertex_location');
+  const vertexDataStoreIdInput = formEl.querySelector('#vertex_data_store_id');
   const googleSearchKeyInput = formEl.querySelector('#google_search_key');
   const googleSearchCxInput = formEl.querySelector('#google_search_cx');
   const transcribeModelInput = formEl.querySelector('#transcribe_model');
@@ -374,9 +435,16 @@ async function initSystemConfigPanel(container) {
       routerModelInput.value = config.router_model || 'gpt-4o-mini';
       geminiModelInput.value = config.gemini_model || 'gemini-1.5-flash';
       transcribeModelInput.value = config.transcribe_model || 'whisper-1';
+      
+      vertexProjectIdInput.value = config.vertex_project_id || '';
+      vertexLocationInput.value = config.vertex_location || 'us-central1';
+      vertexDataStoreIdInput.value = config.vertex_data_store_id || '';
 
-      const provider = config.active_provider === 'gemini' ? 'gemini' : 'openai';
+      const provider = config.active_provider || 'openai';
       providerRadios.forEach(r => r.checked = r.value === provider);
+      
+      const searchMode = config.search_mode || 'google_cse';
+      searchModeRadios.forEach(r => r.checked = r.value === searchMode);
 
       if (config.has_openai_key) openaiKeyInput.value = '••••••••••••';
       if (config.has_gemini_key) geminiKeyInput.value = '••••••••••••';
@@ -404,11 +472,16 @@ async function initSystemConfigPanel(container) {
 
   async function saveConfig() {
     const provider = formEl.querySelector('input[name="active_provider"]:checked').value;
+    const searchMode = formEl.querySelector('input[name="search_mode"]:checked').value;
     const payload = {
       active_provider: provider,
+      search_mode: searchMode,
       openai_endpoint: openaiEndpointInput.value,
       router_model: routerModelInput.value,
       gemini_model: geminiModelInput.value,
+      vertex_project_id: vertexProjectIdInput.value,
+      vertex_location: vertexLocationInput.value,
+      vertex_data_store_id: vertexDataStoreIdInput.value,
       transcribe_model: transcribeModelInput.value,
       openai_api_key: openaiKeyInput.value.includes('•') ? '' : openaiKeyInput.value,
       gemini_api_key: geminiKeyInput.value.includes('•') ? '' : geminiKeyInput.value,

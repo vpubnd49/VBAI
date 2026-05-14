@@ -146,7 +146,7 @@ app.get('/api/system-config-summary', async (req, res) => {
       gemini_model: data.gemini_model || 'gemini-1.5-flash',
       openai_endpoint: data.openai_endpoint || 'https://api.openai.com/v1',
       gemini_endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
-      google_search_configured: !!(data.google_search_key && data.google_search_cx),
+      google_search_configured: !!((data.google_search_key && data.google_search_cx) || (data.vertex_project_id && data.vertex_data_store_id)),
       has_openai_key: !!data.openai_api_key,
       has_gemini_key: !!data.gemini_api_key,
       transcribe_model: data.transcribe_model || (data.active_provider === 'gemini' ? data.gemini_model : 'whisper-1'),
@@ -349,14 +349,32 @@ app.post('/api/chat', async (req, res) => {
     const config = snap.data();
 
     const provider = config.active_provider || 'openai';
+    const isVertexGemini = (provider === 'vertex') || (provider === 'gemini' && String(config.gemini_endpoint || '').includes('aiplatform.googleapis.com'));
+
     const endpoint = String(provider === 'gemini'
       ? config.gemini_endpoint || 'https://generativelanguage.googleapis.com/v1beta/openai'
       : (config.openai_endpoint || 'https://api.openai.com/v1')).replace(/\/+$/, '');
     const apiKey = provider === 'gemini' ? config.gemini_api_key : config.openai_api_key;
-    const effectiveModel = model || (provider === 'gemini' ? config.gemini_model : config.router_model);
+    const effectiveModel = model || ((provider === 'gemini' || provider === 'vertex') ? config.gemini_model : config.router_model);
 
-    if (!apiKey) {
+    if (!apiKey && !isVertexGemini) {
       return res.status(503).json({ error: 'API key missing', message: 'Please contact administrator to configure AI provider key.' });
+    }
+
+    // Native Vertex AI Gemini Path
+    if (isVertexGemini) {
+      try {
+        const vertexResult = await executeVertexGeminiChat({
+          messages,
+          model: effectiveModel,
+          temperature,
+          max_tokens,
+          vertexConfig: buildVertexSearchConfig(config)
+        });
+        return res.json(vertexResult);
+      } catch (err) {
+        return res.status(500).json({ error: 'Vertex AI Gemini error', message: err.message });
+      }
     }
 
     // Build provider request
@@ -585,6 +603,38 @@ app.post('/api/web-search', async (req, res) => {
       }
     }
 
+    if (webSearchMode === 'vertex_answer' && effectiveSearchProvider === 'vertex_ai_search') {
+      try {
+        const answerResult = await executeVertexAnswer({
+          query,
+          vertexConfig,
+          timeoutMs: 30000
+        });
+        return res.json({
+          results: answerResult.answer,
+          meta: buildWebSearchMeta({
+            strategy: 'vertex_answer_api',
+            webSearchProvider: effectiveSearchProvider,
+            webSearchMode,
+            query,
+            refinedQuery: query,
+            dateRestrict: null,
+            expectedDocNumber: expectedDocNumber || null,
+            exactMatch: true,
+            cseStatus: null,
+            cseErrorReason: null,
+            fallbackUsed: false,
+            enabledFallbackSources: fallbackSources,
+            items: answerResult.citations,
+            cacheHit: false,
+            servedInMs: Date.now() - requestStartMs,
+          }),
+        });
+      } catch (err) {
+        console.warn('Vertex Answer API failed, falling back to standard search:', err.message);
+      }
+    }
+
     // Prioritize official sources first, then trusted legal references.
     const officialDomainClause = [
       'site:vbpl.vn',
@@ -707,10 +757,12 @@ app.post('/api/web-search', async (req, res) => {
       if (attemptResult.errorReason) diagnostics.cse_error_reason = attemptResult.errorReason;
     };
 
-    // 1st attempt: official government/legal sources only
-    let cseStrategy = 'cse_official';
+    const providerQuery = effectiveSearchProvider === 'vertex_ai_search'
+      ? refinedQuery
+      : `${refinedQuery} (${officialDomainClause})`;
+
     let searchAttempt = await executeSearch(
-      `${refinedQuery} (${officialDomainClause})`,
+      providerQuery,
       Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
     );
     captureCseDiagnostic(searchAttempt);
@@ -1999,16 +2051,121 @@ function sanitizeFallbackSources(raw = null) {
 }
 
 function isValidWebSearchMode(raw = '') {
-  return String(raw || '').trim().toLowerCase() === 'google_only_fast'
-    || String(raw || '').trim().toLowerCase() === 'hybrid_fallback'
-    || String(raw || '').trim().toLowerCase() === 'fast_primary';
+  const m = String(raw || '').trim().toLowerCase();
+  return m === 'google_only_fast'
+    || m === 'hybrid_fallback'
+    || m === 'fast_primary'
+    || m === 'vertex_answer';
 }
 
 function sanitizeWebSearchMode(raw = '') {
   const normalized = String(raw || '').trim().toLowerCase();
   if (normalized === 'fast_primary') return 'fast_primary';
   if (normalized === 'hybrid_fallback') return 'hybrid_fallback';
+  if (normalized === 'vertex_answer') return 'vertex_answer';
   return DEFAULT_WEB_SEARCH_MODE;
+}
+
+async function executeVertexGeminiChat({ messages, model, temperature, max_tokens, vertexConfig }) {
+  const accessToken = await fetchServiceAccountAccessToken(5000);
+  if (!accessToken) throw new Error('Could not fetch service account token for Vertex AI');
+
+  const projectId = vertexConfig.projectId;
+  const location = vertexConfig.location || 'us-central1';
+  const modelName = String(model || 'gemini-1.5-pro').trim();
+
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelName}:generateContent`;
+
+  // Convert OpenAI messages to Vertex AI contents
+  const contents = messages
+    .filter(m => m.role !== 'system' && m.role !== 'developer')
+    .map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+  const systemInstruction = messages.find(m => m.role === 'system' || m.role === 'developer')?.content;
+
+  const payload = {
+    contents,
+    generationConfig: {
+      temperature,
+      maxOutputTokens: max_tokens || 2048,
+    },
+    ...(systemInstruction && { systemInstruction: { parts: [{ text: systemInstruction }] } })
+  };
+
+  const response = await fetchWithTimeout(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload)
+  }, 60000);
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Vertex AI error ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  // Return OpenAI-compatible format for the frontend
+  return {
+    id: `chatcmpl-vertex-${Date.now()}`,
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: modelName,
+    choices: [{
+      index: 0,
+      message: { role: 'assistant', content: text },
+      finish_reason: 'stop'
+    }]
+  };
+}
+
+async function executeVertexAnswer({ query, vertexConfig, timeoutMs }) {
+  const servingConfig = buildVertexServingConfigPath(vertexConfig);
+  if (!servingConfig) throw new Error('Vertex Search not configured');
+
+  const accessToken = await fetchServiceAccountAccessToken(5000);
+  if (!accessToken) throw new Error('Could not fetch service account token');
+
+  const url = `https://discoveryengine.googleapis.com/v1/${servingConfig}:answer`;
+  const response = await fetchWithTimeout(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: { text: query },
+      answerGenerationSpec: {
+        ignoreAdversarialQuery: true,
+        ignoreNonAnswerSeekingQuery: true,
+        modelSpec: { modelVersion: 'stable' },
+        promptSpec: { preamble: 'Bạn là một trợ lý hành chính chuyên nghiệp. Hãy trả lời câu hỏi dựa trên các tài liệu pháp luật được cung cấp.' },
+        includeCitations: true,
+      }
+    })
+  }, timeoutMs);
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Vertex Answer API error ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  const answer = data?.answer?.answerText || '';
+  const citations = (data?.answer?.citations || []).map(c => ({
+    title: c.title || 'Tài liệu dẫn chứng',
+    link: c.uri || '',
+    snippet: c.snippet || ''
+  }));
+
+  return { answer, citations };
 }
 
 // Start server

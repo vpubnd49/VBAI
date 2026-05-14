@@ -48,6 +48,8 @@ function getMeetingModelFallbackOrder() {
 }
 
 const PROCESSING_TEXT = "Đang xử lý......";
+const MAX_AUDIO_UPLOAD_MB = 80;
+const MAX_AUDIO_UPLOAD_BYTES = MAX_AUDIO_UPLOAD_MB * 1024 * 1024;
 
 let formState = {
   step: 1, audioFile: null, isProcessing: false,
@@ -108,7 +110,7 @@ function renderStep1(sc, c) {
         <div class="upload-zone" id="drop-zone" onclick="document.getElementById('audio-upload').click()">
           <div class="upload-icon">🎤</div>
           <div class="upload-text">Nhấp hoặc kéo thả file ghi âm vào đây</div>
-          <div class="upload-hint">Hỗ trợ: <strong>${supportedFormats}</strong> — <strong>Tối đa 200MB</strong></div>
+          <div class="upload-hint">Hỗ trợ: <strong>${supportedFormats}</strong> — <strong>Tối đa ${MAX_AUDIO_UPLOAD_MB}MB</strong></div>
           ${formState.audioFile ? `<div style="margin-top: 15px; color: var(--success); font-weight: bold;">Đã chọn: ${formState.audioFile.name} (${(formState.audioFile.size / 1024 / 1024).toFixed(1)}MB)</div>` : ''}
         </div>
       </div>
@@ -126,10 +128,19 @@ function renderStep1(sc, c) {
   const btnProcess = sc.querySelector('#btn-process');
   const indicator = sc.querySelector('#processing-indicator');
 
+  const selectAudioFile = (file) => {
+    if (!file) return;
+    if (file.size > MAX_AUDIO_UPLOAD_BYTES) {
+      showToast(`File vuot qua gioi han ${MAX_AUDIO_UPLOAD_MB}MB. Vui long cat nho file hoac chia thanh nhieu phan.`, 'error');
+      return;
+    }
+    formState.audioFile = file;
+    doRender(c);
+  };
+
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-      formState.audioFile = e.target.files[0];
-      doRender(c);
+      selectAudioFile(e.target.files[0]);
     }
   });
   dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--pine-500)'; });
@@ -137,8 +148,7 @@ function renderStep1(sc, c) {
   dropZone.addEventListener('drop', (e) => {
     e.preventDefault(); dropZone.style.borderColor = 'var(--border-default)';
     if (e.dataTransfer.files.length > 0) {
-      formState.audioFile = e.dataTransfer.files[0];
-      doRender(c);
+      selectAudioFile(e.dataTransfer.files[0]);
     }
   });
   btnProcess.addEventListener('click', async () => {

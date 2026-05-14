@@ -1047,10 +1047,14 @@ function shouldUseGroundedAnswer(rawUserText = '', searchResults = '', webSearch
   const legalOrPolicy = /(luat|nghi dinh|thong tu|quyet dinh|van ban|chinh sach|hieu luc|moi nhat|so hieu|uy quyen|phan cap|phan quyen)/.test(n);
   if (!legalOrPolicy) return false;
   if (webSearchMeta?.strategy === 'cse_empty_fast') return false;
+  if (webSearchMeta?.strategy === 'vertex_answer_api') return true;
   return true;
 }
 
 function buildGroundedAnswer(rawUserText = '', searchResults = '', webSearchMeta = null) {
+  if (webSearchMeta?.strategy === 'vertex_answer_api') {
+    return String(searchResults || '').trim();
+  }
   const parsedItems = parseWebSearchMarkdownItems(searchResults);
   const dominantDoc = pickDominantDocNumberFromItems(parsedItems);
   const items = (dominantDoc

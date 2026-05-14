@@ -6,9 +6,61 @@
 
 const CONFIG_CACHE_KEY = 'vbai_system_config_cache';
 const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_BACKEND_BASE = '/api';
+const ALLOWED_BACKEND_HOSTS = new Set([
+  'vbai.tracuu.lamdong.vn',
+  'localhost',
+  '127.0.0.1',
+]);
 
 let cachedConfig = null;
 let cacheExpiresAt = 0;
+
+function trimTrailingSlash(url = '') {
+  return String(url || '').replace(/\/+$/, '');
+}
+
+function resolveBackendBase() {
+  let saved = '';
+  try {
+    saved = localStorage.getItem('vbai_backend_url') || '';
+  } catch (e) {}
+  const val = String(saved || '').trim();
+  if (!val) return DEFAULT_BACKEND_BASE;
+
+  if (val.startsWith('/')) {
+    if (val === '/api' || val.startsWith('/api/')) {
+      return trimTrailingSlash(val);
+    }
+    throw new Error('Backend URL khong hop le. Chi duoc phep /api.');
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(val);
+  } catch (e) {
+    throw new Error('Backend URL khong hop le.');
+  }
+
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error('Backend URL phai dung http/https.');
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  const sameOrigin = typeof window !== 'undefined' && parsed.origin === window.location.origin;
+  const whitelisted = ALLOWED_BACKEND_HOSTS.has(host);
+  if (!sameOrigin && !whitelisted) {
+    throw new Error('Backend host khong nam trong danh sach duoc phep.');
+  }
+
+  if (!parsed.pathname || parsed.pathname === '/') {
+    parsed.pathname = '/api';
+  }
+  if (!parsed.pathname.startsWith('/api')) {
+    throw new Error('Backend URL phai tro den duong dan /api.');
+  }
+  return trimTrailingSlash(parsed.toString());
+}
 
 /**
  * Get the Firebase ID token for authenticated requests.
@@ -42,20 +94,12 @@ export async function fetchSystemConfig() {
     return null;
   }
 
-  // Determine backend URL
-  let backendUrl;
+  let backendUrl = DEFAULT_BACKEND_BASE;
   try {
-    // Try to read from localStorage if user has previously saved custom backend
-    const saved = localStorage.getItem('vbai_backend_url');
-    if (saved) {
-      backendUrl = saved;
-    } else {
-      // Derive from Firebase config? Or use a fixed relative path?
-      // Use relative path so it works on same domain (proxy likely at /api)
-      backendUrl = '/api';
-    }
+    backendUrl = resolveBackendBase();
   } catch (e) {
-    backendUrl = '/api';
+    console.warn('Invalid backend URL config, fallback to /api:', e?.message || e);
+    backendUrl = DEFAULT_BACKEND_BASE;
   }
 
   try {
@@ -106,11 +150,12 @@ export async function updateSystemConfig(configData) {
   const token = await getIdToken();
   if (!token) throw new Error('Not authenticated');
 
-  let backendUrl = '/api';
+  let backendUrl = DEFAULT_BACKEND_BASE;
   try {
-    const saved = localStorage.getItem('vbai_backend_url');
-    if (saved) backendUrl = saved;
-  } catch (e) {}
+    backendUrl = resolveBackendBase();
+  } catch (e) {
+    throw new Error(e?.message || 'Backend URL khong hop le');
+  }
 
   const response = await fetch(`${backendUrl}/admin/system-config`, {
     method: 'POST',

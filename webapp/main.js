@@ -19,8 +19,8 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
 
 import { firebaseConfig } from './firebase-config.js';
 
-const GLOBAL_AI_MODEL = 'gpt-4.4';
-const GLOBAL_MEETING_MODEL = 'gemini-2.5-pro';
+const GLOBAL_AI_MODEL = 'gpt-4o-mini';
+const GLOBAL_MEETING_MODEL = 'gemini-2.5-flash';
 const GLOBAL_TRANSCRIBE_MODEL = 'whisper-1';
 
 function applyGlobalModelDefaults() {
@@ -178,15 +178,8 @@ function init() {
       const adminBtn = document.getElementById('nav-admin-panel');
       if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
 
-      // Admin auto-redirect: nếu là admin và chưa navigate đi đâu, vào thẳng trang quản trị
-      if (window.isAdmin && (!state.currentPage || state.currentPage === 'dashboard')) {
-        state.currentPage = 'admin-panel';
-      }
-
-      // Ensure a valid page is rendered
-      if (!state.currentPage || !PAGE_TITLES[state.currentPage]) {
-        state.currentPage = 'dashboard';
-      }
+      // Always land on dashboard right after login/auth restore.
+      state.currentPage = 'dashboard';
       try {
         renderPage(state.currentPage);
         // Update breadcrumb and nav active state for the auto-redirected page

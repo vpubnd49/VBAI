@@ -1,22 +1,29 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
-const path = require('path');
 
-const SERVICE_ACCOUNT_PATH = path.join(__dirname, 'webapp', 'github-sa-key.json');
-const TARGET_EMAIL = 'haichau2404@gmail.com';
+const TARGET_EMAIL = process.env.TARGET_EMAIL || 'haichau2404@gmail.com';
+const SERVICE_ACCOUNT_PATH = process.env.GOOGLE_APPLICATION_CREDENTIALS || '';
+const FIREBASE_SERVICE_ACCOUNT_JSON = process.env.FIREBASE_SERVICE_ACCOUNT || '';
 
 async function main() {
   try {
-    if (!fs.existsSync(SERVICE_ACCOUNT_PATH)) {
-      console.error(`Missing service account file: ${SERVICE_ACCOUNT_PATH}`);
-      console.error('Download it from Firebase Console > Project Settings > Service Accounts.');
+    let credentialConfig = null;
+
+    if (FIREBASE_SERVICE_ACCOUNT_JSON) {
+      credentialConfig = JSON.parse(FIREBASE_SERVICE_ACCOUNT_JSON);
+    } else if (SERVICE_ACCOUNT_PATH) {
+      if (!fs.existsSync(SERVICE_ACCOUNT_PATH)) {
+        console.error(`Missing service account file: ${SERVICE_ACCOUNT_PATH}`);
+        process.exit(1);
+      }
+      credentialConfig = JSON.parse(fs.readFileSync(SERVICE_ACCOUNT_PATH, 'utf8'));
+    } else {
+      console.error('Missing credentials. Set FIREBASE_SERVICE_ACCOUNT or GOOGLE_APPLICATION_CREDENTIALS.');
       process.exit(1);
     }
 
-    const serviceAccount = JSON.parse(fs.readFileSync(SERVICE_ACCOUNT_PATH, 'utf8'));
-
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
+      credential: admin.credential.cert(credentialConfig)
     });
 
     const user = await admin.auth().getUserByEmail(TARGET_EMAIL);

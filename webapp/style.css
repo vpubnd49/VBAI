@@ -582,6 +582,47 @@ body {
 }
 .form-label .required { color: var(--danger); }
 
+.provider-tabs-row {
+  display: inline-flex;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(15, 31, 56, 0.55);
+  border: 1px solid var(--border-subtle);
+}
+
+.provider-tab-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.provider-tab-btn:hover {
+  color: var(--text-primary);
+  border-color: rgba(96, 165, 250, 0.28);
+}
+
+.provider-tab-btn.active {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(59, 130, 246, 0.22));
+  border-color: rgba(96, 165, 250, 0.32);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.provider-radio-hidden {
+  display: none;
+}
+
+.provider-section-panel.is-hidden {
+  display: none;
+}
+
 /* Professional Panels */
 .panel-group {
   background: linear-gradient(180deg, rgba(23, 46, 89, 0.74), rgba(10, 23, 45, 0.86)); border: 1px solid rgba(148, 197, 255, 0.12);
