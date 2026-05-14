@@ -27,27 +27,43 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: gen-lang-client-0462350485
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Install proxy dependencies
         working-directory: proxy
         run: npm ci
 
-      - name: Check required secrets
-        id: secret_check
-        env:
-          BASE_URL: ${{ secrets.VBAI_PROXY_BASE_URL }}
-          ID_TOKEN: ${{ secrets.VBAI_TEST_ID_TOKEN }}
+      - name: Resolve Firebase Web API key
         run: |
-          if [ -z "$BASE_URL" ] || [ -z "$ID_TOKEN" ]; then
-            echo "missing=true" >> "$GITHUB_OUTPUT"
-            echo "Skipping canary: missing VBAI_PROXY_BASE_URL or VBAI_TEST_ID_TOKEN"
-          else
-            echo "missing=false" >> "$GITHUB_OUTPUT"
-          fi
+          API_KEY=$(node -e "const fs=require('fs'); const s=fs.readFileSync('webapp/firebase-config.js','utf8'); const m=s.match(/apiKey:\\s*\\\"([^\\\"]+)\\\"/); if(!m){process.exit(1)}; process.stdout.write(m[1]);")
+          echo "FIREBASE_WEB_API_KEY=$API_KEY" >> "$GITHUB_ENV"
 
-      - name: Run runtime canary
-        if: steps.secret_check.outputs.missing == 'false'
+      - name: Resolve proxy URL from Cloud Run
+        run: |
+          URL=$(gcloud run services describe vbai-proxy --project gen-lang-client-0462350485 --region asia-southeast1 --format='value(status.url)')
+          echo "VBAI_PROXY_BASE_URL=$URL" >> "$GITHUB_ENV"
+
+      - name: Mint Firebase ID token for canary
         working-directory: proxy
         env:
-          VBAI_PROXY_BASE_URL: ${{ secrets.VBAI_PROXY_BASE_URL }}
-          VBAI_TEST_ID_TOKEN: ${{ secrets.VBAI_TEST_ID_TOKEN }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.GCP_SA_KEY }}
+          FIREBASE_WEB_API_KEY: ${{ env.FIREBASE_WEB_API_KEY }}
+        run: |
+          TOKEN=$(npm run --silent test:mint-token)
+          echo "::add-mask::$TOKEN"
+          echo "VBAI_TEST_ID_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: Run runtime canary
+        working-directory: proxy
+        env:
+          VBAI_PROXY_BASE_URL: ${{ env.VBAI_PROXY_BASE_URL }}
+          VBAI_TEST_ID_TOKEN: ${{ env.VBAI_TEST_ID_TOKEN }}
         run: npm run test:canary

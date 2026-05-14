@@ -9,7 +9,8 @@
     "test:golden": "node tests/golden-legal-extract.test.cjs",
     "test:integration": "node tests/runtime-web-search.integration.cjs",
     "test:canary": "node tests/runtime-web-search.canary.cjs",
-    "test:all": "node tests/run-all.cjs"
+    "test:all": "node tests/run-all.cjs",
+    "test:mint-token": "node tests/mint-firebase-id-token.cjs"
   },
   "dependencies": {
     "cors": "^2.8.5",
