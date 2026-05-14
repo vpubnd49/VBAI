@@ -1,6 +1,15 @@
 name: Web Search Canary
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/web-search-canary.yml'
+      - 'proxy/tests/runtime-web-search.canary.cjs'
+      - 'proxy/tests/runtime-web-search.integration.cjs'
+      - 'proxy/tests/run-all.cjs'
+      - 'proxy/package.json'
   schedule:
     - cron: '*/30 * * * *'
   workflow_dispatch:
