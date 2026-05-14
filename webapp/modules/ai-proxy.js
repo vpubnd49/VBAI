@@ -3,9 +3,57 @@ import { fetchSystemConfig, getCachedSystemConfig } from './system-config.js';
 const DEFAULT_PROXY_MODEL = 'gpt-4o-mini';
 const DEFAULT_BACKEND_BASE = '/api';
 const DEFAULT_GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai';
+const DEFAULT_TRANSCRIBE_CHUNK_BYTES = 20 * 1024 * 1024; // 20MB
+let lastWebSearchMeta = null;
+const ALLOWED_BACKEND_HOSTS = new Set([
+  'vbai.tracuu.lamdong.vn',
+  'localhost',
+  '127.0.0.1',
+]);
 
 function trimTrailingSlash(url = '') {
   return String(url || '').replace(/\/+$/, '');
+}
+
+function sanitizeBackendBase(raw = '') {
+  const val = String(raw || '').trim();
+  if (!val) return DEFAULT_BACKEND_BASE;
+
+  // Only allow relative `/api` path by default.
+  if (val.startsWith('/')) {
+    if (val === '/api' || val.startsWith('/api/')) {
+      return trimTrailingSlash(val);
+    }
+    throw new Error('Cau hinh backend khong hop le. Chi duoc phep duong dan /api.');
+  }
+
+  // For absolute URLs, only allow same-origin or whitelisted internal hosts.
+  let parsed;
+  try {
+    parsed = new URL(val);
+  } catch {
+    throw new Error('Cau hinh backend URL khong hop le.');
+  }
+
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error('Backend URL phai su dung http/https.');
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  const sameOrigin = typeof window !== 'undefined' && parsed.origin === window.location.origin;
+  const whitelisted = ALLOWED_BACKEND_HOSTS.has(host);
+  if (!sameOrigin && !whitelisted) {
+    throw new Error('Backend URL khong nam trong danh sach host duoc phep.');
+  }
+
+  if (!parsed.pathname || parsed.pathname === '/') {
+    parsed.pathname = '/api';
+  }
+  if (!parsed.pathname.startsWith('/api')) {
+    throw new Error('Backend URL phai tro den endpoint /api.');
+  }
+
+  return trimTrailingSlash(parsed.toString());
 }
 
 export function normalizeModelName(model = '') {
@@ -58,7 +106,7 @@ async function getIdToken() {
 
 function getBackendBase() {
   const raw = typeof localStorage !== 'undefined' ? (localStorage.getItem('vbai_backend_url') || '').trim() : '';
-  return trimTrailingSlash(raw || DEFAULT_BACKEND_BASE);
+  return sanitizeBackendBase(raw);
 }
 
 async function fetchWithTimeout(url, init = {}, timeoutMs = 120000) {
@@ -182,16 +230,45 @@ export async function sendChatRequest(messages, model, options = {}) {
 }
 
 export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, options = {}) {
-  const base64 = await fileToBase64(file);
+  const chunkWhenLarge = options.chunkWhenLarge === true;
+  const configuredMaxBytes = Number(options.maxBytes);
+  const maxBytes = Number.isFinite(configuredMaxBytes) && configuredMaxBytes > 0
+    ? configuredMaxBytes
+    : DEFAULT_TRANSCRIBE_CHUNK_BYTES;
+  const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+
+  if (chunkWhenLarge && file?.size > maxBytes) {
+    const total = Math.ceil(file.size / maxBytes);
+    const transcripts = [];
+    for (let part = 0; part < total; part += 1) {
+      const start = part * maxBytes;
+      const end = Math.min(file.size, start + maxBytes);
+      const blobChunk = file.slice(start, end, file.type || 'application/octet-stream');
+      const chunkFile = new File([blobChunk], `${file.name || 'audio'}.part${part + 1}`, {
+        type: file.type || 'application/octet-stream',
+      });
+      if (onProgress) onProgress({ part: part + 1, total });
+      const text = await sendSingleAudioTranscription(chunkFile, model, options, { part: part + 1, total });
+      if (String(text || '').trim()) transcripts.push(String(text).trim());
+    }
+    return transcripts.join('\n');
+  }
+
+  return sendSingleAudioTranscription(file, model, options);
+}
+
+async function sendSingleAudioTranscription(file, model = DEFAULT_PROXY_MODEL, options = {}, partMeta = null) {
+  const formData = new FormData();
+  formData.append('audio', file, file?.name || 'audio');
+  formData.append('filename', file?.name || 'audio');
+  formData.append('model', normalizeModelName(model || DEFAULT_PROXY_MODEL));
+  formData.append('context', options.context || 'meeting');
+  if (partMeta?.part) formData.append('part', String(partMeta.part));
+  if (partMeta?.total) formData.append('total', String(partMeta.total));
+
   const response = await backendFetch('/transcribe', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      audio_base64: base64,
-      filename: file?.name || 'audio',
-      model: normalizeModelName(model || DEFAULT_PROXY_MODEL),
-      context: options.context || 'meeting',
-    }),
+    body: formData,
     timeoutMs: options.timeoutMs ?? 180000,
   });
 
@@ -205,12 +282,23 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
 
 
 export async function sendWebSearchRequest(query, expectedDocNumber = null, options = {}) {
+  const recencyDays = Number(options.recencyDays);
+  const freshnessLevel = String(options.freshnessLevel || '').trim().toLowerCase();
+  const forceFresh = options.forceFresh === true;
   const response = await backendFetch('/web-search', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    },
+    cache: 'no-store',
     body: JSON.stringify({
       query: String(query || '').trim(),
       expectedDocNumber: expectedDocNumber || null,
+      forceFresh,
+      freshnessLevel: freshnessLevel || undefined,
+      recencyDays: Number.isFinite(recencyDays) && recencyDays > 0 ? recencyDays : undefined,
     }),
     timeoutMs: options.timeoutMs ?? 30000,
   });
@@ -221,7 +309,62 @@ export async function sendWebSearchRequest(query, expectedDocNumber = null, opti
   }
 
   const data = await response.json();
+  lastWebSearchMeta = data?.meta && typeof data.meta === 'object' ? data.meta : null;
   return typeof data?.results === 'string' ? data.results : '';
+}
+
+export function getLastWebSearchMeta() {
+  return lastWebSearchMeta;
+}
+
+export async function fetchWebSearchHealth() {
+  const response = await backendFetch('/admin/web-search-health', {
+    method: 'GET',
+    timeoutMs: 15000,
+  });
+  if (!response.ok) {
+    const rawMessage = await buildHttpErrorMessage(response, `HTTP Error ${response.status}`);
+    throw new Error(rawMessage || 'Khong the lay trang thai web search.');
+  }
+  return await response.json();
+}
+
+export async function runWebSearchIngest() {
+  const response = await backendFetch('/admin/web-search-ingest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trigger: 'manual' }),
+    timeoutMs: 90000,
+  });
+  if (!response.ok) {
+    const rawMessage = await buildHttpErrorMessage(response, `HTTP Error ${response.status}`);
+    throw new Error(rawMessage || 'Khong the chay ingest web search.');
+  }
+  return await response.json();
+}
+
+export async function sendWebExtractRequest(url, keywords = [], options = {}) {
+  const targetArticle = Number(options.targetArticle);
+  const targetClause = Number(options.targetClause);
+  const targetPoint = String(options.targetPoint || '').trim();
+  const response = await backendFetch('/web-extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: String(url || '').trim(),
+      keywords: Array.isArray(keywords) ? keywords.slice(0, 10) : [],
+      strict: options.strict === true,
+      target_article: Number.isFinite(targetArticle) && targetArticle > 0 ? Math.floor(targetArticle) : undefined,
+      target_clause: Number.isFinite(targetClause) && targetClause > 0 ? Math.floor(targetClause) : undefined,
+      target_point: targetPoint || undefined,
+    }),
+    timeoutMs: 20000,
+  });
+  if (!response.ok) {
+    const rawMessage = await buildHttpErrorMessage(response, `HTTP Error ${response.status}`);
+    throw new Error(rawMessage || 'Khong the trich xuat noi dung web.');
+  }
+  return await response.json();
 }
 
 export async function checkProxyStatus(context = 'default') {
@@ -262,17 +405,4 @@ function extractTextFromPayload(data = {}) {
   }
   if (typeof data?.text === 'string') return data.text;
   return '';
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      const comma = result.indexOf(',');
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
