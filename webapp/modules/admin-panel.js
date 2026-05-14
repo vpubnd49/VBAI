@@ -1,6 +1,5 @@
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+﻿import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, query, orderBy, limit, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { checkProxyStatus, getProxyModelIds } from './ai-proxy.js';
 import { fetchSystemConfig, updateSystemConfig } from './system-config.js';
 
 import { firebaseConfig } from '../firebase-config.js';
@@ -10,6 +9,14 @@ let allUsers = [];
 let currentPage = 1;
 let currentUsersPage = 1;
 const ITEMS_PER_PAGE = 10;
+
+const DEFAULT_FALLBACK_SOURCES = {
+  vbpl: true,
+  chinhphu: true,
+  quochoi: true,
+  thuvienphapluat: true,
+  luatvietnam: true,
+};
 
 export function renderAdminPanel(container) {
   const isAdmin = window.isAdmin === true || localStorage.getItem('vbai_is_admin') === 'true';
@@ -29,123 +36,81 @@ export function renderAdminPanel(container) {
       <div class="panel-body">
         <div id="config-status" class="config-status-banner config-status-info">Đang tải cấu hình...</div>
         <form id="system-config-form" class="system-config-form is-hidden">
-          <div class="form-group">
-            <label class="form-label">Nhà cung cấp AI mặc định</label>
-            <div class="config-radio-row">
-              <label class="config-radio-option"><input type="radio" name="active_provider" value="openai"> OpenAI</label>
-              <label class="config-radio-option"><input type="radio" name="active_provider" value="gemini"> Gemini</label>
-              <label class="config-radio-option"><input type="radio" name="active_provider" value="vertex"> Vertex AI</label>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Chế độ Tra cứu Web / RAG</label>
-            <div class="config-radio-col">
-              <label class="config-radio-option">
-                <input type="radio" name="search_mode" value="google_cse" checked> 
-                <span>Tìm kiếm Google (CSE) - Truyền thống</span>
-              </label>
-              <label class="config-radio-option">
-                <input type="radio" name="search_mode" value="vertex_answer"> 
-                <span class="config-strong-label">Vertex AI Answer (Native RAG)</span>
-                <span class="config-recommend-badge">Khuyên dùng</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- ===== OpenAI Section ===== -->
-          <div class="config-section-card">
-            <div class="config-section-title">
-              <span class="config-section-icon">●</span> Cấu hình OpenAI
-            </div>
-            <div class="form-group">
-              <label class="form-label">OpenAI Endpoint</label>
-              <input type="text" id="openai_endpoint" class="form-input" placeholder="https://api.openai.com/v1">
-            </div>
-            <div class="form-group">
-              <label class="form-label">OpenAI API Key</label>
-              <input type="password" id="openai_api_key" class="form-input" placeholder="sk-...">
-              <small class="config-hint">Để trống nếu không muốn thay đổi khóa hiện tại</small>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Model mặc định (OpenAI)</label>
-              <input type="text" id="router_model" class="form-input" placeholder="gpt-4o-mini">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Danh sách Model OpenAI</label>
-              <div class="config-inline-row">
-                <input type="text" id="openai_model_input" class="form-input config-inline-grow" placeholder="Nhập tên model (VD: gpt-4o, gpt-4.4-mini)">
-                <button type="button" id="add-openai-model-btn" class="btn btn-primary btn-sm config-inline-add-btn">+ Thêm</button>
+          <div class="config-two-col-grid">
+            <section class="config-section-card config-col-panel">
+              <div class="config-section-title"><span class="config-section-icon">●</span> Gemini</div>
+              <div class="form-group">
+                <label class="form-label">Nhà cung cấp AI mặc định</label>
+                <input type="text" class="form-input" value="Gemini" readonly>
               </div>
-              <div id="openai-models-list" class="config-chip-list"></div>
-            </div>
-          </div>
-
-          <!-- ===== Gemini Section ===== -->
-          <div class="config-section-card">
-            <div class="config-section-title">
-              <span class="config-section-icon">●</span> Cấu hình Gemini
-            </div>
-            <div class="form-group">
-              <label class="form-label">Gemini API Key</label>
-              <input type="password" id="gemini_api_key" class="form-input" placeholder="AIza...">
-              <small class="config-hint">Để trống nếu không muốn thay đổi khóa hiện tại</small>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Model mặc định (Gemini)</label>
-              <input type="text" id="gemini_model" class="form-input" placeholder="gemini-1.5-flash">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Danh sách Model Gemini</label>
-              <div class="config-inline-row">
-                <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập tên model (VD: gemini-2.5-flash, gemini-2.0-pro)">
-                <button type="button" id="add-gemini-model-btn" class="btn btn-primary btn-sm config-inline-add-btn">+ Thêm</button>
+              <div class="form-group">
+                <label class="form-label">Gemini API Key</label>
+                <input type="password" id="gemini_api_key" class="form-input" placeholder="AIza...">
+                <small class="config-hint">Để trống nếu không muốn thay đổi khóa hiện tại</small>
               </div>
-              <div id="gemini-models-list" class="config-chip-list"></div>
-            </div>
-          </div>
+              <div class="form-group">
+                <label class="form-label">Model mặc định (Gemini)</label>
+                <input type="text" id="gemini_model" class="form-input" placeholder="gemini-2.5-pro">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Danh sách Model Gemini</label>
+                <div class="config-inline-row">
+                  <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập model (VD: gemini-2.5-pro)">
+                  <button type="button" id="add-gemini-model-btn" class="btn btn-primary btn-sm config-inline-add-btn">+ Thêm</button>
+                </div>
+                <div id="gemini-models-list" class="config-chip-list"></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Model transcription</label>
+                <input type="text" id="transcribe_model" class="form-input" placeholder="whisper-1">
+              </div>
+            </section>
 
-          <!-- ===== Vertex AI Section ===== -->
-          <div class="config-section-card">
-            <div class="config-section-title">
-              <span class="config-section-icon">●</span> Cấu hình Vertex AI
-            </div>
-            <div class="form-group">
-              <label class="form-label">Google Cloud Project ID</label>
-              <input type="text" id="vertex_project_id" class="form-input" placeholder="vbai-project-123">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Vertex Location (Region)</label>
-              <input type="text" id="vertex_location" class="form-input" placeholder="us-central1">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Vertex AI Search Data Store ID</label>
-              <input type="text" id="vertex_data_store_id" class="form-input" placeholder="legal-data-store-id">
-              <small class="config-hint">Bắt buộc nếu dùng Vertex AI Answer API</small>
-            </div>
-          </div>
-
-          <!-- ===== Google Search Section ===== -->
-          <div class="config-section-card">
-            <div class="config-section-title">
-              <span class="config-section-icon">●</span> Google Custom Search
-            </div>
-            <div class="form-group">
-              <label class="form-label">Google Search API Key</label>
-              <input type="password" id="google_search_key" class="form-input" placeholder="AIza...">
-              <small class="config-hint">Tùy chọn cho tra cứu web pháp lý. Để trống nếu không muốn thay đổi khóa hiện tại</small>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Google Search CX</label>
-              <input type="password" id="google_search_cx" class="form-input" placeholder="Custom Search Engine ID">
-              <small class="config-hint">Để trống nếu không muốn thay đổi mã CX hiện tại</small>
-            </div>
-          </div>
-
-          <!-- ===== Transcription Section ===== -->
-          <div class="form-group config-transcribe-group">
-            <label class="form-label">Model transcription (Whisper)</label>
-            <input type="text" id="transcribe_model" class="form-input" placeholder="whisper-1">
+            <section class="config-section-card config-col-panel">
+              <div class="config-section-title"><span class="config-section-icon">●</span> Vertex AI Search</div>
+              <div class="form-group">
+                <label class="form-label">Nhà cung cấp tra cứu web</label>
+                <div class="config-radio-row">
+                  <label class="config-radio-option"><input type="radio" name="web_search_provider" value="vertex_ai_search"> Vertex AI Search</label>
+                  <label class="config-radio-option"><input type="radio" name="web_search_provider" value="cse"> Google CSE</label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Chế độ tra cứu web</label>
+                <div class="config-radio-col">
+                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="fast_primary"> Nhanh nhất (Primary + fallback ngắn)</label>
+                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="google_only_fast"> Google/CSE nhanh nhất (không fallback)</label>
+                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="hybrid_fallback"> Google + fallback nguồn trực tiếp</label>
+                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="vertex_answer"> Vertex Answer API</label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Project ID</label>
+                <input type="text" id="vertex_project_id" class="form-input" placeholder="gen-lang-client-xxxx">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Location</label>
+                <input type="text" id="vertex_location" class="form-input" placeholder="global">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Data Store ID</label>
+                <input type="text" id="vertex_data_store_id" class="form-input" placeholder="vbai-legal-search">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Serving Config</label>
+                <input type="text" id="vertex_serving_config" class="form-input" placeholder="projects/.../servingConfigs/default_search">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Web Search Fallback Sources</label>
+                <div class="config-fallback-grid">
+                  <label class="config-radio-option"><input type="checkbox" id="fallback_vbpl"> vbpl.vn</label>
+                  <label class="config-radio-option"><input type="checkbox" id="fallback_chinhphu"> chinhphu.vn</label>
+                  <label class="config-radio-option"><input type="checkbox" id="fallback_quochoi"> quochoi.vn</label>
+                  <label class="config-radio-option"><input type="checkbox" id="fallback_thuvienphapluat"> thuvienphapluat.vn</label>
+                  <label class="config-radio-option"><input type="checkbox" id="fallback_luatvietnam"> luatvietnam.vn</label>
+                </div>
+              </div>
+            </section>
           </div>
 
           <div class="btn-row config-save-row">
@@ -225,21 +190,21 @@ export function renderAdminPanel(container) {
   container.querySelector('#refresh-users-btn').addEventListener('click', () => loadUsers(container));
 
   container.querySelector('#prev-page-btn').addEventListener('click', () => {
-    if (currentPage > 1) { currentPage--; renderPage(container); }
+    if (currentPage > 1) { currentPage -= 1; renderPage(container); }
   });
 
   container.querySelector('#next-page-btn').addEventListener('click', () => {
     const totalPages = Math.ceil(allLogs.length / ITEMS_PER_PAGE);
-    if (currentPage < totalPages) { currentPage++; renderPage(container); }
+    if (currentPage < totalPages) { currentPage += 1; renderPage(container); }
   });
 
   container.querySelector('#users-prev-page-btn').addEventListener('click', () => {
-    if (currentUsersPage > 1) { currentUsersPage--; renderUsersPage(container); }
+    if (currentUsersPage > 1) { currentUsersPage -= 1; renderUsersPage(container); }
   });
 
   container.querySelector('#users-next-page-btn').addEventListener('click', () => {
     const totalPages = Math.ceil(allUsers.length / ITEMS_PER_PAGE);
-    if (currentUsersPage < totalPages) { currentUsersPage++; renderUsersPage(container); }
+    if (currentUsersPage < totalPages) { currentUsersPage += 1; renderUsersPage(container); }
   });
 
   container.querySelector('#delete-all-logs-btn').addEventListener('click', async () => {
@@ -249,9 +214,9 @@ export function renderAdminPanel(container) {
     try {
       const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
-      const q = query(collection(db, "search_logs"), limit(500)); // batch process
+      const q = query(collection(db, 'search_logs'), limit(500));
       const snapshot = await getDocs(q);
-      const deletePromises = snapshot.docs.map(document => deleteDoc(doc(db, "search_logs", document.id)));
+      const deletePromises = snapshot.docs.map((document) => deleteDoc(doc(db, 'search_logs', document.id)));
       await Promise.all(deletePromises);
       loadLogs(container);
     } catch (e) {
@@ -261,24 +226,22 @@ export function renderAdminPanel(container) {
     }
   });
 
-  // Individual log deletion
   container.querySelector('#logs-table-body').addEventListener('click', async (e) => {
-    if (e.target.classList.contains('btn-delete')) {
-      const logId = e.target.dataset.id;
-      if (!confirm('Bạn có chắc muốn xóa bản ghi này?')) return;
-      
-      e.target.disabled = true;
-      e.target.textContent = '...';
-      try {
-        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        const db = getFirestore(app);
-        await deleteDoc(doc(db, "search_logs", logId));
-        loadLogs(container);
-      } catch (err) {
-        alert('Lỗi xóa: ' + err.message);
-        e.target.disabled = false;
-        e.target.textContent = 'Xóa';
-      }
+    if (!e.target.classList.contains('btn-delete')) return;
+    const logId = e.target.dataset.id;
+    if (!confirm('Bạn có chắc muốn xóa bản ghi này?')) return;
+
+    e.target.disabled = true;
+    e.target.textContent = '...';
+    try {
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const db = getFirestore(app);
+      await deleteDoc(doc(db, 'search_logs', logId));
+      loadLogs(container);
+    } catch (err) {
+      alert('Lỗi xóa: ' + err.message);
+      e.target.disabled = false;
+      e.target.textContent = 'Xóa';
     }
   });
 }
@@ -290,80 +253,28 @@ async function initSystemConfigPanel(container) {
   const refreshBtn = container.querySelector('#refresh-config-btn');
   const saveStatusEl = container.querySelector('#config-save-status');
 
-  const providerRadios = formEl.querySelectorAll('input[name="active_provider"]');
-  const searchModeRadios = formEl.querySelectorAll('input[name="search_mode"]');
-  const openaiEndpointInput = formEl.querySelector('#openai_endpoint');
-  const openaiKeyInput = formEl.querySelector('#openai_api_key');
-  const routerModelInput = formEl.querySelector('#router_model');
   const geminiKeyInput = formEl.querySelector('#gemini_api_key');
   const geminiModelInput = formEl.querySelector('#gemini_model');
+  const transcribeModelInput = formEl.querySelector('#transcribe_model');
   const vertexProjectIdInput = formEl.querySelector('#vertex_project_id');
   const vertexLocationInput = formEl.querySelector('#vertex_location');
   const vertexDataStoreIdInput = formEl.querySelector('#vertex_data_store_id');
-  const googleSearchKeyInput = formEl.querySelector('#google_search_key');
-  const googleSearchCxInput = formEl.querySelector('#google_search_cx');
-  const transcribeModelInput = formEl.querySelector('#transcribe_model');
+  const vertexServingConfigInput = formEl.querySelector('#vertex_serving_config');
 
-  // Model lists state
-  let openaiModels = [];
+  const fallbackCheckboxes = {
+    vbpl: formEl.querySelector('#fallback_vbpl'),
+    chinhphu: formEl.querySelector('#fallback_chinhphu'),
+    quochoi: formEl.querySelector('#fallback_quochoi'),
+    thuvienphapluat: formEl.querySelector('#fallback_thuvienphapluat'),
+    luatvietnam: formEl.querySelector('#fallback_luatvietnam'),
+  };
+
   let geminiModels = [];
+  let routerModelShadow = 'gpt-4o-mini';
 
-  function renderModelChips(listEl, models, type) {
-    listEl.innerHTML = models.length === 0
-      ? `<span class="config-chip-empty">Chưa có model nào. Hãy thêm model bên trên.</span>`
-      : models.map((m, i) => `
-        <span class="model-chip ${type}-chip" data-index="${i}">
-          <span>${escapeHtml(m)}</span>
-          <span class="chip-remove" data-index="${i}" title="Xóa model này">×</span>
-        </span>
-      `).join('');
-
-    // Bind remove clicks
-    listEl.querySelectorAll('.chip-remove').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.index, 10);
-        if (type === 'openai') {
-          openaiModels.splice(idx, 1);
-          renderModelChips(listEl, openaiModels, type);
-        } else {
-          geminiModels.splice(idx, 1);
-          renderModelChips(listEl, geminiModels, type);
-        }
-      });
-    });
-  }
-
-  function setupModelInput(inputId, btnId, listElId, type) {
-    const input = container.querySelector(`#${inputId}`);
-    const btn = container.querySelector(`#${btnId}`);
-    const listEl = container.querySelector(`#${listElId}`);
-
-    function addModel() {
-      const val = input.value.trim();
-      if (!val) return;
-      const models = type === 'openai' ? openaiModels : geminiModels;
-      if (models.includes(val)) {
-        input.value = '';
-        return;
-      }
-      models.push(val);
-      input.value = '';
-      renderModelChips(listEl, models, type);
-    }
-
-    btn.addEventListener('click', addModel);
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        addModel();
-      }
-    });
-
-    return listEl;
-  }
-
-  const openaiListEl = setupModelInput('openai_model_input', 'add-openai-model-btn', 'openai-models-list', 'openai');
-  const geminiListEl = setupModelInput('gemini_model_input', 'add-gemini-model-btn', 'gemini-models-list', 'gemini');
+  const geminiListEl = setupModelInput(container, 'gemini_model_input', 'add-gemini-model-btn', 'gemini-models-list', () => geminiModels, (next) => {
+    geminiModels = next;
+  });
 
   function setConfigStatus(message, kind = 'info') {
     statusEl.textContent = message;
@@ -371,47 +282,62 @@ async function initSystemConfigPanel(container) {
     statusEl.classList.add(kind === 'error' ? 'config-status-error' : kind === 'success' ? 'config-status-success' : 'config-status-info');
   }
 
+  function setSelectedRadio(name, value) {
+    formEl.querySelectorAll(`input[name="${name}"]`).forEach((radio) => {
+      radio.checked = radio.value === value;
+    });
+  }
+
+  function getSelectedRadio(name, fallback) {
+    return formEl.querySelector(`input[name="${name}"]:checked`)?.value || fallback;
+  }
+
+  function setFallbackSources(sourceMap = DEFAULT_FALLBACK_SOURCES) {
+    Object.entries(fallbackCheckboxes).forEach(([key, el]) => {
+      if (!el) return;
+      el.checked = sourceMap[key] !== false;
+    });
+  }
+
+  function getFallbackSources() {
+    const out = { ...DEFAULT_FALLBACK_SOURCES };
+    Object.entries(fallbackCheckboxes).forEach(([key, el]) => {
+      if (!el) return;
+      out[key] = el.checked;
+    });
+    return out;
+  }
+
   async function loadConfig() {
     setConfigStatus('Đang tải cấu hình...', 'info');
     try {
-      const config = await fetchSystemConfig();
+      const config = await fetchSystemConfig({ forceRefresh: true });
       if (!config) {
-        setConfigStatus('Chưa có cấu hình hệ thống. Vui lòng điền thông tin và lưu.', 'info');
+        setConfigStatus('Chưa có cấu hình hệ thống. Vui lòng nhập thông tin và lưu.', 'info');
         formEl.classList.remove('is-hidden');
-        openaiModels = [];
-        geminiModels = [];
-        renderModelChips(openaiListEl, openaiModels, 'openai');
-        renderModelChips(geminiListEl, geminiModels, 'gemini');
+        renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
         return;
       }
-      
-      openaiEndpointInput.value = config.openai_endpoint || 'https://api.openai.com/v1';
-      routerModelInput.value = config.router_model || 'gpt-4o-mini';
-      geminiModelInput.value = config.gemini_model || 'gemini-1.5-flash';
+
+      routerModelShadow = String(config.router_model || 'gpt-4o-mini').trim();
+      geminiModelInput.value = config.gemini_model || 'gemini-2.5-pro';
       transcribeModelInput.value = config.transcribe_model || 'whisper-1';
-      
+
       vertexProjectIdInput.value = config.vertex_project_id || '';
-      vertexLocationInput.value = config.vertex_location || 'us-central1';
+      vertexLocationInput.value = config.vertex_location || 'global';
       vertexDataStoreIdInput.value = config.vertex_data_store_id || '';
+      vertexServingConfigInput.value = config.vertex_serving_config || '';
 
-      const provider = config.active_provider || 'openai';
-      providerRadios.forEach(r => r.checked = r.value === provider);
-      
-      const searchMode = config.search_mode || 'google_cse';
-      searchModeRadios.forEach(r => r.checked = r.value === searchMode);
+      const provider = config.web_search_provider || 'vertex_ai_search';
+      const mode = config.web_search_mode || 'fast_primary';
+      setSelectedRadio('web_search_provider', provider);
+      setSelectedRadio('web_search_mode', mode);
+      setFallbackSources(config.web_search_fallback_sources || DEFAULT_FALLBACK_SOURCES);
 
-      if (config.has_openai_key) openaiKeyInput.value = '••••••••••••';
-      if (config.has_gemini_key) geminiKeyInput.value = '••••••••••••';
-      if (config.google_search_configured) {
-        googleSearchKeyInput.value = '••••••••••••';
-        googleSearchCxInput.value = '••••••••••••';
-      }
+      geminiKeyInput.value = config.has_gemini_key ? '••••••••••••' : '';
 
-      // Load model lists
-      openaiModels = Array.isArray(config.openai_models) ? [...config.openai_models] : [];
       geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
-      renderModelChips(openaiListEl, openaiModels, 'openai');
-      renderModelChips(geminiListEl, geminiModels, 'gemini');
+      renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
 
       formEl.classList.remove('is-hidden');
       setConfigStatus('✅ Đã tải cấu hình', 'success');
@@ -421,24 +347,20 @@ async function initSystemConfigPanel(container) {
   }
 
   async function saveConfig() {
-    const provider = formEl.querySelector('input[name="active_provider"]:checked').value;
-    const searchMode = formEl.querySelector('input[name="search_mode"]:checked').value;
     const payload = {
-      active_provider: provider,
-      search_mode: searchMode,
-      openai_endpoint: openaiEndpointInput.value,
-      router_model: routerModelInput.value,
-      gemini_model: geminiModelInput.value,
-      vertex_project_id: vertexProjectIdInput.value,
-      vertex_location: vertexLocationInput.value,
-      vertex_data_store_id: vertexDataStoreIdInput.value,
-      transcribe_model: transcribeModelInput.value,
-      openai_api_key: openaiKeyInput.value.includes('•') ? '' : openaiKeyInput.value,
-      gemini_api_key: geminiKeyInput.value.includes('•') ? '' : geminiKeyInput.value,
-      google_search_key: googleSearchKeyInput.value.includes('•') ? '' : googleSearchKeyInput.value,
-      google_search_cx: googleSearchCxInput.value.includes('•') ? '' : googleSearchCxInput.value,
-      openai_models: openaiModels,
-      gemini_models: geminiModels
+      active_provider: 'gemini',
+      router_model: routerModelShadow,
+      gemini_model: geminiModelInput.value.trim(),
+      transcribe_model: transcribeModelInput.value.trim() || 'whisper-1',
+      web_search_provider: getSelectedRadio('web_search_provider', 'vertex_ai_search'),
+      web_search_mode: getSelectedRadio('web_search_mode', 'fast_primary'),
+      web_search_fallback_sources: getFallbackSources(),
+      vertex_project_id: vertexProjectIdInput.value.trim(),
+      vertex_location: vertexLocationInput.value.trim() || 'global',
+      vertex_data_store_id: vertexDataStoreIdInput.value.trim(),
+      vertex_serving_config: vertexServingConfigInput.value.trim(),
+      gemini_models: geminiModels,
+      gemini_api_key: geminiKeyInput.value.includes('•') ? '' : geminiKeyInput.value.trim(),
     };
 
     saveBtn.disabled = true;
@@ -448,8 +370,8 @@ async function initSystemConfigPanel(container) {
     try {
       await updateSystemConfig(payload);
       saveStatusEl.className = 'config-save-status success';
-      saveStatusEl.textContent = '✅ Đã lưu thành công!';
-      setTimeout(loadConfig, 1500);
+      saveStatusEl.textContent = '✅ Đã lưu và áp dụng ngay!';
+      setTimeout(loadConfig, 500);
     } catch (error) {
       saveStatusEl.className = 'config-save-status error';
       saveStatusEl.textContent = `❌ Lỗi lưu: ${error.message}`;
@@ -467,18 +389,66 @@ async function initSystemConfigPanel(container) {
   loadConfig();
 }
 
+function setupModelInput(container, inputId, btnId, listElId, getModels, setModels) {
+  const input = container.querySelector(`#${inputId}`);
+  const btn = container.querySelector(`#${btnId}`);
+  const listEl = container.querySelector(`#${listElId}`);
+
+  function addModel() {
+    const val = input.value.trim();
+    if (!val) return;
+    const models = getModels();
+    if (models.includes(val)) {
+      input.value = '';
+      return;
+    }
+    const next = [...models, val];
+    setModels(next);
+    input.value = '';
+    renderModelChips(listEl, next, 'gemini', setModels);
+  }
+
+  btn.addEventListener('click', addModel);
+  input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    addModel();
+  });
+
+  return listEl;
+}
+
+function renderModelChips(listEl, models, type, onChange = null) {
+  listEl.innerHTML = models.length === 0
+    ? '<span class="config-chip-empty">Chưa có model nào. Hãy thêm model bên trên.</span>'
+    : models.map((m, i) => `
+      <span class="model-chip ${type}-chip" data-index="${i}">
+        <span>${escapeHtml(m)}</span>
+        <span class="chip-remove" data-index="${i}" title="Xóa model này">×</span>
+      </span>
+    `).join('');
+
+  listEl.querySelectorAll('.chip-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.index);
+      const next = models.filter((_, i) => i !== idx);
+      if (typeof onChange === 'function') onChange(next);
+      renderModelChips(listEl, next, type, onChange);
+    });
+  });
+}
+
 async function loadLogs(container) {
-  const tbody = container.querySelector('#logs-table-body');
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
-    const q = query(collection(db, "search_logs"), orderBy("timestamp", "desc"), limit(500));
+    const q = query(collection(db, 'search_logs'), orderBy('timestamp', 'desc'), limit(500));
     const snapshot = await getDocs(q);
-    allLogs = snapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+    allLogs = snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() }));
     currentPage = 1;
     renderPage(container);
   } catch (error) {
-    console.error("Error loading logs:", error);
+    console.error('Error loading logs:', error);
   }
 }
 
@@ -487,7 +457,7 @@ function renderPage(container) {
   if (!tbody) return;
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const pageLogs = allLogs.slice(start, start + ITEMS_PER_PAGE);
-  tbody.innerHTML = pageLogs.map(item => `
+  tbody.innerHTML = pageLogs.map((item) => `
     <tr style="border-bottom:1px solid var(--border-color)">
       <td style="padding:12px;">${item.data.timestamp?.toDate().toLocaleString('vi-VN') || ''}</td>
       <td style="padding:12px;">${escapeHtml(item.data.userEmail || '')}</td>
@@ -499,17 +469,16 @@ function renderPage(container) {
 }
 
 async function loadUsers(container) {
-  const tbody = container.querySelector('#users-table-body');
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
-    const q = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(500));
+    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(500));
     const snapshot = await getDocs(q);
-    allUsers = snapshot.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+    allUsers = snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() }));
     currentUsersPage = 1;
     renderUsersPage(container);
   } catch (error) {
-    console.error("Error loading users:", error);
+    console.error('Error loading users:', error);
   }
 }
 
@@ -518,7 +487,7 @@ function renderUsersPage(container) {
   if (!tbody) return;
   const start = (currentUsersPage - 1) * ITEMS_PER_PAGE;
   const pageUsers = allUsers.slice(start, start + ITEMS_PER_PAGE);
-  tbody.innerHTML = pageUsers.map(item => `
+  tbody.innerHTML = pageUsers.map((item) => `
     <tr style="border-bottom:1px solid var(--border-color)">
       <td style="padding:12px;">${escapeHtml(item.data.email || '')}</td>
       <td style="padding:12px;">${escapeHtml(item.data.displayName || '')}</td>
@@ -529,11 +498,11 @@ function renderUsersPage(container) {
 }
 
 function escapeHtml(unsafe) {
-    if (!unsafe) return '';
-    return String(unsafe)
-         .replace(/&/g, "&amp;")
-         .replace(/</g, "&lt;")
-         .replace(/>/g, "&gt;")
-         .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
+  if (!unsafe) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

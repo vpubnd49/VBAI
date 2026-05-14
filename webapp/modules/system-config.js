@@ -87,7 +87,11 @@ async function getIdToken() {
  * Fetch system config from the backend proxy.
  * Falls back to localStorage defaults if backend is unavailable and we have a cache.
  */
-export async function fetchSystemConfig() {
+export async function fetchSystemConfig(options = {}) {
+  const forceRefresh = options?.forceRefresh === true;
+  if (!forceRefresh && cachedConfig && Date.now() < cacheExpiresAt) {
+    return cachedConfig;
+  }
   const token = await getIdToken();
   if (!token) {
     // Not logged in; return null (no system config)
@@ -177,7 +181,26 @@ export async function updateSystemConfig(configData) {
 
   // Clear cache after successful update
   clearSystemConfigCache();
-  return await response.json();
+  const payload = await response.json();
+
+  // Immediately re-fetch and broadcast so runtime can apply config without reload.
+  let latestConfig = null;
+  try {
+    latestConfig = await fetchSystemConfig({ forceRefresh: true });
+  } catch (e) {
+    console.warn('Failed to refresh config right after update:', e);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('vbai:system-config-updated', {
+      detail: {
+        config: latestConfig || null,
+        submitted: configData || null,
+      }
+    }));
+  }
+
+  return payload;
 }
 
 /**

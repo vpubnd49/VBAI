@@ -1,5 +1,5 @@
-/**
- * Chat Assistant Module — Legal & Administrative Consultant
+﻿/**
+ * Chat Assistant Module â€” Legal & Administrative Consultant
  */
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -22,18 +22,50 @@ import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tie
 
 const DEFAULT_MODEL = 'gpt-4.4';
 const STRICT_MEETING_AUDIO_MODEL = 'gemini-2.5-pro';
+const DEFAULT_FALLBACK_SOURCES = {
+  vbpl: true,
+  chinhphu: true,
+  quochoi: true,
+  thuvienphapluat: true,
+  luatvietnam: true,
+};
 
 let aiClient = null;
 let chatSession = null;
 let currentModelName = DEFAULT_MODEL;
 let systemConfigCache = null;
 
+function applyRuntimeSystemConfig(nextConfig = null) {
+  if (!nextConfig || typeof nextConfig !== 'object') return;
+  systemConfigCache = nextConfig;
+  const provider = systemConfigCache?.active_provider === 'gemini' ? 'gemini' : 'openai';
+  const nextModel = provider === 'gemini'
+    ? (systemConfigCache?.gemini_model || 'gemini-2.5-pro')
+    : (systemConfigCache?.router_model || DEFAULT_MODEL);
+  currentModelName = normalizeModelName(nextModel) || DEFAULT_MODEL;
+}
+
 async function loadSystemConfig() {
   try {
-    systemConfigCache = await fetchSystemConfig();
+    const config = await fetchSystemConfig({ forceRefresh: true });
+    applyRuntimeSystemConfig(config);
+    return config;
   } catch (e) {
-    console.warn('Không thể tải cấu hình hệ thống:', e);
+    console.warn('Khong the tai cau hinh he thong:', e);
+    return null;
   }
+}
+
+if (typeof window !== 'undefined' && !window.__vbaiChatConfigListenerBound) {
+  window.addEventListener('vbai:system-config-updated', (event) => {
+    const eventConfig = event?.detail?.config;
+    if (eventConfig && typeof eventConfig === 'object') {
+      applyRuntimeSystemConfig(eventConfig);
+      return;
+    }
+    void loadSystemConfig();
+  });
+  window.__vbaiChatConfigListenerBound = true;
 }
 
 function isProxyUnavailableError(error) {
@@ -115,44 +147,21 @@ function createSilentWavTestFile() {
   return new File([buffer], 'vbai_transcribe_test.wav', { type: 'audio/wav' });
 }
 
-const SYSTEM_INSTRUCTION = `Bạn là Trợ lý hành chính pháp lý — một chuyên gia tư vấn pháp luật và nghiệp vụ hành chính Việt Nam.
+const SYSTEM_INSTRUCTION = `Ban la Tro ly hanh chinh phap ly.
 
-## QUY TẮC BẮT BUỘC (KHÔNG ĐƯỢC PHÁT HIỆN):
+Quy tac bat buoc:
+1. Uu tien du lieu tra cuu web moi nhat. Khong suy dien vuot qua bang chung.
+2. Neu co so hieu van ban thi bam dung so hieu do, khong lien tuong sang van ban khac.
+3. Neu khong tim thay du lieu phu hop thi noi ro "Khong tim thay du lieu phu hop tu Internet."
+4. Tra loi ngan gon, dung trong tam, co nguon URL khi co.
+5. Cuoi cau tra loi them cau hoi tiep noi dung hien tai.
+6. Khi noi ve to chuc chinh quyen dia phuong hien hanh, dung mo hinh 2 cap: cap tinh va cap xa.
+`;
 
-1. Khi có kết quả tra cứu từ Internet (web search), BẠN CHỈ ĐƯỢC TRẢ LỜI DỰA TRÊN DỮ LIỆU ĐÓ. KHÔNG ĐƯỢC sử dụng bất kỳ kiến thức nội tộc nào (training data, knowledge cutoff) nếu web data chứa thông tin về cùng một văn bản/quy định.
-2. Nếu web data chỉ đề cập đến văn bản năm 2024, 2025, 2026 hoặc có ngày ban hành/hiệu lực mới hơn so với kiến thức của bạn, BẠN PHẢI dùng web data và bỏ qua kiến thức cũ. KHÔNG ĐƯỢC nói "theo kiến thức của tôi..." khi web data tồn tại.
-3. LUÔN trích dẫn rõ ràng: số hiệu văn bản, ngày ban hành, ngày hiệu lực, và nguồn URL. Nếu web data không có đầy đủ, ghi rõ "Dữ liệu web chưa cung cấp đủ thông tin về...".
-4. Nếu người dùng hỏi về một văn bản cụ thể (có số hiệu), chỉ trả lời dựa trên web data tìm được về số hiệu đó. Nếu không tìm thấy, nói rõ "Không tìm thấy văn bản [số hiệu] trong dữ liệu tra cứu mới nhất" và không thêm thông tin từ kiến thức cũ. KHÔNG ĐƯỢC đề cập đến các số hiệu gần giống hoặc liên quan.
-5. KHÔNG ĐƯỢC chuyển chủ đề, KHÔNG ĐƯỢC trả lời lan man, KHÔNG ĐƯỢC đưa ra thông tin không được hỏi.
-6. KHÔNG ĐƯỢC tự ý mở rộng câu hỏi. Trả lời đúng và đủ những gì người dùng hỏi.
-7. Cuối câu trả lời, LUÔN hỏi: "Bạn có muốn tôi tra cứu chi tiết hơn về [nội dung vừa trả lời] không?" Đây là câu hỏi duy nhất bạn được phép đặt thêm.
-
-## ĐỊNH DẠNG TRẢ LỜI:
-- Bắt đầu bằng: "Dựa trên dữ liệu tra cứu mới nhất [thời gian] từ Internet:"
-- Liệt kê từng điểm theo yêu cầu của người dùng, mỗi điểm kèm: [số hiệu] [ngày] [nguồn].
-- Nếu có nhiều nguồn, ưu tiên nguồn chính thức (quochoi.vn, chinhphu.vn, vbpl.vn).
-- Không thêm bất kỳ thông tin nào không có trong web data.
-- Không kết luận, không khẳng định nếu web data mâu thuẫn hoặc thiếu. Chỉ báo cáo đầy đủ những gì tìm được.
-
-## CHỈ SỐ ƯU TIÊN:
-- Năm 2024, 2025, 2026: ƯU TIÊN TUYỆT ĐỐI.
-- Văn bản có ngày ban hành/hiệu lực mới hơn: LUÔN thay thế văn bản cũ.
-- Web data mới hơn knowledge cutoff: LUÔN dùng web data.
-
-## TỐI ƯU TRÁCH NHIỆM:
-- Nếu web data rỗng hoặc không liên quan, nói rõ: "Không tìm thấy dữ liệu phù hợp từ Internet." và dừng lại, không tự ý trả lời bằng kiến thức cũ.
-- Không được phép nói "Tôi không có truy cập Internet" hoặc "Tôi không có công cụ tra cứu".`;
-
-const FAST_SYSTEM_INSTRUCTION = `Bạn là Trợ lý hành chính pháp lý.
-
-## QUY TẮC CỨNG:
-1. Chỉ trả lời dựa trên dữ liệu tra cứu mới nhất từ Google. KHÔNG ĐƯỢC dùng kiến thức cũ khi có web data.
-2. Mọi thông tin phải có: số hiệu văn bản, ngày có hiệu lực, nguồn URL. Nếu thiếu, báo rõ.
-3. Không chuyển chủ đề, không trả lời lan man, không thêm ý không được hỏi.
-4. Năm 2024–2026 là ưu tiên cao nhất. Văn bản mới thay thế văn bản cũ.
-5. Nếu không tìm thấy thông tin phù hợp, nói: "Không tìm thấy dữ liệu phù hợp từ Internet." và dừng lại.
-6. Câu trả lời phải ngắn gọn, chính xác, chỉ gồm những gì tìm được.
-7. Luôn kết thúc bằng: "Bạn có muốn tôi tra cứu chi tiết hơn về [nội dung vừa trả lời] không?"`;
+const FAST_SYSTEM_INSTRUCTION = `Ban la Tro ly hanh chinh phap ly.
+Tra loi nhanh, dung trong tam, dua tren du lieu web moi nhat.
+Neu thieu bang chung thi bao ro la chua du du lieu, khong suy dien.
+`;
 
 const CHAT_CACHE_STORAGE_KEY = 'vbai_chat_cache_v1';
 const CHAT_CACHE_MAX_ITEMS = 40;
@@ -173,7 +182,7 @@ async function loadSkills() {
     const response = await fetch('./skills-manifest.json');
     allSkills = await response.json();
   } catch (e) {
-    console.warn("Lỗi tải Skills cho Chat Assistant:", e);
+    console.warn("Lá»—i táº£i Skills cho Chat Assistant:", e);
   }
 }
 
@@ -218,9 +227,9 @@ function isTimeSensitiveQuery(text = '') {
 }
 
 function buildFreshnessGuardMessage(query = '', reason = '') {
-  const topic = String(query || '').trim() || 'nội dung này';
+ const topic = String(query || '').trim() || 'n"i dung nay';
   const reasonText = reason ? ` ${reason}` : '';
-  return `Tôi chưa thể xác minh dữ liệu mới nhất từ Internet cho yêu cầu: "${topic}".${reasonText} Vui lòng nêu rõ hơn số hiệu văn bản, năm ban hành/hiệu lực hoặc kiểm tra thêm từ nguồn chính thức như vbpl.vn, chinhphu.vn, quochoi.vn.`;
+ return `Toi chua thO xac minh du li!u m:i nhat tu Internet cho yeu cau: "${topic}".${reasonText} Vui long neu ro hon s hi!u vEn ban, nEm ban hanh/hi!u luc hoac kiOm tra them tu ngun chinh thuc nhu vbpl.vn, chinhphu.vn, quochoi.vn.`;
 }
 
 function shouldPreferWebSearch(text = '') {
@@ -314,7 +323,7 @@ function buildRecentContextBlock() {
   if (recentTurns.length === 0) return "";
   return recentTurns
     .slice(-4)
-    .map((t) => `${t.role === "user" ? "Người dùng" : "Trợ lý"}: ${t.content}`)
+ .map((t) => `${t.role === "user" ? "Nguoi dung" : "Tro ly"}: ${t.content}`)
     .join("\n");
 }
 
@@ -336,19 +345,19 @@ function buildContextAwareUserPrompt(query = "") {
   if (!shouldTreatAsFollowUpQuery(q)) return q;
 
   const contextLines = [];
-  if (lastUserQuery) contextLines.push(`- Câu trước của người dùng: "${lastUserQuery}"`);
+  if (lastUserQuery) contextLines.push(`- Cau truoc cua nguoi dung: "${lastUserQuery}"`);
   if (lastAssistantReply) {
     const shortReply = lastAssistantReply.length > 280 ? `${lastAssistantReply.slice(0, 277)}...` : lastAssistantReply;
-    contextLines.push(`- Trợ lý vừa trả lời: "${shortReply}"`);
+    contextLines.push(`- Tro ly vua tra loi: "${shortReply}"`);
   }
   const recentContext = buildRecentContextBlock();
-  if (recentContext) contextLines.push(`- Tóm tắt hội thoại gần nhất:\n${recentContext}`);
+  if (recentContext) contextLines.push(`- Tom tat hoi thoai gan nhat:\n${recentContext}`);
 
   return [
-    "Đây là câu hỏi TIẾP NỐI cùng chủ đề, không phải chủ đề mới.",
+    "Day la cau hoi TIEP NOI cung chu de, khong phai chu de moi.",
     ...contextLines,
-    `Câu hỏi tiếp theo của người dùng: "${q}"`,
-    "Yêu cầu: trả lời đúng mạch nội dung trước đó, không hỏi lại chung chung, không chuyển sang chủ đề khác."
+    `Cau hoi tiep theo cua nguoi dung: "${q}"`,
+    "Yeu cau: tra loi dung mach noi dung truoc do, khong hoi lai chung chung, khong chuyen sang chu de khac."
   ].join("\n");
 }
 
@@ -408,27 +417,27 @@ function stripGenericClarificationLines(text = "") {
 
 function buildContextualFollowUp(query = "") {
   const q = String(query || "").replace(/\s+/g, " ").trim();
-  if (!q) return "Bạn có muốn tôi làm rõ thêm điểm nào trong đúng nội dung vừa trả lời không?";
+  if (!q) return "Ban co muon toi lam ro them diem nao trong dung noi dung vua tra loi khong?";
 
   const shortTopic = q.length > 120 ? `${q.slice(0, 117)}...` : q;
   if (isDraftRequest(q)) {
     if (isTemplateExportRequest(q)) {
-      return `Bạn có muốn tôi xuất luôn file .docx cho nội dung "${shortTopic}" hay cần chỉnh thông tin cơ quan, số ký hiệu, ngày ký trước?`;
+      return `Ban co muon toi xuat luon file .docx cho noi dung "${shortTopic}" hay can chinh thong tin co quan, so ky hieu, ngay ky truoc?`;
     }
-    return `Bạn có muốn tôi chỉnh sâu thêm ngay trên nội dung "${shortTopic}" theo đúng thể thức văn bản không?`;
+    return `Ban co muon toi chinh sau them ngay tren noi dung "${shortTopic}" theo dung the thuc van ban khong?`;
   }
-  return `Bạn có muốn tôi làm rõ thêm điểm nào trong đúng nội dung "${shortTopic}" không?`;
+  return `Ban co muon toi lam ro them diem nao trong dung noi dung "${shortTopic}" khong?`;
 }
 
 function ensureFollowUpQuestion(answer = "", query = "") {
   const text = String(answer || "").trim();
   if (!text) return text;
   const cleaned = stripGenericClarificationLines(text)
-    .replace(/tôi không gửi trực tiếp file\s*\.?docx[^.\n]*[.\n]?/gi, "")
+    .replace(/toi khong gui truc tiep file\s*\.?docx[^.\n]*[.\n]?/gi, "")
     .replace(/luu y:\s*duoi dung la\s*\.?docx[^.\n]*[.\n]?/gi, "")
     .replace(/khong phai\s*\.?dox[^.\n]*[.\n]?/gi, "");
   const sanitized = stripTrailingFollowUpBlocks(
-    cleaned.replace(/\n{1,2}Bạn có muốn tôi tra cứu[\s\S]*$/i, "").trim()
+    cleaned.replace(/\n{1,2}Ban co muon toi tra cuu[\s\S]*$/i, "").trim()
   );
   return `${sanitized}\n\n${buildContextualFollowUp(query)}`;
 }
@@ -445,13 +454,13 @@ function enforceTwoTierTerminology(answer = '', query = '') {
 
 function inferDocumentType(query = "") {
   const t = normalizeVietnamese(query);
-  if (t.includes('quyet dinh')) return 'QUYẾT ĐỊNH';
-  if (t.includes('to trinh')) return 'TỜ TRÌNH';
-  if (t.includes('thong bao')) return 'THÔNG BÁO';
-  if (t.includes('bao cao')) return 'BÁO CÁO';
-  if (t.includes('ke hoach')) return 'KẾ HOẠCH';
-  if (t.includes('nghi quyet')) return 'NGHỊ QUYẾT';
-  return 'VĂN BẢN';
+ if (t.includes('quyet dinh')) return 'QUYET `NH';
+  if (t.includes('to trinh')) return 'Tá»œ TRÃŒNH';
+ if (t.includes('thong bao')) return 'THNG BAO';
+ if (t.includes('bao cao')) return 'BAO CAO';
+  if (t.includes('ke hoach')) return 'Káº¾ HOáº CH';
+  if (t.includes('nghi quyet')) return 'NGHá»Š QUYáº¾T';
+  return 'VÄ‚N Báº¢N';
 }
 
 function buildExportFilename(query = "") {
@@ -526,7 +535,7 @@ function parseDraftLineStyle(rawLine = "") {
     alignment = AlignmentType.CENTER;
     bold = true;
   }
-  if (line.includes("ngày") && line.includes("tháng") && line.includes("năm")) {
+ if (line.includes("ngay") && line.includes("thang") && line.includes("nEm")) {
     alignment = AlignmentType.CENTER;
   }
 
@@ -570,7 +579,7 @@ function buildSimpleAdministrativeDocContent(query = "", answer = "") {
     const docType = inferDocumentType(query);
     paragraphs.push(new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: `MẪU ${docType}`, bold: true, size: 28, font: "Times New Roman" })]
+      children: [new TextRun({ text: `MáºªU ${docType}`, bold: true, size: 28, font: "Times New Roman" })]
     }));
   }
 
@@ -623,7 +632,7 @@ function renderComparisonTable(blockLines = []) {
   const thead = `<thead><tr>${headerCells.map((c) => `<th>${applyInlineMarkdown(escapeHtml(c))}</th>`).join("")}</tr></thead>`;
   const tbody = `<tbody>${normalizedBody.map((row) => `<tr>${row.map((c) => `<td>${applyInlineMarkdown(escapeHtml(c))}</td>`).join("")}</tr>`).join("")}</tbody>`;
 
-  return `<div class="chat-compare-card"><div class="chat-compare-title">So sánh</div><div class="chat-table-wrap"><table class="chat-compare-table">${thead}${tbody}</table></div></div>`;
+ return `<div class="chat-compare-card"><div class="chat-compare-title">So sanh</div><div class="chat-table-wrap"><table class="chat-compare-table">${thead}${tbody}</table></div></div>`;
 }
 
 function renderAssistantRichText(rawText = "") {
@@ -711,16 +720,16 @@ function buildSkillReferenceContext(skill) {
   const renderedReferences = referenceEntries.map(([fileName, content]) => {
     const compactContent = content.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim();
     const excerpt = compactContent.length > 4000
-      ? `${compactContent.slice(0, 4000)}\n...[Rút gọn nội dung tham chiếu]...`
+ ? `${compactContent.slice(0, 4000)}\n...[Rut gon n"i dung tham chieu]...`
       : compactContent;
-    return `#### Tài liệu: ${fileName}\n${excerpt}`;
+ return `#### Tai li!u: ${fileName}\n${excerpt}`;
   }).join('\n\n');
 
-  return `\n### Tài liệu tham chiếu\n${renderedReferences}\n`;
+ return `\n### Tai li!u tham chieu\n${renderedReferences}\n`;
 }
 
 function extractPotentialDocNumber(text = '') {
-  // Match patterns like: 117/2025/QH15, 30/2024/ND-CP, 15/2024/QĐ-BTC
+ // Match patterns like: 117/2025/QH15, 30/2024/ND-CP, 15/2024/Q-BTC
   const match = String(text || '').match(/\b\d+\/\d{4}\/[A-Z0-9-]+\b/i);
   return match ? match[0].toUpperCase() : null;
 }
@@ -873,8 +882,8 @@ function parseComparisonTargets(text = '') {
   const clauseMatch = n.match(clausePattern);
   if (clauseMatch) {
     return {
-      left: { article: Number(clauseMatch[2]), clause: Number(clauseMatch[1]), point: null, label: `Khoản ${clauseMatch[1]} Điều ${clauseMatch[2]}` },
-      right: { article: Number(clauseMatch[4]), clause: Number(clauseMatch[3]), point: null, label: `Khoản ${clauseMatch[3]} Điều ${clauseMatch[4]}` },
+ left: { article: Number(clauseMatch[2]), clause: Number(clauseMatch[1]), point: null, label: `Khoan ${clauseMatch[1]} ieu ${clauseMatch[2]}` },
+ right: { article: Number(clauseMatch[4]), clause: Number(clauseMatch[3]), point: null, label: `Khoan ${clauseMatch[3]} ieu ${clauseMatch[4]}` },
     };
   }
 
@@ -882,8 +891,8 @@ function parseComparisonTargets(text = '') {
   const articleMatch = n.match(articlePattern);
   if (articleMatch) {
     return {
-      left: { article: Number(articleMatch[1]), clause: null, point: null, label: `Điều ${articleMatch[1]}` },
-      right: { article: Number(articleMatch[2]), clause: null, point: null, label: `Điều ${articleMatch[2]}` },
+ left: { article: Number(articleMatch[1]), clause: null, point: null, label: `ieu ${articleMatch[1]}` },
+ right: { article: Number(articleMatch[2]), clause: null, point: null, label: `ieu ${articleMatch[2]}` },
     };
   }
   return null;
@@ -895,9 +904,9 @@ async function extractStrictCitationFromLinks(links = [], target = {}, docNumber
       const extracted = await sendWebExtractRequest(
         link,
         [
-          `Điều ${target.article || ''}`.trim(),
-          `Khoản ${target.clause || ''}`.trim(),
-          `Điểm ${target.point || ''}`.trim(),
+ `ieu ${target.article || ''}`.trim(),
+          `Khoáº£n ${target.clause || ''}`.trim(),
+ `iOm ${target.point || ''}`.trim(),
           String(docNumber || '').trim(),
         ].filter(Boolean),
         {
@@ -990,8 +999,8 @@ async function buildDelegationFocusedEvidenceResponse(rawUserText = '', searchCo
   for (const link of links) {
     try {
       const extracted = await sendWebExtractRequest(link, [
-        'Điều 14',
-        'ủy quyền',
+ 'ieu 14',
+        'á»§y quyá»n',
         'phan cap',
         'phan quyen',
         String(searchContext?.effectiveDocNumber || ''),
@@ -1108,7 +1117,7 @@ export async function runDailyLegalSync() {
       return;
     }
 
-    const query = "văn bản pháp luật mới ban hành hôm nay";
+ const query = "vEn ban phap luat m:i ban hanh hom nay";
     const results = await sendWebSearchRequest(query, null, { forceFresh: true, freshnessLevel: 'day', recencyDays: 7, timeoutMs: 20000 });
     if (results) {
       localStorage.setItem(DAILY_SYNC_TIMESTAMP_KEY, String(now));
@@ -1134,7 +1143,7 @@ export function initChat(apiKey, modelName = DEFAULT_MODEL) {
     lastUserQuery = "";
     lastAssistantReply = "";
     lastResolvedDocNumber = "";
-    loadSkills(); // Tải skills khi init
+    loadSkills(); // Táº£i skills khi init
     return true;
   } catch (e) {
     console.error("Chat Init Error:", e);
@@ -1233,7 +1242,7 @@ export async function sendMessage(text, onChunk) {
     }
 
     if (useWebSearch && shouldSearchWebForFreshness) {
-      if (onChunk) onChunk("Đang tra cứu dữ liệu mới nhất từ Internet...\n");
+ if (onChunk) onChunk("ang tra cuu du li!u m:i nhat tu Internet...\n");
       const searchResults = await sendWebSearchRequest(
         searchContext.effectiveQuery,
         searchContext.effectiveDocNumber,
@@ -1242,7 +1251,7 @@ export async function sendMessage(text, onChunk) {
       webSearchResultsText = String(searchResults || '');
       webSearchMeta = getLastWebSearchMeta();
       if (searchResults === "__NO_EXACT_MATCH__" && searchContext.effectiveDocNumber) {
-        const guardText = buildFreshnessGuardMessage(rawUserText, `Không tìm thấy văn bản có số hiệu ${searchContext.effectiveDocNumber} trong dữ liệu tra cứu mới nhất.`);
+ const guardText = buildFreshnessGuardMessage(rawUserText, `Khong tim thay vEn ban co s hi!u ${searchContext.effectiveDocNumber} trong du li!u tra cuu m:i nhat.`);
         pushTurn("user", rawUserText);
         pushTurn("assistant", guardText);
         lastUserQuery = rawUserText;
@@ -1280,7 +1289,7 @@ export async function sendMessage(text, onChunk) {
             console.warn('Focused delegation web-search skipped:', focusedErr?.message || focusedErr);
           }
         }
-        finalUserText = `${contextualUserText}\n\n[Dữ liệu trực tuyến cập nhật, tra cứu lúc ${new Date().toLocaleTimeString('vi-VN')}]:\n${webSearchResultsText}`;
+ finalUserText = `${contextualUserText}\n\n[Du li!u truc tuyen cap nhat, tra cuu luc ${new Date().toLocaleTimeString('vi-VN')}]:\n${webSearchResultsText}`;
       } else {
         const cseDenied = Number(webSearchMeta?.cse_status) === 403
           && /custom search|permission|access/i.test(String(webSearchMeta?.cse_error_reason || ''));
@@ -1399,10 +1408,10 @@ export async function sendMessage(text, onChunk) {
     try {
       fullText = await sendChatRequest(messages, currentModelName, streamOptions);
       if (!String(fullText || "").trim()) {
-        throw new Error("AI trả về phản hồi rỗng.");
+        throw new Error("AI tráº£ vá» pháº£n há»“i rá»—ng.");
       }
     } catch (proxyError) {
-      throw new Error(`Lỗi AI: ${proxyError?.message || proxyError}. Vui lòng kiểm tra lại API Key hoặc Endpoint.`);
+ throw new Error(`Li AI: ${proxyError?.message || proxyError}. Vui long kiOm tra lai API Key hoac Endpoint.`);
     }
 
     fullText = enforceTwoTierTerminology(
@@ -1434,24 +1443,32 @@ export async function sendMessage(text, onChunk) {
 }
 
 export async function renderChatUI(container) {
-  await loadSystemConfig();
+  const fallbackConfig = {
+    active_provider: 'gemini',
+    router_model: DEFAULT_MODEL,
+    gemini_model: 'gemini-2.5-pro',
+    transcribe_model: 'whisper-1',
+    has_gemini_key: false,
+    web_search_provider: 'vertex_ai_search',
+    web_search_mode: 'fast_primary',
+    web_search_fallback_sources: { ...DEFAULT_FALLBACK_SOURCES },
+    vertex_project_id: '',
+    vertex_location: 'global',
+    vertex_data_store_id: '',
+    vertex_serving_config: '',
+  };
+
   const isAdmin = isCurrentUserAdmin();
-  const activeProvider = systemConfigCache?.active_provider || 'openai';
-  const savedModel = normalizeModelName(
-    activeProvider === 'gemini'
-      ? (systemConfigCache?.gemini_model || 'gemini-2.5-pro')
-      : (systemConfigCache?.router_model || DEFAULT_MODEL)
-  ) || DEFAULT_MODEL;
-  const openaiModel = systemConfigCache?.router_model || 'gpt-4.4';
-  const geminiModel = systemConfigCache?.gemini_model || 'gemini-2.5-pro';
+  const configSnapshot = { ...fallbackConfig, ...(systemConfigCache || {}) };
+  const savedModel = normalizeModelName(configSnapshot.gemini_model || 'gemini-2.5-pro') || 'gemini-2.5-pro';
 
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
       <div class="panel-header">
-        <div class="panel-header-icon">\u2696\uFE0F</div>
-        Tr\u1EE3 l\u00FD tra c\u1EE9u h\u00E0nh ch\u00EDnh & ph\u00E1p lu\u1EADt
+        <div class="panel-header-icon">⚖️</div>
+        Trợ lý tra cứu hành chính và pháp luật
         <div style="flex:1"></div>
-        <button id="chat-settings-openai-btn" class="btn-icon" title="Th\u00F4ng tin c\u1EA5u h\u00ECnh AI" style="width:28px; height:28px; font-size:0.72rem; margin-left:6px">\u{1F9E9}</button>
+        <button id="chat-settings-openai-btn" class="btn-icon" title="Thông tin cấu hình AI" style="width:28px; height:28px; font-size:0.72rem; margin-left:6px">🧩</button>
       </div>
       <div class="panel-body">
         <div id="chat-messages" class="chat-messages-area">
@@ -1474,88 +1491,100 @@ export async function renderChatUI(container) {
     </div>
 
     <div id="key-modal-openai" class="modal-overlay" style="display:none">
-      <div class="modal-content panel-group config-ai-modal" style="max-width:500px">
+      <div class="modal-content panel-group config-ai-modal" style="max-width:860px">
         <div class="panel-header">Thông tin cấu hình AI hệ thống</div>
         <div class="panel-body config-ai-modal-body" style="max-height:80vh; overflow-y:auto">
-          <div class="config-section-card config-modal-provider-box">
-            <p class="config-modal-provider-title">Nhà cung cấp hiện tại</p>
-            ${isAdmin ? `
-            <div id="modal-active-provider">
-              <div class="provider-tabs-row config-provider-tabs">
-                <button type="button" id="modal-provider-tab-openai" class="provider-tab-btn ${activeProvider !== 'gemini' ? 'active' : ''}">OpenAI</button>
-                <button type="button" id="modal-provider-tab-gemini" class="provider-tab-btn ${activeProvider === 'gemini' ? 'active' : ''}">Gemini</button>
-              </div>
-              <div class="provider-radio-hidden">
-                <label><input type="radio" name="modal_active_provider" value="openai" ${activeProvider !== 'gemini' ? 'checked' : ''}> OpenAI</label>
-                <label><input type="radio" name="modal_active_provider" value="gemini" ${activeProvider === 'gemini' ? 'checked' : ''}> Gemini</label>
-              </div>
-            </div>
-            ` : `
-            <p id="modal-active-provider" class="config-modal-provider-value">${activeProvider === 'gemini' ? 'Google Gemini' : 'OpenAI'}</p>
-            `}
-          </div>
-          
           <form id="modal-config-form">
             ${isAdmin ? `
-            <div class="config-modal-stack">
-              <div id="modal-provider-openai-section" class="provider-section-panel config-section-card">
-                <div class="config-modal-section-title">OpenAI</div>
-                <div class="form-group">
-                  <label class="form-label">Model (GPT/OpenAI)</label>
-                  <input type="text" id="modal-router-model" class="form-input" value="${openaiModel}">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">OpenAI API Key</label>
-                  <input type="password" id="modal-openai-key" class="form-input" placeholder="${systemConfigCache?.has_openai_key ? '••••••••••••••••' : 'sk-...'}" data-has-key="${!!systemConfigCache?.has_openai_key}">
-                </div>
+              <div class="config-modal-two-col">
+                <section class="config-section-card">
+                  <div class="config-modal-section-title">Gemini</div>
+                  <div class="form-group">
+                    <label class="form-label">Nhà cung cấp AI mặc định</label>
+                    <input type="text" class="form-input" value="Gemini" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Model Gemini</label>
+                    <input type="text" id="modal-gemini-model" class="form-input" value="${escapeHtml(configSnapshot.gemini_model || 'gemini-2.5-pro')}">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Gemini API Key</label>
+                    <input type="password" id="modal-gemini-key" class="form-input" placeholder="${configSnapshot.has_gemini_key ? '••••••••••••••••' : 'AIza...'}">
+                  </div>
+                </section>
+
+                <section class="config-section-card">
+                  <div class="config-modal-section-title">Vertex AI Search</div>
+                  <div class="form-group">
+                    <label class="form-label">Nhà cung cấp tra cứu web</label>
+                    <div class="config-radio-row">
+                      <label class="config-radio-option"><input type="radio" name="modal_web_search_provider" value="vertex_ai_search"> Vertex AI Search</label>
+                      <label class="config-radio-option"><input type="radio" name="modal_web_search_provider" value="cse"> Google CSE</label>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Chế độ tra cứu web</label>
+                    <div class="config-radio-col">
+                      <label class="config-radio-option"><input type="radio" name="modal_web_search_mode" value="fast_primary"> Nhanh nhất (Primary + fallback ngắn)</label>
+                      <label class="config-radio-option"><input type="radio" name="modal_web_search_mode" value="google_only_fast"> Google/CSE nhanh nhất (không fallback)</label>
+                      <label class="config-radio-option"><input type="radio" name="modal_web_search_mode" value="hybrid_fallback"> Google + fallback nguồn trực tiếp</label>
+                      <label class="config-radio-option"><input type="radio" name="modal_web_search_mode" value="vertex_answer"> Vertex Answer API</label>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Project ID</label>
+                    <input type="text" id="modal-vertex-project-id" class="form-input" value="${escapeHtml(configSnapshot.vertex_project_id || '')}">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" id="modal-vertex-location" class="form-input" value="${escapeHtml(configSnapshot.vertex_location || 'global')}">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Data Store ID</label>
+                    <input type="text" id="modal-vertex-data-store-id" class="form-input" value="${escapeHtml(configSnapshot.vertex_data_store_id || '')}">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Serving Config</label>
+                    <input type="text" id="modal-vertex-serving-config" class="form-input" value="${escapeHtml(configSnapshot.vertex_serving_config || '')}">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Fallback sources</label>
+                    <div class="config-fallback-grid">
+                      <label class="config-radio-option"><input type="checkbox" id="modal-fallback-vbpl"> vbpl.vn</label>
+                      <label class="config-radio-option"><input type="checkbox" id="modal-fallback-chinhphu"> chinhphu.vn</label>
+                      <label class="config-radio-option"><input type="checkbox" id="modal-fallback-quochoi"> quochoi.vn</label>
+                      <label class="config-radio-option"><input type="checkbox" id="modal-fallback-thuvienphapluat"> thuvienphapluat.vn</label>
+                      <label class="config-radio-option"><input type="checkbox" id="modal-fallback-luatvietnam"> luatvietnam.vn</label>
+                    </div>
+                  </div>
+                </section>
               </div>
-              <div id="modal-provider-gemini-section" class="provider-section-panel config-section-card">
-                <div class="config-modal-section-title">Gemini</div>
-                <div class="form-group">
-                  <label class="form-label">Model Gemini</label>
-                  <input type="text" id="modal-gemini-model" class="form-input" value="${geminiModel}">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Gemini API Key</label>
-                  <input type="password" id="modal-gemini-key" class="form-input" placeholder="${systemConfigCache?.has_gemini_key ? '••••••••••••••••' : 'AIza...'}" data-has-key="${!!systemConfigCache?.has_gemini_key}">
-                </div>
-              </div>
-            </div>
-            <div class="config-section-card config-modal-common-box">
-              <div class="config-modal-section-title">Cấu hình dùng chung</div>
-              <div class="form-group">
-                <label class="form-label">Google Search API Key</label>
-                <input type="password" id="modal-search-key" class="form-input" placeholder="${systemConfigCache?.google_search_configured ? '••••••••••••••••' : 'AIza...'}" data-has-key="${!!systemConfigCache?.google_search_configured}">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Google Search CX</label>
-                <input type="password" id="modal-search-cx" class="form-input" placeholder="${systemConfigCache?.google_search_configured ? '••••••••••••••••' : 'CX ID...'}" data-has-key="${!!systemConfigCache?.google_search_configured}">
-              </div>
-            </div>
             ` : `
-            <div class="form-group">
-              <label class="form-label">Model chat hiện tại</label>
-              <input type="text" class="form-input" value="${savedModel}" readonly>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Model transcription</label>
-              <input type="text" class="form-input" value="${systemConfigCache?.transcribe_model || 'whisper-1'}" readonly>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Trạng thái cấu hình</label>
-              <input type="text" class="form-input" value="${(activeProvider === 'gemini' ? systemConfigCache?.has_gemini_key : systemConfigCache?.has_openai_key) ? 'Đã cấu hình' : 'Chưa cấu hình'}" readonly>
-            </div>
+              <div class="form-group">
+                <label class="form-label">Nhà cung cấp AI</label>
+                <input type="text" class="form-input" value="Gemini" readonly>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Model chat hiện tại</label>
+                <input type="text" class="form-input" value="${escapeHtml(savedModel)}" readonly>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Trạng thái tra cứu web</label>
+                <input type="text" class="form-input" value="${configSnapshot.web_search_provider === 'vertex_ai_search' ? 'Vertex AI Search' : 'Google CSE'}" readonly>
+              </div>
             `}
 
             <div class="config-modal-note">
-              ${isAdmin ? 'Bạn là quản trị viên. Bạn có thể cập nhật trực tiếp cấu hình AI theo từng nhà cung cấp tại đây.' : 'Cấu hình AI do quản trị viên hệ thống quản lý. Người dùng không cần nhập API key.'}
+              ${isAdmin
+                ? 'Bạn là quản trị viên. Cấu hình lưu xong sẽ áp dụng ngay cho truy vấn kế tiếp.'
+                : 'Cấu hình AI do quản trị viên hệ thống quản lý.'}
             </div>
 
             <div id="modal-save-status" class="config-save-status"></div>
 
             <div class="btn-row config-modal-actions">
               ${isAdmin ? `
-                <button type="button" id="modal-save-config-btn" class="btn btn-primary config-save-btn">Lưu & Áp dụng</button>
+                <button type="button" id="modal-save-config-btn" class="btn btn-primary config-save-btn">Lưu và áp dụng</button>
                 <button type="button" id="go-admin-config-btn" class="btn btn-secondary" title="Cấu hình nâng cao">⚙️</button>
               ` : ''}
               <button type="button" id="close-openai-config-btn" class="btn btn-secondary">Đóng</button>
@@ -1574,44 +1603,66 @@ export async function renderChatUI(container) {
   const keyModalOpenAI = container.querySelector('#key-modal-openai');
   const closeOpenAIConfigBtn = container.querySelector('#close-openai-config-btn');
   const goAdminConfigBtn = container.querySelector('#go-admin-config-btn');
-  const modalProviderTabOpenAI = container.querySelector('#modal-provider-tab-openai');
-  const modalProviderTabGemini = container.querySelector('#modal-provider-tab-gemini');
-  const modalProviderOpenAISection = container.querySelector('#modal-provider-openai-section');
-  const modalProviderGeminiSection = container.querySelector('#modal-provider-gemini-section');
-  const modalProviderRadios = container.querySelectorAll('input[name="modal_active_provider"]');
 
-  function setModalProviderTab(provider = 'openai') {
-    const normalized = provider === 'gemini' ? 'gemini' : 'openai';
-    modalProviderRadios.forEach((radio) => {
-      radio.checked = radio.value === normalized;
+  function selectRadio(name, value, root = container) {
+    root.querySelectorAll(`input[name="${name}"]`).forEach((radio) => {
+      radio.checked = radio.value === value;
     });
-    if (modalProviderTabOpenAI) modalProviderTabOpenAI.classList.toggle('active', normalized === 'openai');
-    if (modalProviderTabGemini) modalProviderTabGemini.classList.toggle('active', normalized === 'gemini');
-    if (modalProviderOpenAISection) modalProviderOpenAISection.classList.toggle('is-hidden', normalized !== 'openai');
-    if (modalProviderGeminiSection) modalProviderGeminiSection.classList.toggle('is-hidden', normalized !== 'gemini');
   }
 
-  if (modalProviderTabOpenAI) {
-    modalProviderTabOpenAI.addEventListener('click', () => setModalProviderTab('openai'));
+  function getRadioValue(name, fallback, root = container) {
+    return root.querySelector(`input[name="${name}"]:checked`)?.value || fallback;
   }
-  if (modalProviderTabGemini) {
-    modalProviderTabGemini.addEventListener('click', () => setModalProviderTab('gemini'));
-  }
-  modalProviderRadios.forEach((radio) => {
-    radio.addEventListener('change', () => {
-      if (radio.checked) setModalProviderTab(radio.value);
+
+  function fillFallbackCheckboxes(sources = DEFAULT_FALLBACK_SOURCES) {
+    const merged = { ...DEFAULT_FALLBACK_SOURCES, ...(sources || {}) };
+    const map = {
+      vbpl: container.querySelector('#modal-fallback-vbpl'),
+      chinhphu: container.querySelector('#modal-fallback-chinhphu'),
+      quochoi: container.querySelector('#modal-fallback-quochoi'),
+      thuvienphapluat: container.querySelector('#modal-fallback-thuvienphapluat'),
+      luatvietnam: container.querySelector('#modal-fallback-luatvietnam'),
+    };
+    Object.entries(map).forEach(([key, el]) => {
+      if (!el) return;
+      el.checked = merged[key] !== false;
     });
-  });
-  if (isAdmin) {
-    setModalProviderTab(activeProvider);
+  }
+
+  function collectFallbackCheckboxes() {
+    return {
+      vbpl: container.querySelector('#modal-fallback-vbpl')?.checked !== false,
+      chinhphu: container.querySelector('#modal-fallback-chinhphu')?.checked !== false,
+      quochoi: container.querySelector('#modal-fallback-quochoi')?.checked !== false,
+      thuvienphapluat: container.querySelector('#modal-fallback-thuvienphapluat')?.checked !== false,
+      luatvietnam: container.querySelector('#modal-fallback-luatvietnam')?.checked !== false,
+    };
+  }
+
+  function syncModalFromConfig(config = null) {
+    if (!isAdmin) return;
+    const live = { ...fallbackConfig, ...(config || systemConfigCache || {}) };
+    const geminiModelInput = container.querySelector('#modal-gemini-model');
+    const projectInput = container.querySelector('#modal-vertex-project-id');
+    const locationInput = container.querySelector('#modal-vertex-location');
+    const dataStoreInput = container.querySelector('#modal-vertex-data-store-id');
+    const servingInput = container.querySelector('#modal-vertex-serving-config');
+
+    if (geminiModelInput) geminiModelInput.value = live.gemini_model || 'gemini-2.5-pro';
+    if (projectInput) projectInput.value = live.vertex_project_id || '';
+    if (locationInput) locationInput.value = live.vertex_location || 'global';
+    if (dataStoreInput) dataStoreInput.value = live.vertex_data_store_id || '';
+    if (servingInput) servingInput.value = live.vertex_serving_config || '';
+
+    selectRadio('modal_web_search_provider', live.web_search_provider || 'vertex_ai_search');
+    selectRadio('modal_web_search_mode', live.web_search_mode || 'fast_primary');
+    fillFallbackCheckboxes(live.web_search_fallback_sources || DEFAULT_FALLBACK_SOURCES);
   }
 
   if (settingsBtn) {
     settingsBtn.onclick = async () => {
       await loadSystemConfig();
-      if (isAdmin) {
-        setModalProviderTab(systemConfigCache?.active_provider || 'openai');
-      }
+      syncModalFromConfig();
       if (keyModalOpenAI) keyModalOpenAI.style.display = 'flex';
     };
   }
@@ -1627,16 +1678,17 @@ export async function renderChatUI(container) {
     };
   }
 
-  // Handle Save in Modal (Admin only)
   if (isAdmin) {
+    syncModalFromConfig(configSnapshot);
+
     const modalSaveBtn = container.querySelector('#modal-save-config-btn');
     const modalStatus = container.querySelector('#modal-save-status');
-    const modalRouterInput = container.querySelector('#modal-router-model');
     const modalGeminiModelInput = container.querySelector('#modal-gemini-model');
-    const modalOpenAIKey = container.querySelector('#modal-openai-key');
     const modalGeminiKey = container.querySelector('#modal-gemini-key');
-    const modalSearchKey = container.querySelector('#modal-search-key');
-    const modalSearchCx = container.querySelector('#modal-search-cx');
+    const modalVertexProjectId = container.querySelector('#modal-vertex-project-id');
+    const modalVertexLocation = container.querySelector('#modal-vertex-location');
+    const modalVertexDataStoreId = container.querySelector('#modal-vertex-data-store-id');
+    const modalVertexServingConfig = container.querySelector('#modal-vertex-serving-config');
 
     if (modalSaveBtn) {
       modalSaveBtn.onclick = async () => {
@@ -1646,49 +1698,54 @@ export async function renderChatUI(container) {
         modalStatus.style.color = 'var(--text-muted)';
 
         try {
-          const selectedProvider = container.querySelector('input[name="modal_active_provider"]:checked')?.value || 'openai';
           const configUpdate = {
-            active_provider: selectedProvider,
-            router_model: modalRouterInput.value.trim(),
-            gemini_model: modalGeminiModelInput.value.trim()
+            active_provider: 'gemini',
+            router_model: systemConfigCache?.router_model || DEFAULT_MODEL,
+            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-2.5-pro',
+            web_search_provider: getRadioValue('modal_web_search_provider', 'vertex_ai_search'),
+            web_search_mode: getRadioValue('modal_web_search_mode', 'fast_primary'),
+            web_search_fallback_sources: collectFallbackCheckboxes(),
+            vertex_project_id: modalVertexProjectId.value.trim(),
+            vertex_location: modalVertexLocation.value.trim() || 'global',
+            vertex_data_store_id: modalVertexDataStoreId.value.trim(),
+            vertex_serving_config: modalVertexServingConfig.value.trim(),
           };
 
-          if (modalOpenAIKey.value.trim()) configUpdate.openai_api_key = modalOpenAIKey.value.trim();
-          if (modalGeminiKey.value.trim()) configUpdate.gemini_api_key = modalGeminiKey.value.trim();
-          if (modalSearchKey.value.trim()) configUpdate.google_search_key = modalSearchKey.value.trim();
-          if (modalSearchCx.value.trim()) configUpdate.google_search_cx = modalSearchCx.value.trim();
+          if (modalGeminiKey.value.trim()) {
+            configUpdate.gemini_api_key = modalGeminiKey.value.trim();
+          }
 
           await updateSystemConfig(configUpdate);
-
-          modalStatus.textContent = '✅ Đã lưu cấu hình!';
-          modalStatus.style.color = '#16a34a';
-
-          modalOpenAIKey.value = '';
-          modalGeminiKey.value = '';
-          modalSearchKey.value = '';
-          modalSearchCx.value = '';
-
           await loadSystemConfig();
-          const newProvider = systemConfigCache?.active_provider || 'openai';
-          setModalProviderTab(newProvider);
-          if (modalRouterInput) modalRouterInput.value = systemConfigCache?.router_model || 'gpt-4.4';
-          if (modalGeminiModelInput) modalGeminiModelInput.value = systemConfigCache?.gemini_model || 'gemini-2.5-pro';
+          syncModalFromConfig(systemConfigCache);
 
+          modalGeminiKey.value = '';
+          currentModelName = normalizeModelName(systemConfigCache?.gemini_model || 'gemini-2.5-pro') || 'gemini-2.5-pro';
+
+          modalStatus.textContent = '✅ Đã lưu và áp dụng ngay!';
+          modalStatus.style.color = '#16a34a';
           setTimeout(() => {
             modalStatus.textContent = '';
-          }, 3000);
+          }, 2500);
         } catch (err) {
           modalStatus.textContent = '❌ Lỗi: ' + err.message;
           modalStatus.style.color = '#dc2626';
         } finally {
           modalSaveBtn.disabled = false;
-          modalSaveBtn.textContent = 'Lưu & Áp dụng';
+          modalSaveBtn.textContent = 'Lưu và áp dụng';
         }
       };
     }
   }
 
   initChat('', savedModel);
+
+  void loadSystemConfig().then(() => {
+    const nextModel = normalizeModelName(systemConfigCache?.gemini_model || savedModel) || savedModel;
+    if (nextModel !== currentModelName) {
+      currentModelName = nextModel;
+    }
+  });
 
   const addMsg = (text, role) => {
     const div = document.createElement('div');
@@ -1744,12 +1801,12 @@ export async function renderChatUI(container) {
     targetDiv.appendChild(wrap);
   };
 
-  const appendInlineStatus = (targetDiv, message, type = "ok") => {
-    const line = document.createElement("div");
-    line.style.marginTop = "8px";
-    line.style.fontSize = "0.78rem";
-    line.style.fontWeight = "600";
-    line.style.color = type === "ok" ? "#74c69d" : "#ff8fa3";
+  const appendInlineStatus = (targetDiv, message, type = 'ok') => {
+    const line = document.createElement('div');
+    line.style.marginTop = '8px';
+    line.style.fontSize = '0.78rem';
+    line.style.fontWeight = '600';
+    line.style.color = type === 'ok' ? '#74c69d' : '#ff8fa3';
     line.textContent = message;
     targetDiv.appendChild(line);
   };
@@ -1761,7 +1818,7 @@ export async function renderChatUI(container) {
     input.value = '';
     sendBtn.disabled = true;
     addMsg(text, 'user');
-    
+
     const aiMsgDiv = addMsg('🔍 Đang tra cứu...', 'ai');
     try {
       const finalAnswer = await sendMessage(text, (full) => {
@@ -1772,16 +1829,16 @@ export async function renderChatUI(container) {
       if (shouldAutoExportDocx(text)) {
         try {
           await exportDraftToDocx(text, finalAnswer);
-          appendInlineStatus(aiMsgDiv, "✅ Đã tự động xuất file .docx theo yêu cầu.");
+          appendInlineStatus(aiMsgDiv, '✅ Đã tự động xuất file .docx theo yêu cầu.');
         } catch (exportError) {
           console.error(exportError);
-          appendInlineStatus(aiMsgDiv, "❌ Không thể tự động xuất .docx. Bạn bấm nút xuất bên dưới để thử lại.", "error");
+          appendInlineStatus(aiMsgDiv, '❌ Không thể tự động xuất .docx. Bạn bấm nút xuất bên dưới để thử lại.', 'error');
         }
       }
       attachExportButtonIfNeeded(text, finalAnswer, aiMsgDiv);
       msgsArea.scrollTop = msgsArea.scrollHeight;
     } catch (e) {
-      aiMsgDiv.innerText = "❌ Lỗi: " + e.message;
+      aiMsgDiv.innerText = '❌ Lỗi: ' + e.message;
       aiMsgDiv.classList.add('error');
     } finally {
       sendBtn.disabled = false;
@@ -1789,5 +1846,5 @@ export async function renderChatUI(container) {
   };
 
   if (sendBtn) sendBtn.onclick = handleSend;
-  if (input) input.onkeypress = (e) => { if(e.key==='Enter') handleSend(); };
+  if (input) input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
 }

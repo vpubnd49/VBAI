@@ -1,12 +1,12 @@
-import { renderChatUI } from "./chat-assistant.js";
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+﻿import { renderChatUI } from './chat-assistant.js';
+import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getFirestore, doc, onSnapshot, setDoc, increment } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { firebaseConfig } from '../firebase-config.js';
 
 /**
  * Dashboard Module - chat-first workspace with compact shortcuts.
  */
-export async function renderDashboard(container, navigateTo) {
+export function renderDashboard(container, navigateTo) {
   container.innerHTML = `
     <div class="dashboard-home">
       <section class="dashboard-chat-shell">
@@ -20,7 +20,13 @@ export async function renderDashboard(container, navigateTo) {
           </div>
           <div class="dashboard-focus-badge">Ưu tiên tra cứu</div>
         </div>
-        <div id="chat-assistant-container" class="dashboard-chat-primary"></div>
+        <div id="chat-assistant-container" class="dashboard-chat-primary">
+          <div class="chat-panel-skeleton">
+            <div class="chat-panel-skeleton-row"></div>
+            <div class="chat-panel-skeleton-row short"></div>
+            <div class="chat-panel-skeleton-box"></div>
+          </div>
+        </div>
       </section>
 
       <section class="dashboard-quick-tools">
@@ -65,7 +71,7 @@ export async function renderDashboard(container, navigateTo) {
       <section id="disclaimer-section" class="dashboard-disclaimer">
         <div class="dashboard-disclaimer-mark">!</div>
         <div>
-          <h3>Lưu ý quan trọng & kiểm soát rủi ro</h3>
+          <h3>Lưu ý quan trọng và kiểm soát rủi ro</h3>
           <p>
             Trợ lý hành chính là công cụ hỗ trợ, không thay thế trách nhiệm của cán bộ, công chức trong việc kiểm tra, thẩm định nội dung tham mưu.
             Kết quả do trợ lý AI cung cấp cần được đối chiếu với văn bản pháp luật chính thức.
@@ -88,19 +94,29 @@ export async function renderDashboard(container, navigateTo) {
     </div>
   `;
 
+  const chatContainer = container.querySelector('#chat-assistant-container');
+  renderChatUI(chatContainer);
+
+  void hydrateSkills(container, navigateTo);
+  void hydrateVisitCounter(container);
+}
+
+async function hydrateSkills(container, navigateTo) {
   const skillsGrid = container.querySelector('#skills-grid');
+  if (!skillsGrid) return;
+
   try {
     const response = await fetch('./skills-manifest.json');
     const skills = await response.json();
 
     const friendlyBadges = {
-      'Skill_The_Thuc_VB_Dang_HD36': 'Nghị quyết, Chỉ thị...',
-      'Skill_The_Thuc_VB_ND30': 'Quyết định, Báo cáo...',
-      'Skill_PDF': 'Merge - OCR - Text',
-      'Skill_DOCX': 'Chỉnh sửa - Tạo mới'
+      Skill_The_Thuc_VB_Dang_HD36: 'Nghị quyết, Chỉ thị...',
+      Skill_The_Thuc_VB_ND30: 'Quyết định, Báo cáo...',
+      Skill_PDF: 'Merge - OCR - Text',
+      Skill_DOCX: 'Chỉnh sửa - Tạo mới',
     };
 
-    skillsGrid.innerHTML = skills.map(skill => `
+    skillsGrid.innerHTML = skills.map((skill) => `
       <div class="module-card" data-accent="${skill.accent}" data-page="${skill.page}" id="card-${skill.id}">
         <div class="module-icon ${skill.accent}">${skill.icon}</div>
         <div class="module-title">${skill.name}</div>
@@ -110,7 +126,7 @@ export async function renderDashboard(container, navigateTo) {
     `).join('') + `
       <div class="module-card" data-accent="daquy" data-page="spell-check" id="card-spell-check">
         <div class="module-icon daquy">🔍</div>
-        <div class="module-title">Kiểm tra chính tả & thể thức</div>
+        <div class="module-title">Kiểm tra chính tả và thể thức</div>
         <div class="module-desc">Rà soát chính tả và thể thức văn bản...</div>
         <div class="module-badge">NĐ30 - HD36 - AI</div>
       </div>
@@ -122,14 +138,16 @@ export async function renderDashboard(container, navigateTo) {
       </div>
     `;
 
-    skillsGrid.querySelectorAll('.module-card').forEach(card => {
+    skillsGrid.querySelectorAll('.module-card').forEach((card) => {
       card.addEventListener('click', () => navigateTo(card.dataset.page));
     });
   } catch (error) {
-    console.warn("Lỗi tải Skills manifest:", error);
+    console.warn('Lỗi tải skills manifest:', error);
     skillsGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--daquy-500);">Không thể tải danh sách kỹ năng.</p>';
   }
+}
 
+async function hydrateVisitCounter(container) {
   const visitEl = container.querySelector('#visit-count');
   const SESSION_KEY = 'vbai_session_firestore';
   const isNewSession = !sessionStorage.getItem(SESSION_KEY);
@@ -140,24 +158,20 @@ export async function renderDashboard(container, navigateTo) {
     const visitDocRef = doc(db, 'stats', 'visits');
 
     onSnapshot(visitDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.count && visitEl) {
-          visitEl.textContent = data.count.toLocaleString('vi-VN');
-        }
+      if (!docSnap.exists()) return;
+      const data = docSnap.data();
+      if (data.count && visitEl) {
+        visitEl.textContent = data.count.toLocaleString('vi-VN');
       }
     });
 
     if (isNewSession) {
       setDoc(visitDocRef, { count: increment(1) }, { merge: true })
         .then(() => sessionStorage.setItem(SESSION_KEY, '1'))
-        .catch(err => console.warn("Firestore Error:", err));
+        .catch((err) => console.warn('Firestore Error:', err));
     }
   } catch (error) {
-    console.warn("Firebase Init Error:", error);
+    console.warn('Firebase Init Error:', error);
     if (visitEl) visitEl.textContent = '1,200+';
   }
-
-  const chatContainer = container.querySelector('#chat-assistant-container');
-  renderChatUI(chatContainer);
 }

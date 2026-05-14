@@ -49,7 +49,7 @@ const DEFAULT_WEB_SEARCH_FALLBACK_SOURCES = Object.freeze({
   luatvietnam: true,
 });
 const DEFAULT_WEB_SEARCH_MODE = 'fast_primary';
-const DEFAULT_WEB_SEARCH_PROVIDER = 'cse';
+const DEFAULT_WEB_SEARCH_PROVIDER = 'vertex_ai_search';
 const WEB_SEARCH_RESULT_CACHE = new Map();
 
 function normalizeVietnamese(value = '') {
