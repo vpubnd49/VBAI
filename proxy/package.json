@@ -5,13 +5,17 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test:golden": "node tests/golden-legal-extract.test.cjs",
+    "test:integration": "node tests/runtime-web-search.integration.cjs",
+    "test:canary": "node tests/runtime-web-search.canary.cjs",
+    "test:all": "node tests/run-all.cjs"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.19.2",
     "firebase-admin": "^12.4.0",
-    "node-fetch": "^3.3.2",
-    "cors": "^2.8.5",
-    "helmet": "^7.1.0"
+    "helmet": "^7.1.0",
+    "multer": "^2.1.1"
   }
 }

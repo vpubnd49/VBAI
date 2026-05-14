@@ -6,6 +6,7 @@ RUN npm ci --only=production
 
 # Copy source
 COPY server.js ./
+COPY lib ./lib
 
 # Production stage (run directly)
 FROM node:20-alpine
@@ -17,6 +18,7 @@ RUN apk add --no-cache dumb-init
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package*.json ./
 COPY --from=build /app/server.js ./
+COPY --from=build /app/lib ./lib
 
 # Use dumb-init to handle signals correctly
 ENTRYPOINT ["dumb-init", "--"]

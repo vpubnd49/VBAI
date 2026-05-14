@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "daily-run": "node daily-run.cjs"
+    "daily-run": "node daily-run.cjs",
+    "test:policy": "node tests/two-tier-policy.test.mjs"
   },
   "devDependencies": {
     "vite": "^7.1.12"

@@ -18,6 +18,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check mojibake in webapp strings
+        run: |
+          set -e
+          if grep -RInE --include="*.js" --include="*.css" --include="*.html" "(Ã.|Â.|Ä.|Æ.|Ð.|Ñ.|�)" webapp; then
+            echo "Detected possible mojibake sequences in webapp files."
+            exit 1
+          fi
+
+      - name: Run proxy golden legal tests
+        working-directory: proxy
+        run: |
+          npm ci
+          npm run test:golden
+
+      - name: Run webapp legal policy tests
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run test:policy
+
+      # IMPORTANT:
+      # secrets.GCP_SA_KEY must contain credentials for a service account
+      # that has access to PROJECT_ID above.
+      # Example recommended service account:
+      # github-deployer@gen-lang-client-0462350485.iam.gserviceaccount.com
       - name: Google Auth
         id: auth
         uses: google-github-actions/auth@v2
@@ -27,6 +52,14 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verify auth and project
+        run: |
+          echo "Expected project: ${{ env.PROJECT_ID }}"
+          gcloud auth list
+          gcloud config set project ${{ env.PROJECT_ID }}
+          gcloud config get-value project
+          gcloud projects describe ${{ env.PROJECT_ID }} --format='value(projectId)'
 
       - name: Select GCP project
         run: gcloud config set project ${{ env.PROJECT_ID }}
@@ -44,7 +77,8 @@ jobs:
             --allow-unauthenticated \
             --port 8080 \
             --memory 256Mi \
-            --max-instances 3
+            --max-instances 3 \
+            --set-env-vars MAX_AUDIO_UPLOAD_MB=80
           PROXY_URL=$(gcloud run services describe vbai-proxy --project ${{ env.PROJECT_ID }} --region ${{ env.REGION }} --format='value(status.url)')
           echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
 
