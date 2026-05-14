@@ -21,10 +21,43 @@ jobs:
       - name: Check mojibake in webapp strings
         run: |
           set -e
-          if grep -RInE --include="*.js" --include="*.css" --include="*.html" "(Ã.|Â.|Ä.|Æ.|Ð.|Ñ.|�)" webapp; then
-            echo "Detected possible mojibake sequences in webapp files."
-            exit 1
-          fi
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const root = 'webapp';
+          const exts = new Set(['.js', '.css', '.html']);
+          const skip = new Set(['node_modules', 'dist', '.git']);
+          const suspect = /(?:[ÃÂÄÆÐÑ][\u0080-\u00BF])|ï¿½|�/u;
+          const hits = [];
+
+          function walk(dir) {
+            for (const name of fs.readdirSync(dir)) {
+              if (skip.has(name)) continue;
+              const p = path.join(dir, name);
+              const st = fs.statSync(p);
+              if (st.isDirectory()) {
+                walk(p);
+                continue;
+              }
+              if (!exts.has(path.extname(p))) continue;
+              const text = fs.readFileSync(p, 'utf8');
+              const lines = text.split(/\r?\n/);
+              lines.forEach((line, idx) => {
+                if (suspect.test(line)) {
+                  hits.push(`${p}:${idx + 1}: ${line.slice(0, 180)}`);
+                }
+              });
+            }
+          }
+
+          walk(root);
+          if (hits.length) {
+            console.error('Detected possible mojibake sequences in webapp files:');
+            for (const h of hits.slice(0, 60)) console.error(h);
+            process.exit(1);
+          }
+          console.log('Mojibake check passed.');
+          NODE
 
       - name: Run proxy golden legal tests
         working-directory: proxy
