@@ -1477,11 +1477,11 @@ export async function renderChatUI(container) {
       <div class="modal-content panel-group config-ai-modal" style="max-width:500px">
         <div class="panel-header">Thông tin cấu hình AI hệ thống</div>
         <div class="panel-body config-ai-modal-body" style="max-height:80vh; overflow-y:auto">
-          <div style="padding:10px; background:rgba(16,185,129,0.05); border-radius:8px; margin-bottom:12px; border:1px solid rgba(16,185,129,0.1);">
-            <p style="font-size:0.8rem; color:var(--pine-600); font-weight:700; margin:0 0 8px">Nhà cung cấp hiện tại</p>
+          <div class="config-section-card config-modal-provider-box">
+            <p class="config-modal-provider-title">Nhà cung cấp hiện tại</p>
             ${isAdmin ? `
-            <div id="modal-active-provider" style="margin:0;">
-              <div class="provider-tabs-row" style="margin-top:4px;">
+            <div id="modal-active-provider">
+              <div class="provider-tabs-row config-provider-tabs">
                 <button type="button" id="modal-provider-tab-openai" class="provider-tab-btn ${activeProvider !== 'gemini' ? 'active' : ''}">OpenAI</button>
                 <button type="button" id="modal-provider-tab-gemini" class="provider-tab-btn ${activeProvider === 'gemini' ? 'active' : ''}">Gemini</button>
               </div>
@@ -1491,71 +1491,71 @@ export async function renderChatUI(container) {
               </div>
             </div>
             ` : `
-            <p id="modal-active-provider" style="font-size:0.85rem; margin:0">${activeProvider === 'gemini' ? 'Google Gemini' : 'OpenAI'}</p>
+            <p id="modal-active-provider" class="config-modal-provider-value">${activeProvider === 'gemini' ? 'Google Gemini' : 'OpenAI'}</p>
             `}
           </div>
           
           <form id="modal-config-form">
             ${isAdmin ? `
-            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:12px;">
-              <div id="modal-provider-openai-section" class="provider-section-panel" style="padding:12px; border:1px solid rgba(16,185,129,0.12); border-radius:8px; background:rgba(16,185,129,0.04);">
-                <div style="font-size:0.82rem; font-weight:700; color:var(--pine-700); margin-bottom:10px;">OpenAI</div>
-                <div class="form-group" style="margin-bottom:12px">
+            <div class="config-modal-stack">
+              <div id="modal-provider-openai-section" class="provider-section-panel config-section-card">
+                <div class="config-modal-section-title">OpenAI</div>
+                <div class="form-group">
                   <label class="form-label">Model (GPT/OpenAI)</label>
                   <input type="text" id="modal-router-model" class="form-input" value="${openaiModel}">
                 </div>
-                <div class="form-group" style="margin-bottom:0">
+                <div class="form-group">
                   <label class="form-label">OpenAI API Key</label>
                   <input type="password" id="modal-openai-key" class="form-input" placeholder="${systemConfigCache?.has_openai_key ? '••••••••••••••••' : 'sk-...'}" data-has-key="${!!systemConfigCache?.has_openai_key}">
                 </div>
               </div>
-              <div id="modal-provider-gemini-section" class="provider-section-panel" style="padding:12px; border:1px solid rgba(16,185,129,0.12); border-radius:8px; background:rgba(16,185,129,0.04);">
-                <div style="font-size:0.82rem; font-weight:700; color:var(--pine-700); margin-bottom:10px;">Gemini</div>
-                <div class="form-group" style="margin-bottom:12px">
+              <div id="modal-provider-gemini-section" class="provider-section-panel config-section-card">
+                <div class="config-modal-section-title">Gemini</div>
+                <div class="form-group">
                   <label class="form-label">Model Gemini</label>
                   <input type="text" id="modal-gemini-model" class="form-input" value="${geminiModel}">
                 </div>
-                <div class="form-group" style="margin-bottom:0">
+                <div class="form-group">
                   <label class="form-label">Gemini API Key</label>
                   <input type="password" id="modal-gemini-key" class="form-input" placeholder="${systemConfigCache?.has_gemini_key ? '••••••••••••••••' : 'AIza...'}" data-has-key="${!!systemConfigCache?.has_gemini_key}">
                 </div>
               </div>
             </div>
-            <div style="padding:12px; border:1px solid rgba(16,185,129,0.12); border-radius:8px; background:rgba(16,185,129,0.04); margin-bottom:12px;">
-              <div style="font-size:0.82rem; font-weight:700; color:var(--pine-700); margin-bottom:10px;">Cấu hình dùng chung</div>
-              <div class="form-group" style="margin-bottom:12px">
+            <div class="config-section-card config-modal-common-box">
+              <div class="config-modal-section-title">Cấu hình dùng chung</div>
+              <div class="form-group">
                 <label class="form-label">Google Search API Key</label>
                 <input type="password" id="modal-search-key" class="form-input" placeholder="${systemConfigCache?.google_search_configured ? '••••••••••••••••' : 'AIza...'}" data-has-key="${!!systemConfigCache?.google_search_configured}">
               </div>
-              <div class="form-group" style="margin-bottom:0">
+              <div class="form-group">
                 <label class="form-label">Google Search CX</label>
                 <input type="password" id="modal-search-cx" class="form-input" placeholder="${systemConfigCache?.google_search_configured ? '••••••••••••••••' : 'CX ID...'}" data-has-key="${!!systemConfigCache?.google_search_configured}">
               </div>
             </div>
             ` : `
-            <div class="form-group" style="margin-bottom:12px">
+            <div class="form-group">
               <label class="form-label">Model chat hiện tại</label>
               <input type="text" class="form-input" value="${savedModel}" readonly>
             </div>
-            <div class="form-group" style="margin-bottom:12px">
+            <div class="form-group">
               <label class="form-label">Model transcription</label>
               <input type="text" class="form-input" value="${systemConfigCache?.transcribe_model || 'whisper-1'}" readonly>
             </div>
-            <div class="form-group" style="margin-bottom:12px">
+            <div class="form-group">
               <label class="form-label">Trạng thái cấu hình</label>
               <input type="text" class="form-input" value="${(activeProvider === 'gemini' ? systemConfigCache?.has_gemini_key : systemConfigCache?.has_openai_key) ? 'Đã cấu hình' : 'Chưa cấu hình'}" readonly>
             </div>
             `}
 
-            <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:8px">
+            <div class="config-modal-note">
               ${isAdmin ? 'Bạn là quản trị viên. Bạn có thể cập nhật trực tiếp cấu hình AI theo từng nhà cung cấp tại đây.' : 'Cấu hình AI do quản trị viên hệ thống quản lý. Người dùng không cần nhập API key.'}
             </div>
 
-            <div id="modal-save-status" style="margin-top:10px; font-size:0.85rem; min-height:1.2em"></div>
+            <div id="modal-save-status" class="config-save-status"></div>
 
-            <div class="btn-row" style="margin-top:20px; border-top:1px solid var(--border-subtle); padding-top:16px">
+            <div class="btn-row config-modal-actions">
               ${isAdmin ? `
-                <button type="button" id="modal-save-config-btn" class="btn btn-primary" style="flex:1">Lưu & Áp dụng</button>
+                <button type="button" id="modal-save-config-btn" class="btn btn-primary config-save-btn">Lưu & Áp dụng</button>
                 <button type="button" id="go-admin-config-btn" class="btn btn-secondary" title="Cấu hình nâng cao">⚙️</button>
               ` : ''}
               <button type="button" id="close-openai-config-btn" class="btn btn-secondary">Đóng</button>
