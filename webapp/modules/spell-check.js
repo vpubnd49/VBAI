@@ -139,9 +139,7 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
   progressTextEl.innerText = "Đang kết nối AI...";
   const config = await fetchSystemConfig();
   const modelName = (
-    config?.active_provider === 'gemini'
-      ? (config?.gemini_model || 'gemini-2.5-pro')
-      : (config?.router_model || 'gpt-4.4')
+    config?.gemini_model || 'gemini-2.5-pro'
   );
 
   // 2. Batching paragraphs — batch nhỏ hơn để AI chính xác hơn
@@ -644,4 +642,3 @@ function logToFirestore(fileName, spellCount, formatCount) {
     }).catch(() => {});
   } catch (e) {}
 }
-

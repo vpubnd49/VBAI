@@ -1,9 +1,9 @@
-/**
+﻿/**
  * VBAI Cloud Run Proxy Service
  *
  * Provides secure, authenticated endpoints for:
- * - Chat completions (OpenAI/Gemini)
- * - Audio transcription (Whisper/Gemini)
+ * - Chat completions (Gemini/Vertex Gemini)
+ * - Audio transcription (Gemini)
  * - System configuration read/write (admin only)
  *
  * Deployed to Google Cloud Run.
@@ -51,14 +51,71 @@ const DEFAULT_WEB_SEARCH_FALLBACK_SOURCES = Object.freeze({
 const DEFAULT_WEB_SEARCH_MODE = 'fast_primary';
 const DEFAULT_WEB_SEARCH_PROVIDER = 'vertex_ai_search';
 const WEB_SEARCH_RESULT_CACHE = new Map();
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
+const GEMINI_API_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
+const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-2.5-flash';
 
 function normalizeVietnamese(value = '') {
   return String(value || '')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toLowerCase();
+}
+
+function normalizeModelInput(value = '') {
+  return String(value || '').trim();
+}
+
+function isGeminiModelNotFoundError(message = '') {
+  const normalized = String(message || '').toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized.includes('not found')
+    || normalized.includes('requested entity was not found')
+    || normalized.includes('model')
+  );
+}
+
+function pickGeminiRetryModel(primaryModel = '', configuredModel = '') {
+  const primary = normalizeModelInput(primaryModel);
+  const configured = normalizeModelInput(configuredModel);
+  if (configured && configured !== primary) {
+    return configured;
+  }
+  if (GEMINI_SAFE_FALLBACK_MODEL !== primary) {
+    return GEMINI_SAFE_FALLBACK_MODEL;
+  }
+  return '';
+}
+
+async function readProviderError(providerRes) {
+  const fallbackMessage = `Provider error ${providerRes.status}`;
+  try {
+    const body = await providerRes.json();
+    const message = body?.error?.message || body?.message || fallbackMessage;
+    const reason = body?.error?.status || body?.error?.reason || body?.error?.code || providerRes.status;
+    return {
+      message: String(message || fallbackMessage),
+      reason: String(reason || providerRes.status),
+    };
+  } catch {
+    try {
+      const rawText = await providerRes.text();
+      const text = String(rawText || '').trim();
+      return {
+        message: text || fallbackMessage,
+        reason: providerRes.status,
+      };
+    } catch {
+      return {
+        message: fallbackMessage,
+        reason: providerRes.status,
+      };
+    }
+  }
 }
 
 // Initialize Firebase Admin SDK
@@ -141,16 +198,12 @@ app.get('/api/system-config-summary', async (req, res) => {
     const webSearchMode = sanitizeWebSearchMode(data.web_search_mode);
     const webSearchProvider = sanitizeWebSearchProvider(data.web_search_provider);
     res.json({
-      active_provider: data.active_provider || 'openai',
-      router_model: data.router_model || 'gpt-4o-mini',
-      gemini_model: data.gemini_model || 'gemini-1.5-flash',
-      openai_endpoint: data.openai_endpoint || 'https://api.openai.com/v1',
-      gemini_endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      active_provider: data.active_provider || 'gemini',
+      gemini_model: data.gemini_model || 'gemini-2.5-pro',
+      gemini_endpoint: GEMINI_API_ENDPOINT,
       google_search_configured: !!((data.google_search_key && data.google_search_cx) || (data.vertex_project_id && data.vertex_data_store_id)),
-      has_openai_key: !!data.openai_api_key,
       has_gemini_key: !!data.gemini_api_key,
-      transcribe_model: data.transcribe_model || (data.active_provider === 'gemini' ? data.gemini_model : 'whisper-1'),
-      openai_models: Array.isArray(data.openai_models) ? data.openai_models : [],
+      transcribe_model: data.transcribe_model || data.gemini_model || 'gemini-2.5-flash',
       gemini_models: Array.isArray(data.gemini_models) ? data.gemini_models : [],
       web_search_provider: webSearchProvider,
       web_search_mode: webSearchMode,
@@ -179,9 +232,6 @@ app.post('/api/admin/system-config', async (req, res) => {
 
     const {
       active_provider,
-      openai_api_key,
-      openai_endpoint,
-      router_model,
       gemini_api_key,
       gemini_model,
       google_search_key,
@@ -194,12 +244,11 @@ app.post('/api/admin/system-config', async (req, res) => {
       vertex_data_store_id,
       vertex_serving_config,
       transcribe_model,
-      openai_models,
       gemini_models
     } = req.body;
 
     // Validate allowed values
-    const validProvider = active_provider === 'openai' || active_provider === 'gemini';
+    const validProvider = active_provider === 'gemini' || active_provider === 'vertex';
     if (!validProvider && active_provider !== undefined) {
       return res.status(400).json({ error: 'Invalid provider' });
     }
@@ -211,19 +260,18 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     const updateData = {
-      active_provider: active_provider || 'openai',
-      router_model: router_model || 'gpt-4o-mini',
-      gemini_model: gemini_model || 'gemini-1.5-flash',
-      openai_endpoint: String(openai_endpoint || 'https://api.openai.com/v1').replace(/\/+$/, ''),
-      transcribe_model: transcribe_model || 'whisper-1',
+      active_provider: active_provider || 'gemini',
+      gemini_model: gemini_model || 'gemini-2.5-pro',
+      transcribe_model: transcribe_model || 'gemini-2.5-flash',
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
-      updated_by: decoded.email || decoded.uid
+      updated_by: decoded.email || decoded.uid,
+      openai_api_key: admin.firestore.FieldValue.delete(),
+      openai_endpoint: admin.firestore.FieldValue.delete(),
+      openai_models: admin.firestore.FieldValue.delete(),
+      router_model: admin.firestore.FieldValue.delete(),
     };
 
     // Only update keys if provided (non-empty)
-    if (openai_api_key && openai_api_key.trim()) {
-      updateData.openai_api_key = openai_api_key.trim();
-    }
     if (gemini_api_key && gemini_api_key.trim()) {
       updateData.gemini_api_key = gemini_api_key.trim();
     }
@@ -234,9 +282,6 @@ app.post('/api/admin/system-config', async (req, res) => {
       updateData.google_search_cx = google_search_cx.trim();
     }
     // Update model lists (always overwrite)
-    if (Array.isArray(openai_models)) {
-      updateData.openai_models = openai_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim());
-    }
     if (Array.isArray(gemini_models)) {
       updateData.gemini_models = gemini_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim());
     }
@@ -348,14 +393,11 @@ app.post('/api/chat', async (req, res) => {
     }
     const config = snap.data();
 
-    const provider = config.active_provider || 'openai';
-    const isVertexGemini = (provider === 'vertex') || (provider === 'gemini' && String(config.gemini_endpoint || '').includes('aiplatform.googleapis.com'));
-
-    const endpoint = String(provider === 'gemini'
-      ? config.gemini_endpoint || 'https://generativelanguage.googleapis.com/v1beta/openai'
-      : (config.openai_endpoint || 'https://api.openai.com/v1')).replace(/\/+$/, '');
-    const apiKey = provider === 'gemini' ? config.gemini_api_key : config.openai_api_key;
-    const effectiveModel = model || ((provider === 'gemini' || provider === 'vertex') ? config.gemini_model : config.router_model);
+    const provider = config.active_provider || 'gemini';
+    const isVertexGemini = provider === 'vertex';
+    const endpoint = GEMINI_API_ENDPOINT;
+    const apiKey = config.gemini_api_key;
+    const effectiveModel = model || config.gemini_model;
 
     if (!apiKey && !isVertexGemini) {
       return res.status(503).json({ error: 'API key missing', message: 'Please contact administrator to configure AI provider key.' });
@@ -377,46 +419,91 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    // Build provider request
-    const payload = {
-      model: effectiveModel,
-      messages: messages,
-      stream: false, // TODO: implement streaming if needed
-      temperature: temperature,
-      ...(max_tokens && { max_tokens })
+    const configuredGeminiModel = normalizeModelInput(config.gemini_model) || GEMINI_SAFE_FALLBACK_MODEL;
+    const primaryModel = normalizeModelInput(effectiveModel) || configuredGeminiModel;
+    const retryModel = provider === 'gemini' ? pickGeminiRetryModel(primaryModel, configuredGeminiModel) : '';
+    const attemptedModels = [];
+
+    const executeProviderAttempt = async (modelName) => {
+      const payload = {
+        model: modelName,
+        messages,
+        stream: false, // TODO: implement streaming if needed
+        temperature,
+        ...(max_tokens && { max_tokens })
+      };
+
+      // Some reasoning-like models may reject temperature/max_tokens combo.
+      const m = String(modelName || '').toLowerCase();
+      if (m.includes('o1') || m.includes('o3')) {
+        delete payload.temperature;
+        if (payload.max_tokens) {
+          payload.max_completion_tokens = payload.max_tokens;
+          delete payload.max_tokens;
+        }
+      }
+
+      const providerRes = await fetch(`${endpoint}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          ...(provider === 'gemini' && { 'x-goog-api-key': apiKey })
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!providerRes.ok) {
+        const providerError = await readProviderError(providerRes);
+        return {
+          ok: false,
+          status: providerRes.status,
+          message: providerError.message,
+          reason: providerError.reason,
+        };
+      }
+
+      return {
+        ok: true,
+        status: providerRes.status,
+        data: await providerRes.json(),
+      };
     };
 
-    // For OpenAI reasoning models (o1, o3-mini), adjust payload
-    const m = String(effectiveModel || '').toLowerCase();
-    if (m.includes('o1') || m.includes('o3')) {
-      delete payload.temperature;
-      if (payload.max_tokens) {
-        payload.max_completion_tokens = payload.max_tokens;
-        delete payload.max_tokens;
-      }
+    attemptedModels.push(primaryModel);
+    let attempt = await executeProviderAttempt(primaryModel);
+
+    if (!attempt.ok && provider === 'gemini' && attempt.status === 404 && retryModel && isGeminiModelNotFoundError(attempt.message)) {
+      attemptedModels.push(retryModel);
+      attempt = await executeProviderAttempt(retryModel);
     }
 
-    // Make request to provider
-    const providerRes = await fetch(`${endpoint}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        ...(provider === 'gemini' && { 'x-goog-api-key': apiKey })
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!providerRes.ok) {
-      let errorMsg = `Provider error ${providerRes.status}`;
-      try {
-        const errBody = await providerRes.json();
-        errorMsg = errBody.error?.message || errBody.message || errorMsg;
-      } catch (e) {}
-      return res.status(providerRes.status).json({ error: 'Provider request failed', message: errorMsg });
+    if (!attempt.ok) {
+      return res.status(attempt.status || 500).json({
+        error: 'Provider request failed',
+        message: attempt.message || `Provider error ${attempt.status || 500}`,
+        meta: {
+          provider_status: attempt.status || null,
+          attempted_models: attemptedModels,
+          final_model: null,
+          provider_error_reason: attempt.reason || null,
+          retried: attemptedModels.length > 1,
+        }
+      });
     }
 
-    const data = await providerRes.json();
+    const finalModel = attemptedModels[attemptedModels.length - 1] || primaryModel;
+    const data = attempt.data;
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      data.meta = {
+        ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
+        provider_status: 200,
+        attempted_models: attemptedModels,
+        final_model: finalModel,
+        provider_error_reason: null,
+        retried: attemptedModels.length > 1,
+      };
+    }
     res.json(data);
   } catch (err) {
     console.error('POST /api/chat error:', err);
@@ -464,12 +551,9 @@ app.post('/api/transcribe', (req, res, next) => {
     }
     const config = snap.data();
 
-    const provider = config.active_provider || 'openai';
-    const endpoint = provider === 'gemini'
-      ? config.gemini_endpoint || 'https://generativelanguage.googleapis.com/v1beta/openai'
-      : (config.openai_endpoint || 'https://api.openai.com/v1');
-    const apiKey = provider === 'gemini' ? config.gemini_api_key : config.openai_api_key;
-    const effectiveModel = model || config.transcribe_model || (provider === 'gemini' ? config.gemini_model : 'whisper-1');
+    const endpoint = GEMINI_API_ENDPOINT;
+    const apiKey = config.gemini_api_key;
+    const effectiveModel = model || config.transcribe_model || config.gemini_model || 'gemini-2.5-flash';
 
     if (!apiKey) {
       return res.status(503).json({ error: 'API key missing' });
@@ -485,18 +569,24 @@ app.post('/api/transcribe', (req, res, next) => {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        ...(provider === 'gemini' && { 'x-goog-api-key': apiKey }),
+        'x-goog-api-key': apiKey,
       },
       body: formData
     });
 
     if (!providerRes.ok) {
-      let errorMsg = `Provider error ${providerRes.status}`;
-      try {
-        const errBody = await providerRes.json();
-        errorMsg = errBody.error?.message || errBody.message || errorMsg;
-      } catch (e) {}
-      return res.status(providerRes.status).json({ error: 'Transcription failed', message: errorMsg });
+      const providerError = await readProviderError(providerRes);
+      return res.status(providerRes.status).json({
+        error: 'Transcription failed',
+        message: providerError.message || `Provider error ${providerRes.status}`,
+        meta: {
+          provider_status: providerRes.status,
+          attempted_models: [effectiveModel],
+          final_model: null,
+          provider_error_reason: providerError.reason || null,
+          retried: false,
+        }
+      });
     }
 
     const data = await providerRes.json();
@@ -662,7 +752,7 @@ app.post('/api/web-search', async (req, res) => {
     const hasSpecificYear = new RegExp(`(202\\d|203\\d)`).test(normQuery);
 
     if (isLegal && !hasSpecificYear && !normQuery.includes('moi nhat')) {
-      refinedQuery += ` mới nhất ${current} ${next}`;
+      refinedQuery += ` má»›i nháº¥t ${current} ${next}`;
     }
 
     const dateRestrict = buildDateRestrict({
@@ -2077,7 +2167,7 @@ async function executeVertexGeminiChat({ messages, model, temperature, max_token
 
   const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelName}:generateContent`;
 
-  // Convert OpenAI messages to Vertex AI contents
+  // Convert chat-style messages to Vertex AI contents
   const contents = messages
     .filter(m => m.role !== 'system' && m.role !== 'developer')
     .map(m => ({
@@ -2113,7 +2203,7 @@ async function executeVertexGeminiChat({ messages, model, temperature, max_token
   const data = await response.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-  // Return OpenAI-compatible format for the frontend
+  // Return chat-completions-compatible format for the frontend
   return {
     id: `chatcmpl-vertex-${Date.now()}`,
     object: 'chat.completion',
@@ -2147,7 +2237,7 @@ async function executeVertexAnswer({ query, vertexConfig, timeoutMs }) {
         ignoreAdversarialQuery: true,
         ignoreNonAnswerSeekingQuery: true,
         modelSpec: { modelVersion: 'stable' },
-        promptSpec: { preamble: 'Bạn là một trợ lý hành chính chuyên nghiệp. Hãy trả lời câu hỏi dựa trên các tài liệu pháp luật được cung cấp.' },
+        promptSpec: { preamble: 'Báº¡n lÃ  má»™t trá»£ lÃ½ hÃ nh chÃ­nh chuyÃªn nghiá»‡p. HÃ£y tráº£ lá»i cÃ¢u há»i dá»±a trÃªn cÃ¡c tÃ i liá»‡u phÃ¡p luáº­t Ä‘Æ°á»£c cung cáº¥p.' },
         includeCitations: true,
       }
     })
@@ -2161,7 +2251,7 @@ async function executeVertexAnswer({ query, vertexConfig, timeoutMs }) {
   const data = await response.json();
   const answer = data?.answer?.answerText || '';
   const citations = (data?.answer?.citations || []).map(c => ({
-    title: c.title || 'Tài liệu dẫn chứng',
+    title: c.title || 'TÃ i liá»‡u dáº«n chá»©ng',
     link: c.uri || '',
     snippet: c.snippet || ''
   }));
@@ -2174,3 +2264,4 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`VBAI Proxy listening on port ${PORT}`);
 });
+

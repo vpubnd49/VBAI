@@ -1,4 +1,4 @@
-﻿import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, query, orderBy, limit, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { fetchSystemConfig, updateSystemConfig } from './system-config.js';
 
@@ -51,6 +51,7 @@ export function renderAdminPanel(container) {
               <div class="form-group">
                 <label class="form-label">Model mặc định (Gemini)</label>
                 <input type="text" id="gemini_model" class="form-input" placeholder="gemini-2.5-pro">
+                <small id="gemini-runtime-warning" class="config-hint" style="display:none; color:#fbbf24;"></small>
               </div>
               <div class="form-group">
                 <label class="form-label">Danh sách Model Gemini</label>
@@ -255,6 +256,7 @@ async function initSystemConfigPanel(container) {
 
   const geminiKeyInput = formEl.querySelector('#gemini_api_key');
   const geminiModelInput = formEl.querySelector('#gemini_model');
+  const geminiRuntimeWarning = formEl.querySelector('#gemini-runtime-warning');
   const transcribeModelInput = formEl.querySelector('#transcribe_model');
   const vertexProjectIdInput = formEl.querySelector('#vertex_project_id');
   const vertexLocationInput = formEl.querySelector('#vertex_location');
@@ -270,7 +272,6 @@ async function initSystemConfigPanel(container) {
   };
 
   let geminiModels = [];
-  let routerModelShadow = 'gpt-4o-mini';
 
   const geminiListEl = setupModelInput(container, 'gemini_model_input', 'add-gemini-model-btn', 'gemini-models-list', () => geminiModels, (next) => {
     geminiModels = next;
@@ -308,6 +309,19 @@ async function initSystemConfigPanel(container) {
     return out;
   }
 
+  function updateGeminiRuntimeWarning(modelName, hasGeminiKey) {
+    if (!geminiRuntimeWarning) return;
+    const normalized = String(modelName || '').trim().toLowerCase();
+    const useProLikeModel = normalized.includes('pro');
+    if (hasGeminiKey && useProLikeModel) {
+      geminiRuntimeWarning.style.display = 'block';
+      geminiRuntimeWarning.textContent = 'Lưu ý: model Pro có thể bị 404 theo quyền dự án. Runtime sẽ tự fallback 1 lần sang gemini-2.5-flash để tránh gián đoạn.';
+      return;
+    }
+    geminiRuntimeWarning.style.display = 'none';
+    geminiRuntimeWarning.textContent = '';
+  }
+
   async function loadConfig() {
     setConfigStatus('Đang tải cấu hình...', 'info');
     try {
@@ -319,7 +333,6 @@ async function initSystemConfigPanel(container) {
         return;
       }
 
-      routerModelShadow = String(config.router_model || 'gpt-4o-mini').trim();
       geminiModelInput.value = config.gemini_model || 'gemini-2.5-pro';
       transcribeModelInput.value = config.transcribe_model || 'whisper-1';
 
@@ -335,6 +348,7 @@ async function initSystemConfigPanel(container) {
       setFallbackSources(config.web_search_fallback_sources || DEFAULT_FALLBACK_SOURCES);
 
       geminiKeyInput.value = config.has_gemini_key ? '••••••••••••' : '';
+      updateGeminiRuntimeWarning(geminiModelInput.value, !!config.has_gemini_key);
 
       geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
       renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
@@ -349,7 +363,6 @@ async function initSystemConfigPanel(container) {
   async function saveConfig() {
     const payload = {
       active_provider: 'gemini',
-      router_model: routerModelShadow,
       gemini_model: geminiModelInput.value.trim(),
       transcribe_model: transcribeModelInput.value.trim() || 'whisper-1',
       web_search_provider: getSelectedRadio('web_search_provider', 'vertex_ai_search'),
@@ -371,7 +384,7 @@ async function initSystemConfigPanel(container) {
       await updateSystemConfig(payload);
       saveStatusEl.className = 'config-save-status success';
       saveStatusEl.textContent = '✅ Đã lưu và áp dụng ngay!';
-      setTimeout(loadConfig, 500);
+      await loadConfig();
     } catch (error) {
       saveStatusEl.className = 'config-save-status error';
       saveStatusEl.textContent = `❌ Lỗi lưu: ${error.message}`;
@@ -386,6 +399,9 @@ async function initSystemConfigPanel(container) {
     saveConfig();
   });
   refreshBtn.addEventListener('click', loadConfig);
+  geminiModelInput.addEventListener('input', () => {
+    updateGeminiRuntimeWarning(geminiModelInput.value, geminiKeyInput.value.includes('•') || !!geminiKeyInput.value.trim());
+  });
   loadConfig();
 }
 

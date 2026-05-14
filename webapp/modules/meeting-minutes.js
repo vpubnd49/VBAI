@@ -1,7 +1,7 @@
 /**
  * Meeting Minutes Module — Redesigned
  * Chuyển đổi audio cuộc họp thành Thông báo kết luận (NĐ30/HD36)
- * Dung OpenAI-compatible API cho xu ly ghi am va phan tich noi dung
+ * Dung Gemini API cho xu ly ghi am va phan tich noi dung
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType } from 'docx';
 import { saveAs } from 'file-saver';
@@ -30,11 +30,6 @@ async function ensureSystemConfig() {
   return systemConfigCache;
 }
 
-const OPENAI_MEETING_MODEL_FALLBACK_ORDER = [
-  "gpt-4.4",
-  "gpt-4o",
-];
-
 const GEMINI_MEETING_MODEL_FALLBACK_ORDER = [
   "gemini-2.5-pro",
   "gemini-2.0-flash-exp",
@@ -43,8 +38,7 @@ const GEMINI_MEETING_MODEL_FALLBACK_ORDER = [
 ];
 
 function getMeetingModelFallbackOrder() {
-  const provider = systemConfigCache?.active_provider || 'openai';
-  return provider === 'gemini' ? GEMINI_MEETING_MODEL_FALLBACK_ORDER : OPENAI_MEETING_MODEL_FALLBACK_ORDER;
+  return GEMINI_MEETING_MODEL_FALLBACK_ORDER;
 }
 
 const PROCESSING_TEXT = "Đang xử lý......";
@@ -99,11 +93,10 @@ function doRender(c) {
 }
 
 function renderStep1(sc, c) {
-  const provider = systemConfigCache?.active_provider || 'openai';
   const supportedFormats = 'MP3, WAV, M4A, OGG, AAC';
 
   sc.innerHTML = `
-    <div class="section-title">📌 Bước 1: Tải lên file ghi âm cuộc họp (${provider === 'gemini' ? 'Gemini' : 'OpenAI'})</div>
+    <div class="section-title">📌 Bước 1: Tải lên file ghi âm cuộc họp (Gemini)</div>
     <div class="panel-group">
       <div class="panel-body" style="text-align: center;">
         <input type="file" id="audio-upload" accept="audio/*" style="display: none;" />
@@ -348,7 +341,7 @@ function renderStep3(sc, c) {
 }
 
 // ==============================================
-// XỬ LÝ GHI ÂM QUA PROXY (OPENAI-COMPATIBLE)
+// XỬ LÝ GHI ÂM QUA PROXY (GEMINI)
 // ==============================================
 function normalizeModelName(model = "") {
   return String(model || "")
@@ -501,7 +494,7 @@ async function processAudioWithProxy(file, progressEl) {
   await ensureSystemConfig();
   const transcribeContext = 'meeting'; // always use proxy context
   const transcribeRouteLabel = 'Proxy';
-  const provider = systemConfigCache?.active_provider || 'openai';
+  const provider = systemConfigCache?.active_provider || 'gemini';
 
   // Support for M4A on Gemini via client-side conversion to WAV
   let activeFile = file;
@@ -657,8 +650,7 @@ async function reanalyzeTranscript() {
   await ensureSystemConfig();
   const transcribeContext = 'meeting';
   const modelCandidates = await resolveMeetingAudioModelCandidates(transcribeContext);
-  const activeProvider = systemConfigCache?.active_provider || 'openai';
-  const defaultModel = activeProvider === 'gemini' ? 'gemini-2.5-pro' : 'gpt-4o';
+  const defaultModel = 'gemini-2.5-pro';
   const strictModel = modelCandidates[0] || defaultModel;
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {

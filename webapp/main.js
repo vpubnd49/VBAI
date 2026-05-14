@@ -19,16 +19,16 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
 
 import { firebaseConfig } from './firebase-config.js';
 
-const GLOBAL_AI_MODEL = 'gpt-4o-mini';
+const GLOBAL_AI_MODEL = 'gemini-2.5-pro';
 const GLOBAL_MEETING_MODEL = 'gemini-2.5-flash';
-const GLOBAL_TRANSCRIBE_MODEL = 'whisper-1';
+const GLOBAL_TRANSCRIBE_MODEL = 'gemini-2.5-flash';
 
 function applyGlobalModelDefaults() {
-  if (!localStorage.getItem('vbai_router_model')) {
-    localStorage.setItem('vbai_router_model', GLOBAL_AI_MODEL);
+  if (!localStorage.getItem('vbai_gemini_model')) {
+    localStorage.setItem('vbai_gemini_model', GLOBAL_AI_MODEL);
   }
-  if (!localStorage.getItem('vbai_router_model_meeting')) {
-    localStorage.setItem('vbai_router_model_meeting', GLOBAL_MEETING_MODEL);
+  if (!localStorage.getItem('vbai_gemini_model_meeting')) {
+    localStorage.setItem('vbai_gemini_model_meeting', GLOBAL_MEETING_MODEL);
   }
   if (!localStorage.getItem('vbai_transcribe_model')) {
     localStorage.setItem('vbai_transcribe_model', GLOBAL_TRANSCRIBE_MODEL);

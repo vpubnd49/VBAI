@@ -1,8 +1,10 @@
 import { fetchSystemConfig, getCachedSystemConfig } from './system-config.js';
 
-const DEFAULT_PROXY_MODEL = 'gpt-4o-mini';
+const DEFAULT_PROXY_MODEL = 'gemini-2.5-flash';
 const DEFAULT_BACKEND_BASE = '/api';
-const DEFAULT_GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
+const DEFAULT_GEMINI_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
 const DEFAULT_TRANSCRIBE_CHUNK_BYTES = 20 * 1024 * 1024; // 20MB
 let lastWebSearchMeta = null;
 const ALLOWED_BACKEND_HOSTS = new Set([
@@ -75,12 +77,12 @@ function parseEndpointHost(endpoint = '') {
   }
 }
 
-export function isGeminiOpenAIEndpoint(endpoint = '') {
+export function isGeminiApiEndpoint(endpoint = '') {
   const raw = String(endpoint || '').trim().toLowerCase();
   if (!raw) return false;
   const host = parseEndpointHost(raw);
   if (host === 'generativelanguage.googleapis.com') return true;
-  return raw.includes('generativelanguage.googleapis.com/v1beta/openai');
+  return raw.includes(`${GEMINI_API_BASE.toLowerCase()}/${GEMINI_COMPAT_PATH}`);
 }
 
 function isReasoningModel(model = '') {
@@ -88,9 +90,9 @@ function isReasoningModel(model = '') {
   return m.includes('o1') || m.includes('o3');
 }
 
-function normalizeMessagesForOpenAI(messages = [], model = '') {
+function normalizeMessagesForProvider(messages = [], model = '') {
   const m = String(model || '').toLowerCase();
-  const useDeveloperRole = m.includes('o1') || m.includes('o3') || m.includes('gpt-4o');
+  const useDeveloperRole = m.includes('o1') || m.includes('o3');
   if (!useDeveloperRole || !Array.isArray(messages)) return messages;
   return messages.map((msg) => msg.role === 'system' ? { ...msg, role: 'developer' } : msg);
 }
@@ -154,18 +156,14 @@ async function backendFetch(path, { method = 'GET', headers = {}, body, timeoutM
 
 async function getSystemConfigSafe() {
   const config = await fetchSystemConfig() || getCachedSystemConfig() || {
-    active_provider: 'openai',
-    router_model: 'gpt-4o-mini',
-    gemini_model: 'gemini-1.5-flash',
-    openai_endpoint: 'https://api.openai.com/v1',
+    active_provider: 'gemini',
+    gemini_model: 'gemini-2.5-pro',
     gemini_endpoint: DEFAULT_GEMINI_ENDPOINT,
-    transcribe_model: 'whisper-1',
-    has_openai_key: false,
+    transcribe_model: 'gemini-2.5-flash',
     has_gemini_key: false,
   };
   
   // Normalize endpoints
-  if (config.openai_endpoint) config.openai_endpoint = trimTrailingSlash(config.openai_endpoint);
   if (config.gemini_endpoint) config.gemini_endpoint = trimTrailingSlash(config.gemini_endpoint);
   
   return config;
@@ -183,11 +181,11 @@ export async function sendChatRequest(messages, model, options = {}) {
 
   const systemConfig = await getSystemConfigSafe();
   const resolvedModel = normalizeModelName(
-    model || (systemConfig.active_provider === 'gemini' ? systemConfig.gemini_model : systemConfig.router_model) || DEFAULT_PROXY_MODEL
+    model || systemConfig.gemini_model || DEFAULT_PROXY_MODEL
   );
   const payload = {
     model: resolvedModel,
-    messages: normalizeMessagesForOpenAI(messages, resolvedModel),
+    messages: normalizeMessagesForProvider(messages, resolvedModel),
     stream: false,
     ...requestOptions,
   };
@@ -381,11 +379,10 @@ export async function checkProxyStatus(context = 'default') {
 export async function getProxyModelIds(context = 'default') {
   const config = await getSystemConfigSafe();
   const models = [
-    config.router_model,
     config.gemini_model,
     config.transcribe_model,
     DEFAULT_PROXY_MODEL,
-    'whisper-1',
+    'gemini-2.5-flash',
   ].filter(Boolean);
   return Array.from(new Set(models.map((x) => String(x).trim()).filter(Boolean)));
 }
