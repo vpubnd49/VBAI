@@ -760,6 +760,7 @@ app.post('/api/web-search', async (req, res) => {
     const providerQuery = effectiveSearchProvider === 'vertex_ai_search'
       ? refinedQuery
       : `${refinedQuery} (${officialDomainClause})`;
+    let cseStrategy = effectiveSearchProvider === 'vertex_ai_search' ? 'vertex_primary' : 'cse_official';
 
     let searchAttempt = await executeSearch(
       providerQuery,
@@ -770,7 +771,7 @@ app.post('/api/web-search', async (req, res) => {
 
     // 2nd attempt: trusted legal reference sites
     if ((!items || items.length === 0) && searchBudgets.useTrustedStage && getRemainingCseBudgetMs() > 900) {
-      cseStrategy = 'cse_trusted';
+      cseStrategy = effectiveSearchProvider === 'vertex_ai_search' ? 'vertex_trusted' : 'cse_trusted';
       searchAttempt = await executeSearch(
         `${refinedQuery} (${trustedReferenceClause})`,
         Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
@@ -781,7 +782,7 @@ app.post('/api/web-search', async (req, res) => {
 
     // 3rd attempt: broad search fallback
     if ((!items || items.length === 0) && searchBudgets.useBroadStage && getRemainingCseBudgetMs() > 900) {
-      cseStrategy = 'cse_broad';
+      cseStrategy = effectiveSearchProvider === 'vertex_ai_search' ? 'vertex_broad' : 'cse_broad';
       searchAttempt = await executeSearch(
         refinedQuery,
         Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
