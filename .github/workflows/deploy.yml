@@ -117,13 +117,29 @@ jobs:
 
       - name: Deploy frontend
         run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --quiet \
-            --project ${{ env.PROJECT_ID }} \
-            --source ./webapp \
-            --region ${{ env.REGION }} \
-            --allow-unauthenticated \
-            --port 8080 \
-            --memory 256Mi \
-            --max-instances 3 \
-            --set-env-vars API_BASE_URL=${{ steps.deploy-proxy.outputs.proxy_url }}
+          set -euo pipefail
+          ATTEMPTS=2
+          COUNT=1
+          until [ "$COUNT" -gt "$ATTEMPTS" ]; do
+            echo "Frontend deploy attempt $COUNT/$ATTEMPTS"
+            if gcloud run deploy ${{ env.SERVICE_NAME }} \
+              --quiet \
+              --project ${{ env.PROJECT_ID }} \
+              --source ./webapp \
+              --region ${{ env.REGION }} \
+              --allow-unauthenticated \
+              --port 8080 \
+              --memory 256Mi \
+              --max-instances 3 \
+              --set-env-vars API_BASE_URL=${{ steps.deploy-proxy.outputs.proxy_url }}; then
+              echo "Frontend deploy succeeded on attempt $COUNT"
+              break
+            fi
+            if [ "$COUNT" -eq "$ATTEMPTS" ]; then
+              echo "Frontend deploy failed after $ATTEMPTS attempts"
+              exit 1
+            fi
+            echo "Frontend deploy failed on attempt $COUNT, retrying in 15s..."
+            COUNT=$((COUNT + 1))
+            sleep 15
+          done
