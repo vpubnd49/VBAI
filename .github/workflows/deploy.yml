@@ -9,6 +9,7 @@ env:
   PROJECT_ID: gen-lang-client-0462350485
   SERVICE_NAME: vbai
   REGION: asia-southeast1
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   deploy:
