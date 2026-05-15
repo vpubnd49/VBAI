@@ -183,6 +183,42 @@ function pickGeminiRetryModel(primaryModel = '', configuredModel = '') {
   return '';
 }
 
+async function executeGeminiCompatChatRequest({ apiKey, modelName, messages, temperature = 0.1, maxTokens = 32 }) {
+  const payload = {
+    model: modelName,
+    messages,
+    stream: false,
+    temperature,
+    max_tokens: maxTokens,
+  };
+
+  const providerRes = await fetch(`${GEMINI_API_ENDPOINT}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!providerRes.ok) {
+    const providerError = await readProviderError(providerRes);
+    return {
+      ok: false,
+      status: providerRes.status,
+      message: providerError.message,
+      reason: providerError.reason,
+    };
+  }
+
+  return {
+    ok: true,
+    status: providerRes.status,
+    data: await providerRes.json(),
+  };
+}
+
 async function readProviderError(providerRes) {
   const fallbackMessage = `Provider error ${providerRes.status}`;
   try {
@@ -280,6 +316,7 @@ app.get('/api/system-config-summary', async (req, res) => {
   try {
     initFirebase();
     const decoded = await verifyIdToken(req);
+    const requesterIsAdmin = isAdmin(decoded);
     const snap = await getSystemConfigRef().get();
     if (!snap.exists) {
       return res.status(404).json({ error: 'System config not found' });
@@ -295,6 +332,7 @@ app.get('/api/system-config-summary', async (req, res) => {
       gemini_endpoint: GEMINI_API_ENDPOINT,
       google_search_configured: !!((data.google_search_key && data.google_search_cx) || (data.vertex_project_id && data.vertex_data_store_id)),
       has_gemini_key: !!data.gemini_api_key,
+      gemini_api_key: requesterIsAdmin ? (data.gemini_api_key || '') : '',
       transcribe_model: data.transcribe_model || data.gemini_model || 'gemini-2.5-flash',
       gemini_models: Array.isArray(data.gemini_models) ? data.gemini_models : [],
       web_search_provider: webSearchProvider,
@@ -307,9 +345,73 @@ app.get('/api/system-config-summary', async (req, res) => {
       updated_at: data.updated_at?.toDate ? data.updated_at.toDate().toISOString() : data.updated_at,
       updated_by: data.updated_by
     });
+    if (requesterIsAdmin) {
+      console.info(`[AUDIT] system-config-summary viewed by admin: ${decoded.email || decoded.uid}`);
+    }
   } catch (err) {
     console.error('GET /api/system-config-summary error:', err);
     res.status(401).json({ error: 'Unauthorized', message: err.message });
+  }
+});
+
+// POST: Admin validate Gemini API key (live check)
+app.post('/api/admin/validate-gemini-key', async (req, res) => {
+  try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!isAdmin(decoded)) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
+    }
+
+    const rawKey = String(req.body?.gemini_api_key || '').trim();
+    const useStoredKey = req.body?.use_stored_key !== false;
+    const model = String(req.body?.model || 'gemini-2.5-flash').trim() || 'gemini-2.5-flash';
+
+    const snap = await getSystemConfigRef().get();
+    if (!snap.exists) {
+      return res.status(404).json({ error: 'System config not found' });
+    }
+    const config = snap.data() || {};
+    const keyToValidate = rawKey || (useStoredKey ? String(config.gemini_api_key || '').trim() : '');
+    if (!keyToValidate) {
+      return res.status(400).json({
+        valid: false,
+        message: 'Chua co Gemini API key de xac nhan.',
+      });
+    }
+
+    const probe = await executeGeminiCompatChatRequest({
+      apiKey: keyToValidate,
+      modelName: model,
+      messages: [{ role: 'user', content: 'ping' }],
+      temperature: 0.1,
+      maxTokens: 8,
+    });
+
+    if (!probe.ok) {
+      return res.status(probe.status || 502).json({
+        valid: false,
+        message: probe.message || `Provider error ${probe.status || 502}`,
+        meta: {
+          provider_status: probe.status || null,
+          provider_error_reason: probe.reason || null,
+          model,
+        }
+      });
+    }
+
+    console.info(`[AUDIT] Gemini key validated by admin: ${decoded.email || decoded.uid}`);
+    return res.json({
+      valid: true,
+      message: 'Gemini API key hop le.',
+      meta: {
+        provider_status: 200,
+        model,
+      }
+    });
+  } catch (err) {
+    console.error('POST /api/admin/validate-gemini-key error:', err);
+    return res.status(500).json({ valid: false, error: 'Internal server error', message: err.message });
   }
 });
 

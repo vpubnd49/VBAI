@@ -204,6 +204,42 @@ export async function updateSystemConfig(configData) {
 }
 
 /**
+ * Validate Gemini API key by calling backend live check endpoint (admin only).
+ */
+export async function validateGeminiApiKey(options = {}) {
+  const token = await getIdToken();
+  if (!token) throw new Error('Not authenticated');
+
+  let backendUrl = DEFAULT_BACKEND_BASE;
+  try {
+    backendUrl = resolveBackendBase();
+  } catch (e) {
+    throw new Error(e?.message || 'Backend URL khong hop le');
+  }
+
+  const payload = {
+    gemini_api_key: String(options?.apiKey || '').trim(),
+    use_stored_key: options?.useStoredKey !== false,
+    model: String(options?.model || '').trim() || undefined,
+  };
+
+  const response = await fetch(`${backendUrl}/admin/validate-gemini-key`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || `HTTP ${response.status}`);
+  }
+  return data;
+}
+
+/**
  * Check if user is admin based on Firebase custom claim.
  * Caches result in localStorage for the session.
  */

@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, query, orderBy, limit, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { fetchSystemConfig, updateSystemConfig } from './system-config.js';
+import { fetchSystemConfig, updateSystemConfig, validateGeminiApiKey } from './system-config.js';
 
 import { firebaseConfig } from '../firebase-config.js';
 
@@ -45,8 +45,16 @@ export function renderAdminPanel(container) {
               </div>
               <div class="form-group">
                 <label class="form-label">Gemini API Key</label>
-                <input type="password" id="gemini_api_key" class="form-input" placeholder="AIza...">
+                <div class="config-inline-row">
+                  <input type="password" id="gemini_api_key" class="form-input config-inline-grow" placeholder="AIza...">
+                  <button type="button" id="toggle-gemini-key-btn" class="btn btn-secondary btn-sm config-inline-add-btn">Hiện key</button>
+                  <button type="button" id="verify-gemini-key-btn" class="btn btn-primary btn-sm config-inline-add-btn">Xác nhận key</button>
+                </div>
+                <label class="config-radio-option" style="margin-top:8px">
+                  <input type="checkbox" id="verify-gemini-on-save" checked> Xác nhận key khi lưu cấu hình
+                </label>
                 <small class="config-hint">Để trống nếu không muốn thay đổi khóa hiện tại</small>
+                <small id="gemini-key-verify-status" class="config-hint"></small>
               </div>
               <div class="form-group">
                 <label class="form-label">Model mặc định (Gemini)</label>
@@ -255,6 +263,10 @@ async function initSystemConfigPanel(container) {
   const saveStatusEl = container.querySelector('#config-save-status');
 
   const geminiKeyInput = formEl.querySelector('#gemini_api_key');
+  const toggleGeminiKeyBtn = formEl.querySelector('#toggle-gemini-key-btn');
+  const verifyGeminiKeyBtn = formEl.querySelector('#verify-gemini-key-btn');
+  const verifyGeminiOnSaveInput = formEl.querySelector('#verify-gemini-on-save');
+  const geminiKeyVerifyStatus = formEl.querySelector('#gemini-key-verify-status');
   const geminiModelInput = formEl.querySelector('#gemini_model');
   const geminiRuntimeWarning = formEl.querySelector('#gemini-runtime-warning');
   const transcribeModelInput = formEl.querySelector('#transcribe_model');
@@ -322,6 +334,49 @@ async function initSystemConfigPanel(container) {
     geminiRuntimeWarning.textContent = '';
   }
 
+  function setGeminiKeyVerifyStatus(message = '', kind = 'info') {
+    if (!geminiKeyVerifyStatus) return;
+    geminiKeyVerifyStatus.textContent = message;
+    if (kind === 'error') {
+      geminiKeyVerifyStatus.style.color = '#f87171';
+      return;
+    }
+    if (kind === 'success') {
+      geminiKeyVerifyStatus.style.color = '#34d399';
+      return;
+    }
+    geminiKeyVerifyStatus.style.color = 'var(--text-muted)';
+  }
+
+  async function runGeminiKeyValidation({ useStoredKey = true } = {}) {
+    if (verifyGeminiKeyBtn) {
+      verifyGeminiKeyBtn.disabled = true;
+      verifyGeminiKeyBtn.textContent = 'Đang kiểm tra...';
+    }
+    setGeminiKeyVerifyStatus('Đang xác nhận Gemini API key...');
+    try {
+      const payload = {
+        apiKey: geminiKeyInput?.value?.trim() || '',
+        useStoredKey,
+        model: geminiModelInput?.value?.trim() || 'gemini-2.5-flash',
+      };
+      const result = await validateGeminiApiKey(payload);
+      if (result?.valid !== true) {
+        throw new Error(result?.message || 'Xác nhận key thất bại.');
+      }
+      setGeminiKeyVerifyStatus('✅ Gemini API key hợp lệ.', 'success');
+      return true;
+    } catch (error) {
+      setGeminiKeyVerifyStatus(`❌ ${error.message}`, 'error');
+      return false;
+    } finally {
+      if (verifyGeminiKeyBtn) {
+        verifyGeminiKeyBtn.disabled = false;
+        verifyGeminiKeyBtn.textContent = 'Xác nhận key';
+      }
+    }
+  }
+
   async function loadConfig() {
     setConfigStatus('Đang tải cấu hình...', 'info');
     try {
@@ -347,7 +402,10 @@ async function initSystemConfigPanel(container) {
       setSelectedRadio('web_search_mode', mode);
       setFallbackSources(config.web_search_fallback_sources || DEFAULT_FALLBACK_SOURCES);
 
-      geminiKeyInput.value = config.has_gemini_key ? '••••••••••••' : '';
+      geminiKeyInput.value = config.gemini_api_key || '';
+      geminiKeyInput.type = 'password';
+      if (toggleGeminiKeyBtn) toggleGeminiKeyBtn.textContent = 'Hiện key';
+      setGeminiKeyVerifyStatus(config.has_gemini_key ? 'Đã lưu Gemini API key. Bạn có thể xác nhận lại bất cứ lúc nào.' : 'Chưa có Gemini API key.');
       updateGeminiRuntimeWarning(geminiModelInput.value, !!config.has_gemini_key);
 
       geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
@@ -373,7 +431,7 @@ async function initSystemConfigPanel(container) {
       vertex_data_store_id: vertexDataStoreIdInput.value.trim(),
       vertex_serving_config: vertexServingConfigInput.value.trim(),
       gemini_models: geminiModels,
-      gemini_api_key: geminiKeyInput.value.includes('•') ? '' : geminiKeyInput.value.trim(),
+      gemini_api_key: geminiKeyInput.value.trim(),
     };
 
     saveBtn.disabled = true;
@@ -381,6 +439,15 @@ async function initSystemConfigPanel(container) {
     saveStatusEl.className = 'config-save-status';
     saveStatusEl.textContent = '';
     try {
+      if (verifyGeminiOnSaveInput?.checked) {
+        const useStoredKey = !payload.gemini_api_key;
+        const keyOk = await runGeminiKeyValidation({ useStoredKey });
+        if (!keyOk) {
+          saveStatusEl.className = 'config-save-status error';
+          saveStatusEl.textContent = '❌ Key chưa hợp lệ nên chưa lưu cấu hình.';
+          return;
+        }
+      }
       await updateSystemConfig(payload);
       saveStatusEl.className = 'config-save-status success';
       saveStatusEl.textContent = '✅ Đã lưu và áp dụng ngay!';
@@ -397,6 +464,15 @@ async function initSystemConfigPanel(container) {
   saveBtn.addEventListener('click', (e) => {
     e.preventDefault();
     saveConfig();
+  });
+  toggleGeminiKeyBtn?.addEventListener('click', () => {
+    const showing = geminiKeyInput.type === 'text';
+    geminiKeyInput.type = showing ? 'password' : 'text';
+    toggleGeminiKeyBtn.textContent = showing ? 'Hiện key' : 'Ẩn key';
+  });
+  verifyGeminiKeyBtn?.addEventListener('click', () => {
+    const useStoredKey = !geminiKeyInput.value.trim();
+    void runGeminiKeyValidation({ useStoredKey });
   });
   refreshBtn.addEventListener('click', loadConfig);
   geminiModelInput.addEventListener('input', () => {

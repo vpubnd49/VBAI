@@ -17,7 +17,7 @@ import {
   sendWebExtractRequest,
 } from './ai-proxy.js';
 
-import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig } from './system-config.js';
+import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig, validateGeminiApiKey } from './system-config.js';
 import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tier-policy.js';
 
 const DEFAULT_MODEL = 'gemini-2.5-pro';
@@ -1078,8 +1078,8 @@ async function buildDelegationFocusedEvidenceResponse(rawUserText = '', searchCo
   for (const link of links) {
     try {
       const extracted = await sendWebExtractRequest(link, [
- 'ieu 14',
-        'y quyn',
+        'dieu 14',
+        'uy quyen',
         'phan cap',
         'phan quyen',
         String(searchContext?.effectiveDocNumber || ''),
@@ -1435,7 +1435,7 @@ export async function sendMessage(text, onChunk) {
     }
 
     if (useWebSearch && shouldSearchWebForFreshness) {
- if (onChunk) onChunk("ang tra cuu du li!u m:i nhat tu Internet...\n");
+      if (onChunk) onChunk("Đang tra cứu dữ liệu mới nhất từ Internet...\n");
       const searchResults = await sendWebSearchRequest(
         searchContext.effectiveQuery,
         searchContext.effectiveDocNumber,
@@ -1449,7 +1449,15 @@ export async function sendMessage(text, onChunk) {
       webSearchMeta = getLastWebSearchMeta();
       const earlyStrictReason = String(webSearchMeta?.strict_reject_reason || '').trim().toLowerCase();
       const earlyLowConfidence = typeof webSearchMeta?.confidence === 'number' && webSearchMeta.confidence < 0.85;
-      if (webSearchResultsText && (earlyStrictReason || earlyLowConfidence)) {
+      const contextualExtractionIntent = Boolean(
+        searchContext?.effectiveDocNumber
+        && (
+          isDelegationFocusQuery(rawUserText)
+          || hasCitationIntent(rawUserText)
+          || Boolean(parseComparisonTargets(rawUserText))
+        ),
+      );
+      if (webSearchResultsText && (earlyStrictReason || earlyLowConfidence) && !contextualExtractionIntent) {
         const bestAlternative = webSearchMeta?.best_alternative && typeof webSearchMeta.best_alternative === 'object'
           ? webSearchMeta.best_alternative
           : null;
@@ -1529,7 +1537,7 @@ export async function sendMessage(text, onChunk) {
             console.warn('Focused delegation web-search skipped:', focusedErr?.message || focusedErr);
           }
         }
- finalUserText = `${contextualUserText}\n\n[Du li!u truc tuyen cap nhat, tra cuu luc ${new Date().toLocaleTimeString('vi-VN')}]:\n${webSearchResultsText}`;
+        finalUserText = `${contextualUserText}\n\n[Du li!u truc tuyen cap nhat, tra cuu luc ${new Date().toLocaleTimeString('vi-VN')}]:\n${webSearchResultsText}`;
       } else {
         const cseDenied = Number(webSearchMeta?.cse_status) === 403
           && /custom search|permission|access/i.test(String(webSearchMeta?.cse_error_reason || ''));
@@ -1578,6 +1586,7 @@ export async function sendMessage(text, onChunk) {
         if (onChunk) onChunk(guardText);
         return guardText;
       }
+
     }
 
     const comparisonAnswerRaw = await buildComparisonTableResponse(rawUserText, searchContext, webSearchResultsText);
@@ -1775,7 +1784,15 @@ export async function renderChatUI(container) {
                   </div>
                   <div class="form-group">
                     <label class="form-label">Gemini API Key</label>
-                    <input type="password" id="modal-gemini-key" class="form-input" placeholder="${configSnapshot.has_gemini_key ? '****************' : 'AIza...'}">
+                    <div class="config-inline-row">
+                      <input type="password" id="modal-gemini-key" class="form-input config-inline-grow" placeholder="AIza..." value="${escapeHtml(configSnapshot.gemini_api_key || '')}">
+                      <button type="button" id="modal-toggle-gemini-key-btn" class="btn btn-secondary btn-sm config-inline-add-btn">Hiện key</button>
+                      <button type="button" id="modal-verify-gemini-key-btn" class="btn btn-primary btn-sm config-inline-add-btn">Xác nhận key</button>
+                    </div>
+                    <label class="config-radio-option" style="margin-top:8px">
+                      <input type="checkbox" id="modal-verify-gemini-on-save" checked> Xác nhận key khi lưu cấu hình
+                    </label>
+                    <small id="modal-gemini-key-status" class="config-hint"></small>
                   </div>
                 </section>
 
@@ -1909,6 +1926,9 @@ export async function renderChatUI(container) {
     if (!isAdmin) return;
     const live = { ...fallbackConfig, ...(config || systemConfigCache || {}) };
     const geminiModelInput = container.querySelector('#modal-gemini-model');
+    const geminiKeyInput = container.querySelector('#modal-gemini-key');
+    const geminiKeyToggleBtn = container.querySelector('#modal-toggle-gemini-key-btn');
+    const geminiKeyStatus = container.querySelector('#modal-gemini-key-status');
     const geminiRuntimeWarning = container.querySelector('#modal-gemini-runtime-warning');
     const projectInput = container.querySelector('#modal-vertex-project-id');
     const locationInput = container.querySelector('#modal-vertex-location');
@@ -1916,6 +1936,17 @@ export async function renderChatUI(container) {
     const servingInput = container.querySelector('#modal-vertex-serving-config');
 
     if (geminiModelInput) geminiModelInput.value = live.gemini_model || 'gemini-2.5-pro';
+    if (geminiKeyInput) {
+      geminiKeyInput.value = live.gemini_api_key || '';
+      geminiKeyInput.type = 'password';
+    }
+    if (geminiKeyToggleBtn) geminiKeyToggleBtn.textContent = 'Hiện key';
+    if (geminiKeyStatus) {
+      geminiKeyStatus.textContent = live.has_gemini_key
+        ? 'Đã lưu Gemini API key. Bạn có thể xác nhận lại bất cứ lúc nào.'
+        : 'Chưa có Gemini API key.';
+      geminiKeyStatus.style.color = 'var(--text-muted)';
+    }
     if (projectInput) projectInput.value = live.vertex_project_id || '';
     if (locationInput) locationInput.value = live.vertex_location || 'global';
     if (dataStoreInput) dataStoreInput.value = live.vertex_data_store_id || '';
@@ -1964,10 +1995,67 @@ export async function renderChatUI(container) {
     const modalStatus = container.querySelector('#modal-save-status');
     const modalGeminiModelInput = container.querySelector('#modal-gemini-model');
     const modalGeminiKey = container.querySelector('#modal-gemini-key');
+    const modalToggleGeminiKeyBtn = container.querySelector('#modal-toggle-gemini-key-btn');
+    const modalVerifyGeminiKeyBtn = container.querySelector('#modal-verify-gemini-key-btn');
+    const modalVerifyGeminiOnSave = container.querySelector('#modal-verify-gemini-on-save');
+    const modalGeminiKeyStatus = container.querySelector('#modal-gemini-key-status');
     const modalVertexProjectId = container.querySelector('#modal-vertex-project-id');
     const modalVertexLocation = container.querySelector('#modal-vertex-location');
     const modalVertexDataStoreId = container.querySelector('#modal-vertex-data-store-id');
     const modalVertexServingConfig = container.querySelector('#modal-vertex-serving-config');
+
+    const setModalKeyStatus = (message = '', kind = 'info') => {
+      if (!modalGeminiKeyStatus) return;
+      modalGeminiKeyStatus.textContent = message;
+      if (kind === 'success') {
+        modalGeminiKeyStatus.style.color = '#34d399';
+        return;
+      }
+      if (kind === 'error') {
+        modalGeminiKeyStatus.style.color = '#f87171';
+        return;
+      }
+      modalGeminiKeyStatus.style.color = 'var(--text-muted)';
+    };
+
+    const runModalKeyValidation = async ({ useStoredKey = true } = {}) => {
+      if (modalVerifyGeminiKeyBtn) {
+        modalVerifyGeminiKeyBtn.disabled = true;
+        modalVerifyGeminiKeyBtn.textContent = 'Đang kiểm tra...';
+      }
+      setModalKeyStatus('Đang xác nhận Gemini API key...');
+      try {
+        const result = await validateGeminiApiKey({
+          apiKey: modalGeminiKey?.value?.trim() || '',
+          useStoredKey,
+          model: modalGeminiModelInput?.value?.trim() || 'gemini-2.5-flash',
+        });
+        if (result?.valid !== true) {
+          throw new Error(result?.message || 'Xác nhận key thất bại.');
+        }
+        setModalKeyStatus('✅ Gemini API key hợp lệ.', 'success');
+        return true;
+      } catch (err) {
+        setModalKeyStatus(`❌ ${err.message}`, 'error');
+        return false;
+      } finally {
+        if (modalVerifyGeminiKeyBtn) {
+          modalVerifyGeminiKeyBtn.disabled = false;
+          modalVerifyGeminiKeyBtn.textContent = 'Xác nhận key';
+        }
+      }
+    };
+
+    modalToggleGeminiKeyBtn?.addEventListener('click', () => {
+      const showing = modalGeminiKey?.type === 'text';
+      if (modalGeminiKey) modalGeminiKey.type = showing ? 'password' : 'text';
+      modalToggleGeminiKeyBtn.textContent = showing ? 'Hiện key' : 'Ẩn key';
+    });
+
+    modalVerifyGeminiKeyBtn?.addEventListener('click', () => {
+      const useStoredKey = !modalGeminiKey?.value?.trim();
+      void runModalKeyValidation({ useStoredKey });
+    });
 
     if (modalSaveBtn) {
       modalSaveBtn.onclick = async () => {
@@ -1988,15 +2076,22 @@ export async function renderChatUI(container) {
             vertex_serving_config: modalVertexServingConfig.value.trim(),
           };
 
-          if (modalGeminiKey.value.trim()) {
-            configUpdate.gemini_api_key = modalGeminiKey.value.trim();
+          configUpdate.gemini_api_key = modalGeminiKey.value.trim();
+
+          if (modalVerifyGeminiOnSave?.checked) {
+            const useStoredKey = !configUpdate.gemini_api_key;
+            const keyOk = await runModalKeyValidation({ useStoredKey });
+            if (!keyOk) {
+              modalStatus.textContent = '❌ Key chưa hợp lệ nên chưa lưu cấu hình.';
+              modalStatus.style.color = '#dc2626';
+              return;
+            }
           }
 
           await updateSystemConfig(configUpdate);
           await loadSystemConfig();
           syncModalFromConfig(systemConfigCache);
 
-          modalGeminiKey.value = '';
           currentModelName = normalizeModelName(systemConfigCache?.gemini_model || 'gemini-2.5-pro') || 'gemini-2.5-pro';
 
           modalStatus.textContent = '\u2705 \u0110\u00e3 l\u01b0u v\u00e0 \u00e1p d\u1ee5ng ngay!';
