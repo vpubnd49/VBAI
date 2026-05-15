@@ -55,6 +55,23 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
 const GEMINI_API_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
 const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-2.5-flash';
+const LEGAL_MATCH_PASS_SCORE = 85;
+const OFFICIAL_SOURCE_HOSTS = Object.freeze([
+  'vbpl.vn',
+  'vanban.chinhphu.vn',
+  'congbao.chinhphu.vn',
+  'chinhphu.vn',
+  'quochoi.vn',
+  'moj.gov.vn',
+  'baochinhphu.vn',
+  'dangcongsan.vn',
+]);
+const REFERENCE_SOURCE_HOSTS = Object.freeze([
+  'thuvienphapluat.vn',
+  'luatvietnam.vn',
+  'vanbanphapluat.com',
+  'thanhchuong.com.vn',
+]);
 
 function normalizeVietnamese(value = '') {
   return String(value || '')
@@ -63,6 +80,81 @@ function normalizeVietnamese(value = '') {
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toLowerCase();
+}
+
+const LEGAL_DOC_TYPE_PATTERNS = Object.freeze({
+  luat: /\bluat\b/,
+  nghi_dinh: /\bnghi\s*dinh\b/,
+  thong_tu: /\bthong\s*tu\b/,
+  nghi_quyet: /\bnghi\s*quyet\b/,
+  quyet_dinh: /\bquyet\s*dinh\b/,
+});
+
+function sanitizeRequestedDocType(raw = '') {
+  const normalized = normalizeVietnamese(String(raw || '')).replace(/\s+/g, '_');
+  if (normalized in LEGAL_DOC_TYPE_PATTERNS) return normalized;
+  return null;
+}
+
+function inferRequestedDocTypeFromQuery(query = '') {
+  const n = normalizeVietnamese(query);
+  if (LEGAL_DOC_TYPE_PATTERNS.nghi_quyet.test(n)) return 'nghi_quyet';
+  if (LEGAL_DOC_TYPE_PATTERNS.nghi_dinh.test(n)) return 'nghi_dinh';
+  if (LEGAL_DOC_TYPE_PATTERNS.thong_tu.test(n)) return 'thong_tu';
+  if (LEGAL_DOC_TYPE_PATTERNS.quyet_dinh.test(n)) return 'quyet_dinh';
+  if (LEGAL_DOC_TYPE_PATTERNS.luat.test(n)) return 'luat';
+  return null;
+}
+
+function extractPartialDocNumber(query = '') {
+  const match = String(query || '').toUpperCase().match(/\b\d{1,4}\/\d{4}\b/);
+  return match ? String(match[0] || '').toUpperCase() : null;
+}
+
+function inferDocTypeFromText(text = '') {
+  const n = normalizeVietnamese(text);
+  if (LEGAL_DOC_TYPE_PATTERNS.nghi_quyet.test(n)) return 'nghi_quyet';
+  if (LEGAL_DOC_TYPE_PATTERNS.nghi_dinh.test(n)) return 'nghi_dinh';
+  if (LEGAL_DOC_TYPE_PATTERNS.thong_tu.test(n)) return 'thong_tu';
+  if (LEGAL_DOC_TYPE_PATTERNS.quyet_dinh.test(n)) return 'quyet_dinh';
+  if (LEGAL_DOC_TYPE_PATTERNS.luat.test(n)) return 'luat';
+  return null;
+}
+
+function isDocTypeMatchForItem(item = {}, requestedDocType = null) {
+  if (!requestedDocType) return true;
+  const inferred = inferDocTypeFromText(`${item?.title || ''} ${item?.snippet || ''} ${item?.link || ''}`);
+  return inferred === requestedDocType;
+}
+
+function toHost(rawUrl = '') {
+  try {
+    return new URL(String(rawUrl || '').trim()).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function isOfficialHost(host = '') {
+  const h = String(host || '').toLowerCase();
+  if (!h) return false;
+  if (OFFICIAL_SOURCE_HOSTS.some((official) => h === official || h.endsWith(`.${official}`))) return true;
+  if (h.endsWith('.gov.vn')) return true;
+  return false;
+}
+
+function isReferenceHost(host = '') {
+  const h = String(host || '').toLowerCase();
+  if (!h) return false;
+  return REFERENCE_SOURCE_HOSTS.some((reference) => h === reference || h.endsWith(`.${reference}`));
+}
+
+function detectSourceTier({ link = '', source = '' } = {}) {
+  const fromSource = String(source || '').trim().toLowerCase().replace(/^www\./, '');
+  const host = fromSource || toHost(link);
+  if (isOfficialHost(host)) return 'official';
+  if (isReferenceHost(host)) return 'reference';
+  return 'unknown';
 }
 
 function normalizeModelInput(value = '') {
@@ -608,7 +700,15 @@ app.post('/api/web-search', async (req, res) => {
     const decoded = await verifyIdToken(req);
 
     const requestStartMs = Date.now();
-    const { query, expectedDocNumber, forceFresh = false, freshnessLevel, recencyDays } = req.body;
+    const {
+      query,
+      expectedDocNumber,
+      partialDocNumber,
+      requestedDocType,
+      forceFresh = false,
+      freshnessLevel,
+      recencyDays,
+    } = req.body;
     if (!query || typeof query !== 'string') {
       return res.status(400).json({ error: 'query required' });
     }
@@ -641,9 +741,22 @@ app.post('/api/web-search', async (req, res) => {
 
     const normalizedFreshnessLevel = String(freshnessLevel || '').toLowerCase().trim();
     const normalizedRecencyDays = Number(recencyDays);
+    const normalizedExpectedDocNumber = String(expectedDocNumber || '').trim().toUpperCase() || null;
+    const inferredPartialDocNumber = extractPartialDocNumber(query);
+    const normalizedPartialDocNumber = String(partialDocNumber || inferredPartialDocNumber || '').trim().toUpperCase() || null;
+    const effectiveRequestedDocType = sanitizeRequestedDocType(requestedDocType) || inferRequestedDocTypeFromQuery(query);
+    const requestDocMatchLevel = detectDocNumberMatchLevel({
+      expectedDocNumber: normalizedExpectedDocNumber,
+      partialDocNumber: normalizedPartialDocNumber,
+    });
+    const strictPartialReject = requestDocMatchLevel === 'partial'
+      && !!effectiveRequestedDocType
+      && !normalizedExpectedDocNumber;
     const cacheKey = buildWebSearchCacheKey({
       query,
-      expectedDocNumber,
+      expectedDocNumber: normalizedExpectedDocNumber,
+      partialDocNumber: normalizedPartialDocNumber,
+      requestedDocType: effectiveRequestedDocType,
       forceFresh: forceFresh === true,
       freshnessLevel: normalizedFreshnessLevel,
       recencyDays: normalizedRecencyDays,
@@ -667,11 +780,21 @@ app.post('/api/web-search', async (req, res) => {
     if (forceFresh !== true) {
       const hotIndexHit = await findHotIndexHit({
         query,
-        expectedDocNumber: expectedDocNumber || null,
+        expectedDocNumber: normalizedExpectedDocNumber || null,
       });
       if (hotIndexHit && Array.isArray(hotIndexHit.items) && hotIndexHit.items.length > 0) {
+        const typedHotItems = filterItemsByRequestedDocType(hotIndexHit.items, effectiveRequestedDocType);
+        const hotItems = effectiveRequestedDocType ? typedHotItems : hotIndexHit.items;
+        const validation = validateLegalDocumentMatch({
+          query,
+          items: hotItems,
+          expectedDocNumber: normalizedExpectedDocNumber,
+          partialDocNumber: normalizedPartialDocNumber,
+          requestedDocType: effectiveRequestedDocType,
+        });
+        const finalHotItems = validation.ok ? validation.approvedItems : [];
         return res.json({
-          results: formatSearchResults(hotIndexHit.items),
+          results: formatSearchResults(finalHotItems),
           meta: buildWebSearchMeta({
             strategy: hotIndexHit.strategy || 'hot_index',
             webSearchProvider: effectiveSearchProvider,
@@ -679,13 +802,25 @@ app.post('/api/web-search', async (req, res) => {
             query,
             refinedQuery: query,
             dateRestrict: null,
-            expectedDocNumber: expectedDocNumber || null,
-            exactMatch: hotIndexHit.exactMatch === true,
+            expectedDocNumber: normalizedExpectedDocNumber || null,
+            exactMatch: normalizedExpectedDocNumber ? (validation.ok && hotIndexHit.exactMatch === true) : null,
             cseStatus: null,
             cseErrorReason: null,
             fallbackUsed: false,
             enabledFallbackSources: fallbackSources,
-            items: hotIndexHit.items,
+            items: finalHotItems,
+            requestedDocType: validation.requestedDocType || effectiveRequestedDocType,
+            docNumberMatchLevel: validation.docNumberMatchLevel || requestDocMatchLevel,
+            typeMatch: typeof validation.typeMatch === 'boolean'
+              ? validation.typeMatch
+              : detectTypeMatchFromItems(finalHotItems, effectiveRequestedDocType),
+            strictRejectReason: validation.strictRejectReason
+              || (strictPartialReject ? 'partial_doc_number_requires_full' : null),
+            confidence: validation.confidence,
+            matchScore: validation.matchScore,
+            matchBreakdown: validation.matchBreakdown,
+            sourceTierSummary: validation.sourceTierSummary,
+            bestAlternative: validation.bestAlternative,
             cacheHit: false,
             servedInMs: Date.now() - requestStartMs,
           }),
@@ -700,8 +835,16 @@ app.post('/api/web-search', async (req, res) => {
           vertexConfig,
           timeoutMs: 30000
         });
+        const validation = validateLegalDocumentMatch({
+          query,
+          items: answerResult.citations || [],
+          expectedDocNumber: normalizedExpectedDocNumber,
+          partialDocNumber: normalizedPartialDocNumber,
+          requestedDocType: effectiveRequestedDocType,
+        });
+        const finalCitations = validation.ok ? validation.approvedItems : [];
         return res.json({
-          results: answerResult.answer,
+          results: validation.ok ? String(answerResult.answer || '') : '',
           meta: buildWebSearchMeta({
             strategy: 'vertex_answer_api',
             webSearchProvider: effectiveSearchProvider,
@@ -709,13 +852,25 @@ app.post('/api/web-search', async (req, res) => {
             query,
             refinedQuery: query,
             dateRestrict: null,
-            expectedDocNumber: expectedDocNumber || null,
+            expectedDocNumber: normalizedExpectedDocNumber || null,
             exactMatch: true,
             cseStatus: null,
             cseErrorReason: null,
             fallbackUsed: false,
             enabledFallbackSources: fallbackSources,
-            items: answerResult.citations,
+            items: finalCitations,
+            requestedDocType: validation.requestedDocType || effectiveRequestedDocType,
+            docNumberMatchLevel: validation.docNumberMatchLevel || requestDocMatchLevel,
+            typeMatch: typeof validation.typeMatch === 'boolean'
+              ? validation.typeMatch
+              : detectTypeMatchFromItems(finalCitations, effectiveRequestedDocType),
+            strictRejectReason: validation.strictRejectReason
+              || (strictPartialReject ? 'partial_doc_number_requires_full' : null),
+            confidence: validation.confidence,
+            matchScore: validation.matchScore,
+            matchBreakdown: validation.matchBreakdown,
+            sourceTierSummary: validation.sourceTierSummary,
+            bestAlternative: validation.bestAlternative,
             cacheHit: false,
             servedInMs: Date.now() - requestStartMs,
           }),
@@ -770,7 +925,7 @@ app.post('/api/web-search', async (req, res) => {
       fallback_used: false,
     };
 
-    const runDirectFallback = async (docNumber = expectedDocNumber, fallbackQuery = refinedQuery) => {
+    const runDirectFallback = async (docNumber = normalizedExpectedDocNumber, fallbackQuery = refinedQuery) => {
       return fetchDirectOfficialSources({
         query: fallbackQuery,
         expectedDocNumber: docNumber || null,
@@ -786,9 +941,30 @@ app.post('/api/web-search', async (req, res) => {
       exactMatch = null,
       noExactMatch = false,
       fallbackUsed = false,
+      strictRejectReason = null,
     }) => {
-      const responseResults = noExactMatch ? '__NO_EXACT_MATCH__' : formatSearchResults(items);
+      const validation = validateLegalDocumentMatch({
+        query,
+        items,
+        expectedDocNumber: normalizedExpectedDocNumber,
+        partialDocNumber: normalizedPartialDocNumber,
+        requestedDocType: effectiveRequestedDocType,
+      });
+      const typedItems = filterItemsByRequestedDocType(items, effectiveRequestedDocType);
+      let finalItems = [];
+      if (validation.ok) {
+        finalItems = Array.isArray(validation.approvedItems) ? validation.approvedItems : [];
+      } else if (!effectiveRequestedDocType && !validation.strictRejectReason) {
+        finalItems = typedItems;
+      }
+      const responseResults = noExactMatch ? '__NO_EXACT_MATCH__' : formatSearchResults(finalItems);
       diagnostics.fallback_used = fallbackUsed === true;
+      const effectiveStrictRejectReason = strictRejectReason
+        || validation.strictRejectReason
+        || (effectiveRequestedDocType && (!finalItems || finalItems.length === 0) && Array.isArray(items) && items.length > 0
+          ? 'no_type_match'
+          : null)
+        || (strictPartialReject ? 'partial_doc_number_requires_full' : null);
       const meta = buildWebSearchMeta({
         strategy,
         webSearchProvider: effectiveSearchProvider,
@@ -796,13 +972,24 @@ app.post('/api/web-search', async (req, res) => {
         query,
         refinedQuery,
         dateRestrict,
-        expectedDocNumber: expectedDocNumber || null,
+        expectedDocNumber: normalizedExpectedDocNumber || null,
         exactMatch,
         cseStatus: diagnostics.cse_status,
         cseErrorReason: diagnostics.cse_error_reason,
         fallbackUsed: diagnostics.fallback_used,
         enabledFallbackSources: fallbackSources,
-        items,
+        items: finalItems,
+        requestedDocType: validation.requestedDocType || effectiveRequestedDocType,
+        docNumberMatchLevel: validation.docNumberMatchLevel || requestDocMatchLevel,
+        typeMatch: typeof validation.typeMatch === 'boolean'
+          ? validation.typeMatch
+          : detectTypeMatchFromItems(finalItems, effectiveRequestedDocType),
+        strictRejectReason: effectiveStrictRejectReason,
+        confidence: validation.confidence,
+        matchScore: validation.matchScore,
+        matchBreakdown: validation.matchBreakdown,
+        sourceTierSummary: validation.sourceTierSummary,
+        bestAlternative: validation.bestAlternative,
         cacheHit: false,
         servedInMs: Date.now() - requestStartMs,
       });
@@ -810,13 +997,17 @@ app.post('/api/web-search', async (req, res) => {
         results: responseResults,
         meta,
       };
-      const shouldCache = forceFresh !== true && !noExactMatch && Array.isArray(items) && items.length > 0;
+      const shouldCache = forceFresh !== true
+        && validation.ok
+        && !noExactMatch
+        && Array.isArray(finalItems)
+        && finalItems.length > 0;
       if (shouldCache) setWebSearchCache(cacheKey, payload);
       if (shouldCache) {
         updateWebSearchHotIndex({
           query: refinedQuery || query,
-          expectedDocNumber: expectedDocNumber || null,
-          items,
+          expectedDocNumber: normalizedExpectedDocNumber || null,
+          items: finalItems,
           exactMatch,
           strategy,
         }).catch((err) => console.warn('Hot index async update skipped:', err?.message || err));
@@ -886,7 +1077,7 @@ app.post('/api/web-search', async (req, res) => {
         return sendWebSearchResponse({
           strategy: diagnostics.cse_error_reason ? 'cse_error_fast' : 'cse_empty_fast',
           items: [],
-          exactMatch: expectedDocNumber ? false : null,
+          exactMatch: normalizedExpectedDocNumber ? false : null,
         });
       }
       const directItems = await runDirectFallback();
@@ -894,7 +1085,7 @@ app.post('/api/web-search', async (req, res) => {
         return sendWebSearchResponse({
           strategy: webSearchMode === 'fast_primary' ? 'fast_primary_empty' : 'direct_fallback_empty',
           items: [],
-          exactMatch: expectedDocNumber ? false : null,
+          exactMatch: normalizedExpectedDocNumber ? false : null,
           fallbackUsed: true,
         });
       }
@@ -903,14 +1094,17 @@ app.post('/api/web-search', async (req, res) => {
           ? (diagnostics.cse_error_reason ? 'fast_primary_cse_error_direct_fallback' : 'fast_primary_direct_fallback')
           : (diagnostics.cse_error_reason ? 'cse_error_direct_fallback' : 'direct_fallback'),
         items: directItems,
-        exactMatch: expectedDocNumber ? true : null,
+        exactMatch: normalizedExpectedDocNumber ? true : null,
         fallbackUsed: true,
       });
     }
 
     // If an exact document number is expected, filter results to only those containing it.
-    if (expectedDocNumber) {
-      const exactItems = pickExactDocItems(items, expectedDocNumber);
+    if (normalizedExpectedDocNumber) {
+      const exactItems = filterItemsByRequestedDocType(
+        pickExactDocItems(items, normalizedExpectedDocNumber),
+        effectiveRequestedDocType,
+      );
       if (exactItems.length > 0) {
         return sendWebSearchResponse({
           strategy: `${cseStrategy}_exact_match`,
@@ -920,9 +1114,9 @@ app.post('/api/web-search', async (req, res) => {
       }
 
       const targetedQueries = [
-        `${expectedDocNumber} ${refinedQuery}`,
-        `${expectedDocNumber} luat`,
-        `${expectedDocNumber}`,
+        `${normalizedExpectedDocNumber} ${refinedQuery}`,
+        `${normalizedExpectedDocNumber} luat`,
+        `${normalizedExpectedDocNumber}`,
       ];
       for (const targetedQuery of targetedQueries) {
         if (getRemainingCseBudgetMs() <= 900) break;
@@ -931,7 +1125,10 @@ app.post('/api/web-search', async (req, res) => {
           Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
         );
         captureCseDiagnostic(targetedAttempt);
-        const targetedExactItems = pickExactDocItems(targetedAttempt.items || [], expectedDocNumber);
+        const targetedExactItems = filterItemsByRequestedDocType(
+          pickExactDocItems(targetedAttempt.items || [], normalizedExpectedDocNumber),
+          effectiveRequestedDocType,
+        );
         if (targetedExactItems.length > 0) {
           return sendWebSearchResponse({
             strategy: `${cseStrategy}_targeted_exact_match`,
@@ -947,10 +1144,14 @@ app.post('/api/web-search', async (req, res) => {
           items: [],
           exactMatch: false,
           noExactMatch: true,
+          strictRejectReason: 'no_exact_type_match',
         });
       }
 
-      const directExactItems = await runDirectFallback(expectedDocNumber, `${expectedDocNumber} ${refinedQuery}`);
+      const directExactItems = filterItemsByRequestedDocType(
+        await runDirectFallback(normalizedExpectedDocNumber, `${normalizedExpectedDocNumber} ${refinedQuery}`),
+        effectiveRequestedDocType,
+      );
       if (!directExactItems || directExactItems.length === 0) {
         return sendWebSearchResponse({
           strategy: 'no_exact_match',
@@ -958,6 +1159,7 @@ app.post('/api/web-search', async (req, res) => {
           exactMatch: false,
           noExactMatch: true,
           fallbackUsed: true,
+          strictRejectReason: 'no_exact_type_match',
         });
       }
       return sendWebSearchResponse({
@@ -1147,15 +1349,327 @@ function extractDocNumbersFromItems(items = []) {
   return Array.from(found);
 }
 
+function extractFirstDocNumber(text = '') {
+  const match = String(text || '').toUpperCase().match(/\b\d{1,4}\/\d{4}\/[A-Z0-9-]+\b/);
+  return match ? String(match[0] || '').toUpperCase() : '';
+}
+
+function extractYearFromText(text = '') {
+  const yearMatch = String(text || '').match(/\b(20\d{2})\b/);
+  return yearMatch ? Number(yearMatch[1]) : null;
+}
+
+function tokenizeText(value = '') {
+  return normalizeVietnamese(String(value || ''))
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean);
+}
+
+function inferIssuerFromText(text = '') {
+  const n = normalizeVietnamese(text);
+  if (/\bquoc hoi\b/.test(n) || /\bqh\d{2}\b/.test(n)) return 'quoc_hoi';
+  if (/\bchinh phu\b/.test(n) || /\bnd-cp\b/.test(String(text || '').toUpperCase())) return 'chinh_phu';
+  if (/\bbo\b/.test(n) || /\btt-b[a-z0-9-]+\b/.test(String(text || '').toUpperCase())) return 'bo_nganh';
+  if (/\bubnd\b/.test(n)) return 'ubnd';
+  return null;
+}
+
+function parseUserQueryConstraints({
+  query = '',
+  expectedDocNumber = null,
+  partialDocNumber = null,
+  requestedDocType = null,
+} = {}) {
+  const text = String(query || '');
+  const normalizedExpected = String(expectedDocNumber || '').trim().toUpperCase() || null;
+  const normalizedPartial = String(partialDocNumber || '').trim().toUpperCase() || null;
+  const normalizedType = sanitizeRequestedDocType(requestedDocType) || inferRequestedDocTypeFromQuery(text);
+  const yearFromDoc = extractYearFromText(normalizedExpected || normalizedPartial || '');
+  const yearFromQuery = extractYearFromText(text);
+  const year = yearFromDoc || yearFromQuery || null;
+  const issuer = inferIssuerFromText(text);
+
+  const stripped = normalizeVietnamese(text)
+    .replace(/\b\d{1,4}\/\d{4}(?:\/[a-z0-9-]+)?\b/g, ' ')
+    .replace(/\b(luat|nghi dinh|thong tu|nghi quyet|quyet dinh|cong van|so|hieu|nam|ban hanh|hieu luc)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const titleTerms = tokenizeText(stripped).filter((token) => token.length >= 3).slice(0, 12);
+
+  return {
+    requestedDocType: normalizedType,
+    fullDocNumber: normalizedExpected,
+    partialDocNumber: normalizedPartial,
+    docNumberMatchLevel: normalizedExpected ? 'full' : (normalizedPartial ? 'partial' : 'none'),
+    issuer,
+    year,
+    titleTerms,
+  };
+}
+
+function normalizeCandidateMetadata(item = {}) {
+  const title = String(item?.title || '').trim();
+  const snippet = String(item?.snippet || '').trim();
+  const link = String(item?.link || '').trim();
+  const hay = `${title} ${snippet} ${link}`.trim();
+  const soHieu = extractFirstDocNumber(hay);
+  const issuer = inferIssuerFromText(hay);
+  const sourceTier = detectSourceTier({ link, source: item?.source });
+
+  return {
+    loai_van_ban: inferDocTypeFromText(hay),
+    so_hieu: soHieu || '',
+    ngay_ban_hanh: '',
+    ngay_hieu_luc: '',
+    co_quan_ban_hanh: issuer || '',
+    trich_yeu_hoac_ten_van_ban: title || '',
+    tinh_trang_hieu_luc: '',
+    nam_ban_hanh: extractYearFromText(soHieu || hay),
+    nguon: toHost(link) || String(item?.source || '').trim().toLowerCase(),
+    is_official_source: sourceTier === 'official',
+    source_tier: sourceTier,
+  };
+}
+
+function scoreTitleMatch(constraints = {}, metadata = {}, item = {}) {
+  if (!Array.isArray(constraints.titleTerms) || constraints.titleTerms.length === 0) {
+    return { score: 0, ratio: 0 };
+  }
+  const hayTokens = new Set(tokenizeText(`${metadata.trich_yeu_hoac_ten_van_ban || ''} ${item?.snippet || ''}`));
+  if (hayTokens.size === 0) return { score: 0, ratio: 0 };
+  let hit = 0;
+  constraints.titleTerms.forEach((term) => {
+    if (hayTokens.has(term)) hit += 1;
+  });
+  const ratio = hit / constraints.titleTerms.length;
+  if (ratio >= 0.55) return { score: 30, ratio };
+  if (ratio >= 0.35) return { score: 18, ratio };
+  if (ratio >= 0.2) return { score: 8, ratio };
+  return { score: 0, ratio };
+}
+
+function validateLegalDocumentMatch({
+  query = '',
+  items = [],
+  expectedDocNumber = null,
+  partialDocNumber = null,
+  requestedDocType = null,
+} = {}) {
+  const constraints = parseUserQueryConstraints({
+    query,
+    expectedDocNumber,
+    partialDocNumber,
+    requestedDocType,
+  });
+  const originalItems = Array.isArray(items) ? items : [];
+  const normalized = originalItems.map((item) => ({ item, metadata: normalizeCandidateMetadata(item) }));
+  const sourceTierSummaryRaw = normalized.reduce((acc, entry) => {
+    if (entry.metadata.source_tier === 'official') acc.official += 1;
+    else if (entry.metadata.source_tier === 'reference') acc.reference += 1;
+    else acc.unknown += 1;
+    return acc;
+  }, { official: 0, reference: 0, unknown: 0 });
+
+  if (constraints.docNumberMatchLevel === 'partial' && constraints.requestedDocType && !constraints.fullDocNumber) {
+    return {
+      ok: false,
+      strictRejectReason: 'partial_doc_number_requires_full',
+      confidence: 0,
+      matchScore: 0,
+      matchBreakdown: { doc_type: 0, doc_number: 0, title: 0, issuer: 0, date: 0 },
+      sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+      requestedDocType: constraints.requestedDocType,
+      docNumberMatchLevel: constraints.docNumberMatchLevel,
+      typeMatch: null,
+      approvedItems: [],
+      bestAlternative: null,
+    };
+  }
+
+  const typed = constraints.requestedDocType
+    ? normalized.filter((entry) => entry.metadata.loai_van_ban === constraints.requestedDocType)
+    : normalized;
+  const typeMatch = constraints.requestedDocType ? typed.length > 0 : null;
+  if (constraints.requestedDocType && typed.length === 0) {
+    return {
+      ok: false,
+      strictRejectReason: 'no_type_match',
+      confidence: 0,
+      matchScore: 0,
+      matchBreakdown: { doc_type: 0, doc_number: 0, title: 0, issuer: 0, date: 0 },
+      sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+      requestedDocType: constraints.requestedDocType,
+      docNumberMatchLevel: constraints.docNumberMatchLevel,
+      typeMatch,
+      approvedItems: [],
+      bestAlternative: null,
+    };
+  }
+
+  const preferredPool = typed.some((entry) => entry.metadata.is_official_source)
+    ? typed.filter((entry) => entry.metadata.is_official_source)
+    : typed;
+
+  const scored = preferredPool.map((entry) => {
+    const breakdown = { doc_type: 0, doc_number: 0, title: 0, issuer: 0, date: 0 };
+
+    if (constraints.requestedDocType && entry.metadata.loai_van_ban === constraints.requestedDocType) {
+      breakdown.doc_type = 20;
+    }
+
+    if (constraints.fullDocNumber) {
+      const hay = `${entry.item?.title || ''} ${entry.item?.snippet || ''} ${entry.item?.link || ''}`;
+      if (hasExpectedDocNumber(hay, constraints.fullDocNumber)) {
+        breakdown.doc_number = 25;
+      }
+    } else if (constraints.partialDocNumber && entry.metadata.so_hieu.startsWith(`${constraints.partialDocNumber}/`)) {
+      breakdown.doc_number = 10;
+    }
+
+    const titleMatch = scoreTitleMatch(constraints, entry.metadata, entry.item);
+    breakdown.title = titleMatch.score;
+
+    if (constraints.issuer && constraints.issuer === entry.metadata.co_quan_ban_hanh) {
+      breakdown.issuer = 15;
+    }
+
+    if (constraints.year && Number(entry.metadata.nam_ban_hanh) === Number(constraints.year)) {
+      breakdown.date = 10;
+    }
+
+    const score = breakdown.doc_type + breakdown.doc_number + breakdown.title + breakdown.issuer + breakdown.date;
+    const confidence = Math.max(0, Math.min(1, score / 100));
+    const metadataComplete = Boolean(
+      entry.metadata.loai_van_ban
+      && entry.metadata.so_hieu
+      && entry.metadata.nam_ban_hanh
+      && entry.metadata.co_quan_ban_hanh
+      && entry.metadata.trich_yeu_hoac_ten_van_ban
+    );
+
+    return {
+      ...entry,
+      breakdown,
+      score,
+      confidence,
+      metadataComplete,
+    };
+  }).sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+    if (a.metadata.is_official_source !== b.metadata.is_official_source) {
+      return a.metadata.is_official_source ? -1 : 1;
+    }
+    return 0;
+  });
+
+  const best = scored[0] || null;
+  const bestAlternative = best ? {
+    so_hieu: best.metadata.so_hieu || null,
+    loai_van_ban: best.metadata.loai_van_ban || null,
+    trich_yeu_hoac_ten_van_ban: best.metadata.trich_yeu_hoac_ten_van_ban || null,
+    nguon: best.metadata.nguon || null,
+    is_official_source: best.metadata.is_official_source === true,
+  } : null;
+
+  if (!best) {
+    return {
+      ok: false,
+      strictRejectReason: 'metadata_incomplete',
+      confidence: 0,
+      matchScore: 0,
+      matchBreakdown: { doc_type: 0, doc_number: 0, title: 0, issuer: 0, date: 0 },
+      sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+      requestedDocType: constraints.requestedDocType,
+      docNumberMatchLevel: constraints.docNumberMatchLevel,
+      typeMatch,
+      approvedItems: [],
+      bestAlternative: null,
+    };
+  }
+
+  if (constraints.fullDocNumber && best.breakdown.doc_number <= 0) {
+    return {
+      ok: false,
+      strictRejectReason: 'no_exact_match',
+      confidence: best.confidence,
+      matchScore: best.score,
+      matchBreakdown: best.breakdown,
+      sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+      requestedDocType: constraints.requestedDocType,
+      docNumberMatchLevel: constraints.docNumberMatchLevel,
+      typeMatch,
+      approvedItems: [],
+      bestAlternative,
+    };
+  }
+
+  if (!best.metadataComplete) {
+    return {
+      ok: false,
+      strictRejectReason: 'metadata_incomplete',
+      confidence: best.confidence,
+      matchScore: best.score,
+      matchBreakdown: best.breakdown,
+      sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+      requestedDocType: constraints.requestedDocType,
+      docNumberMatchLevel: constraints.docNumberMatchLevel,
+      typeMatch,
+      approvedItems: [],
+      bestAlternative,
+    };
+  }
+
+  if (best.score < LEGAL_MATCH_PASS_SCORE) {
+    return {
+      ok: false,
+      strictRejectReason: 'low_confidence',
+      confidence: best.confidence,
+      matchScore: best.score,
+      matchBreakdown: best.breakdown,
+      sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+      requestedDocType: constraints.requestedDocType,
+      docNumberMatchLevel: constraints.docNumberMatchLevel,
+      typeMatch,
+      approvedItems: [],
+      bestAlternative,
+    };
+  }
+
+  return {
+    ok: true,
+    strictRejectReason: null,
+    confidence: best.confidence,
+    matchScore: best.score,
+    matchBreakdown: best.breakdown,
+    sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+    requestedDocType: constraints.requestedDocType,
+    docNumberMatchLevel: constraints.docNumberMatchLevel,
+    typeMatch,
+    approvedItems: [best.item],
+    bestAlternative,
+  };
+}
+
 function formatSearchResults(items = []) {
   return (items || [])
     .slice(0, 8)
     .map((item) => {
       const title = String(item?.title || 'No Title').replace(/[\r\n]+/g, ' ').trim();
       const link = String(item?.link || '#').trim();
+      const sourceHost = toHost(link) || String(item?.source || '').trim().toLowerCase();
+      const sourceTier = detectSourceTier({ link, source: item?.source });
+      const sourceLabel = sourceTier === 'official'
+        ? 'Chinh thuc'
+        : sourceTier === 'reference'
+          ? 'Tham khao'
+          : 'Khac';
       const snippetParts = [
         String(item?.snippet || '').replace(/[\r\n]+/g, ' ').trim(),
-        item?.source ? `[Nguon truc tiep: ${item.source}]` : '',
+        sourceHost ? `[Nguon: ${sourceHost} (${sourceLabel})]` : '',
       ].filter(Boolean);
       const snippet = snippetParts.join(' ');
       return `- [${title}](${link}): ${snippet}`;
@@ -1189,6 +1703,15 @@ function buildWebSearchMeta({
   fallbackUsed = false,
   enabledFallbackSources = DEFAULT_WEB_SEARCH_FALLBACK_SOURCES,
   items = [],
+  requestedDocType = null,
+  docNumberMatchLevel = 'none',
+  typeMatch = null,
+  strictRejectReason = null,
+  confidence = null,
+  matchScore = null,
+  matchBreakdown = null,
+  sourceTierSummary = null,
+  bestAlternative = null,
   cacheHit = false,
   servedInMs = null,
 }) {
@@ -1205,6 +1728,34 @@ function buildWebSearchMeta({
     cse_error_reason: cseErrorReason ? String(cseErrorReason) : null,
     fallback_used: fallbackUsed === true,
     enabled_fallback_sources: getEnabledFallbackSourceIds(enabledFallbackSources),
+    requested_doc_type: sanitizeRequestedDocType(requestedDocType),
+    doc_number_match_level: ['none', 'partial', 'full'].includes(String(docNumberMatchLevel || '').toLowerCase())
+      ? String(docNumberMatchLevel || '').toLowerCase()
+      : 'none',
+    type_match: typeof typeMatch === 'boolean' ? typeMatch : null,
+    strict_reject_reason: strictRejectReason ? String(strictRejectReason) : null,
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, Number(confidence))) : null,
+    match_score: Number.isFinite(matchScore) ? Math.max(0, Math.min(100, Math.round(Number(matchScore)))) : null,
+    match_breakdown: matchBreakdown && typeof matchBreakdown === 'object' ? {
+      doc_type: Number(matchBreakdown.doc_type || 0),
+      doc_number: Number(matchBreakdown.doc_number || 0),
+      title: Number(matchBreakdown.title || 0),
+      issuer: Number(matchBreakdown.issuer || 0),
+      date: Number(matchBreakdown.date || 0),
+    } : null,
+    source_tier_summary: sourceTierSummary && typeof sourceTierSummary === 'object' ? {
+      official_count: Number(sourceTierSummary.official_count || 0),
+      reference_count: Number(sourceTierSummary.reference_count || 0),
+    } : null,
+    best_alternative: bestAlternative && typeof bestAlternative === 'object'
+      ? {
+        so_hieu: bestAlternative.so_hieu || null,
+        loai_van_ban: bestAlternative.loai_van_ban || null,
+        trich_yeu_hoac_ten_van_ban: bestAlternative.trich_yeu_hoac_ten_van_ban || null,
+        nguon: bestAlternative.nguon || null,
+        is_official_source: bestAlternative.is_official_source === true,
+      }
+      : null,
     sources_used: collectSourcesUsed(items),
     item_count: Array.isArray(items) ? Math.min(8, items.length) : 0,
     cache_hit: cacheHit === true,
@@ -1261,6 +1812,23 @@ function pickExactDocItems(items = [], expectedDocNumber = '') {
     const hay = `${String(item?.title || '')} ${String(item?.snippet || '')} ${String(item?.link || '')}`;
     return hasExpectedDocNumber(hay, expectedDocNumber);
   });
+}
+
+function filterItemsByRequestedDocType(items = [], requestedDocType = null) {
+  if (!requestedDocType) return Array.isArray(items) ? items : [];
+  return (Array.isArray(items) ? items : []).filter((item) => isDocTypeMatchForItem(item, requestedDocType));
+}
+
+function detectDocNumberMatchLevel({ expectedDocNumber, partialDocNumber }) {
+  if (String(expectedDocNumber || '').trim()) return 'full';
+  if (String(partialDocNumber || '').trim()) return 'partial';
+  return 'none';
+}
+
+function detectTypeMatchFromItems(items = [], requestedDocType = null) {
+  if (!requestedDocType) return null;
+  if (!Array.isArray(items) || items.length === 0) return false;
+  return items.some((item) => isDocTypeMatchForItem(item, requestedDocType));
 }
 
 let webSearchHotIndexMem = {
@@ -1405,6 +1973,8 @@ async function updateWebSearchHotIndex({
 function buildWebSearchCacheKey({
   query = '',
   expectedDocNumber = null,
+  partialDocNumber = null,
+  requestedDocType = null,
   forceFresh = false,
   freshnessLevel = '',
   recencyDays = null,
@@ -1415,6 +1985,8 @@ function buildWebSearchCacheKey({
   const payload = {
     q: String(query || '').trim().toLowerCase(),
     doc: expectedDocNumber ? String(expectedDocNumber).trim().toUpperCase() : '',
+    pdoc: partialDocNumber ? String(partialDocNumber).trim().toUpperCase() : '',
+    dtype: sanitizeRequestedDocType(requestedDocType) || '',
     ff: forceFresh === true,
     fl: String(freshnessLevel || '').trim().toLowerCase(),
     rd: Number.isFinite(recencyDays) ? Math.max(0, Math.floor(recencyDays)) : 0,

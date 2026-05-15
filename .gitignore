@@ -23,6 +23,7 @@ github-sa-key.json
 **/*service-account*.json
 **/*service_account*.json
 **/*sa-key*.json
+**/*adminsdk*.json
 
 # Large local template data
 Skill_The_Thuc_VB_ND30/templates/

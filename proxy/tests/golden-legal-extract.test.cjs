@@ -15,7 +15,7 @@ function run() {
     { name: 'parsePositiveInt invalid zero', fn: () => assert.strictEqual(parsePositiveInt('0'), null) },
     { name: 'parsePositiveInt invalid text', fn: () => assert.strictEqual(parsePositiveInt('abc'), null) },
     { name: 'parsePointToken valid a', fn: () => assert.strictEqual(parsePointToken('a'), 'a') },
-    { name: 'parsePointToken valid Đ', fn: () => assert.strictEqual(parsePointToken('đ'), 'đ') },
+    { name: 'parsePointToken valid đ', fn: () => assert.strictEqual(parsePointToken('đ'), 'đ') },
     { name: 'parsePointToken invalid', fn: () => assert.strictEqual(parsePointToken('aa'), null) },
   ];
 
@@ -61,7 +61,6 @@ function run() {
     });
   });
 
-  // Follow-up style precision grid (simulates 20+ legal prompts mapped to strict targets)
   const followUpMatrix = [
     { article: 14, clause: 2, point: 'a' },
     { article: 14, clause: 2, point: 'b' },

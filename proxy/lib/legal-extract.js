@@ -18,6 +18,14 @@ function parsePointToken(value = '') {
   return m ? m[0] : null;
 }
 
+const LEGAL_MARKERS = {
+  ARTICLE: '(?:Điều|Dieu|Äiá»u)',
+  CLAUSE: '(?:Khoản|Khoan|Khoáº£n)',
+  POINT: '(?:Điểm|Diem|Äiá»ƒm)',
+  CHAPTER: '(?:Chương|Chuong|ChÆ°Æ¡ng)',
+  POINT_LETTER: '[a-zđÄ‘]',
+};
+
 function extractStrictLegalText(plain = '', target = {}) {
   const source = String(plain || '');
   const article = parsePositiveInt(target.article);
@@ -28,7 +36,7 @@ function extractStrictLegalText(plain = '', target = {}) {
   let articleFound = false;
   if (article) {
     const articleRegex = new RegExp(
-      `(?:^|\\n|\\r)\\s*Điều\\s+${article}\\b[\\s\\S]{0,9000}?(?=(?:\\n|\\r)\\s*Điều\\s+\\d+\\b|(?:\\n|\\r)\\s*Chương\\s+[IVXLCDM]+\\b|$)`,
+      `${LEGAL_MARKERS.ARTICLE}\\s+${article}\\b[\\s\\S]{0,12000}?(?=${LEGAL_MARKERS.ARTICLE}\\s+\\d+\\b|${LEGAL_MARKERS.CHAPTER}\\s+[IVXLCDM]+\\b|$)`,
       'iu',
     );
     const articleMatch = source.match(articleRegex);
@@ -49,13 +57,35 @@ function extractStrictLegalText(plain = '', target = {}) {
   let clauseText = articleText;
   let clauseFound = false;
   if (clause) {
-    const clauseHead = `(?:Khoản|Khoan)\\s+${clause}\\b|${clause}\\.`;
-    const nextClauseHead = `(?:Khoản|Khoan)\\s+\\d+\\b|\\d+\\.`;
-    const clauseRegex = new RegExp(
-      `(?:^|\\n|\\r)\\s*(?:${clauseHead})\\s*[\\s\\S]{0,3500}?(?=(?:\\n|\\r)\\s*(?:${nextClauseHead})\\s+|$)`,
-      'iu',
-    );
-    const clauseMatch = articleText.match(clauseRegex);
+    const articleHeadRegex = article
+      ? new RegExp(`^\\s*${LEGAL_MARKERS.ARTICLE}\\s+${article}\\b[^\\n\\r]{0,300}`, 'iu')
+      : null;
+    const articleBody = articleHeadRegex ? articleText.replace(articleHeadRegex, ' ') : articleText;
+
+    const clausePatterns = [
+      new RegExp(
+        `${LEGAL_MARKERS.CLAUSE}\\s+${clause}\\b[\\s\\S]{0,5000}?(?=${LEGAL_MARKERS.CLAUSE}\\s+\\d+\\b|(?:^|[\\n\\r;])\\s*\\d+\\.|$)`,
+        'iu',
+      ),
+      new RegExp(
+        `(?:^|[\\n\\r;])\\s*${clause}\\.\\s*[\\s\\S]{0,5000}?(?=(?:^|[\\n\\r;])\\s*\\d+\\.|$)`,
+        'iu',
+      ),
+      new RegExp(
+        `(?:^|\\s)${clause}\\.\\s*[\\s\\S]{0,5000}?(?=(?:\\s)\\d+\\.\\s+|$)`,
+        'iu',
+      ),
+    ];
+
+    let clauseMatch = null;
+    for (const pattern of clausePatterns) {
+      const matched = articleBody.match(pattern);
+      if (matched && matched[0]) {
+        clauseMatch = matched;
+        break;
+      }
+    }
+
     if (!clauseMatch || !clauseMatch[0]) {
       return {
         extracted: false,
@@ -73,10 +103,10 @@ function extractStrictLegalText(plain = '', target = {}) {
   let pointText = clauseText;
   let pointFound = false;
   if (point) {
-    const pointHead = `(?:Điểm|Diem)\\s+${point}\\)|${point}\\)`;
-    const nextPointHead = `(?:Điểm|Diem)\\s+[a-zđ]\\)|[a-zđ]\\)`;
+    const pointHead = `(?:${LEGAL_MARKERS.POINT}\\s+${point}\\)|${point}\\))`;
+    const nextPointHead = `(?:${LEGAL_MARKERS.POINT}\\s+${LEGAL_MARKERS.POINT_LETTER}\\)|${LEGAL_MARKERS.POINT_LETTER}\\))`;
     const pointRegex = new RegExp(
-      `(?:^|\\n|\\r)\\s*(?:${pointHead})\\s*[\\s\\S]{0,1800}?(?=(?:\\n|\\r)\\s*(?:${nextPointHead})\\s+|$)`,
+      `${pointHead}[\\s\\S]{0,2500}?(?=${nextPointHead}|$)`,
       'iu',
     );
     const pointMatch = clauseText.match(pointRegex);

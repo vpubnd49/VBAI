@@ -283,6 +283,8 @@ export async function sendWebSearchRequest(query, expectedDocNumber = null, opti
   const recencyDays = Number(options.recencyDays);
   const freshnessLevel = String(options.freshnessLevel || '').trim().toLowerCase();
   const forceFresh = options.forceFresh === true;
+  const partialDocNumber = String(options.partialDocNumber || '').trim().toUpperCase();
+  const requestedDocType = String(options.requestedDocType || '').trim().toLowerCase();
   const response = await backendFetch('/web-search', {
     method: 'POST',
     headers: {
@@ -294,6 +296,8 @@ export async function sendWebSearchRequest(query, expectedDocNumber = null, opti
     body: JSON.stringify({
       query: String(query || '').trim(),
       expectedDocNumber: expectedDocNumber || null,
+      partialDocNumber: partialDocNumber || undefined,
+      requestedDocType: requestedDocType || undefined,
       forceFresh,
       freshnessLevel: freshnessLevel || undefined,
       recencyDays: Number.isFinite(recencyDays) && recencyDays > 0 ? recencyDays : undefined,

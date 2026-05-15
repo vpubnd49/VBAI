@@ -748,14 +748,69 @@ function buildSkillReferenceContext(skill) {
 }
 
 function extractPotentialDocNumber(text = '') {
- // Match patterns like: 117/2025/QH15, 30/2024/ND-CP, 15/2024/Q-BTC
+  // Match patterns like: 117/2025/QH15, 30/2024/ND-CP, 15/2024/Q-BTC
   const match = String(text || '').match(/\b\d+\/\d{4}\/[A-Z0-9-]+\b/i);
   return match ? match[0].toUpperCase() : null;
 }
+
+function extractPartialDocNumber(text = '') {
+  const match = String(text || '').match(/\b\d{1,4}\/\d{4}\b/i);
+  return match ? String(match[0] || '').toUpperCase() : null;
+}
+
+function inferRequestedDocType(text = '') {
+  const n = normalizeVietnamese(text);
+  if (/\bnghi\s*quyet\b/.test(n)) return 'nghi_quyet';
+  if (/\bnghi\s*dinh\b/.test(n)) return 'nghi_dinh';
+  if (/\bthong\s*tu\b/.test(n)) return 'thong_tu';
+  if (/\bquyet\s*dinh\b/.test(n)) return 'quyet_dinh';
+  if (/\bluat\b/.test(n)) return 'luat';
+  return null;
+}
+
+function buildNeedFullDocNumberMessage(rawUserText = '', requestedDocType = '', partialDocNumber = '') {
+  const topic = String(rawUserText || '').trim() || 'yeu cau nay';
+  const docTypeLabel = ({
+    luat: 'Luat',
+    nghi_dinh: 'Nghi dinh',
+    thong_tu: 'Thong tu',
+    nghi_quyet: 'Nghi quyet',
+    quyet_dinh: 'Quyet dinh',
+  }[requestedDocType] || 'van ban');
+  const shortNo = String(partialDocNumber || '').trim();
+  const hint = shortNo ? ` \"${shortNo}\"` : '';
+  return `Chua the ket luan chinh xac cho yeu cau \"${topic}\" vi so hieu${hint} chua day du hau to cua ${docTypeLabel}. Vui long cung cap so hieu day du (vi du: 72/2025/QH15) de toi tra cuu dung van ban.`;
+}
+
+function buildDocTypeMismatchMessage(rawUserText = '', requestedDocType = '', fullDocNumber = '') {
+  const topic = String(rawUserText || '').trim() || 'yeu cau nay';
+  const docTypeLabel = ({
+    luat: 'Luat',
+    nghi_dinh: 'Nghi dinh',
+    thong_tu: 'Thong tu',
+    nghi_quyet: 'Nghi quyet',
+    quyet_dinh: 'Quyet dinh',
+  }[requestedDocType] || 'van ban');
+  const docLabel = fullDocNumber ? ` co so hieu ${fullDocNumber}` : '';
+  return `Khong tim thay ket qua khop dung loai ${docTypeLabel}${docLabel} cho yeu cau \"${topic}\" trong du lieu tra cuu hien tai. Toi khong the ket luan bang van ban khac loai.`;
+}
+
 function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
-  const directDocNumber = expectedDocNumber || extractPotentialDocNumber(rawUserText);
+  const fullDocNumber = expectedDocNumber || extractPotentialDocNumber(rawUserText);
+  const partialDocNumber = extractPartialDocNumber(rawUserText);
+  const requestedDocType = inferRequestedDocType(rawUserText);
+  const docNumberMatchLevel = fullDocNumber ? 'full' : (partialDocNumber ? 'partial' : 'none');
+  const baseContext = {
+    requestedDocType,
+    partialDocNumber: partialDocNumber || null,
+    fullDocNumber: fullDocNumber || null,
+    docNumberMatchLevel,
+  };
+
+  const directDocNumber = fullDocNumber;
   if (directDocNumber) {
     return {
+      ...baseContext,
       effectiveQuery: rawUserText,
       effectiveDocNumber: directDocNumber,
     };
@@ -765,6 +820,7 @@ function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
   const isFollowupRef = /(luat tren|van ban tren|luat nay|van ban nay|noi dung uy quyen cua luat tren|cua luat tren|tren la gi|chi tiet|uy quyen|phan cap|phan quyen|dieu\s*\d+|hieu luc|ngay ban hanh)/.test(normalized);
   if (!isFollowupRef) {
     return {
+      ...baseContext,
       effectiveQuery: rawUserText,
       effectiveDocNumber: null,
     };
@@ -773,12 +829,14 @@ function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
   const contextDocNumber = extractPotentialDocNumber(`${lastUserQuery || ''} ${lastAssistantReply || ''}`) || String(lastResolvedDocNumber || '').toUpperCase() || null;
   if (!contextDocNumber) {
     return {
+      ...baseContext,
       effectiveQuery: rawUserText,
       effectiveDocNumber: null,
     };
   }
 
   return {
+    ...baseContext,
     effectiveQuery: `${rawUserText} ${contextDocNumber}`,
     effectiveDocNumber: contextDocNumber,
   };
@@ -828,6 +886,8 @@ function shouldUseEvidenceResponse(rawUserText = '', searchContext = {}, searchR
   const docNo = String(searchContext.effectiveDocNumber || '').toUpperCase();
   const hasDocNoInResults = String(searchResults || '').toUpperCase().includes(docNo);
   if (webSearchMeta?.exact_match !== true && !hasDocNoInResults) return false;
+  if (searchContext?.requestedDocType && webSearchMeta?.type_match === false) return false;
+  if (typeof webSearchMeta?.confidence === 'number' && webSearchMeta.confidence < 0.85) return false;
   const n = normalizeVietnamese(rawUserText);
   return /(luat|van ban|so hieu|uy quyen|phan cap|phan quyen|ngay ban hanh|hieu luc|toan van)/.test(n);
 }
@@ -1047,6 +1107,65 @@ function extractDocNumbersFromText(text = '') {
   return Array.isArray(matches) ? matches : [];
 }
 
+function inferDocTypeFromText(text = '') {
+  const n = normalizeVietnamese(text);
+  if (/\bnghi\s*quyet\b/.test(n)) return 'nghi_quyet';
+  if (/\bnghi\s*dinh\b/.test(n)) return 'nghi_dinh';
+  if (/\bthong\s*tu\b/.test(n)) return 'thong_tu';
+  if (/\bquyet\s*dinh\b/.test(n)) return 'quyet_dinh';
+  if (/\bluat\b/.test(n)) return 'luat';
+  return null;
+}
+
+function extractFirstDocNumberFromText(text = '') {
+  const m = String(text || '').toUpperCase().match(/\b\d{1,4}\/\d{4}\/[A-Z0-9-]+\b/);
+  return m ? String(m[0] || '').toUpperCase() : '';
+}
+
+function inferIssuerFromText(text = '') {
+  const n = normalizeVietnamese(text);
+  if (/\bquoc hoi\b/.test(n) || /\bqh\d{2}\b/.test(n)) return 'Quoc hoi';
+  if (/\bchinh phu\b/.test(n) || /\bnd-cp\b/.test(String(text || '').toUpperCase())) return 'Chinh phu';
+  if (/\bbo\b/.test(n) || /\btt-b[a-z0-9-]+\b/.test(String(text || '').toUpperCase())) return 'Bo, nganh';
+  if (/\bubnd\b/.test(n)) return 'UBND';
+  return '';
+}
+
+function getSourceTierLabelFromHost(host = '') {
+  const h = String(host || '').toLowerCase().replace(/^www\./, '');
+  if (!h) return 'Khac';
+  if (
+    h.endsWith('.gov.vn')
+    || h === 'vbpl.vn'
+    || h === 'vanban.chinhphu.vn'
+    || h === 'congbao.chinhphu.vn'
+    || h === 'chinhphu.vn'
+    || h === 'quochoi.vn'
+  ) return 'Chinh thuc';
+  if (h === 'thuvienphapluat.vn' || h === 'luatvietnam.vn' || h === 'vanbanphapluat.com') return 'Tham khao';
+  return 'Khac';
+}
+
+function extractDateFromText(text = '') {
+  const m = String(text || '').match(/\b(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})\b/);
+  return m ? String(m[1] || '') : '';
+}
+
+function inferLegalStatusFromText(text = '') {
+  const n = normalizeVietnamese(text);
+  if (/\bhet hieu luc|bi thay the|bi bai bo\b/.test(n)) return 'Het hieu luc/bi thay the';
+  if (/\bcon hieu luc|dang hieu luc|hieu luc\b/.test(n)) return 'Con hieu luc (can doi chieu nguon chinh thuc)';
+  return 'Chua du du lieu xac dinh';
+}
+
+function filterItemsByDocType(items = [], requestedDocType = null) {
+  if (!requestedDocType) return Array.isArray(items) ? items : [];
+  return (Array.isArray(items) ? items : []).filter((it) => {
+    const inferred = inferDocTypeFromText(`${it?.title || ''} ${it?.snippet || ''} ${it?.link || ''}`);
+    return inferred === requestedDocType;
+  });
+}
+
 function pickDominantDocNumberFromItems(items = []) {
   const score = new Map();
   for (const it of (Array.isArray(items) ? items : [])) {
@@ -1075,6 +1194,10 @@ function shouldUseGroundedAnswer(rawUserText = '', searchResults = '', webSearch
   const legalOrPolicy = /(luat|nghi dinh|thong tu|quyet dinh|van ban|chinh sach|hieu luc|moi nhat|so hieu|uy quyen|phan cap|phan quyen)/.test(n);
   if (!legalOrPolicy) return false;
   if (webSearchMeta?.strategy === 'cse_empty_fast') return false;
+  if (webSearchMeta?.strict_reject_reason) return false;
+  if (webSearchMeta?.doc_number_match_level === 'partial' && webSearchMeta?.requested_doc_type) return false;
+  if (webSearchMeta?.requested_doc_type && webSearchMeta?.type_match === false) return false;
+  if (typeof webSearchMeta?.confidence === 'number' && webSearchMeta.confidence < 0.85) return false;
   if (webSearchMeta?.strategy === 'vertex_answer_api') return true;
   return true;
 }
@@ -1084,36 +1207,56 @@ function buildGroundedAnswer(rawUserText = '', searchResults = '', webSearchMeta
     return String(searchResults || '').trim();
   }
   const parsedItems = parseWebSearchMarkdownItems(searchResults);
-  const dominantDoc = pickDominantDocNumberFromItems(parsedItems);
+  const strictTypedItems = filterItemsByDocType(parsedItems, webSearchMeta?.requested_doc_type || null);
+  const workingItems = strictTypedItems.length > 0 ? strictTypedItems : parsedItems;
+  const dominantDoc = pickDominantDocNumberFromItems(workingItems);
   const items = (dominantDoc
-    ? parsedItems.filter((it) => `${it.title} ${it.snippet} ${it.link}`.toUpperCase().includes(dominantDoc))
-    : parsedItems
+    ? workingItems.filter((it) => `${it.title} ${it.snippet} ${it.link}`.toUpperCase().includes(dominantDoc))
+    : workingItems
   ).slice(0, 6);
   if (items.length === 0) return '';
-  const n = normalizeVietnamese(rawUserText);
-  const wantsHighlights = /(diem moi|diem quan trong|co gi moi|tom tat)/.test(n);
+  const best = items[0];
+  const host = (() => {
+    try { return new URL(best.link).hostname.replace(/^www\./, ''); } catch { return ''; }
+  })();
+  const docTypeRaw = inferDocTypeFromText(`${best.title} ${best.snippet} ${best.link}`);
+  const docTypeLabel = ({
+    luat: 'Luat',
+    nghi_dinh: 'Nghi dinh',
+    thong_tu: 'Thong tu',
+    nghi_quyet: 'Nghi quyet',
+    quyet_dinh: 'Quyet dinh',
+  }[docTypeRaw] || 'Van ban');
+  const docNo = dominantDoc || extractFirstDocNumberFromText(`${best.title} ${best.snippet} ${best.link}`);
+  const issuer = inferIssuerFromText(`${best.title} ${best.snippet}`);
+  const ngayBanHanh = extractDateFromText(best.snippet || '');
+  const hieuLuc = inferLegalStatusFromText(best.snippet || '');
+  const sourceLabel = getSourceTierLabelFromHost(host);
+  const summarySeed = `${best.title}. ${String(best.snippet || '').replace(/\[[^\]]+\]/g, '').trim()}`.replace(/\s+/g, ' ').trim();
+  const summary = summarySeed.length > 120 ? `${summarySeed.slice(0, 117)}...` : summarySeed;
+
   const lines = [];
-  lines.push('Tom tat theo du lieu tra cuu moi nhat tu Internet:');
-  if (wantsHighlights) {
-    lines.push('Cac diem chinh tim thay:');
-  }
-  items.forEach((it) => {
-    const snippet = String(it.snippet || '').trim();
-    lines.push(`- ${it.title}${snippet ? `: ${snippet}` : ''}`);
-  });
-  const sourceHosts = Array.from(new Set(items.map((it) => {
-    try {
-      return new URL(it.link).hostname.replace(/^www\./, '');
-    } catch {
-      return '';
-    }
-  }).filter(Boolean)));
-  if (sourceHosts.length > 0) {
-    lines.push(`Nguon: ${sourceHosts.join(', ')}`);
-  }
-  if (dominantDoc) {
-    lines.push(`So hieu van ban uu tien: ${dominantDoc}`);
-  }
+  lines.push('Tom tat');
+  lines.push(summary || `Da xac dinh van ban ${docNo || ''} theo du lieu tra cuu co doi chieu nguon.`);
+  lines.push('');
+  lines.push('Ket qua tra cuu van ban');
+  lines.push('| Truong thong tin | Noi dung |');
+  lines.push('|---|---|');
+  lines.push(`| Ten van ban | ${best.title || ''} |`);
+  lines.push(`| So hieu | ${docNo || 'Chua du du lieu'} |`);
+  lines.push(`| Loai van ban | ${docTypeLabel} |`);
+  lines.push(`| Co quan ban hanh | ${issuer || 'Chua du du lieu'} |`);
+  lines.push(`| Ngay ban hanh | ${ngayBanHanh || 'Chua du du lieu'} |`);
+  lines.push(`| Ngay co hieu luc | Chua du du lieu |`);
+  lines.push(`| Tinh trang hieu luc | ${hieuLuc} |`);
+  lines.push(`| Van ban thay the/sua doi | Chua du du lieu |`);
+  lines.push(`| Nguon kiem tra | ${host || 'Khong ro'} (${sourceLabel}) - ${best.link} |`);
+  lines.push('');
+  lines.push('Noi dung lien quan');
+  lines.push(`- ${String(best.snippet || '').trim() || 'Chua co trich doan du manh de trich dan.'}`);
+  lines.push('');
+  lines.push('Luu y');
+  lines.push('- Neu can ket luan chinh thuc ve hieu luc, vui long doi chieu them tren nguon chinh thuc.');
   return lines.join('\n');
 }
 
@@ -1231,6 +1374,37 @@ export async function sendMessage(text, onChunk) {
     const isTimeSensitive = isTimeSensitiveQuery(rawUserText);
     const expectedDocNumber = extractPotentialDocNumber(rawUserText);
     const searchContext = resolveWebSearchContext(rawUserText, expectedDocNumber);
+    const shouldRequireFullDocNumber = !!(
+      searchContext?.requestedDocType
+      && searchContext?.docNumberMatchLevel === 'partial'
+      && !searchContext?.effectiveDocNumber
+    );
+    if (shouldRequireFullDocNumber) {
+      const guardText = ensureFollowUpQuestion(
+        buildNeedFullDocNumberMessage(
+          rawUserText,
+          searchContext.requestedDocType,
+          searchContext.partialDocNumber,
+        ),
+        rawUserText,
+      );
+      pushTurn("user", rawUserText);
+      pushTurn("assistant", guardText);
+      lastUserQuery = rawUserText;
+      lastAssistantReply = guardText;
+      rememberResolvedDocNumber(searchContext, guardText);
+      logSearchEvent(guardText, {
+        webSearchUsed: false,
+        webSearchMeta: {
+          requested_doc_type: searchContext.requestedDocType,
+          doc_number_match_level: searchContext.docNumberMatchLevel,
+          type_match: null,
+          strict_reject_reason: 'partial_doc_number_requires_full',
+        },
+      });
+      if (onChunk) onChunk(guardText);
+      return guardText;
+    }
     const shouldSearchWebForFreshness = shouldPreferWebSearch(rawUserText) || shouldForceContextualWebSearch(rawUserText, searchContext);
     const shouldBypassCache = isTimeSensitive || shouldSearchWebForFreshness;
     const cached = shouldBypassCache ? '' : getCachedChatAnswer(rawUserText, currentModelName, useWebSearch);
@@ -1265,10 +1439,55 @@ export async function sendMessage(text, onChunk) {
       const searchResults = await sendWebSearchRequest(
         searchContext.effectiveQuery,
         searchContext.effectiveDocNumber,
-        buildFreshWebSearchOptions(rawUserText),
+        {
+          ...buildFreshWebSearchOptions(rawUserText),
+          requestedDocType: searchContext.requestedDocType || undefined,
+          partialDocNumber: searchContext.partialDocNumber || undefined,
+        },
       );
       webSearchResultsText = String(searchResults || '');
       webSearchMeta = getLastWebSearchMeta();
+      const earlyStrictReason = String(webSearchMeta?.strict_reject_reason || '').trim().toLowerCase();
+      const earlyLowConfidence = typeof webSearchMeta?.confidence === 'number' && webSearchMeta.confidence < 0.85;
+      if (webSearchResultsText && (earlyStrictReason || earlyLowConfidence)) {
+        const bestAlternative = webSearchMeta?.best_alternative && typeof webSearchMeta.best_alternative === 'object'
+          ? webSearchMeta.best_alternative
+          : null;
+        const rejectMessage = earlyStrictReason === 'partial_doc_number_requires_full'
+          ? buildNeedFullDocNumberMessage(
+            rawUserText,
+            searchContext.requestedDocType || webSearchMeta?.requested_doc_type || '',
+            searchContext.partialDocNumber || '',
+          )
+          : earlyStrictReason === 'no_type_match'
+            ? buildDocTypeMismatchMessage(
+              rawUserText,
+              searchContext.requestedDocType || webSearchMeta?.requested_doc_type || '',
+              searchContext.effectiveDocNumber || '',
+            )
+            : (() => {
+              const base = 'Chua du can cu xac dinh van ban dung theo tieu chi doi chieu bat buoc (loai, so hieu, ten/trich yeu, co quan, nam/ngay ban hanh).';
+              if (!bestAlternative) return base;
+              const altLabel = `${bestAlternative.loai_van_ban || 'van ban'} ${bestAlternative.so_hieu || ''}`.trim();
+              const altTitle = String(bestAlternative.trich_yeu_hoac_ten_van_ban || '').trim();
+              return `${base} Co the ban dang nham so hieu. Phuong an phu hop nhat hien tim thay: ${altLabel}${altTitle ? ` - ${altTitle}` : ''}${bestAlternative.nguon ? ` (nguon: ${bestAlternative.nguon}${bestAlternative.is_official_source === true ? ' - Chinh thuc' : ' - Tham khao'})` : ''}.`;
+            })();
+        const guardText = ensureFollowUpQuestion(
+          rejectMessage,
+          rawUserText,
+        );
+        pushTurn("user", rawUserText);
+        pushTurn("assistant", guardText);
+        lastUserQuery = rawUserText;
+        lastAssistantReply = guardText;
+        rememberResolvedDocNumber(searchContext, guardText);
+        logSearchEvent(guardText, {
+          webSearchUsed: true,
+          webSearchMeta: webSearchMeta || null,
+        });
+        if (onChunk) onChunk(guardText);
+        return guardText;
+      }
       if (searchResults === "__NO_EXACT_MATCH__" && searchContext.effectiveDocNumber) {
  const guardText = buildFreshnessGuardMessage(rawUserText, `Khong tim thay vEn ban co s hi!u ${searchContext.effectiveDocNumber} trong du li!u tra cuu m:i nhat.`);
         pushTurn("user", rawUserText);
@@ -1292,6 +1511,8 @@ export async function sendMessage(text, onChunk) {
               {
                 ...buildFreshWebSearchOptions(rawUserText),
                 timeoutMs: 12000,
+                requestedDocType: searchContext.requestedDocType || undefined,
+                partialDocNumber: searchContext.partialDocNumber || undefined,
               },
             );
             if (focusedResults) {
@@ -1313,12 +1534,38 @@ export async function sendMessage(text, onChunk) {
         const cseDenied = Number(webSearchMeta?.cse_status) === 403
           && /custom search|permission|access/i.test(String(webSearchMeta?.cse_error_reason || ''));
         const fallbackUsed = webSearchMeta?.fallback_used === true;
-        const guardReason = cseDenied
+        const strictRejectReason = String(webSearchMeta?.strict_reject_reason || '').trim().toLowerCase();
+        const bestAlternative = webSearchMeta?.best_alternative && typeof webSearchMeta.best_alternative === 'object'
+          ? webSearchMeta.best_alternative
+          : null;
+        const guardReason = strictRejectReason === 'partial_doc_number_requires_full'
+          ? buildNeedFullDocNumberMessage(
+            rawUserText,
+            searchContext.requestedDocType || webSearchMeta?.requested_doc_type || '',
+            searchContext.partialDocNumber || '',
+          )
+          : strictRejectReason === 'no_type_match'
+            ? buildDocTypeMismatchMessage(
+              rawUserText,
+              searchContext.requestedDocType || webSearchMeta?.requested_doc_type || '',
+              searchContext.effectiveDocNumber || '',
+            )
+            : strictRejectReason === 'low_confidence' || strictRejectReason === 'metadata_incomplete' || strictRejectReason === 'no_exact_match'
+              ? (() => {
+                const base = 'Chua du can cu xac dinh van ban dung theo tieu chi doi chieu bat buoc (loai, so hieu, ten/trich yeu, co quan, nam/ngay ban hanh).';
+                if (!bestAlternative) return base;
+                const altLabel = `${bestAlternative.loai_van_ban || 'van ban'} ${bestAlternative.so_hieu || ''}`.trim();
+                const altTitle = String(bestAlternative.trich_yeu_hoac_ten_van_ban || '').trim();
+                return `${base} Co the ban dang nham so hieu. Phuong an phu hop nhat hien tim thay: ${altLabel}${altTitle ? ` - ${altTitle}` : ''}${bestAlternative.nguon ? ` (nguon: ${bestAlternative.nguon}${bestAlternative.is_official_source === true ? ' - Chinh thuc' : ' - Tham khao'})` : ''}.`;
+              })()
+            : cseDenied
           ? (fallbackUsed
             ? 'Google CSE dang loi quyen truy cap. He thong da chuyen sang nguon chinh thong truc tiep nhung chua tim thay ket qua phu hop.'
             : 'Google CSE dang loi quyen truy cap nen he thong khong lay duoc ket qua Internet.')
           : 'Khong co ket qua tra cuu phu hop tu Internet.';
-        const guardText = buildFreshnessGuardMessage(rawUserText, guardReason);
+        const guardText = strictRejectReason
+          ? ensureFollowUpQuestion(guardReason, rawUserText)
+          : buildFreshnessGuardMessage(rawUserText, guardReason);
         pushTurn("user", rawUserText);
         pushTurn("assistant", guardText);
         lastUserQuery = rawUserText;
@@ -1878,6 +2125,3 @@ export async function renderChatUI(container) {
   if (sendBtn) sendBtn.onclick = handleSend;
   if (input) input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
 }
-
-
-
