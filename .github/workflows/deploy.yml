@@ -9,7 +9,6 @@ env:
   PROJECT_ID: gen-lang-client-0462350485
   SERVICE_NAME: vbai
   REGION: asia-southeast1
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   deploy:
@@ -17,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check mojibake in webapp strings
         run: |
@@ -80,13 +79,13 @@ jobs:
       # github-deployer@gen-lang-client-0462350485.iam.gserviceaccount.com
       - name: Google Auth
         id: auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Verify auth and project
         run: |
