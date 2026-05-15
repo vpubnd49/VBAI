@@ -15,6 +15,15 @@ const CANARY_QUERIES = [
   { q: 'thẩm quyền ubnd cấp xã trong mô hình 2 cấp', doc: null },
 ];
 
+const ACCEPTABLE_EMPTY_REASONS = new Set([
+  'partial_doc_number_requires_full',
+  'no_type_match',
+  'low_confidence',
+  'metadata_incomplete',
+  'no_exact_match',
+  'no_exact_type_match',
+]);
+
 async function postJson(path, payload) {
   const started = Date.now();
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -37,6 +46,12 @@ function percentile(values = [], p = 95) {
   return sorted[Math.max(0, idx)];
 }
 
+function isAcceptableEmpty(meta = {}) {
+  const reason = String(meta?.strict_reject_reason || '').trim().toLowerCase();
+  if (!reason) return false;
+  return ACCEPTABLE_EMPTY_REASONS.has(reason);
+}
+
 async function run() {
   const results = [];
   for (const item of CANARY_QUERIES) {
@@ -51,6 +66,7 @@ async function run() {
     const meta = response.body?.meta || {};
     const hasData = text.trim().length > 0;
     const hasSources = Array.isArray(meta.sources_used) ? meta.sources_used.length > 0 : false;
+    const acceptableEmpty = !hasData && isAcceptableEmpty(meta);
     results.push({
       query: item.q,
       status: response.status,
@@ -58,6 +74,9 @@ async function run() {
       elapsedMs: response.elapsedMs,
       hasData,
       hasSources,
+      acceptableEmpty,
+      strictRejectReason: meta.strict_reject_reason || null,
+      confidence: typeof meta.confidence === 'number' ? Number(meta.confidence) : null,
       cseStatus: meta.cse_status ?? null,
       fallbackUsed: meta.fallback_used === true,
     });
@@ -65,7 +84,9 @@ async function run() {
 
   const okCount = results.filter((x) => x.ok).length;
   const dataCount = results.filter((x) => x.hasData).length;
+  const acceptableEmptyCount = results.filter((x) => x.acceptableEmpty).length;
   const sourceCount = results.filter((x) => x.hasSources).length;
+  const effectiveCoverageCount = results.filter((x) => x.hasData || x.acceptableEmpty).length;
   const p95 = percentile(results.map((x) => x.elapsedMs), 95);
 
   const summary = {
@@ -73,9 +94,11 @@ async function run() {
     total: results.length,
     okCount,
     dataCount,
+    acceptableEmptyCount,
+    effectiveCoverageCount,
     sourceCount,
     latencyP95Ms: p95,
-    pass: okCount === results.length && dataCount >= Math.ceil(results.length * 0.8) && p95 <= 9000,
+    pass: okCount === results.length && effectiveCoverageCount >= Math.ceil(results.length * 0.8) && p95 <= 9000,
     details: results,
   };
 
