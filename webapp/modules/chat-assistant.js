@@ -506,8 +506,10 @@ function extractSummaryText(answer = '', fallback = '') {
 }
 
 function shouldUseCompactLegalAnswer(answer = '', query = '', meta = null) {
-  const text = normalizeVietnamese(`${answer}\n${query}`);
+  const text = normalizeVietnamese(`${answer}
+${query}`);
   if (!text) return false;
+  if (isSubstantiveUpdateQuery(query, { effectiveDocNumber: extractPotentialDocNumber(query) || lastResolvedDocNumber || null })) return false;
   const hasStructuredRequest = /(dieu\s*\d+|khoan\s*\d+|diem\s*[a-z]|so sanh|doi chieu|trich|toan van|phan tich|chi tiet|theo so|so hieu|nguyen van|liet ke day du|day du)/.test(text);
   if (hasStructuredRequest) return false;
   if (meta && typeof meta.confidence === 'number' && meta.confidence < 0.75) return false;
@@ -550,7 +552,8 @@ function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
   if (!shouldApplyLegalEnvelope(text, query)) return text;
 
   const sourceLine = extractPrimarySourceLine(meta);
-  const isBriefGeneralQuery = shouldUseCompactLegalAnswer(text, query, meta);
+  const substantiveQuery = isSubstantiveUpdateQuery(query, { effectiveDocNumber: extractPotentialDocNumber(query) || lastResolvedDocNumber || null });
+  const isBriefGeneralQuery = substantiveQuery ? false : shouldUseCompactLegalAnswer(text, query, meta);
   const hasSummaryHeading = /^##\s*T[oó]m t[aá]t/im.test(text);
   const hasDetailHeading = /^###\s*Th[oô]ng tin chi ti[eế]t\s*\/\s*Ph[aâ]n t[ií]ch/im.test(text);
   if (hasSummaryHeading || hasDetailHeading) {
@@ -560,7 +563,7 @@ function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
       .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-    return sourceLine ? `${cleaned}\n\n${sourceLine}` : cleaned;
+    return sourceLine && !/\bNgu[oồ]n:\b/i.test(cleaned) ? `${cleaned}\n\n${sourceLine}` : cleaned;
   }
 
   if (isBriefGeneralQuery) {
@@ -569,7 +572,15 @@ function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
       .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-    return sourceLine ? `${cleaned}\n\n${sourceLine}` : cleaned;
+    return sourceLine && !/\bNgu[oồ]n:\b/i.test(cleaned) ? `${cleaned}\n\n${sourceLine}` : cleaned;
+  }
+
+  if (substantiveQuery) {
+    return text
+      .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
+      .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim() + (sourceLine && !/\bNgu[oồ]n:\b/i.test(text) ? `\n\n${sourceLine}` : '');
   }
 
   const summary = extractSummaryText(text, query);
@@ -1186,9 +1197,15 @@ async function buildSubstantiveUpdateAnswer(rawUserText = '', searchContext = {}
 
   if (!broadHit || !String(broadHit.text || '').trim()) {
     const sourceLine = extractPrimarySourceLine(webSearchMeta) || (links[0] ? `Nguồn: ${links[0]}` : '');
+    const fallbackSnippet = workingItems
+      .map((it) => `${it.title}${it.snippet ? `: ${it.snippet}` : ''}`.trim())
+      .filter(Boolean)
+      .slice(0, 4)
+      .map((line) => `- ${line}`)
+      .join('\n');
     return [
-      `Tôi đã tìm thấy đúng văn bản ${docNo || 'bạn hỏi'}, nhưng chưa trích xuất đủ nội dung toàn văn để kết luận các điểm mới một cách đáng tin cậy.`,
-      'Bạn có thể dùng ngay nguồn chính thống dưới đây; sau khi extract ổn định hơn, hệ thống nên liệt kê trực tiếp các điểm mới thay vì chỉ xác nhận sự tồn tại của văn bản.',
+      `Tôi đã tìm thấy đúng văn bản ${docNo || 'bạn hỏi'}, nhưng chưa trích xuất đủ nội dung toàn văn để kết luận trọn vẹn các điểm mới.`,
+      fallbackSnippet ? `Các thông tin tra cứu hiện lấy được:\n${fallbackSnippet}` : '',
       sourceLine,
     ].filter(Boolean).join('\n\n');
   }
