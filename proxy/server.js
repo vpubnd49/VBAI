@@ -1346,51 +1346,61 @@ app.post('/api/web-search', async (req, res) => {
           requestedDocType: effectiveRequestedDocType,
         });
         const finalHotItems = validation.ok ? validation.approvedItems : [];
-        return res.json({
-          results: formatSearchResults(finalHotItems),
-          known_document: knownDocument,
-          meta: {
-            ...buildWebSearchMeta({
-              strategy: hotIndexHit.strategy || 'hot_index',
-              webSearchProvider: effectiveSearchProvider,
-              webSearchMode,
-              query,
-              refinedQuery: query,
-              dateRestrict: null,
-              expectedDocNumber: normalizedExpectedDocNumber || null,
-              exactMatch: normalizedExpectedDocNumber ? (validation.ok && hotIndexHit.exactMatch === true) : null,
-              cseStatus: null,
-              cseErrorReason: null,
-              fallbackUsed: false,
-              enabledFallbackSources: fallbackSources,
-              items: finalHotItems,
-              requestedDocType: validation.requestedDocType || effectiveRequestedDocType,
-              docNumberMatchLevel: validation.docNumberMatchLevel || requestDocMatchLevel,
-              typeMatch: typeof validation.typeMatch === 'boolean'
-                ? validation.typeMatch
-                : detectTypeMatchFromItems(finalHotItems, effectiveRequestedDocType),
-              strictRejectReason: validation.strictRejectReason
-                || (strictPartialReject ? 'partial_doc_number_requires_full' : null),
-              confidence: validation.confidence,
-              matchScore: validation.matchScore,
-              matchBreakdown: validation.matchBreakdown,
-              sourceTierSummary: validation.sourceTierSummary,
-              bestAlternative: validation.bestAlternative,
-              cacheHit: false,
-              servedInMs: Date.now() - requestStartMs,
-            }),
-            status: finalHotItems.length > 0 ? 'ok' : (knownDocument ? 'no_search_results_but_known_document_resolved' : 'no_results_after_fallback'),
-            selected_strategy: hotIndexHit.strategy || 'hot_index',
-            attempted_strategies: [{
-              step: 'hot_index',
-              strategy: hotIndexHit.strategy || 'hot_index',
-              query,
-              item_count: Array.isArray(hotIndexHit.items) ? hotIndexHit.items.length : 0,
-              exact_match: hotIndexHit.exactMatch === true,
-            }],
-            tool_result_count: Array.isArray(finalHotItems) ? finalHotItems.length : 0,
+        const hotIndexStrongEnough = validation.ok === true
+          || hotIndexHit.exactMatch === true
+          || Number(validation.confidence || 0) >= 0.75;
+        if (hotIndexStrongEnough) {
+          return res.json({
+            results: formatSearchResults(finalHotItems),
             known_document: knownDocument,
-          },
+            meta: {
+              ...buildWebSearchMeta({
+                strategy: hotIndexHit.strategy || 'hot_index',
+                webSearchProvider: effectiveSearchProvider,
+                webSearchMode,
+                query,
+                refinedQuery: query,
+                dateRestrict: null,
+                expectedDocNumber: normalizedExpectedDocNumber || null,
+                exactMatch: normalizedExpectedDocNumber ? (validation.ok && hotIndexHit.exactMatch === true) : null,
+                cseStatus: null,
+                cseErrorReason: null,
+                fallbackUsed: false,
+                enabledFallbackSources: fallbackSources,
+                items: finalHotItems,
+                requestedDocType: validation.requestedDocType || effectiveRequestedDocType,
+                docNumberMatchLevel: validation.docNumberMatchLevel || requestDocMatchLevel,
+                typeMatch: typeof validation.typeMatch === 'boolean'
+                  ? validation.typeMatch
+                  : detectTypeMatchFromItems(finalHotItems, effectiveRequestedDocType),
+                strictRejectReason: validation.strictRejectReason
+                  || (strictPartialReject ? 'partial_doc_number_requires_full' : null),
+                confidence: validation.confidence,
+                matchScore: validation.matchScore,
+                matchBreakdown: validation.matchBreakdown,
+                sourceTierSummary: validation.sourceTierSummary,
+                bestAlternative: validation.bestAlternative,
+                cacheHit: false,
+                servedInMs: Date.now() - requestStartMs,
+              }),
+              status: finalHotItems.length > 0 ? 'ok' : (knownDocument ? 'no_search_results_but_known_document_resolved' : 'no_results_after_fallback'),
+              selected_strategy: hotIndexHit.strategy || 'hot_index',
+              attempted_strategies: [{
+                step: 'hot_index',
+                strategy: hotIndexHit.strategy || 'hot_index',
+                query,
+                item_count: Array.isArray(hotIndexHit.items) ? hotIndexHit.items.length : 0,
+                exact_match: hotIndexHit.exactMatch === true,
+              }],
+              tool_result_count: Array.isArray(finalHotItems) ? finalHotItems.length : 0,
+              known_document: knownDocument,
+            },
+          });
+        }
+        console.log('HOT INDEX SKIPPED:', {
+          reason: 'weak_match',
+          confidence: validation.confidence,
+          exactMatch: hotIndexHit.exactMatch,
         });
       }
     }
@@ -1537,7 +1547,15 @@ app.post('/api/web-search', async (req, res) => {
       });
       const payload = {
         results: responseResults,
-        meta,
+        known_document: knownDocument,
+        meta: {
+          ...meta,
+          status: finalItems.length > 0 ? 'ok' : (knownDocument ? 'no_search_results_but_known_document_resolved' : 'no_results_after_fallback'),
+          selected_strategy: strategy,
+          attempted_strategies: attemptedStrategies,
+          tool_result_count: Array.isArray(finalItems) ? finalItems.length : 0,
+          known_document: knownDocument,
+        },
       };
       const shouldCache = forceFresh !== true
         && validation.ok
