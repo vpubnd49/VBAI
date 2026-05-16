@@ -118,6 +118,27 @@ function extractPartialDocNumber(query = '') {
   return match ? String(match[0] || '').toUpperCase() : null;
 }
 
+function normalizeLegalSearchQuery(query = '') {
+  const raw = String(query || '').trim();
+  const n = normalizeVietnamese(raw);
+  if (!raw) return raw;
+
+  if (/\bnghi\s*dinh\s*100\b/.test(n)) {
+    return 'Nghị định 100/2019/NĐ-CP hiệu lực sửa đổi bổ sung bãi bỏ';
+  }
+
+  if (/\bluat\s*an\s*ninh\s*mang\b/.test(n)) {
+    return 'Luật An ninh mạng 24/2018/QH14 số hiệu ngày hiệu lực';
+  }
+
+  if (/\bnghi\s*dinh\s*168\b/.test(n)) {
+    return 'Nghị định 168/2024/NĐ-CP xử phạt vi phạm giao thông đường bộ';
+  }
+
+  return raw;
+}
+
+
 function inferDocTypeFromText(text = '') {
   const n = normalizeVietnamese(text);
   if (LEGAL_DOC_TYPE_PATTERNS.nghi_quyet.test(n)) return 'nghi_quyet';
@@ -166,6 +187,10 @@ function detectSourceTier({ link = '', source = '' } = {}) {
 
 function normalizeModelInput(value = '') {
   return String(value || '').trim();
+}
+
+function dedupeModelNames(list = []) {
+  return Array.from(new Set((list || []).filter(Boolean).map((x) => String(x).trim())));
 }
 
 function isGeminiModelNotFoundError(message = '') {
@@ -747,6 +772,21 @@ app.post('/api/chat', async (req, res) => {
     const apiKey = config.gemini_api_key;
     const effectiveModel = model || config.gemini_model;
 
+    const userMessage = Array.isArray(messages)
+      ? [...messages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
+      : '';
+    console.log('USER QUERY:', userMessage);
+    console.log('NORMALIZED:', {
+      route: '/api/chat',
+      model: effectiveModel,
+      message_count: Array.isArray(messages) ? messages.length : 0,
+      stream: stream === true,
+      note: 'No backend tool loop in /api/chat; web search runs via /api/web-search before chat synthesis.',
+    });
+    console.log('TOOL CALLED:', null);
+    console.log('TOOL INPUT:', null);
+    console.log('TOOL RESULT:', null);
+
     if (!apiKey) {
       return res.status(503).json({ error: 'API key missing', message: 'Please contact administrator to configure AI provider key.' });
     }
@@ -1104,6 +1144,23 @@ app.post('/api/web-search', async (req, res) => {
     const inferredPartialDocNumber = extractPartialDocNumber(query);
     const normalizedPartialDocNumber = String(partialDocNumber || inferredPartialDocNumber || '').trim().toUpperCase() || null;
     const effectiveRequestedDocType = sanitizeRequestedDocType(requestedDocType) || inferRequestedDocTypeFromQuery(query);
+    const searchQuery = normalizeLegalSearchQuery(query);
+    const normalized = {
+      route: '/api/web-search',
+      originalQuery: String(query || '').trim(),
+      searchQuery: searchQuery,
+      expectedDocNumber: normalizedExpectedDocNumber,
+      partialDocNumber: normalizedPartialDocNumber,
+      requestedDocType: effectiveRequestedDocType,
+      forceFresh: forceFresh === true,
+      freshnessLevel: normalizedFreshnessLevel || null,
+      recencyDays: Number.isFinite(normalizedRecencyDays) ? normalizedRecencyDays : null,
+      provider: effectiveSearchProvider,
+      mode: webSearchMode,
+    };
+    console.log('WEB SEARCH ORIGINAL QUERY:', String(query || '').trim());
+    console.log('WEB SEARCH NORMALIZED QUERY:', searchQuery);
+    console.log('WEB SEARCH NORMALIZED:', normalized);
 
     // Auto-detect time-sensitive queries and force fresh
     const isTimeSensitive = isTimeSensitiveQuery(query);
@@ -1130,6 +1187,15 @@ app.post('/api/web-search', async (req, res) => {
     });
     const cachedPayload = effectiveForceFresh === true ? null : getWebSearchCache(cacheKey);
     if (cachedPayload) {
+      console.log('TOOL CALLED:', 'web-search');
+      console.log('TOOL INPUT:', {
+        query: searchQuery,
+        limit: null,
+        sourcePreference: effectiveSearchProvider,
+      });
+      const cachedResultsSample = String(cachedPayload?.results || '').split('\n').filter(Boolean).slice(0, 3);
+      console.log('TOOL RESULT COUNT:', cachedResultsSample.length);
+      console.log('TOOL RESULT SAMPLE:', cachedResultsSample);
       const payload = {
         ...cachedPayload,
         meta: {
@@ -1213,8 +1279,8 @@ app.post('/api/web-search', async (req, res) => {
     ].join(' OR ');
 
     // Refine query for legal/policy documents to ensure latest data is fetched
-    let refinedQuery = query;
-    const normQuery = normalizeVietnamese(query);
+    let refinedQuery = searchQuery;
+    const normQuery = normalizeVietnamese(searchQuery);
     const isLegal = /(luat|nghi dinh|thong tu|quyet dinh|quy dinh|van ban|chinh sach|huong dan|tien luong|huu tri|bao hiem|thue|dat dai|xay dung|dau thau|doanh nghiep|can bo|cong chuc)/.test(normQuery);
     const { current, next } = getCurrentYearContext();
     const hasSpecificYear = new RegExp(`(202\\d|203\\d)`).test(normQuery);
@@ -1333,6 +1399,14 @@ app.post('/api/web-search', async (req, res) => {
           strategy,
         }).catch((err) => console.warn('Hot index async update skipped:', err?.message || err));
       }
+      console.log('TOOL CALLED:', 'web-search');
+      console.log('TOOL INPUT:', {
+        query: refinedQuery,
+        limit: Array.isArray(finalItems) ? finalItems.length : 0,
+        sourcePreference: effectiveSearchProvider,
+      });
+      console.log('TOOL RESULT COUNT:', Array.isArray(finalItems) ? finalItems.length : 0);
+      console.log('TOOL RESULT SAMPLE:', Array.isArray(finalItems) ? finalItems.slice(0, 3) : finalItems);
       return res.json(payload);
     };
 
