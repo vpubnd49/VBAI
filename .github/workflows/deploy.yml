@@ -10,7 +10,7 @@ env:
   SERVICE_NAME: vbai
   REGION: asia-southeast1
   # Optional overrides. Leave empty to use Cloud Run defaults and avoid actAs IAM failures.
-  BUILD_SERVICE_ACCOUNT: projects/gen-lang-client-0462350485/serviceAccounts/github-deployer@gen-lang-client-0462350485.iam.gserviceaccount.com
+  BUILD_SERVICE_ACCOUNT: ""
   RUNTIME_SERVICE_ACCOUNT: ""
 
 jobs:
