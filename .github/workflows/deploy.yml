@@ -9,6 +9,8 @@ env:
   PROJECT_ID: gen-lang-client-0462350485
   SERVICE_NAME: vbai
   REGION: asia-southeast1
+  BUILD_SERVICE_ACCOUNT: projects/gen-lang-client-0462350485/serviceAccounts/github-deployer@gen-lang-client-0462350485.iam.gserviceaccount.com
+  RUNTIME_SERVICE_ACCOUNT: vbai-proxy@gen-lang-client-0462350485.iam.gserviceaccount.com
 
 jobs:
   deploy:
@@ -112,7 +114,9 @@ jobs:
             --port 8080 \
             --memory 256Mi \
             --max-instances 3 \
-            --set-env-vars MAX_AUDIO_UPLOAD_MB=80
+            --set-env-vars MAX_AUDIO_UPLOAD_MB=80 \
+            --build-service-account ${{ env.BUILD_SERVICE_ACCOUNT }} \
+            --service-account ${{ env.RUNTIME_SERVICE_ACCOUNT }}
           PROXY_URL=$(gcloud run services describe vbai-proxy --project ${{ env.PROJECT_ID }} --region ${{ env.REGION }} --format='value(status.url)')
           echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
 
@@ -132,7 +136,9 @@ jobs:
               --port 8080 \
               --memory 256Mi \
               --max-instances 3 \
-              --set-env-vars API_BASE_URL=${{ steps.deploy-proxy.outputs.proxy_url }}; then
+              --set-env-vars API_BASE_URL=${{ steps.deploy-proxy.outputs.proxy_url }} \
+              --build-service-account ${{ env.BUILD_SERVICE_ACCOUNT }} \
+              --service-account ${{ env.RUNTIME_SERVICE_ACCOUNT }}; then
               echo "Frontend deploy succeeded on attempt $COUNT"
               break
             fi
