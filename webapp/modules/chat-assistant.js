@@ -167,12 +167,16 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU VBPL" - tro ly phap luat chuye
 9. Khong duoc lam mat noi dung quan trong khi rut gon cach trinh bay.
 10. Neu nguoi dung hoi "so sanh", "doi chieu", "khac gi", "co gi moi" giua hai van ban/2 che do, phai liet ke day du cac diem khac nhau theo tung y; khong rut gon thanh 1-2 cau chung chung.
 11. Neu nguoi dung yeu cau noi dung nguyen van, trich dan, dieu/khoan/diem, hoac danh sach day du, phai tra loi day du theo pham vi yeu cau.
+12. Neu nguoi dung hoi ve mot van ban cu the theo kieu "co gi moi", "diem moi", "noi dung moi", phai neu ro cac noi dung/chinh sach/diem thay doi chinh tra loi truc tiep theo cau hoi; khong duoc chi xac nhan la co ton tai van ban hoac co ket qua tra cuu.
+13. Neu chua du can cu de ket luan cac diem moi thuc chat, phai noi ro chua xac dinh duoc noi dung moi nao, neu ly do, va de xuat huong doi chieu tiep theo; khong duoc dung cau tra loi chi gom thong tin co/khong co van ban.
+14. Neu co nguon web phu hop, dat 1 dong "Nguon:" ngan gon ngay sau phan tra loi chinh, uu tien link chinh thong dau tien; khong ke qua nhieu metadata tru khi nguoi dung hoi.
 
 [Default Answer Style]
 - Mac dinh: 1-3 doan ngan hoac 3-6 gach dau dong.
 - Neu nguoi dung hoi tong quat, tra loi ngan gon truoc, sau do moi goi y dao sau neu can.
 - Neu nguoi dung hoi so sanh/doi chieu, phai liet ke day du theo tung diem khac nhau; co the dung gach dau dong theo tung nhom noi dung.
 - Neu nguoi dung yeu cau trich dieu/khoan/diem, noi dung nguyen van, hoac danh sach day du, moi chuyen sang dang trinh bay chi tiet hon va giu du noi dung.
+- Neu nguoi dung hoi "co gi moi" doi voi 1 van ban, uu tien liet ke 3-7 y noi dung moi/de dang nhan biet nhat. Neu chua xac dinh duoc thi noi ro la chua trich xuat duoc noi dung diem moi, khong duoc thay bang cau xac nhan su ton tai cua van ban.
 
 [When to use structured markdown]
 - Chi dung cac heading nhu "Tom tat", "Thong tin chi tiet", "Giai thich them" khi cau tra loi dai, co nhieu phan, hoac nguoi dung yeu cau phan tich chi tiet.
@@ -183,7 +187,8 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU VBPL" - tro ly phap luat chuye
 - Khong chen checklist.
 - Khong tu lap lai cau hoi cua nguoi dung trong cau tra loi.
 - Neu chua chac ve tinh "moi nhat", noi ro muc do chac chan thay vi noi dai dong.
-- Rut gon cach trinh bay, khong rut gon noi dung can co.`;
+- Rut gon cach trinh bay, khong rut gon noi dung can co.
+- Dong "Nguon:" neu co chi de 1-2 link ngan gon, dat ben duoi phan tra loi chinh.`;
 const SYSTEM_INSTRUCTION = VBPL_PROMPT_SPEC;
 const FAST_SYSTEM_INSTRUCTION = `${VBPL_PROMPT_SPEC}
 
@@ -529,19 +534,42 @@ function compactLegalAnswer(answer = '', query = '', meta = null) {
     .trim();
 }
 
+function extractPrimarySourceLine(meta = null) {
+  const bestAlternative = meta?.best_alternative && typeof meta.best_alternative === 'object'
+    ? meta.best_alternative
+    : null;
+  const rawUrl = String(bestAlternative?.nguon || '').trim();
+  if (!rawUrl) return '';
+  return `Nguồn: ${rawUrl}`;
+}
+
 function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
   const compact = compactLegalAnswer(answer, query, meta);
   const text = String(compact || '').trim();
   if (!text) return text;
   if (!shouldApplyLegalEnvelope(text, query)) return text;
 
+  const sourceLine = extractPrimarySourceLine(meta);
+  const isBriefGeneralQuery = shouldUseCompactLegalAnswer(text, query, meta);
   const hasSummaryHeading = /^##\s*T[oó]m t[aá]t/im.test(text);
   const hasDetailHeading = /^###\s*Th[oô]ng tin chi ti[eế]t\s*\/\s*Ph[aâ]n t[ií]ch/im.test(text);
   if (hasSummaryHeading || hasDetailHeading) {
-    return text
+    const cleaned = text
       .replace(/\n+---\s*\n*Checklist \(5 m(?:ụ|u)c\):[^\n]*/gi, '')
+      .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
+      .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+    return sourceLine ? `${cleaned}\n\n${sourceLine}` : cleaned;
+  }
+
+  if (isBriefGeneralQuery) {
+    const cleaned = text
+      .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
+      .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    return sourceLine ? `${cleaned}\n\n${sourceLine}` : cleaned;
   }
 
   const summary = extractSummaryText(text, query);
@@ -580,6 +608,7 @@ function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
   return [
     '## Tóm tắt',
     summary,
+    sourceLine ? `\n${sourceLine}` : '',
     metaBlock,
     '',
     '### Thông tin chi tiết / Phân tích',
