@@ -1873,7 +1873,7 @@ function validateLegalDocumentMatch({
       breakdown.date = 10;
     }
 
-    const score = breakdown.doc_type + breakdown.doc_number + breakdown.title + breakdown.issuer + breakdown.date;
+    const score = breakdown.doc_type + breakdown.doc_number + breakdown.title + breakdown.issuer + breakdown.date + (entry.metadata.is_official_source ? 25 : 0);
     const confidence = Math.max(0, Math.min(1, score / 100));
     const metadataComplete = Boolean(
       entry.metadata.loai_van_ban
@@ -2004,8 +2004,16 @@ function validateLegalDocumentMatch({
 }
 
 function formatSearchResults(items = []) {
-  return (items || [])
-    .slice(0, 8)
+  const orderedItems = (items || [])
+    .slice(0, 15)
+    .sort((a, b) => {
+      const aOfficial = detectSourceTier({ link: a?.link, source: a?.source }) === 'official';
+      const bOfficial = detectSourceTier({ link: b?.link, source: b?.source }) === 'official';
+      if (aOfficial !== bOfficial) return aOfficial ? -1 : 1;
+      return 0;
+    });
+
+  return orderedItems
     .map((item) => {
       const title = String(item?.title || 'No Title').replace(/[\r\n]+/g, ' ').trim();
       const link = String(item?.link || '#').trim();
@@ -2873,10 +2881,19 @@ async function executeVertexSearch({ query, timeoutMs, vertexConfig }) {
 }
 
 async function executeCseSearch({ query, timeoutMs, dateRestrict, cseConfig }) {
+  let rewrittenQuery = String(query || '').trim();
+  const normalizedQuery = normalizeVietnamese(rewrittenQuery);
+  const looksLikeLegalLookup = /\b(luat|bo luat|nghi dinh|nghi quyet|thong tu|quyet dinh|van ban|qh\d+|\/\d{4}\/qh\d+|\/\d{4}\/nd-cp|\/\d{4}\/tt-)/.test(normalizedQuery);
+  const wantsSubstantiveUpdate = /(co gi moi|diem moi|noi dung moi|moi gi|thay doi gi|quy dinh moi|diem sua doi|diem bo sung)/.test(normalizedQuery);
+  if (looksLikeLegalLookup && wantsSubstantiveUpdate && !/site:vbpl\.vn|site:vanban\.chinhphu\.vn|site:congbao\.chinhphu\.vn|site:chinhphu\.vn|site:quochoi\.vn/.test(rewrittenQuery)) {
+    const officialDomains = '(site:vbpl.vn OR site:vanban.chinhphu.vn OR site:congbao.chinhphu.vn OR site:chinhphu.vn OR site:quochoi.vn)';
+    rewrittenQuery = `${rewrittenQuery} ${officialDomains}`;
+  }
+
   const params = new URLSearchParams({
     key: cseConfig.key,
     cx: cseConfig.cx,
-    q: query,
+    q: rewrittenQuery,
     num: '10',
     sort: 'date',
     hl: 'vi',

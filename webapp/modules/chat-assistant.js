@@ -1179,8 +1179,16 @@ async function buildSubstantiveUpdateAnswer(rawUserText = '', searchContext = {}
   const docNo = String(searchContext?.effectiveDocNumber || '').trim().toUpperCase();
   const prioritizedItems = items
     .filter((it) => !docNo || `${it.title} ${it.snippet} ${it.link}`.toUpperCase().includes(docNo))
-    .slice(0, 4);
-  const workingItems = prioritizedItems.length > 0 ? prioritizedItems : items.slice(0, 4);
+    .sort((a, b) => {
+      const aHost = (function() { try { return new URL(String(a?.link || ''), 'https://vbpl.vn').hostname.replace(/^www\./, ''); } catch { return ''; }})();
+      const bHost = (function() { try { return new URL(String(b?.link || ''), 'https://vbpl.vn').hostname.replace(/^www\./, ''); } catch { return ''; }})();
+      const aOfficial = getSourceTierLabelFromHost(aHost) === 'Chinh thuc';
+      const bOfficial = getSourceTierLabelFromHost(bHost) === 'Chinh thuc';
+      if (aOfficial !== bOfficial) return aOfficial ? -1 : 1;
+      return 0;
+    })
+    .slice(0, 5);
+  const workingItems = prioritizedItems.length > 0 ? prioritizedItems : items.slice(0, 5);
   const links = Array.from(new Set(workingItems.map((it) => String(it.link || '').trim()).filter(Boolean)));
   if (links.length === 0) return '';
 
@@ -1198,14 +1206,20 @@ async function buildSubstantiveUpdateAnswer(rawUserText = '', searchContext = {}
   if (!broadHit || !String(broadHit.text || '').trim()) {
     const sourceLine = extractPrimarySourceLine(webSearchMeta) || (links[0] ? `Nguồn: ${links[0]}` : '');
     const fallbackSnippet = workingItems
-      .map((it) => `${it.title}${it.snippet ? `: ${it.snippet}` : ''}`.trim())
-      .filter(Boolean)
-      .slice(0, 4)
-      .map((line) => `- ${line}`)
+      .filter((it) => {
+        try {
+          const host = new URL(String(it?.link || ''), 'https://vbpl.vn').hostname.replace(/^www\./, '');
+          return getSourceTierLabelFromHost(host) === 'Chinh thuc';
+        } catch {
+          return false;
+        }
+      })
+      .slice(0, 5)
+      .map((it) => `- [${it.title}](${it.link})`)
       .join('\n');
     return [
       `Tôi đã tìm thấy đúng văn bản ${docNo || 'bạn hỏi'}, nhưng chưa trích xuất đủ nội dung toàn văn để kết luận trọn vẹn các điểm mới.`,
-      fallbackSnippet ? `Các thông tin tra cứu hiện lấy được:\n${fallbackSnippet}` : '',
+      fallbackSnippet ? `Các nguồn chính thống nên xem trước:\n${fallbackSnippet}` : '',
       sourceLine,
     ].filter(Boolean).join('\n\n');
   }
