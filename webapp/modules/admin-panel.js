@@ -80,17 +80,14 @@ export function renderAdminPanel(container) {
               <div class="form-group">
                 <label class="form-label">Nhà cung cấp tra cứu web</label>
                 <div class="config-radio-row">
-                  <label class="config-radio-option"><input type="radio" name="web_search_provider" value="vertex_ai_search"> Vertex AI Search</label>
-                  <label class="config-radio-option"><input type="radio" name="web_search_provider" value="cse"> Google CSE</label>
+                  <label class="config-radio-option"><input type="radio" name="web_search_provider" value="vertex_search"> Vertex AI Search</label>
                 </div>
               </div>
               <div class="form-group">
                 <label class="form-label">Chế độ tra cứu web</label>
                 <div class="config-radio-col">
-                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="fast_primary"> Nhanh nhất (Primary + fallback ngắn)</label>
-                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="google_only_fast"> Google/CSE nhanh nhất (không fallback)</label>
-                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="hybrid_fallback"> Google + fallback nguồn trực tiếp</label>
-                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="vertex_answer"> Vertex Answer API</label>
+                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="cse_fast"> Nhanh nhat (khong fallback)</label>
+                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="cse_with_fallback"> Vertex + fallback nguon truc tiep</label>
                 </div>
               </div>
               <div class="form-group">
@@ -396,8 +393,8 @@ async function initSystemConfigPanel(container) {
       vertexDataStoreIdInput.value = config.vertex_data_store_id || '';
       vertexServingConfigInput.value = config.vertex_serving_config || '';
 
-      const provider = config.web_search_provider || 'vertex_ai_search';
-      const mode = config.web_search_mode || 'fast_primary';
+      const provider = config.web_search_provider || 'vertex_search';
+      const mode = config.web_search_mode || 'cse_with_fallback';
       setSelectedRadio('web_search_provider', provider);
       setSelectedRadio('web_search_mode', mode);
       setFallbackSources(config.web_search_fallback_sources || DEFAULT_FALLBACK_SOURCES);
@@ -423,8 +420,8 @@ async function initSystemConfigPanel(container) {
       active_provider: 'gemini',
       gemini_model: geminiModelInput.value.trim(),
       transcribe_model: transcribeModelInput.value.trim() || 'whisper-1',
-      web_search_provider: getSelectedRadio('web_search_provider', 'vertex_ai_search'),
-      web_search_mode: getSelectedRadio('web_search_mode', 'fast_primary'),
+      web_search_provider: getSelectedRadio('web_search_provider', 'vertex_search'),
+      web_search_mode: getSelectedRadio('web_search_mode', 'cse_with_fallback'),
       web_search_fallback_sources: getFallbackSources(),
       vertex_project_id: vertexProjectIdInput.value.trim(),
       vertex_location: vertexLocationInput.value.trim() || 'global',

@@ -1907,7 +1907,7 @@ export async function renderChatUI(container) {
     transcribe_model: 'gemini-2.5-flash',
     has_gemini_key: false,
     web_search_provider: 'vertex_search',
-    web_search_mode: 'cse_fast',
+    web_search_mode: 'cse_with_fallback',
     web_search_fallback_sources: { ...DEFAULT_FALLBACK_SOURCES },
   };
 
@@ -1980,8 +1980,7 @@ export async function renderChatUI(container) {
                   <div class="form-group">
                     <label class="form-label">Ch\u1ebf \u0111\u1ed9 tra c\u1ee9u web</label>
                     <div class="config-radio-col">
-                      <label class="config-radio-option"><input type="radio" name="modal_web_search_mode" value="cse_fast"> CSE nhanh nh\u1ea5t (kh\u00f4ng fallback)</label>
-                      <label class="config-radio-option"><input type="radio" name="modal_web_search_mode" value="cse_with_fallback"> CSE + fallback ngu\u1ed3n tr\u1ef1c ti\u1ebfp</label>
+                      <label class="config-radio-option"><input type="radio" name="modal_web_search_mode" value="cse_with_fallback"> Vertex AI Search + fallback ngu\u1ed3n tr\u1ef1c ti\u1ebfp</label>
                     </div>
                   </div>
                   <div class="form-group">
@@ -2109,7 +2108,7 @@ export async function renderChatUI(container) {
       }
     }
 
-    selectRadio('modal_web_search_mode', live.web_search_mode || 'cse_fast');
+    selectRadio('modal_web_search_mode', live.web_search_mode || 'cse_with_fallback');
     fillFallbackCheckboxes(live.web_search_fallback_sources || DEFAULT_FALLBACK_SOURCES);
   }
 
@@ -2207,8 +2206,8 @@ export async function renderChatUI(container) {
         try {
           const configUpdate = {
             active_provider: 'gemini',            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-2.5-pro',
-            web_search_provider: systemConfigCache?.web_search_provider || 'vertex_search',
-            web_search_mode: getRadioValue('modal_web_search_mode', 'cse_fast'),
+            web_search_provider: 'vertex_search',
+            web_search_mode: getRadioValue('modal_web_search_mode', 'cse_with_fallback'),
             web_search_fallback_sources: collectFallbackCheckboxes(),
           };
 

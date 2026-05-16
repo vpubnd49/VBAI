@@ -45,17 +45,13 @@ async function main() {
   const transcribeModel = getEnv('TRANSCRIBE_MODEL', 'gemini-2.5-flash');
   const webSearchMode = getEnv('WEB_SEARCH_MODE', 'cse_fast');
 
-  if (webSearchProvider === 'cse') {
-    if (!googleSearchKey || !googleSearchCx) {
-      throw new Error('WEB_SEARCH_PROVIDER=cse requires GOOGLE_SEARCH_KEY and GOOGLE_SEARCH_CX');
-    }
-  } else if (webSearchProvider === 'vertex_search') {
+  if (webSearchProvider === 'vertex_search') {
     if (!vertexProjectId) throw new Error('WEB_SEARCH_PROVIDER=vertex_search requires VERTEX_PROJECT_ID');
     if (!vertexServingConfig && !vertexDataStoreId) {
       throw new Error('WEB_SEARCH_PROVIDER=vertex_search requires VERTEX_SERVING_CONFIG or VERTEX_DATA_STORE_ID');
     }
   } else {
-    throw new Error('WEB_SEARCH_PROVIDER must be cse or vertex_search');
+    throw new Error('WEB_SEARCH_PROVIDER must be vertex_search');
   }
 
   const serviceAccount = loadServiceAccount();

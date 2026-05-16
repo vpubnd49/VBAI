@@ -9,8 +9,9 @@ env:
   PROJECT_ID: gen-lang-client-0462350485
   SERVICE_NAME: vbai
   REGION: asia-southeast1
+  # Optional overrides. Leave empty to use Cloud Run defaults and avoid actAs IAM failures.
   BUILD_SERVICE_ACCOUNT: projects/gen-lang-client-0462350485/serviceAccounts/github-deployer@gen-lang-client-0462350485.iam.gserviceaccount.com
-  RUNTIME_SERVICE_ACCOUNT: vbai-proxy@gen-lang-client-0462350485.iam.gserviceaccount.com
+  RUNTIME_SERVICE_ACCOUNT: ""
 
 jobs:
   deploy:
@@ -105,6 +106,16 @@ jobs:
       - name: Deploy backend proxy
         id: deploy-proxy
         run: |
+          set -euo pipefail
+          BUILD_SA_FLAG=""
+          RUNTIME_SA_FLAG=""
+          if [ -n "${BUILD_SERVICE_ACCOUNT:-}" ]; then
+            BUILD_SA_FLAG="--build-service-account ${BUILD_SERVICE_ACCOUNT}"
+          fi
+          if [ -n "${RUNTIME_SERVICE_ACCOUNT:-}" ]; then
+            RUNTIME_SA_FLAG="--service-account ${RUNTIME_SERVICE_ACCOUNT}"
+          fi
+
           gcloud run deploy vbai-proxy \
             --quiet \
             --project ${{ env.PROJECT_ID }} \
@@ -115,14 +126,23 @@ jobs:
             --memory 256Mi \
             --max-instances 3 \
             --set-env-vars MAX_AUDIO_UPLOAD_MB=80 \
-            --build-service-account ${{ env.BUILD_SERVICE_ACCOUNT }} \
-            --service-account ${{ env.RUNTIME_SERVICE_ACCOUNT }}
+            ${BUILD_SA_FLAG} \
+            ${RUNTIME_SA_FLAG}
           PROXY_URL=$(gcloud run services describe vbai-proxy --project ${{ env.PROJECT_ID }} --region ${{ env.REGION }} --format='value(status.url)')
           echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
 
       - name: Deploy frontend
         run: |
           set -euo pipefail
+          BUILD_SA_FLAG=""
+          RUNTIME_SA_FLAG=""
+          if [ -n "${BUILD_SERVICE_ACCOUNT:-}" ]; then
+            BUILD_SA_FLAG="--build-service-account ${BUILD_SERVICE_ACCOUNT}"
+          fi
+          if [ -n "${RUNTIME_SERVICE_ACCOUNT:-}" ]; then
+            RUNTIME_SA_FLAG="--service-account ${RUNTIME_SERVICE_ACCOUNT}"
+          fi
+
           ATTEMPTS=2
           COUNT=1
           until [ "$COUNT" -gt "$ATTEMPTS" ]; do
@@ -137,8 +157,8 @@ jobs:
               --memory 256Mi \
               --max-instances 3 \
               --set-env-vars API_BASE_URL=${{ steps.deploy-proxy.outputs.proxy_url }} \
-              --build-service-account ${{ env.BUILD_SERVICE_ACCOUNT }} \
-              --service-account ${{ env.RUNTIME_SERVICE_ACCOUNT }}; then
+              ${BUILD_SA_FLAG} \
+              ${RUNTIME_SA_FLAG}; then
               echo "Frontend deploy succeeded on attempt $COUNT"
               break
             fi

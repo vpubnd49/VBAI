@@ -47,7 +47,7 @@ const DEFAULT_WEB_SEARCH_FALLBACK_SOURCES = Object.freeze({
   thuvienphapluat: true,
   luatvietnam: true,
 });
-const DEFAULT_WEB_SEARCH_MODE = 'cse_fast';
+const DEFAULT_WEB_SEARCH_MODE = 'cse_with_fallback';
 const DEFAULT_WEB_SEARCH_PROVIDER = 'vertex_search';
 const DEFAULT_VERTEX_LOCATION = 'global';
 const DEFAULT_VERTEX_SERVING_CONFIG_ID = 'default_search';
@@ -2448,12 +2448,11 @@ function isAllowedHost(url, allowedHosts = []) {
 
 function isValidWebSearchProvider(raw = '') {
   const provider = String(raw || '').trim().toLowerCase();
-  return provider === 'cse' || provider === 'vertex_search';
+  return provider === 'vertex_search';
 }
 
 function sanitizeWebSearchProvider(raw = '') {
   const provider = String(raw || '').trim().toLowerCase();
-  if (provider === 'cse') return 'cse';
   if (provider === 'vertex_search') return 'vertex_search';
   return DEFAULT_WEB_SEARCH_PROVIDER;
 }
@@ -2513,9 +2512,7 @@ function isVertexSearchConfigured(config = {}) {
 function resolveEffectiveWebSearchProvider({ requestedProvider, cseConfigured, vertexConfigured }) {
   const requested = sanitizeWebSearchProvider(requestedProvider);
   if (requested === 'vertex_search' && vertexConfigured) return 'vertex_search';
-  if (requested === 'cse' && cseConfigured) return 'cse';
   if (vertexConfigured) return 'vertex_search';
-  if (cseConfigured) return 'cse';
   return '';
 }
 
