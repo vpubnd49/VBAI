@@ -1135,6 +1135,113 @@ function buildEvidenceResponse(rawUserText = '', searchContext = {}, searchResul
   return lines.join('\n');
 }
 
+function isSubstantiveUpdateQuery(rawUserText = '', searchContext = {}) {
+  const n = normalizeVietnamese(rawUserText);
+  if (!searchContext?.effectiveDocNumber) return false;
+  if (hasCitationIntent(rawUserText)) return false;
+  if (parseComparisonTargets(rawUserText)) return false;
+  if (/(toan van|nguyen van|trich dan|dieu\s*\d+|khoan\s*\d+|diem\s*[a-z])/.test(n)) return false;
+  return /(co gi moi|diem moi|noi dung moi|moi gi|thay doi gi|quy dinh moi|diem sua doi|diem bo sung)/.test(n);
+}
+
+async function extractBroadLegalContextFromLinks(links = [], keywords = []) {
+  for (const link of links) {
+    try {
+      const extracted = await sendWebExtractRequest(link, keywords, { strict: false });
+      const text = String(extracted?.text || '').replace(/\s+/g, ' ').trim();
+      if (text.length >= 400) {
+        return { text, link, extracted: extracted?.extracted === true };
+      }
+    } catch (err) {
+      console.warn('Broad legal extraction skipped:', err?.message || err);
+    }
+  }
+  return null;
+}
+
+async function buildSubstantiveUpdateAnswer(rawUserText = '', searchContext = {}, searchResults = '', webSearchMeta = null) {
+  if (!isSubstantiveUpdateQuery(rawUserText, searchContext)) return '';
+  const items = parseWebSearchMarkdownItems(searchResults);
+  if (items.length === 0) return '';
+
+  const docNo = String(searchContext?.effectiveDocNumber || '').trim().toUpperCase();
+  const prioritizedItems = items
+    .filter((it) => !docNo || `${it.title} ${it.snippet} ${it.link}`.toUpperCase().includes(docNo))
+    .slice(0, 4);
+  const workingItems = prioritizedItems.length > 0 ? prioritizedItems : items.slice(0, 4);
+  const links = Array.from(new Set(workingItems.map((it) => String(it.link || '').trim()).filter(Boolean)));
+  if (links.length === 0) return '';
+
+  const bestTitle = String(workingItems[0]?.title || '').trim();
+  const broadHit = await extractBroadLegalContextFromLinks(links, [
+    docNo,
+    bestTitle,
+    'noi dung moi',
+    'quy dinh moi',
+    'sua doi',
+    'bo sung',
+    'hieu luc',
+  ].filter(Boolean));
+
+  if (!broadHit || !String(broadHit.text || '').trim()) {
+    const sourceLine = extractPrimarySourceLine(webSearchMeta) || (links[0] ? `Nguồn: ${links[0]}` : '');
+    return [
+      `Tôi đã tìm thấy đúng văn bản ${docNo || 'bạn hỏi'}, nhưng chưa trích xuất đủ nội dung toàn văn để kết luận các điểm mới một cách đáng tin cậy.`,
+      'Bạn có thể dùng ngay nguồn chính thống dưới đây; sau khi extract ổn định hơn, hệ thống nên liệt kê trực tiếp các điểm mới thay vì chỉ xác nhận sự tồn tại của văn bản.',
+      sourceLine,
+    ].filter(Boolean).join('\n\n');
+  }
+
+  const summarizationMessages = [
+    {
+      role: 'system',
+      content: [
+        'Ban la tro ly tra cuu VBPL Viet Nam.',
+        'Nhiem vu: dua tren van ban/ngu canh da extract tu nguon chinh thong, tra loi dung cau hoi "co gi moi" bang cac diem noi dung thuc chat.',
+        'Chi duoc dua vao du lieu duoc cung cap. Khong duoc chi noi rang co ton tai van ban.',
+        'Hay liet ke 3-7 y moi/noi dung chinh ro rang, ngan gon, uu tien dang gach dau dong.',
+        'Neu du lieu chua du de ket luan tat ca diem moi, noi ro "Chua trich xuat du du lieu de ket luan day du" o cuoi, nhung van phai neu nhung diem da thay ro trong doan trich.',
+        'Khong chen heading, khong chen checklist, khong lap lai cau hoi.'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        `Yeu cau nguoi dung: ${rawUserText}`,
+        searchContext?.effectiveDocNumber ? `So hieu van ban: ${searchContext.effectiveDocNumber}` : '',
+        bestTitle ? `Tieu de ket qua uu tien: ${bestTitle}` : '',
+        `Nguon trich xuat: ${broadHit.link}`,
+        'Noi dung trich xuat tu nguon:',
+        broadHit.text.slice(0, 6000),
+      ].filter(Boolean).join('\n\n')
+    }
+  ];
+
+  let summary = '';
+  try {
+    summary = await sendChatRequest(summarizationMessages, currentModelName, {
+      context: 'chat',
+      stream: false,
+      temperature: 0.1,
+    });
+  } catch (err) {
+    console.warn('Substantive update summarization failed:', err?.message || err);
+    summary = '';
+  }
+
+  const cleanedSummary = String(summary || '').trim();
+  if (!cleanedSummary) {
+    const excerpt = broadHit.text.slice(0, 1200).trim();
+    return [
+      `Tôi đã tìm được nội dung liên quan của văn bản ${docNo || ''} nhưng chưa tổng hợp tự động ổn định các điểm mới.`,
+      excerpt ? `Đoạn trích gần nhất:\n- ${excerpt}` : '',
+      `Nguồn: ${broadHit.link}`,
+    ].filter(Boolean).join('\n\n');
+  }
+
+  return `${cleanedSummary}\n\nNguồn: ${broadHit.link}`;
+}
+
 function parseLegalCitationTarget(text = '') {
   const n = normalizeVietnamese(text);
   const articleMatch = n.match(/\bdieu\s+(\d+)\b/);
@@ -1878,6 +1985,25 @@ export async function sendMessage(text, onChunk) {
       });
       if (onChunk) onChunk(evidenceAnswer);
       return evidenceAnswer;
+    }
+
+    const substantiveUpdateAnswerRaw = await buildSubstantiveUpdateAnswer(rawUserText, searchContext, webSearchResultsText, webSearchMeta);
+    if (String(substantiveUpdateAnswerRaw || '').trim()) {
+      const substantiveUpdateAnswer = enforceTwoTierTerminology(
+        ensureFollowUpQuestion(substantiveUpdateAnswerRaw, rawUserText, {}, webSearchMeta),
+        rawUserText,
+      );
+      pushTurn("user", rawUserText);
+      pushTurn("assistant", substantiveUpdateAnswer);
+      lastUserQuery = rawUserText;
+      lastAssistantReply = stripTrailingFollowUpBlocks(substantiveUpdateAnswer);
+      rememberResolvedDocNumber(searchContext, substantiveUpdateAnswer);
+      logSearchEvent(substantiveUpdateAnswer, {
+        webSearchUsed: true,
+        webSearchMeta: webSearchMeta || null,
+      });
+      if (onChunk) onChunk(substantiveUpdateAnswer);
+      return substantiveUpdateAnswer;
     }
 
     if (shouldUseGroundedAnswer(rawUserText, webSearchResultsText, webSearchMeta)) {

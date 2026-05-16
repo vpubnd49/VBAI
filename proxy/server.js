@@ -1581,7 +1581,7 @@ app.post('/api/web-extract', async (req, res) => {
 
     if (bestStart < 0) {
       return res.json({
-        text: sanitizeExtractedLegalText(plain.slice(0, 1200)),
+        text: sanitizeExtractedLegalText(plain.slice(0, 3200)),
         extracted: false,
         strict_match: strictResult.strict_match === true,
         article_found: strictResult.article_found,
@@ -1591,8 +1591,8 @@ app.post('/api/web-extract', async (req, res) => {
       });
     }
 
-    const snippetStart = Math.max(0, bestStart - 240);
-    const snippetEnd = Math.min(plain.length, bestStart + 1600);
+    const snippetStart = Math.max(0, bestStart - 320);
+    const snippetEnd = Math.min(plain.length, bestStart + 3200);
     return res.json({
       text: sanitizeExtractedLegalText(plain.slice(snippetStart, snippetEnd)),
       extracted: true,
