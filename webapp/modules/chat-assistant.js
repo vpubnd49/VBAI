@@ -1094,6 +1094,7 @@ function isDelegationFocusQuery(text = '') {
 function shouldUseEvidenceResponse(rawUserText = '', searchContext = {}, searchResults = '', webSearchMeta = null) {
   if (!searchContext?.effectiveDocNumber) return false;
   if (!String(searchResults || '').trim()) return false;
+  if (isSubstantiveUpdateQuery(rawUserText, searchContext)) return false;
   const docNo = String(searchContext.effectiveDocNumber || '').toUpperCase();
   const hasDocNoInResults = String(searchResults || '').toUpperCase().includes(docNo);
   if (webSearchMeta?.exact_match !== true && !hasDocNoInResults) return false;
