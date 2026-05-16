@@ -113,6 +113,16 @@ function inferRequestedDocTypeFromQuery(query = '') {
   return null;
 }
 
+function inferDocTypeFromText(text = '') {
+  const n = normalizeVietnamese(text);
+  if (LEGAL_DOC_TYPE_PATTERNS.nghi_quyet.test(n)) return 'nghi_quyet';
+  if (LEGAL_DOC_TYPE_PATTERNS.nghi_dinh.test(n)) return 'nghi_dinh';
+  if (LEGAL_DOC_TYPE_PATTERNS.thong_tu.test(n)) return 'thong_tu';
+  if (LEGAL_DOC_TYPE_PATTERNS.quyet_dinh.test(n)) return 'quyet_dinh';
+  if (LEGAL_DOC_TYPE_PATTERNS.luat.test(n)) return 'luat';
+  return null;
+}
+
 function extractPartialDocNumber(query = '') {
   const match = String(query || '').toUpperCase().match(/\b\d{1,4}\/\d{4}\b/);
   return match ? String(match[0] || '').toUpperCase() : null;
@@ -138,16 +148,124 @@ function normalizeLegalSearchQuery(query = '') {
   return raw;
 }
 
+function repairMojibakeUtf8(value = '') {
+  const raw = String(value || '');
+  if (!raw) return raw;
+  if (!/[À-ſ�]/.test(raw) && !/[?]/.test(raw)) return raw;
+  try {
+    const repaired = Buffer.from(raw, 'latin1').toString('utf8');
+    if (!repaired || repaired.includes('')) return raw;
+    const replacementCount = (repaired.match(/�/g) || []).length;
+    const rawReplacementCount = (raw.match(/�/g) || []).length;
+    if (replacementCount > rawReplacementCount) return raw;
+    return repaired;
+  } catch {
+    return raw;
+  }
+}
 
-function inferDocTypeFromText(text = '') {
-  const n = normalizeVietnamese(text);
-  if (LEGAL_DOC_TYPE_PATTERNS.nghi_quyet.test(n)) return 'nghi_quyet';
-  if (LEGAL_DOC_TYPE_PATTERNS.nghi_dinh.test(n)) return 'nghi_dinh';
-  if (LEGAL_DOC_TYPE_PATTERNS.thong_tu.test(n)) return 'thong_tu';
-  if (LEGAL_DOC_TYPE_PATTERNS.quyet_dinh.test(n)) return 'quyet_dinh';
-  if (LEGAL_DOC_TYPE_PATTERNS.luat.test(n)) return 'luat';
+
+function dedupeStringList(list = []) {
+  return Array.from(new Set((Array.isArray(list) ? list : [])
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)));
+}
+
+function resolveKnownLegalDocument(query = '') {
+  const raw = String(query || '').trim();
+  const normalized = normalizeVietnamese(raw);
+  if (!raw) return null;
+
+  if (/\bnghi\s*dinh\s*100\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Nghị định 100/2019/NĐ-CP',
+      documentNumber: '100/2019/NĐ-CP',
+      titleHint: 'Nghị định 100/2019/NĐ-CP',
+      topicHint: 'xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt',
+      confidence: 'high',
+    };
+  }
+
+  if (/\bluat\s*an\s*ninh\s*mang\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luật An ninh mạng 24/2018/QH14',
+      documentNumber: '24/2018/QH14',
+      titleHint: 'Luật An ninh mạng',
+      topicHint: 'an ninh mạng',
+      confidence: 'high',
+    };
+  }
+
+  if (/\bnghi\s*dinh\s*168\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Nghị định 168/2024/NĐ-CP',
+      documentNumber: '168/2024/NĐ-CP',
+      titleHint: 'Nghị định 168/2024/NĐ-CP',
+      topicHint: 'xử phạt vi phạm giao thông đường bộ',
+      confidence: 'high',
+    };
+  }
+
   return null;
 }
+
+function buildLegalSearchQueries({
+  originalQuery = '',
+  normalizedQuery = '',
+  knownDocument = null,
+  expectedDocNumber = null,
+  requestedDocType = null,
+  isTimeSensitive = false,
+} = {}) {
+  const docNumber = String(expectedDocNumber || knownDocument?.documentNumber || '').trim().toUpperCase();
+  const canonicalQuery = String(knownDocument?.canonicalQuery || normalizedQuery || originalQuery || '').trim();
+  const titleHint = String(knownDocument?.titleHint || '').trim();
+  const topicHint = String(knownDocument?.topicHint || '').trim();
+  const docTypeLabel = ({
+    luat: 'Luật',
+    nghi_dinh: 'Nghị định',
+    thong_tu: 'Thông tư',
+    nghi_quyet: 'Nghị quyết',
+    quyet_dinh: 'Quyết định',
+  }[requestedDocType] || '').trim();
+
+  const primaryQueries = dedupeStringList([
+    canonicalQuery,
+    docNumber ? `"${docNumber}"` : '',
+    docNumber && canonicalQuery ? `${canonicalQuery} ${docNumber}` : '',
+    docNumber ? `"${docNumber}" hiệu lực` : '',
+    docNumber ? `"${docNumber}" sửa đổi bổ sung bãi bỏ` : '',
+    titleHint && docNumber ? `"${titleHint}" "${docNumber}"` : '',
+    titleHint && topicHint ? `${titleHint} ${topicHint}` : '',
+    normalizedQuery,
+    originalQuery,
+  ]);
+
+  const officialSiteQueries = dedupeStringList([
+    docNumber ? `"${docNumber}" site:vanban.chinhphu.vn` : '',
+    docNumber ? `"${docNumber}" site:vbpl.vn` : '',
+    titleHint ? `"${titleHint}" site:vanban.chinhphu.vn` : '',
+    titleHint ? `"${titleHint}" site:vbpl.vn` : '',
+    titleHint ? `"${titleHint}" site:quochoi.vn` : '',
+    docTypeLabel && topicHint ? `${docTypeLabel} ${topicHint} site:vbpl.vn` : '',
+  ]);
+
+  const broadQueries = dedupeStringList([
+    canonicalQuery && !/\bmoi nhat\b/i.test(canonicalQuery) ? `${canonicalQuery} mới nhất` : '',
+    normalizedQuery,
+    titleHint,
+    originalQuery,
+    isTimeSensitive && docNumber ? `${docNumber} hiện hành` : '',
+  ]);
+
+  return {
+    primaryQueries,
+    officialSiteQueries,
+    broadQueries,
+    allQueries: dedupeStringList([...primaryQueries, ...officialSiteQueries, ...broadQueries]),
+  };
+}
+
 
 function isDocTypeMatchForItem(item = {}, requestedDocType = null) {
   if (!requestedDocType) return true;
@@ -1099,8 +1217,9 @@ app.post('/api/web-search', async (req, res) => {
     }
 
     const requestStartMs = Date.now();
+    const rawQuery = typeof req.body?.query === 'string' ? req.body.query : '';
+    const query = repairMojibakeUtf8(rawQuery).trim();
     const {
-      query,
       expectedDocNumber,
       partialDocNumber,
       requestedDocType,
@@ -1207,6 +1326,9 @@ app.post('/api/web-search', async (req, res) => {
       return res.json(payload);
     }
 
+    const knownDocument = resolveKnownLegalDocument(query);
+    console.log('SEARCH PROVIDER CONFIG:', webSearchProviderSetting);
+
     // Skip hot index for time-sensitive queries to ensure fresh data
     if (effectiveForceFresh !== true) {
       const hotIndexHit = await findHotIndexHit({
@@ -1226,35 +1348,49 @@ app.post('/api/web-search', async (req, res) => {
         const finalHotItems = validation.ok ? validation.approvedItems : [];
         return res.json({
           results: formatSearchResults(finalHotItems),
-          meta: buildWebSearchMeta({
-            strategy: hotIndexHit.strategy || 'hot_index',
-            webSearchProvider: effectiveSearchProvider,
-            webSearchMode,
-            query,
-            refinedQuery: query,
-            dateRestrict: null,
-            expectedDocNumber: normalizedExpectedDocNumber || null,
-            exactMatch: normalizedExpectedDocNumber ? (validation.ok && hotIndexHit.exactMatch === true) : null,
-            cseStatus: null,
-            cseErrorReason: null,
-            fallbackUsed: false,
-            enabledFallbackSources: fallbackSources,
-            items: finalHotItems,
-            requestedDocType: validation.requestedDocType || effectiveRequestedDocType,
-            docNumberMatchLevel: validation.docNumberMatchLevel || requestDocMatchLevel,
-            typeMatch: typeof validation.typeMatch === 'boolean'
-              ? validation.typeMatch
-              : detectTypeMatchFromItems(finalHotItems, effectiveRequestedDocType),
-            strictRejectReason: validation.strictRejectReason
-              || (strictPartialReject ? 'partial_doc_number_requires_full' : null),
-            confidence: validation.confidence,
-            matchScore: validation.matchScore,
-            matchBreakdown: validation.matchBreakdown,
-            sourceTierSummary: validation.sourceTierSummary,
-            bestAlternative: validation.bestAlternative,
-            cacheHit: false,
-            servedInMs: Date.now() - requestStartMs,
-          }),
+          known_document: knownDocument,
+          meta: {
+            ...buildWebSearchMeta({
+              strategy: hotIndexHit.strategy || 'hot_index',
+              webSearchProvider: effectiveSearchProvider,
+              webSearchMode,
+              query,
+              refinedQuery: query,
+              dateRestrict: null,
+              expectedDocNumber: normalizedExpectedDocNumber || null,
+              exactMatch: normalizedExpectedDocNumber ? (validation.ok && hotIndexHit.exactMatch === true) : null,
+              cseStatus: null,
+              cseErrorReason: null,
+              fallbackUsed: false,
+              enabledFallbackSources: fallbackSources,
+              items: finalHotItems,
+              requestedDocType: validation.requestedDocType || effectiveRequestedDocType,
+              docNumberMatchLevel: validation.docNumberMatchLevel || requestDocMatchLevel,
+              typeMatch: typeof validation.typeMatch === 'boolean'
+                ? validation.typeMatch
+                : detectTypeMatchFromItems(finalHotItems, effectiveRequestedDocType),
+              strictRejectReason: validation.strictRejectReason
+                || (strictPartialReject ? 'partial_doc_number_requires_full' : null),
+              confidence: validation.confidence,
+              matchScore: validation.matchScore,
+              matchBreakdown: validation.matchBreakdown,
+              sourceTierSummary: validation.sourceTierSummary,
+              bestAlternative: validation.bestAlternative,
+              cacheHit: false,
+              servedInMs: Date.now() - requestStartMs,
+            }),
+            status: finalHotItems.length > 0 ? 'ok' : (knownDocument ? 'no_search_results_but_known_document_resolved' : 'no_results_after_fallback'),
+            selected_strategy: hotIndexHit.strategy || 'hot_index',
+            attempted_strategies: [{
+              step: 'hot_index',
+              strategy: hotIndexHit.strategy || 'hot_index',
+              query,
+              item_count: Array.isArray(hotIndexHit.items) ? hotIndexHit.items.length : 0,
+              exact_match: hotIndexHit.exactMatch === true,
+            }],
+            tool_result_count: Array.isArray(finalHotItems) ? finalHotItems.length : 0,
+            known_document: knownDocument,
+          },
         });
       }
     }
@@ -1298,10 +1434,29 @@ app.post('/api/web-search', async (req, res) => {
     });
     const searchBudgets = resolveWebSearchBudgets(webSearchMode);
 
+
+    const attemptedStrategies = [];
+
     const diagnostics = {
       cse_status: null,
       cse_error_reason: null,
       fallback_used: false,
+      selected_strategy: '',
+      status: 'pending',
+    };
+
+    const recordStrategyAttempt = ({ step, strategy, finalQuery, itemCount = 0, status = null, errorReason = null }) => {
+      attemptedStrategies.push({
+        step,
+        strategy,
+        query: String(finalQuery || ''),
+        status: Number.isFinite(status) ? status : null,
+        error_reason: errorReason || null,
+        item_count: Number.isFinite(itemCount) ? itemCount : 0,
+      });
+      console.log('SEARCH STRATEGY SELECTED:', strategy);
+      console.log('SEARCH QUERY FINAL:', String(finalQuery || ''));
+      console.log('SEARCH FALLBACK STEP:', step);
     };
 
     const runDirectFallback = async (docNumber = normalizedExpectedDocNumber, fallbackQuery = refinedQuery) => {
