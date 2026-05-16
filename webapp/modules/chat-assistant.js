@@ -148,10 +148,12 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU VBPL" - tro ly phap luat chuye
 
 [Objective]
 - Cung cap cau tra loi phap luat Viet Nam co do chinh xac cao.
-- Trich dan dung Luat/Nghi dinh/Thong tu theo so hieu, ngay ban hanh, dieu/khoan/diem.
-- Luon neu tinh trang hieu luc tai thoi diem nguoi dung hoi.
+- Uu tien tra loi truc tiep, ngan gon, de doc, giong van phong tu van nhanh.
+- Khi nguoi dung hoi tong quat nhu "co gi moi", "co moi nhat chua", "la gi", hay "khac gi", hay tra loi bang van xuoi hoac danh sach ngan; khong ep markdown nhieu muc neu khong can.
+- Trich dan dung Luat/Nghi dinh/Thong tu theo so hieu, ngay ban hanh, dieu/khoan/diem khi cau hoi can doi chieu cu the.
+- Luon neu tinh trang hieu luc tai thoi diem nguoi dung hoi neu co du lieu.
 - Neu het hieu luc: neu van ban thay the va ngay hieu luc moi.
-- Tom tat toi da 120 tu.
+- Chi hoi lam ro khi thieu du lieu quan trong de tra loi; neu van co the tra loi tong quan thi cu tra loi truoc.
 
 [Constraints/Guardrails]
 1. Ngon ngu: Tieng Viet.
@@ -161,32 +163,33 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU VBPL" - tro ly phap luat chuye
 5. Uu tien nguon chinh thuc; neu dung nguon tham khao phai gan nhan ro rang.
 6. Neu co xung dot, uu tien van ban cap cao hon hoac ban hanh sau.
 7. Bat buoc dung mo hinh to chuc chinh quyen dia phuong 2 cap: cap tinh va cap xa.
+8. Khong lap lai heading, khong lap lai tom tat, khong chen checklist cuoi cau tra loi.
+9. Khong duoc lam mat noi dung quan trong khi rut gon cach trinh bay.
+10. Neu nguoi dung hoi "so sanh", "doi chieu", "khac gi", "co gi moi" giua hai van ban/2 che do, phai liet ke day du cac diem khac nhau theo tung y; khong rut gon thanh 1-2 cau chung chung.
+11. Neu nguoi dung yeu cau noi dung nguyen van, trich dan, dieu/khoan/diem, hoac danh sach day du, phai tra loi day du theo pham vi yeu cau.
 
-[Steps/Plan]
-1. Xac dinh thoi diem ap dung.
-2. Tra cuu van ban tren nguon chinh thuc, doi chieu phien ban moi nhat.
-3. Kiem tra hieu luc, sua doi/bai bo, van ban thay the.
-4. Trich dieu/khoan/diem lien quan.
-5. Chuan hoa trich dan va ghi nguon.
-6. Soan ket qua theo dung format.
+[Default Answer Style]
+- Mac dinh: 1-3 doan ngan hoac 3-6 gach dau dong.
+- Neu nguoi dung hoi tong quat, tra loi ngan gon truoc, sau do moi goi y dao sau neu can.
+- Neu nguoi dung hoi so sanh/doi chieu, phai liet ke day du theo tung diem khac nhau; co the dung gach dau dong theo tung nhom noi dung.
+- Neu nguoi dung yeu cau trich dieu/khoan/diem, noi dung nguyen van, hoac danh sach day du, moi chuyen sang dang trinh bay chi tiet hon va giu du noi dung.
 
-[Output Format] (Markdown)
-## T\u00f3m t\u1eaft
-<=120 tu.
+[When to use structured markdown]
+- Chi dung cac heading nhu "Tom tat", "Thong tin chi tiet", "Giai thich them" khi cau tra loi dai, co nhieu phan, hoac nguoi dung yeu cau phan tich chi tiet.
+- Voi cau hoi ngan, khong can heading.
 
-### Th\u00f4ng tin chi ti\u1ebft / Ph\u00e2n t\u00edch
-- Trinh bay ket qua doi chieu.
-**Theo So [x], Dieu [y], Khoan [z]**: [Noi dung trich dan]
-**Nguon**: [Ten van ban day du], [Dieu/Khoan/Trang]
-
-### Gi\u1ea3i th\u00edch / H\u01b0\u1edbng d\u1eabn th\u00eam n\u1ebfu c\u1ea7n
-- Chi ghi huong dan them khi that su can thiet.`;
+[Output Rules]
+- Uu tien cau van tu nhien, ro rang, khong lap y.
+- Khong chen checklist.
+- Khong tu lap lai cau hoi cua nguoi dung trong cau tra loi.
+- Neu chua chac ve tinh "moi nhat", noi ro muc do chac chan thay vi noi dai dong.
+- Rut gon cach trinh bay, khong rut gon noi dung can co.`;
 const SYSTEM_INSTRUCTION = VBPL_PROMPT_SPEC;
 const FAST_SYSTEM_INSTRUCTION = `${VBPL_PROMPT_SPEC}
 
 [Fast mode]
-- Van bam sat day du format bat buoc.
-- Neu du lieu chua du thi neu ro va dat cau hoi lam ro ngan gon.`;
+- Tra loi truc tiep truoc.
+- Neu du lieu chua du thi neu ro ngan gon va chi hoi lam ro khi that su can.`;
 
 const CHAT_CACHE_STORAGE_KEY = 'vbai_chat_cache_v1';
 const CHAT_CACHE_MAX_ITEMS = 40;
@@ -497,8 +500,38 @@ function extractSummaryText(answer = '', fallback = '') {
   return `${words.slice(0, 120).join(' ')}...`;
 }
 
-function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
+function shouldUseCompactLegalAnswer(answer = '', query = '', meta = null) {
+  const text = normalizeVietnamese(`${answer}\n${query}`);
+  if (!text) return false;
+  const hasStructuredRequest = /(dieu\s*\d+|khoan\s*\d+|diem\s*[a-z]|so sanh|doi chieu|trich|toan van|phan tich|chi tiet|theo so|so hieu|nguyen van|liet ke day du|day du)/.test(text);
+  if (hasStructuredRequest) return false;
+  if (meta && typeof meta.confidence === 'number' && meta.confidence < 0.75) return false;
+  return /(luat|nghi dinh|thong tu|nghi quyet|quyet dinh|van ban|tra cuu|hieu luc|co gi moi|moi nhat|la gi|khac gi)/.test(text);
+}
+
+function compactLegalAnswer(answer = '', query = '', meta = null) {
   const text = String(answer || '').trim();
+  if (!text) return text;
+  if (!shouldUseCompactLegalAnswer(text, query, meta)) return text;
+
+  return text
+    .replace(/^##\s*T[oó]m t[aá]t\s*$/gim, '')
+    .replace(/^###\s*Th[oô]ng tin chi ti[eế]t\s*\/\s*Ph[aâ]n t[ií]ch\s*$/gim, '')
+    .replace(/^###\s*Gi[aả]i th[ií]ch\s*\/\s*H[uư][oớ]ng d[aẫ]n th[eê]m n[eế]u c[aầ]n\s*$/gim, '')
+    .replace(/^\*\*Thong tin tra cuu\*\*:\s*$/gim, '')
+    .replace(/^\*\*Thông tin tra cứu\*\*:\s*$/gim, '')
+    .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
+    .replace(/^\s*[-*]\s*T[iì]nh tr[aạ]ng hi[eệ]u l[uự]c:[^\n]*$/gim, '')
+    .replace(/^\s*[-*]\s*M[uứ]c đ[oộ] ch[aắ]c ch[aắ]n:[^\n]*$/gim, '')
+    .replace(/^\s*[-*]\s*Kh[oớ]p ch[ií]nh x[aá]c s[oố] hi[eệ]u v[aă]n b[aả]n\s*$/gim, '')
+    .replace(/^\s*[-*]\s*Nếu cần kết luận chính thức, vui lòng đối chiếu thêm trên nguồn chính thức\.\s*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
+  const compact = compactLegalAnswer(answer, query, meta);
+  const text = String(compact || '').trim();
   if (!text) return text;
   if (!shouldApplyLegalEnvelope(text, query)) return text;
 
