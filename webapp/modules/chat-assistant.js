@@ -180,10 +180,7 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU VBPL" - tro ly phap luat chuye
 **Nguon**: [Ten van ban day du], [Dieu/Khoan/Trang]
 
 ### Gi\u1ea3i th\u00edch / H\u01b0\u1edbng d\u1eabn th\u00eam n\u1ebfu c\u1ea7n
-- Chi ghi huong dan them khi that su can thiet.
-
----
-Checklist (5 muc): Trich dan day du; hieu luc dung; nguon chinh thuc; tom tat chuan; khong suy doan.`;
+- Chi ghi huong dan them khi that su can thiet.`;
 const SYSTEM_INSTRUCTION = VBPL_PROMPT_SPEC;
 const FAST_SYSTEM_INSTRUCTION = `${VBPL_PROMPT_SPEC}
 
@@ -504,13 +501,18 @@ function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
   const text = String(answer || '').trim();
   if (!text) return text;
   if (!shouldApplyLegalEnvelope(text, query)) return text;
-  if (/^##\s*T[oó]m t[aá]t/im.test(text) && /Checklist \(5 muc\)/i.test(text)) {
-    return text;
+
+  const hasSummaryHeading = /^##\s*T[oó]m t[aá]t/im.test(text);
+  const hasDetailHeading = /^###\s*Th[oô]ng tin chi ti[eế]t\s*\/\s*Ph[aâ]n t[ií]ch/im.test(text);
+  if (hasSummaryHeading || hasDetailHeading) {
+    return text
+      .replace(/\n+---\s*\n*Checklist \(5 m(?:ụ|u)c\):[^\n]*/gi, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   }
 
   const summary = extractSummaryText(text, query);
 
-  // Build metadata block from backend
   const metaInfo = [];
   if (meta && typeof meta === 'object') {
     if (meta.source_tier_summary) {
@@ -534,12 +536,12 @@ function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
       metaInfo.push(`Mức độ chắc chắn: ${confLabel}`);
     }
     if (meta.exact_match === true) {
-      metaInfo.push(`Khớp chính xác số hiệu văn bản`);
+      metaInfo.push('Khớp chính xác số hiệu văn bản');
     }
   }
 
   const metaBlock = metaInfo.length > 0
-    ? ['', '**Thông tin tra cứu**:', ...metaInfo.map(i => `- ${i}`), ''].join('\n')
+    ? ['', '**Thông tin tra cứu**:', ...metaInfo.map((i) => `- ${i}`), ''].join('\n')
     : '';
 
   return [
@@ -549,13 +551,7 @@ function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
     '',
     '### Thông tin chi tiết / Phân tích',
     text,
-    '',
-    '### Giải thích / Hướng dẫn thêm nếu cần',
-    '- Nếu cần kết luận chính thức, vui lòng đối chiếu thêm trên nguồn chính thức.',
-    '',
-    '---',
-    'Checklist (5 mục): Trích dẫn đầy đủ; hiệu lực đúng; nguồn chính thống; tóm tắt chuẩn; không suy đoán.',
-  ].join('\n');
+  ].join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function ensureFollowUpQuestion(answer = "", query = "", options = {}, meta = null) {
@@ -1869,11 +1865,7 @@ export async function sendMessage(text, onChunk) {
     }
 
     fullText = enforceTwoTierTerminology(
-      enforceLegalMarkdownEnvelope(
-        ensureFollowUpQuestion(fullText, rawUserText, {}, webSearchMeta),
-        rawUserText,
-        webSearchMeta,
-      ),
+      ensureFollowUpQuestion(fullText, rawUserText, {}, webSearchMeta),
       rawUserText,
     );
 

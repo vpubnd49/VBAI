@@ -56,6 +56,11 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
 const GEMINI_API_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
 const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-2.5-flash';
+const GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS = Object.freeze([
+  'gemini-2.5-flash',
+  'gemini-2.0-flash-exp',
+  'gemini-2.0-flash',
+]);
 const LEGAL_MATCH_PASS_SCORE = 85;
 const OFFICIAL_SOURCE_HOSTS = Object.freeze([
   'vbpl.vn',
@@ -172,6 +177,19 @@ function isGeminiModelNotFoundError(message = '') {
   );
 }
 
+function isGeminiModelCompatibilityError(message = '') {
+  const normalized = String(message || '').toLowerCase();
+  if (!normalized) return false;
+  if (normalized.includes('requested entity was not found')) return true;
+  if (!normalized.includes('model')) return false;
+  return (
+    normalized.includes('not found')
+    || normalized.includes('unsupported')
+    || normalized.includes('not supported')
+    || normalized.includes('invalid')
+  );
+}
+
 function pickGeminiRetryModel(primaryModel = '', configuredModel = '') {
   const primary = normalizeModelInput(primaryModel);
   const configured = normalizeModelInput(configuredModel);
@@ -182,6 +200,120 @@ function pickGeminiRetryModel(primaryModel = '', configuredModel = '') {
     return GEMINI_SAFE_FALLBACK_MODEL;
   }
   return '';
+}
+
+function isRetryableModelSelectionError(status, message = '') {
+  return status === 404 || (status === 400 && isGeminiModelCompatibilityError(message));
+}
+
+function shouldFallbackTranscriptionPath(attempt = null) {
+  if (!attempt) return false;
+  if (attempt.ok === true && !String(attempt.text || '').trim()) return true;
+  return isRetryableModelSelectionError(attempt.status, attempt.message || '');
+}
+
+function shouldRetryWithinTranscriptionPath(attempt = null) {
+  if (!attempt) return false;
+  return isRetryableModelSelectionError(attempt.status, attempt.message || '');
+}
+
+function getCompatibleAudioMimeType(detectedMimeType = '', effectiveFilename = '') {
+  if (detectedMimeType !== 'application/octet-stream') return detectedMimeType;
+  const fmt = inferAudioFormat({ mimeType: detectedMimeType, filename: effectiveFilename });
+  if (fmt === 'mp3') return 'audio/mpeg';
+  if (fmt === 'wav') return 'audio/wav';
+  if (fmt === 'ogg') return 'audio/ogg';
+  if (fmt === 'webm') return 'audio/webm';
+  if (fmt === 'aac') return 'audio/aac';
+  return 'audio/mp4';
+}
+
+function inferAudioFormat({ mimeType = '', filename = '' } = {}) {
+  const m = String(mimeType || '').toLowerCase();
+  const f = String(filename || '').toLowerCase();
+  if (m.includes('wav') || f.endsWith('.wav')) return 'wav';
+  if (m.includes('mpeg') || m.includes('mp3') || f.endsWith('.mp3')) return 'mp3';
+  if (m.includes('ogg') || f.endsWith('.ogg')) return 'ogg';
+  if (m.includes('webm') || f.endsWith('.webm')) return 'webm';
+  if (m.includes('aac') || f.endsWith('.aac')) return 'aac';
+  if (m.includes('mp4') || m.includes('m4a') || f.endsWith('.m4a') || f.endsWith('.mp4')) return 'mp4';
+  return 'wav';
+}
+
+function extractTextFromProviderPayload(data = {}) {
+  if (!data || typeof data !== 'object') return '';
+  if (typeof data.text === 'string' && data.text.trim()) return data.text.trim();
+  if (typeof data.output_text === 'string' && data.output_text.trim()) return data.output_text.trim();
+  if (Array.isArray(data?.choices) && data.choices[0]) {
+    const v = data.choices[0]?.message?.content || data.choices[0]?.text || '';
+    if (String(v || '').trim()) return String(v || '').trim();
+  }
+  const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
+  for (const candidate of candidates) {
+    const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+    const text = parts
+      .map((part) => String(part?.text || '').trim())
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+async function executeGeminiNativeAudioTranscription({
+  apiKey,
+  modelName,
+  audioBase64,
+  mimeType,
+}) {
+  const endpoint = `${GEMINI_API_BASE}/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const payload = {
+    contents: [{
+      role: 'user',
+      parts: [
+        { text: 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.' },
+        { inline_data: { mime_type: mimeType, data: audioBase64 } },
+      ],
+    }],
+    generationConfig: {
+      temperature: 0,
+    },
+  };
+
+  const providerRes = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!providerRes.ok) {
+    const providerError = await readProviderError(providerRes);
+    return {
+      ok: false,
+      status: providerRes.status,
+      message: providerError.message,
+      reason: providerError.reason,
+    };
+  }
+
+  const data = await providerRes.json();
+  const text = extractTextFromProviderPayload(data);
+  if (!text) {
+    return {
+      ok: false,
+      status: 502,
+      message: 'Native transcription returned empty text',
+      reason: 'empty_transcription',
+    };
+  }
+  return {
+    ok: true,
+    status: providerRes.status,
+    text,
+  };
 }
 
 async function executeGeminiCompatChatRequest({ apiKey, modelName, messages, temperature = 0.1, maxTokens = 32 }) {
@@ -621,6 +753,12 @@ app.post('/api/chat', async (req, res) => {
     const configuredGeminiModel = normalizeModelInput(config.gemini_model) || GEMINI_SAFE_FALLBACK_MODEL;
     const primaryModel = normalizeModelInput(effectiveModel) || configuredGeminiModel;
     const retryModel = pickGeminiRetryModel(primaryModel, configuredGeminiModel);
+    const candidateModels = dedupeModelNames([
+      primaryModel,
+      retryModel,
+      configuredGeminiModel,
+      GEMINI_SAFE_FALLBACK_MODEL,
+    ]);
     const attemptedModels = [];
 
     const executeProviderAttempt = async (modelName) => {
@@ -669,15 +807,24 @@ app.post('/api/chat', async (req, res) => {
       };
     };
 
-    attemptedModels.push(primaryModel);
-    let attempt = await executeProviderAttempt(primaryModel);
-
-    if (!attempt.ok && attempt.status === 404 && retryModel && isGeminiModelNotFoundError(attempt.message)) {
-      attemptedModels.push(retryModel);
-      attempt = await executeProviderAttempt(retryModel);
+    let attempt = null;
+    let finalModel = null;
+    for (const candidateModel of candidateModels) {
+      attemptedModels.push(candidateModel);
+      const currentAttempt = await executeProviderAttempt(candidateModel);
+      if (currentAttempt.ok) {
+        attempt = currentAttempt;
+        finalModel = candidateModel;
+        break;
+      }
+      attempt = currentAttempt;
+      const canRetryByModel =
+        (currentAttempt.status === 404 && isGeminiModelNotFoundError(currentAttempt.message))
+        || (currentAttempt.status === 400 && isGeminiModelCompatibilityError(currentAttempt.message));
+      if (!canRetryByModel) break;
     }
 
-    if (!attempt.ok) {
+    if (!attempt?.ok) {
       return res.status(attempt.status || 500).json({
         error: 'Provider request failed',
         message: attempt.message || `Provider error ${attempt.status || 500}`,
@@ -691,7 +838,7 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    const finalModel = attemptedModels[attemptedModels.length - 1] || primaryModel;
+    finalModel = finalModel || attemptedModels[attemptedModels.length - 1] || primaryModel;
     const data = attempt.data;
     if (data && typeof data === 'object' && !Array.isArray(data)) {
       data.meta = {
@@ -752,44 +899,144 @@ app.post('/api/transcribe', (req, res, next) => {
 
     const endpoint = GEMINI_API_ENDPOINT;
     const apiKey = config.gemini_api_key;
-    const effectiveModel = model || config.transcribe_model || config.gemini_model || 'gemini-2.5-flash';
+    const effectiveModel = normalizeModelInput(model || config.transcribe_model || config.gemini_model || 'gemini-2.5-flash');
 
     if (!apiKey) {
       return res.status(503).json({ error: 'API key missing' });
     }
 
-    // Build multipart/form-data for provider without lossy string conversion.
-    const formData = new FormData();
-    const audioBlob = new Blob([audioBuffer], { type: detectedMimeType });
-    formData.append('file', audioBlob, effectiveFilename);
-    formData.append('model', effectiveModel);
+    const compatCandidateModels = dedupeModelNames([
+      effectiveModel,
+      config.transcribe_model,
+      config.gemini_model,
+      ...GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS,
+    ]);
+    const attemptedModels = [];
 
-    const providerRes = await fetch(`${endpoint}/audio/transcriptions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'x-goog-api-key': apiKey,
-      },
-      body: formData
-    });
+    const executeCompatAttempt = async (modelName) => {
+      const formData = new FormData();
+      const audioBlob = new Blob([audioBuffer], { type: detectedMimeType });
+      formData.append('file', audioBlob, effectiveFilename);
+      formData.append('model', modelName);
 
-    if (!providerRes.ok) {
-      const providerError = await readProviderError(providerRes);
-      return res.status(providerRes.status).json({
+      const providerRes = await fetch(`${endpoint}/audio/transcriptions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'x-goog-api-key': apiKey,
+        },
+        body: formData
+      });
+      if (!providerRes.ok) {
+        const providerError = await readProviderError(providerRes);
+        return {
+          ok: false,
+          status: providerRes.status,
+          message: providerError.message,
+          reason: providerError.reason,
+          via: 'openai_compat',
+        };
+      }
+      const data = await providerRes.json();
+      const text = extractTextFromProviderPayload(data);
+      return {
+        ok: true,
+        status: providerRes.status,
+        data,
+        text,
+        via: 'openai_compat',
+      };
+    };
+
+    const compatibleAudioMime = getCompatibleAudioMimeType(detectedMimeType, effectiveFilename);
+    const nativeCandidateModels = dedupeModelNames([
+      effectiveModel,
+      config.gemini_model,
+      ...GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS,
+    ]);
+
+    let finalAttempt = null;
+    let finalModel = null;
+
+    for (const candidateModel of compatCandidateModels) {
+      attemptedModels.push(candidateModel);
+      const attempt = await executeCompatAttempt(candidateModel);
+      if (attempt.ok && String(attempt.text || '').trim()) {
+        finalAttempt = attempt;
+        finalModel = candidateModel;
+        break;
+      }
+      finalAttempt = attempt;
+      if (!shouldRetryWithinTranscriptionPath(attempt)) break;
+    }
+
+    if (shouldFallbackTranscriptionPath(finalAttempt)) {
+      const audioBase64 = audioBuffer.toString('base64');
+      for (const candidateModel of nativeCandidateModels) {
+        if (!attemptedModels.includes(candidateModel)) attemptedModels.push(candidateModel);
+        const nativeAttempt = await executeGeminiNativeAudioTranscription({
+          apiKey,
+          modelName: candidateModel,
+          audioBase64,
+          mimeType: compatibleAudioMime,
+        });
+        if (nativeAttempt.ok && String(nativeAttempt.text || '').trim()) {
+          finalAttempt = {
+            ok: true,
+            status: nativeAttempt.status,
+            text: nativeAttempt.text,
+            data: { text: nativeAttempt.text },
+            via: 'gemini_native_generate_content',
+          };
+          finalModel = candidateModel;
+          break;
+        }
+        finalAttempt = nativeAttempt;
+        if (!shouldRetryWithinTranscriptionPath(nativeAttempt)) break;
+      }
+    }
+
+    if (!finalAttempt?.ok) {
+      return res.status(finalAttempt?.status || 500).json({
         error: 'Transcription failed',
-        message: providerError.message || `Provider error ${providerRes.status}`,
+        message: finalAttempt?.message || `Provider error ${finalAttempt?.status || 500}`,
         meta: {
-          provider_status: providerRes.status,
-          attempted_models: [effectiveModel],
+          provider_status: finalAttempt?.status || null,
+          attempted_models: attemptedModels,
           final_model: null,
-          provider_error_reason: providerError.reason || null,
-          retried: false,
+          provider_error_reason: finalAttempt?.reason || null,
+          retried: attemptedModels.length > 1,
         }
       });
     }
 
-    const data = await providerRes.json();
-    res.json(data);
+    if (finalAttempt.via === 'gemini_native_generate_content') {
+      return res.json({
+        text: String(finalAttempt.text || '').trim(),
+        meta: {
+          provider_status: 200,
+          attempted_models: attemptedModels,
+          final_model: finalModel || attemptedModels[attemptedModels.length - 1] || effectiveModel,
+          provider_error_reason: null,
+          retried: attemptedModels.length > 1,
+          transcription_path: 'gemini_native_generate_content',
+        },
+      });
+    }
+
+    const data = finalAttempt.data || {};
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      data.meta = {
+        ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
+        provider_status: 200,
+        attempted_models: attemptedModels,
+        final_model: finalModel || attemptedModels[attemptedModels.length - 1] || effectiveModel,
+        provider_error_reason: null,
+        retried: attemptedModels.length > 1,
+        transcription_path: 'openai_compat_audio_transcriptions',
+      };
+    }
+    return res.json(data);
   } catch (err) {
     console.error('POST /api/transcribe error:', err);
     res.status(500).json({ error: 'Internal server error', message: err.message });
