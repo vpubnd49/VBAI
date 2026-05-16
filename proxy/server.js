@@ -28,6 +28,7 @@ const upload = multer({
 });
 
 const DIRECT_SOURCE_TIMEOUT_MS = Number(process.env.DIRECT_SOURCE_TIMEOUT_MS || '3200');
+const LEGAL_AGENT_TEXT_LIMIT = Number(process.env.LEGAL_AGENT_TEXT_LIMIT || '24000');
 const DIRECT_SOURCE_MAX_PER_SOURCE = Number(process.env.DIRECT_SOURCE_MAX_PER_SOURCE || '8');
 const DIRECT_SOURCE_URLS_PER_SOURCE = Number(process.env.DIRECT_SOURCE_URLS_PER_SOURCE || '2');
 const WEB_SEARCH_CSE_TIMEOUT_MS = Number(process.env.WEB_SEARCH_CSE_TIMEOUT_MS || '4200');
@@ -1498,8 +1499,102 @@ app.post('/api/web-search', async (req, res) => {
   }
 });
 
-// POST: Focused web content extraction from trusted legal URLs
+// POST: Focused legal retrieval with expanded source text for agent-style downstream synthesis
+app.post('/api/legal-agent-retrieve', async (req, res) => {
+  try {
+    initFirebase();
+    await verifyIdToken(req);
+    const {
+      url,
+      keywords,
+      target_article = null,
+      target_clause = null,
+      target_point = null,
+      strict = false,
+      max_chars = null,
+    } = req.body || {};
+    const requestedLimit = Number(max_chars);
+    const effectiveLimit = Number.isFinite(requestedLimit) && requestedLimit > 0
+      ? Math.min(requestedLimit, LEGAL_AGENT_TEXT_LIMIT)
+      : LEGAL_AGENT_TEXT_LIMIT;
 
+    const extraction = await extractTrustedLegalContent({
+      url,
+      keywords,
+      target_article,
+      target_clause,
+      target_point,
+      fetchTimeoutMs: 10000,
+      resultLimit: effectiveLimit,
+      snippetPadding: 800,
+      fallbackMode: 'full',
+      clipFn: (value = '') => clipLegalAgentText(value, effectiveLimit),
+    });
+    if (extraction?.error) {
+      return res.status(extraction.status || 400).json({ error: extraction.error });
+    }
+
+    if (extraction.emptyReason) {
+      return res.json({
+        text: '',
+        extracted: false,
+        strict_match: false,
+        source_tier: extraction.sourceTier,
+      });
+    }
+
+    const strictEnabled = strict === true;
+    if (strictEnabled) {
+      const strictText = clipLegalAgentText(extraction.strictResult.text || '', effectiveLimit);
+      return res.json({
+        text: strictText,
+        extracted: extraction.strictResult.extracted === true && strictText.length > 0,
+        strict_match: extraction.strictResult.strict_match === true && strictText.length > 0,
+        article_found: extraction.strictResult.article_found,
+        clause_found: extraction.strictResult.clause_found,
+        point_found: extraction.strictResult.point_found,
+        extract_mode: 'strict_agent',
+        source_tier: extraction.sourceTier,
+        raw_length: extraction.rawLength,
+        returned_length: strictText.length,
+      });
+    }
+
+    if (extraction.bestStart < 0) {
+      return res.json({
+        text: extraction.fallbackText,
+        extracted: false,
+        strict_match: extraction.strictResult.strict_match === true,
+        article_found: extraction.strictResult.article_found,
+        clause_found: extraction.strictResult.clause_found,
+        point_found: extraction.strictResult.point_found,
+        extract_mode: 'full_agent_fallback',
+        source_tier: extraction.sourceTier,
+        raw_length: extraction.rawLength,
+        returned_length: extraction.fallbackText.length,
+      });
+    }
+
+    return res.json({
+      text: extraction.matchedText,
+      extracted: true,
+      keyword: extraction.bestKeyword,
+      strict_match: extraction.strictResult.strict_match === true,
+      article_found: extraction.strictResult.article_found,
+      clause_found: extraction.strictResult.clause_found,
+      point_found: extraction.strictResult.point_found,
+      extract_mode: 'expanded_agent',
+      source_tier: extraction.sourceTier,
+      raw_length: extraction.rawLength,
+      returned_length: extraction.matchedText.length,
+    });
+  } catch (err) {
+    console.error('POST /api/legal-agent-retrieve error:', err);
+    res.status(500).json({ error: 'Internal server error', message: err.message });
+  }
+});
+
+// POST: Focused web content extraction from trusted legal URLs
 app.post('/api/web-extract', async (req, res) => {
   try {
     initFirebase();
@@ -1512,95 +1607,61 @@ app.post('/api/web-extract', async (req, res) => {
       target_point = null,
       strict = false,
     } = req.body || {};
-    const rawUrl = String(url || '').trim();
-    if (!rawUrl) return res.status(400).json({ error: 'url required' });
 
-    let parsed;
-    try {
-      parsed = new URL(rawUrl);
-    } catch {
-      return res.status(400).json({ error: 'invalid url' });
-    }
-    if (!/^https?:$/.test(parsed.protocol)) {
-      return res.status(400).json({ error: 'invalid protocol' });
-    }
-
-    const allowedHosts = [
-      'chinhphu.vn',
-      'vanban.chinhphu.vn',
-      'congbao.chinhphu.vn',
-      'vbpl.vn',
-      'quochoi.vn',
-      'xaydungchinhsach.chinhphu.vn',
-      'thuvienphapluat.vn',
-      'luatvietnam.vn',
-    ];
-    if (!isAllowedHost(parsed.toString(), allowedHosts)) {
-      return res.status(400).json({ error: 'host_not_allowed' });
+    const extraction = await extractTrustedLegalContent({
+      url,
+      keywords,
+      target_article,
+      target_clause,
+      target_point,
+      fetchTimeoutMs: 8000,
+      resultLimit: 3200,
+      snippetPadding: 320,
+      fallbackMode: 'snippet',
+      clipFn: (value = '') => sanitizeExtractedLegalText(value),
+    });
+    if (extraction?.error) {
+      return res.status(extraction.status || 400).json({ error: extraction.error });
     }
 
-    const html = await fetchDirectSourcePage(parsed.toString(), 8000);
-    if (!html) return res.json({ text: '', extracted: false, strict_match: false });
-
-    const plain = sanitizeExtractedLegalText(cleanStrictText(decodeHtmlEntities(stripHtml(html))));
-    if (!plain) return res.json({ text: '', extracted: false, strict_match: false });
+    if (extraction.emptyReason) {
+      return res.json({ text: '', extracted: false, strict_match: false });
+    }
 
     const strictEnabled = strict === true;
-    const strictTarget = {
-      article: target_article,
-      clause: target_clause,
-      point: target_point,
-    };
-    const strictResult = extractStrictLegalText(plain, strictTarget);
     if (strictEnabled) {
-      const strictText = sanitizeExtractedLegalText(strictResult.text || '');
+      const strictText = sanitizeExtractedLegalText(extraction.strictResult.text || '');
       return res.json({
         text: strictText,
-        extracted: strictResult.extracted === true && strictText.length > 0,
-        strict_match: strictResult.strict_match === true && strictText.length > 0,
-        article_found: strictResult.article_found,
-        clause_found: strictResult.clause_found,
-        point_found: strictResult.point_found,
+        extracted: extraction.strictResult.extracted === true && strictText.length > 0,
+        strict_match: extraction.strictResult.strict_match === true && strictText.length > 0,
+        article_found: extraction.strictResult.article_found,
+        clause_found: extraction.strictResult.clause_found,
+        point_found: extraction.strictResult.point_found,
         extract_mode: 'strict',
       });
     }
 
-    const candidates = Array.isArray(keywords) ? keywords : [];
-    const normalized = normalizeVietnamese(plain);
-    let bestStart = -1;
-    let bestKeyword = '';
-    for (const kw of candidates) {
-      const key = normalizeVietnamese(String(kw || '').trim());
-      if (!key) continue;
-      const pos = normalized.indexOf(key);
-      if (pos >= 0 && (bestStart < 0 || pos < bestStart)) {
-        bestStart = pos;
-        bestKeyword = key;
-      }
-    }
-
-    if (bestStart < 0) {
+    if (extraction.bestStart < 0) {
       return res.json({
-        text: sanitizeExtractedLegalText(plain.slice(0, 3200)),
+        text: extraction.fallbackText,
         extracted: false,
-        strict_match: strictResult.strict_match === true,
-        article_found: strictResult.article_found,
-        clause_found: strictResult.clause_found,
-        point_found: strictResult.point_found,
+        strict_match: extraction.strictResult.strict_match === true,
+        article_found: extraction.strictResult.article_found,
+        clause_found: extraction.strictResult.clause_found,
+        point_found: extraction.strictResult.point_found,
         extract_mode: 'keyword_fallback',
       });
     }
 
-    const snippetStart = Math.max(0, bestStart - 320);
-    const snippetEnd = Math.min(plain.length, bestStart + 3200);
     return res.json({
-      text: sanitizeExtractedLegalText(plain.slice(snippetStart, snippetEnd)),
+      text: extraction.matchedText,
       extracted: true,
-      keyword: bestKeyword,
-      strict_match: strictResult.strict_match === true,
-      article_found: strictResult.article_found,
-      clause_found: strictResult.clause_found,
-      point_found: strictResult.point_found,
+      keyword: extraction.bestKeyword,
+      strict_match: extraction.strictResult.strict_match === true,
+      article_found: extraction.strictResult.article_found,
+      clause_found: extraction.strictResult.clause_found,
+      point_found: extraction.strictResult.point_found,
       extract_mode: 'keyword_fallback',
     });
   } catch (err) {
@@ -1610,6 +1671,167 @@ app.post('/api/web-extract', async (req, res) => {
 });
 
 // Helper: Get current year context for search queries
+function buildTrustedLegalSourceContext({
+  url = '',
+  keywords = [],
+  target_article = null,
+  target_clause = null,
+  target_point = null,
+} = {}) {
+  const rawUrl = String(url || '').trim();
+  if (!rawUrl) return { error: 'url required', status: 400 };
+
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return { error: 'invalid url', status: 400 };
+  }
+  if (!/^https?:$/.test(parsed.protocol)) {
+    return { error: 'invalid protocol', status: 400 };
+  }
+
+  const allowedHosts = [
+    'chinhphu.vn',
+    'vanban.chinhphu.vn',
+    'congbao.chinhphu.vn',
+    'vbpl.vn',
+    'quochoi.vn',
+    'xaydungchinhsach.chinhphu.vn',
+    'thuvienphapluat.vn',
+    'luatvietnam.vn',
+  ];
+  if (!isAllowedHost(parsed.toString(), allowedHosts)) {
+    return { error: 'host_not_allowed', status: 400 };
+  }
+
+  return {
+    parsed,
+    sourceTier: detectSourceTier({ link: parsed.toString() }),
+    keywords: Array.isArray(keywords) ? keywords : [],
+    strictTarget: {
+      article: target_article,
+      clause: target_clause,
+      point: target_point,
+    },
+  };
+}
+
+async function extractTrustedLegalContent({
+  url = '',
+  keywords = [],
+  target_article = null,
+  target_clause = null,
+  target_point = null,
+  fetchTimeoutMs = 8000,
+  resultLimit = 3200,
+  snippetPadding = 320,
+  fallbackMode = 'snippet',
+  clipFn = (value = '') => sanitizeExtractedLegalText(value),
+} = {}) {
+  const context = buildTrustedLegalSourceContext({
+    url,
+    keywords,
+    target_article,
+    target_clause,
+    target_point,
+  });
+  if (context?.error) return context;
+
+  const html = await fetchDirectSourcePage(context.parsed.toString(), fetchTimeoutMs);
+  if (!html) {
+    return {
+      parsed: context.parsed,
+      sourceTier: context.sourceTier,
+      plain: '',
+      strictResult: {
+        text: '',
+        extracted: false,
+        strict_match: false,
+        article_found: false,
+        clause_found: false,
+        point_found: false,
+      },
+      bestKeyword: '',
+      bestStart: -1,
+      matchedText: '',
+      fallbackText: '',
+      rawLength: 0,
+      returnedLength: 0,
+      emptyReason: 'fetch_empty',
+      status: 200,
+    };
+  }
+
+  const plain = sanitizeExtractedLegalText(cleanStrictText(decodeHtmlEntities(stripHtml(html))));
+  if (!plain) {
+    return {
+      parsed: context.parsed,
+      sourceTier: context.sourceTier,
+      plain: '',
+      strictResult: {
+        text: '',
+        extracted: false,
+        strict_match: false,
+        article_found: false,
+        clause_found: false,
+        point_found: false,
+      },
+      bestKeyword: '',
+      bestStart: -1,
+      matchedText: '',
+      fallbackText: '',
+      rawLength: 0,
+      returnedLength: 0,
+      emptyReason: 'plain_empty',
+      status: 200,
+    };
+  }
+
+  const strictResult = extractStrictLegalText(plain, context.strictTarget);
+  const normalized = normalizeVietnamese(plain);
+  let bestStart = -1;
+  let bestKeyword = '';
+  for (const kw of context.keywords) {
+    const key = normalizeVietnamese(String(kw || '').trim());
+    if (!key) continue;
+    const pos = normalized.indexOf(key);
+    if (pos >= 0 && (bestStart < 0 || pos < bestStart)) {
+      bestStart = pos;
+      bestKeyword = key;
+    }
+  }
+
+  const safeClip = typeof clipFn === 'function'
+    ? clipFn
+    : (value = '') => sanitizeExtractedLegalText(value);
+
+  const fallbackText = fallbackMode === 'full'
+    ? safeClip(plain)
+    : safeClip(plain.slice(0, resultLimit));
+  const matchedText = bestStart < 0
+    ? ''
+    : safeClip(plain.slice(
+      Math.max(0, bestStart - snippetPadding),
+      Math.min(plain.length, bestStart + resultLimit),
+    ));
+
+  return {
+    parsed: context.parsed,
+    sourceTier: context.sourceTier,
+    plain,
+    strictResult,
+    bestKeyword,
+    bestStart,
+    matchedText,
+    fallbackText,
+    rawLength: plain.length,
+    returnedLength: bestStart < 0 ? fallbackText.length : matchedText.length,
+    emptyReason: '',
+    status: 200,
+  };
+}
+
 function getCurrentYearContext() {
   const now = new Date();
   const current = now.getFullYear();
@@ -1696,6 +1918,58 @@ function inferIssuerFromText(text = '') {
   if (/\bbo\b/.test(n) || /\btt-b[a-z0-9-]+\b/.test(String(text || '').toUpperCase())) return 'bo_nganh';
   if (/\bubnd\b/.test(n)) return 'ubnd';
   return null;
+}
+
+function shouldApplyOfficialDomainClause({
+  query = '',
+  expectedDocNumber = null,
+  requestedDocType = null,
+} = {}) {
+  const normalizedQuery = normalizeVietnamese(String(query || ''));
+  const normalizedExpectedDocNumber = String(expectedDocNumber || '').trim().toUpperCase();
+  const normalizedRequestedDocType = sanitizeRequestedDocType(requestedDocType) || inferRequestedDocTypeFromQuery(query);
+  const hasDocNumber = Boolean(normalizedExpectedDocNumber || /\b\d{1,4}\/\d{4}\/[a-z0-9-]+\b/i.test(String(query || '')));
+  const hasDocType = Boolean(normalizedRequestedDocType || /\b(luat|bo luat|nghi dinh|nghi quyet|thong tu|quyet dinh|van ban)\b/.test(normalizedQuery));
+  const hasStatusSignal = /(moi nhat|hien hanh|hieu luc|sua doi|bo sung|co gi moi|diem moi|noi dung moi|thay doi gi|quy dinh moi)/.test(normalizedQuery);
+  const tooBroad = /(tu van|hoi dap|giai dap|thu tuc|quy trinh|mau don|kinh nghiem)/.test(normalizedQuery)
+    && !hasDocNumber
+    && !hasStatusSignal;
+  if (tooBroad) return false;
+  return hasDocNumber || (hasDocType && hasStatusSignal);
+}
+
+function normalizeOfficialFirstItems(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map((item, index) => ({ item, index, tier: detectSourceTier({ link: item?.link, source: item?.source }) }))
+    .sort((a, b) => {
+      const aOfficial = a.tier === 'official';
+      const bOfficial = b.tier === 'official';
+      if (aOfficial !== bOfficial) return aOfficial ? -1 : 1;
+      const aReference = a.tier === 'reference';
+      const bReference = b.tier === 'reference';
+      if (aReference !== bReference) return aReference ? -1 : 1;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.item);
+}
+
+function summarizeTopSourceAudit(items = [], limit = 5) {
+  const ordered = normalizeOfficialFirstItems(items).slice(0, Math.max(1, limit));
+  const topSources = [];
+  const topSourceTiers = {};
+  let officialCountTop = 0;
+  for (const item of ordered) {
+    const host = toHost(String(item?.link || '').trim()) || String(item?.source || '').trim().toLowerCase() || 'unknown';
+    const tier = detectSourceTier({ link: item?.link, source: item?.source });
+    topSources.push(host);
+    topSourceTiers[host] = tier;
+    if (tier === 'official') officialCountTop += 1;
+  }
+  return {
+    topSources,
+    topSourceTiers,
+    officialCountTop,
+  };
 }
 
 function parseUserQueryConstraints({
@@ -2076,6 +2350,7 @@ function buildWebSearchMeta({
   supersededBy = null,
   freshnessForced = false,
 }) {
+  const sourceAudit = summarizeTopSourceAudit(items, 5);
   return {
     strategy,
     web_search_provider: sanitizeWebSearchProvider(webSearchProvider),
@@ -2119,6 +2394,9 @@ function buildWebSearchMeta({
       : null,
     answer_mode: answerMode ? String(answerMode) : null,
     sources_used: collectSourcesUsed(items),
+    top_sources: sourceAudit.topSources,
+    top_source_tiers: sourceAudit.topSourceTiers,
+    official_count_top5: sourceAudit.officialCountTop,
     item_count: Array.isArray(items) ? Math.min(8, items.length) : 0,
     cache_hit: cacheHit === true,
     served_in_ms: Number.isFinite(servedInMs) ? Math.max(0, Math.round(servedInMs)) : null,
@@ -2691,6 +2969,14 @@ function sanitizeExtractedLegalText(value = '') {
   return cleaned.replace(/\s+/g, ' ').trim();
 }
 
+function clipLegalAgentText(value = '', limit = LEGAL_AGENT_TEXT_LIMIT) {
+  const text = sanitizeExtractedLegalText(value);
+  if (!text) return '';
+  const max = Number(limit);
+  if (!Number.isFinite(max) || max <= 0 || text.length <= max) return text;
+  return `${text.slice(0, max).trim()}…`;
+}
+
 function isAllowedHost(url, allowedHosts = []) {
   try {
     const parsed = new URL(url);
@@ -2880,12 +3166,15 @@ async function executeVertexSearch({ query, timeoutMs, vertexConfig }) {
   }
 }
 
-async function executeCseSearch({ query, timeoutMs, dateRestrict, cseConfig }) {
+async function executeCseSearch({ query, timeoutMs, dateRestrict, cseConfig, expectedDocNumber = null, requestedDocType = null }) {
   let rewrittenQuery = String(query || '').trim();
   const normalizedQuery = normalizeVietnamese(rewrittenQuery);
-  const looksLikeLegalLookup = /\b(luat|bo luat|nghi dinh|nghi quyet|thong tu|quyet dinh|van ban|qh\d+|\/\d{4}\/qh\d+|\/\d{4}\/nd-cp|\/\d{4}\/tt-)/.test(normalizedQuery);
-  const wantsSubstantiveUpdate = /(co gi moi|diem moi|noi dung moi|moi gi|thay doi gi|quy dinh moi|diem sua doi|diem bo sung)/.test(normalizedQuery);
-  if (looksLikeLegalLookup && wantsSubstantiveUpdate && !/site:vbpl\.vn|site:vanban\.chinhphu\.vn|site:congbao\.chinhphu\.vn|site:chinhphu\.vn|site:quochoi\.vn/.test(rewrittenQuery)) {
+  const appliesOfficialDomain = shouldApplyOfficialDomainClause({
+    query: query || '',
+    expectedDocNumber: expectedDocNumber,
+    requestedDocType: requestedDocType,
+  });
+  if (appliesOfficialDomain && !/site:vbpl\.vn|site:vanban\.chinhphu\.vn|site:congbao\.chinhphu\.vn|site:chinhphu\.vn|site:quochoi\.vn/.test(rewrittenQuery)) {
     const officialDomains = '(site:vbpl.vn OR site:vanban.chinhphu.vn OR site:congbao.chinhphu.vn OR site:chinhphu.vn OR site:quochoi.vn)';
     rewrittenQuery = `${rewrittenQuery} ${officialDomains}`;
   }

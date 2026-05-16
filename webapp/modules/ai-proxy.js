@@ -369,6 +369,32 @@ export async function sendWebExtractRequest(url, keywords = [], options = {}) {
   return await response.json();
 }
 
+export async function sendLegalAgentRequest(url, keywords = [], options = {}) {
+  const targetArticle = Number(options.targetArticle);
+  const targetClause = Number(options.targetClause);
+  const targetPoint = String(options.targetPoint || '').trim();
+  const maxChars = Number(options.maxChars);
+  const response = await backendFetch('/legal-agent-retrieve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: String(url || '').trim(),
+      keywords: Array.isArray(keywords) ? keywords.slice(0, 12) : [],
+      strict: options.strict === true,
+      target_article: Number.isFinite(targetArticle) && targetArticle > 0 ? Math.floor(targetArticle) : undefined,
+      target_clause: Number.isFinite(targetClause) && targetClause > 0 ? Math.floor(targetClause) : undefined,
+      target_point: targetPoint || undefined,
+      max_chars: Number.isFinite(maxChars) && maxChars > 0 ? Math.floor(maxChars) : undefined,
+    }),
+    timeoutMs: options.timeoutMs ?? 25000,
+  });
+  if (!response.ok) {
+    const rawMessage = await buildHttpErrorMessage(response, `HTTP Error ${response.status}`);
+    throw new Error(rawMessage || 'Khong the lay noi dung legal agent.');
+  }
+  return await response.json();
+}
+
 export async function checkProxyStatus(context = 'default') {
   const ctx = normalizeContext(context);
   try {

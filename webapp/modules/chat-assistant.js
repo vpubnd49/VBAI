@@ -15,6 +15,7 @@ import {
   sendWebSearchRequest,
   getLastWebSearchMeta,
   sendWebExtractRequest,
+  sendLegalAgentRequest,
 } from './ai-proxy.js';
 
 import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig, validateGeminiApiKey } from './system-config.js';
@@ -509,6 +510,7 @@ function shouldUseCompactLegalAnswer(answer = '', query = '', meta = null) {
   const text = normalizeVietnamese(`${answer}
 ${query}`);
   if (!text) return false;
+  if (meta?.rawIntent === 'full') return false;
   if (isSubstantiveUpdateQuery(query, { effectiveDocNumber: extractPotentialDocNumber(query) || lastResolvedDocNumber || null })) return false;
   const hasStructuredRequest = /(dieu\s*\d+|khoan\s*\d+|diem\s*[a-z]|so sanh|doi chieu|trich|toan van|phan tich|chi tiet|theo so|so hieu|nguyen van|liet ke day du|day du)/.test(text);
   if (hasStructuredRequest) return false;
@@ -554,11 +556,21 @@ function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
   const sourceLine = extractPrimarySourceLine(meta);
   const substantiveQuery = isSubstantiveUpdateQuery(query, { effectiveDocNumber: extractPotentialDocNumber(query) || lastResolvedDocNumber || null });
   const isBriefGeneralQuery = substantiveQuery ? false : shouldUseCompactLegalAnswer(text, query, meta);
+  const wantsFullIntent = meta?.rawIntent === 'full';
   const hasSummaryHeading = /^##\s*T[oó]m t[aá]t/im.test(text);
   const hasDetailHeading = /^###\s*Th[oô]ng tin chi ti[eế]t\s*\/\s*Ph[aâ]n t[ií]ch/im.test(text);
   if (hasSummaryHeading || hasDetailHeading) {
     const cleaned = text
       .replace(/\n+---\s*\n*Checklist \(5 m(?:ụ|u)c\):[^\n]*/gi, '')
+      .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
+      .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    return sourceLine && !/\bNgu[oồ]n:\b/i.test(cleaned) ? `${cleaned}\n\n${sourceLine}` : cleaned;
+  }
+
+  if (wantsFullIntent) {
+    const cleaned = text
       .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
       .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
       .replace(/\n{3,}/g, '\n\n')
@@ -1147,6 +1159,115 @@ function buildEvidenceResponse(rawUserText = '', searchContext = {}, searchResul
   return lines.join('\n');
 }
 
+function isDetailedLegalIntent(rawUserText = '', searchContext = {}) {
+  const n = normalizeVietnamese(rawUserText);
+  if (parseComparisonTargets(rawUserText)) return false;
+  if (hasCitationIntent(rawUserText)) return false;
+  if (/(toan van|nguyen van|chi tiet|day du noi dung|toan bo noi dung|nguyen ban)/.test(n)) return true;
+  if (searchContext?.effectiveDocNumber && /(dieu\s*\d+|khoan\s*\d+|diem\s*[a-z])/.test(n)) return false;
+  return false;
+}
+
+async function extractLegalAgentContextFromLinks(links = [], keywords = [], options = {}) {
+  for (const link of links) {
+    try {
+      const extracted = await sendLegalAgentRequest(link, keywords, options);
+      const text = String(extracted?.text || '').trim();
+      if (!text) continue;
+      return {
+        text,
+        link,
+        extract_mode: String(extracted?.extract_mode || '').trim(),
+      };
+    } catch (err) {
+      console.warn('Legal agent extraction skipped:', err?.message || err);
+    }
+  }
+  return null;
+}
+
+async function buildDetailedLegalAgentAnswer(rawUserText = '', searchContext = {}, searchResults = '', webSearchMeta = null) {
+  if (!isDetailedLegalIntent(rawUserText, searchContext)) return '';
+  const items = parseWebSearchMarkdownItems(searchResults);
+  if (items.length === 0) return '';
+
+  const docNo = String(searchContext?.effectiveDocNumber || '').trim().toUpperCase();
+  const prioritizedItems = items
+    .filter((it) => !docNo || `${it.title} ${it.snippet} ${it.link}`.toUpperCase().includes(docNo))
+    .sort((a, b) => {
+      const aHost = (() => { try { return new URL(String(a?.link || ''), 'https://vbpl.vn').hostname.replace(/^www\./, ''); } catch { return ''; } })();
+      const bHost = (() => { try { return new URL(String(b?.link || ''), 'https://vbpl.vn').hostname.replace(/^www\./, ''); } catch { return ''; } })();
+      const aOfficial = getSourceTierLabelFromHost(aHost) === 'Chinh thuc';
+      const bOfficial = getSourceTierLabelFromHost(bHost) === 'Chinh thuc';
+      if (aOfficial !== bOfficial) return aOfficial ? -1 : 1;
+      return 0;
+    })
+    .slice(0, 5);
+  const workingItems = prioritizedItems.length > 0 ? prioritizedItems : items.slice(0, 5);
+  const links = Array.from(new Set(workingItems.map((it) => String(it.link || '').trim()).filter(Boolean)));
+  if (links.length === 0) return '';
+
+  const bestTitle = String(workingItems[0]?.title || '').trim();
+  const keywords = [
+    docNo,
+    bestTitle,
+    rawUserText,
+  ].filter(Boolean);
+
+  const retrieval = await extractLegalAgentContextFromLinks(links, keywords, {
+    strict: false,
+    maxChars: 24000,
+  });
+  if (!retrieval || !String(retrieval.text || '').trim()) return '';
+
+  const sourceLine = extractPrimarySourceLine(webSearchMeta) || `Nguồn: ${retrieval.link}`;
+  const guidance = 'Neu nguoi dung yeu cau noi dung chi tiet/nguyen van, uu tien tra loi day du theo pham vi du lieu da trich xuat, khong tom tat qua muc.';
+
+  const synthesisMessages = [
+    {
+      role: 'system',
+      content: [
+        'Ban la tro ly tra cuu VBPL Viet Nam.',
+        'Nhiem vu: dua tren noi dung phap ly da trich xuat tu nguon web, tra loi day du hon so voi che do tom tat mac dinh.',
+        'Khong duoc lam mat noi dung quan trong khi rut gon cach trinh bay.',
+        'Neu cau hoi yeu cau nguyen van/trich dan/chi tiet, uu tien giu du noi dung trong pham vi du lieu da co.',
+        guidance,
+        'Khong chen checklist. Khong lap lai cau hoi. Co the dung gach dau dong neu can ro y.'
+      ].join('\n')
+    },
+    {
+      role: 'user',
+      content: [
+        `Yeu cau nguoi dung: ${rawUserText}`,
+        docNo ? `So hieu van ban: ${docNo}` : '',
+        bestTitle ? `Tieu de uu tien: ${bestTitle}` : '',
+        `Nguon trich xuat: ${retrieval.link}`,
+        `Che do trich xuat: ${retrieval.extract_mode || 'legal_agent'}`,
+        'Noi dung trich xuat:',
+        retrieval.text,
+      ].filter(Boolean).join('\n\n')
+    }
+  ];
+
+  let answer = '';
+  try {
+    answer = await sendChatRequest(synthesisMessages, currentModelName, {
+      context: 'chat',
+      stream: false,
+      temperature: 0.1,
+    });
+  } catch (err) {
+    console.warn('Detailed legal agent synthesis failed:', err?.message || err);
+    answer = '';
+  }
+
+  const cleaned = String(answer || '').trim();
+  if (!cleaned) {
+    return `${retrieval.text}\n\n${sourceLine}`;
+  }
+  return `${cleaned}\n\n${sourceLine}`;
+}
+
 function isSubstantiveUpdateQuery(rawUserText = '', searchContext = {}) {
   const n = normalizeVietnamese(rawUserText);
   if (!searchContext?.effectiveDocNumber) return false;
@@ -1386,7 +1507,7 @@ async function buildStrictCitationResponse(rawUserText = '', searchContext = {},
   ].filter(Boolean).join(' ');
   return [
     `Trích dẫn chính xác ${targetTitle}${searchContext?.effectiveDocNumber ? ` (${searchContext.effectiveDocNumber})` : ''}:`,
-    `- ${strictHit.text.slice(0, 1600)}`,
+    `- ${strictHit.text}`,
     `Nguồn trích: ${strictHit.link}`,
   ].join('\n');
 }
@@ -1407,7 +1528,7 @@ async function buildComparisonTableResponse(rawUserText = '', searchContext = {}
   }
 
   const header = `| ${sanitizeTableCell(comparison.left.label)} | ${sanitizeTableCell(comparison.right.label)} |\n|---|---|`;
-  const row = `| ${sanitizeTableCell(leftHit.text.slice(0, 1200))} | ${sanitizeTableCell(rightHit.text.slice(0, 1200))} |`;
+  const row = `| ${sanitizeTableCell(leftHit.text)} | ${sanitizeTableCell(rightHit.text)} |`;
   return [
     `So sánh chính xác theo dữ liệu tra cứu${searchContext?.effectiveDocNumber ? ` (${searchContext.effectiveDocNumber})` : ''}:`,
     header,
@@ -1444,7 +1565,7 @@ async function buildDelegationFocusedEvidenceResponse(rawUserText = '', searchCo
       return [
         `Đã xác nhận có văn bản ${searchContext?.effectiveDocNumber || ''} trong dữ liệu tra cứu mới nhất từ Internet.`,
         'Trích đoạn liên quan đến ủy quyền (từ nguồn chính thống):',
-        `- ${cleaned.slice(0, 1200)}`,
+        `- ${cleaned}`,
         `Nguồn trích: ${link}`,
       ].join('\n');
     } catch (err) {
@@ -1960,6 +2081,26 @@ export async function sendMessage(text, onChunk) {
       }
 
     }
+
+  const detailedAnswerRaw = await buildDetailedLegalAgentAnswer(rawUserText, searchContext, webSearchResultsText, webSearchMeta);
+  if (String(detailedAnswerRaw || '').trim()) {
+    const detailedMeta = { ...(webSearchMeta || {}), rawIntent: 'full' };
+    const detailedAnswer = enforceTwoTierTerminology(
+      ensureFollowUpQuestion(detailedAnswerRaw, rawUserText, {}, detailedMeta),
+      rawUserText,
+    );
+    pushTurn("user", rawUserText);
+    pushTurn("assistant", detailedAnswer);
+    lastUserQuery = rawUserText;
+    lastAssistantReply = stripTrailingFollowUpBlocks(detailedAnswer);
+    rememberResolvedDocNumber(searchContext, detailedAnswer);
+    logSearchEvent(detailedAnswer, {
+      webSearchUsed: true,
+      webSearchMeta: detailedMeta,
+    });
+    if (onChunk) onChunk(detailedAnswer);
+    return detailedAnswer;
+  }
 
     const comparisonAnswerRaw = await buildComparisonTableResponse(rawUserText, searchContext, webSearchResultsText);
     if (String(comparisonAnswerRaw || '').trim()) {
