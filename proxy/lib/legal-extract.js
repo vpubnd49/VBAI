@@ -5,6 +5,67 @@ function cleanText(value = '') {
     .trim();
 }
 
+function decodeHtmlEntities(value = '') {
+  let text = String(value || '');
+  // Decode multiple times to handle double-encoded entities
+  for (let i = 0; i < 3; i += 1) {
+    text = text
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&/gi, '&')
+      .replace(/"/gi, '"')
+      .replace(/&apos;/gi, "'")
+      .replace(/</gi, '<')
+      .replace(/>/gi, '>')
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+        const code = parseInt(hex, 16);
+        return Number.isFinite(code) ? String.fromCodePoint(code) : '';
+      })
+      .replace(/&#(\d+);/g, (_, dec) => {
+        const code = parseInt(dec, 10);
+        return Number.isFinite(code) ? String.fromCodePoint(code) : '';
+      });
+  }
+  return text;
+}
+
+function filterBoilerplate(text = '') {
+  const normalized = String(text || '').toLowerCase();
+
+  // Common boilerplate patterns to remove
+  const boilerplatePatterns = [
+    // Phone/hotline sections
+    /hotline[:\s]*[\d\s-]+/gi,
+    /t\u1ed5ng \u0111\u00e0i[:\s]*[\d\s-]+/gi,
+    /\u0111\u01b0\u1eddng d\u00e2y n\u00f3ng[:\s]*[\d\s-]+/gi,
+    /call center[:\s]*[\d\s-]+/gi,
+
+    // Footer/copyright
+    /copyright\s*[\u00a9\u00a9]\s*\d{4}/gi,
+    /\u00a9\s*\d{4}\s*.+all\s*rights\s*reserved/i,
+    /b\u1ea3n quy\u1ec1n thu\u1ed9c v\u1ec1/gi,
+
+    // Navigation/menu
+    /trang\s*ch\u00ednh|trang\s*ch\u1ee7|home\s*page/gi,
+    /danh\s*m\u1ee5c|menu/gi,
+    /th\u00f4ng\s*tin\s*li\u00ean\s*\u7cfb\u7edf/gi,
+
+    // Website credits
+    /ph\u00e1t\s*tri\u1ec3n\s*b\u1edfi|developed\s*by/gi,
+    /h\u1ec7\s*th\u1ed1ng\s*th\u00f4ng\s*tin/gi,
+
+    // Contact sections
+    /li\u00ean\s*h\u1ec7\s*to\u00e0n\s*\u0111o\u1ea1n|li\u00ean\s*h\u1ec7\s*ban\s*bi\u00ean/gi,
+    /g\u00f3p\s*\u00fd|\u00fd\s*ki\u1ebfn\s*b\u1ea1n\s*\u0111\u1ecdc/gi,
+  ];
+
+  let filtered = text;
+  for (const pattern of boilerplatePatterns) {
+    filtered = filtered.replace(pattern, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  return filtered;
+}
+
 function parsePositiveInt(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
@@ -27,7 +88,7 @@ const LEGAL_MARKERS = {
 };
 
 function extractStrictLegalText(plain = '', target = {}) {
-  const source = String(plain || '');
+  const source = filterBoilerplate(cleanText(decodeHtmlEntities(String(plain || ''))));
   const article = parsePositiveInt(target.article);
   const clause = parsePositiveInt(target.clause);
   const point = parsePointToken(target.point);
@@ -58,7 +119,7 @@ function extractStrictLegalText(plain = '', target = {}) {
   let clauseFound = false;
   if (clause) {
     const articleHeadRegex = article
-      ? new RegExp(`^\\s*${LEGAL_MARKERS.ARTICLE}\\s+${article}\\b[^\\n\\r]{0,300}`, 'iu')
+      ? new RegExp(`^\\s*${LEGAL_MARKERS.ARTICLE}\\s+${article}\\b\\s*[.:)]?\\s*`, 'iu')
       : null;
     const articleBody = articleHeadRegex ? articleText.replace(articleHeadRegex, ' ') : articleText;
 
@@ -141,4 +202,6 @@ module.exports = {
   parsePositiveInt,
   parsePointToken,
   extractStrictLegalText,
+  decodeHtmlEntities,
+  filterBoilerplate,
 };

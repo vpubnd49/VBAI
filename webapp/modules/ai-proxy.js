@@ -302,7 +302,7 @@ export async function sendWebSearchRequest(query, expectedDocNumber = null, opti
       freshnessLevel: freshnessLevel || undefined,
       recencyDays: Number.isFinite(recencyDays) && recencyDays > 0 ? recencyDays : undefined,
     }),
-    timeoutMs: options.timeoutMs ?? 30000,
+    timeoutMs: options.timeoutMs ?? 20000,
   });
 
   if (!response.ok) {

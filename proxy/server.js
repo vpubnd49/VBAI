@@ -2,7 +2,7 @@
  * VBAI Cloud Run Proxy Service
  *
  * Provides secure, authenticated endpoints for:
- * - Chat completions (Gemini/Vertex Gemini)
+ * - Chat completions (Gemini)
  * - Audio transcription (Gemini)
  * - System configuration read/write (admin only)
  *
@@ -27,15 +27,14 @@ const upload = multer({
   },
 });
 
-const DIRECT_SOURCE_TIMEOUT_MS = Number(process.env.DIRECT_SOURCE_TIMEOUT_MS || '4500');
+const DIRECT_SOURCE_TIMEOUT_MS = Number(process.env.DIRECT_SOURCE_TIMEOUT_MS || '3200');
 const DIRECT_SOURCE_MAX_PER_SOURCE = Number(process.env.DIRECT_SOURCE_MAX_PER_SOURCE || '8');
 const DIRECT_SOURCE_URLS_PER_SOURCE = Number(process.env.DIRECT_SOURCE_URLS_PER_SOURCE || '2');
-const WEB_SEARCH_CSE_TIMEOUT_MS = Number(process.env.WEB_SEARCH_CSE_TIMEOUT_MS || '6000');
-const WEB_SEARCH_CSE_TOTAL_BUDGET_MS = Number(process.env.WEB_SEARCH_CSE_TOTAL_BUDGET_MS || '9000');
-const WEB_SEARCH_FALLBACK_BUDGET_MS = Number(process.env.WEB_SEARCH_FALLBACK_BUDGET_MS || '12000');
-const WEB_SEARCH_FAST_PRIMARY_TOTAL_BUDGET_MS = Number(process.env.WEB_SEARCH_FAST_PRIMARY_TOTAL_BUDGET_MS || '5200');
-const WEB_SEARCH_FAST_PRIMARY_PROVIDER_TIMEOUT_MS = Number(process.env.WEB_SEARCH_FAST_PRIMARY_PROVIDER_TIMEOUT_MS || '2600');
-const WEB_SEARCH_FAST_PRIMARY_FALLBACK_BUDGET_MS = Number(process.env.WEB_SEARCH_FAST_PRIMARY_FALLBACK_BUDGET_MS || '2800');
+const WEB_SEARCH_CSE_TIMEOUT_MS = Number(process.env.WEB_SEARCH_CSE_TIMEOUT_MS || '4200');
+const WEB_SEARCH_CSE_TOTAL_BUDGET_MS = Number(process.env.WEB_SEARCH_CSE_TOTAL_BUDGET_MS || '6800');
+const WEB_SEARCH_FALLBACK_BUDGET_MS = Number(process.env.WEB_SEARCH_FALLBACK_BUDGET_MS || '8000');
+const WEB_SEARCH_FAST_TOTAL_BUDGET_MS = Number(process.env.WEB_SEARCH_FAST_TOTAL_BUDGET_MS || '4200');
+const WEB_SEARCH_FAST_PROVIDER_TIMEOUT_MS = Number(process.env.WEB_SEARCH_FAST_PROVIDER_TIMEOUT_MS || '2200');
 const WEB_SEARCH_RESULT_CACHE_TTL_MS = Number(process.env.WEB_SEARCH_RESULT_CACHE_TTL_MS || '90000');
 const WEB_SEARCH_RESULT_CACHE_MAX = Number(process.env.WEB_SEARCH_RESULT_CACHE_MAX || '200');
 const WEB_SEARCH_HOT_INDEX_TTL_MS = Number(process.env.WEB_SEARCH_HOT_INDEX_TTL_MS || '21600000'); // 6h
@@ -48,8 +47,10 @@ const DEFAULT_WEB_SEARCH_FALLBACK_SOURCES = Object.freeze({
   thuvienphapluat: true,
   luatvietnam: true,
 });
-const DEFAULT_WEB_SEARCH_MODE = 'fast_primary';
-const DEFAULT_WEB_SEARCH_PROVIDER = 'vertex_ai_search';
+const DEFAULT_WEB_SEARCH_MODE = 'cse_fast';
+const DEFAULT_WEB_SEARCH_PROVIDER = 'vertex_search';
+const DEFAULT_VERTEX_LOCATION = 'global';
+const DEFAULT_VERTEX_SERVING_CONFIG_ID = 'default_search';
 const WEB_SEARCH_RESULT_CACHE = new Map();
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
@@ -261,6 +262,10 @@ const initFirebase = () => {
       credential: admin.credential.cert(serviceAccount),
       databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
     });
+  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+    });
   } else {
     // Fallback: initialize with default credentials (works on Cloud Run with service account attached)
     admin.initializeApp();
@@ -326,22 +331,28 @@ app.get('/api/system-config-summary', async (req, res) => {
     const fallbackSources = sanitizeFallbackSources(data.web_search_fallback_sources);
     const webSearchMode = sanitizeWebSearchMode(data.web_search_mode);
     const webSearchProvider = sanitizeWebSearchProvider(data.web_search_provider);
+    const cseConfigured = !!(data.google_search_key && data.google_search_cx);
+    const vertexConfigured = isVertexSearchConfigured(data);
     res.json({
-      active_provider: data.active_provider || 'gemini',
+      active_provider: 'gemini',
       gemini_model: data.gemini_model || 'gemini-2.5-pro',
       gemini_endpoint: GEMINI_API_ENDPOINT,
-      google_search_configured: !!((data.google_search_key && data.google_search_cx) || (data.vertex_project_id && data.vertex_data_store_id)),
+      google_search_configured: cseConfigured,
+      vertex_search_configured: vertexConfigured,
+      web_search_configured: cseConfigured || vertexConfigured,
       has_gemini_key: !!data.gemini_api_key,
       gemini_api_key: requesterIsAdmin ? (data.gemini_api_key || '') : '',
+      google_search_key: requesterIsAdmin ? (data.google_search_key || '') : '',
+      google_search_cx: requesterIsAdmin ? (data.google_search_cx || '') : '',
+      vertex_project_id: requesterIsAdmin ? (data.vertex_project_id || '') : '',
+      vertex_location: requesterIsAdmin ? (data.vertex_location || DEFAULT_VERTEX_LOCATION) : '',
+      vertex_data_store_id: requesterIsAdmin ? (data.vertex_data_store_id || '') : '',
+      vertex_serving_config: requesterIsAdmin ? (data.vertex_serving_config || '') : '',
       transcribe_model: data.transcribe_model || data.gemini_model || 'gemini-2.5-flash',
       gemini_models: Array.isArray(data.gemini_models) ? data.gemini_models : [],
       web_search_provider: webSearchProvider,
       web_search_mode: webSearchMode,
       web_search_fallback_sources: fallbackSources,
-      vertex_project_id: data.vertex_project_id || '',
-      vertex_location: data.vertex_location || 'global',
-      vertex_data_store_id: data.vertex_data_store_id || '',
-      vertex_serving_config: data.vertex_serving_config || '',
       updated_at: data.updated_at?.toDate ? data.updated_at.toDate().toISOString() : data.updated_at,
       updated_by: data.updated_by
     });
@@ -425,27 +436,21 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     const {
-      active_provider,
       gemini_api_key,
       gemini_model,
+      web_search_provider,
       google_search_key,
       google_search_cx,
-      web_search_provider,
-      web_search_mode,
-      web_search_fallback_sources,
       vertex_project_id,
       vertex_location,
       vertex_data_store_id,
       vertex_serving_config,
+      web_search_mode,
+      web_search_fallback_sources,
       transcribe_model,
       gemini_models
     } = req.body;
 
-    // Validate allowed values
-    const validProvider = active_provider === 'gemini' || active_provider === 'vertex';
-    if (!validProvider && active_provider !== undefined) {
-      return res.status(400).json({ error: 'Invalid provider' });
-    }
     if (web_search_mode !== undefined && !isValidWebSearchMode(web_search_mode)) {
       return res.status(400).json({ error: 'Invalid web_search_mode' });
     }
@@ -454,9 +459,11 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     const updateData = {
-      active_provider: active_provider || 'gemini',
+      active_provider: 'gemini',
       gemini_model: gemini_model || 'gemini-2.5-pro',
       transcribe_model: transcribe_model || 'gemini-2.5-flash',
+      web_search_provider: sanitizeWebSearchProvider(web_search_provider),
+      web_search_mode: sanitizeWebSearchMode(web_search_mode),
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
       updated_by: decoded.email || decoded.uid,
       openai_api_key: admin.firestore.FieldValue.delete(),
@@ -469,11 +476,39 @@ app.post('/api/admin/system-config', async (req, res) => {
     if (gemini_api_key && gemini_api_key.trim()) {
       updateData.gemini_api_key = gemini_api_key.trim();
     }
-    if (google_search_key && google_search_key.trim()) {
-      updateData.google_search_key = google_search_key.trim();
+    if (google_search_key !== undefined) {
+      const keyVal = String(google_search_key || '').trim();
+      updateData.google_search_key = keyVal
+        ? keyVal
+        : admin.firestore.FieldValue.delete();
     }
-    if (google_search_cx && google_search_cx.trim()) {
-      updateData.google_search_cx = google_search_cx.trim();
+    if (google_search_cx !== undefined) {
+      const cxVal = String(google_search_cx || '').trim();
+      updateData.google_search_cx = cxVal
+        ? cxVal
+        : admin.firestore.FieldValue.delete();
+    }
+    if (vertex_project_id !== undefined) {
+      const val = String(vertex_project_id || '').trim();
+      updateData.vertex_project_id = val
+        ? val
+        : admin.firestore.FieldValue.delete();
+    }
+    if (vertex_location !== undefined) {
+      const val = String(vertex_location || '').trim();
+      updateData.vertex_location = val || DEFAULT_VERTEX_LOCATION;
+    }
+    if (vertex_data_store_id !== undefined) {
+      const val = String(vertex_data_store_id || '').trim();
+      updateData.vertex_data_store_id = val
+        ? val
+        : admin.firestore.FieldValue.delete();
+    }
+    if (vertex_serving_config !== undefined) {
+      const val = String(vertex_serving_config || '').trim();
+      updateData.vertex_serving_config = val
+        ? val
+        : admin.firestore.FieldValue.delete();
     }
     // Update model lists (always overwrite)
     if (Array.isArray(gemini_models)) {
@@ -487,18 +522,6 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
     if (web_search_provider !== undefined) {
       updateData.web_search_provider = sanitizeWebSearchProvider(web_search_provider);
-    }
-    if (vertex_project_id !== undefined && String(vertex_project_id || '').trim()) {
-      updateData.vertex_project_id = String(vertex_project_id || '').trim();
-    }
-    if (vertex_location !== undefined && String(vertex_location || '').trim()) {
-      updateData.vertex_location = String(vertex_location || '').trim();
-    }
-    if (vertex_data_store_id !== undefined && String(vertex_data_store_id || '').trim()) {
-      updateData.vertex_data_store_id = String(vertex_data_store_id || '').trim();
-    }
-    if (vertex_serving_config !== undefined && String(vertex_serving_config || '').trim()) {
-      updateData.vertex_serving_config = String(vertex_serving_config || '').trim();
     }
 
     await getSystemConfigRef().set(updateData, { merge: true });
@@ -587,35 +610,17 @@ app.post('/api/chat', async (req, res) => {
     }
     const config = snap.data();
 
-    const provider = config.active_provider || 'gemini';
-    const isVertexGemini = provider === 'vertex';
     const endpoint = GEMINI_API_ENDPOINT;
     const apiKey = config.gemini_api_key;
     const effectiveModel = model || config.gemini_model;
 
-    if (!apiKey && !isVertexGemini) {
+    if (!apiKey) {
       return res.status(503).json({ error: 'API key missing', message: 'Please contact administrator to configure AI provider key.' });
-    }
-
-    // Native Vertex AI Gemini Path
-    if (isVertexGemini) {
-      try {
-        const vertexResult = await executeVertexGeminiChat({
-          messages,
-          model: effectiveModel,
-          temperature,
-          max_tokens,
-          vertexConfig: buildVertexSearchConfig(config)
-        });
-        return res.json(vertexResult);
-      } catch (err) {
-        return res.status(500).json({ error: 'Vertex AI Gemini error', message: err.message });
-      }
     }
 
     const configuredGeminiModel = normalizeModelInput(config.gemini_model) || GEMINI_SAFE_FALLBACK_MODEL;
     const primaryModel = normalizeModelInput(effectiveModel) || configuredGeminiModel;
-    const retryModel = provider === 'gemini' ? pickGeminiRetryModel(primaryModel, configuredGeminiModel) : '';
+    const retryModel = pickGeminiRetryModel(primaryModel, configuredGeminiModel);
     const attemptedModels = [];
 
     const executeProviderAttempt = async (modelName) => {
@@ -642,7 +647,7 @@ app.post('/api/chat', async (req, res) => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
-          ...(provider === 'gemini' && { 'x-goog-api-key': apiKey })
+          'x-goog-api-key': apiKey,
         },
         body: JSON.stringify(payload)
       });
@@ -667,7 +672,7 @@ app.post('/api/chat', async (req, res) => {
     attemptedModels.push(primaryModel);
     let attempt = await executeProviderAttempt(primaryModel);
 
-    if (!attempt.ok && provider === 'gemini' && attempt.status === 404 && retryModel && isGeminiModelNotFoundError(attempt.message)) {
+    if (!attempt.ok && attempt.status === 404 && retryModel && isGeminiModelNotFoundError(attempt.message)) {
       attemptedModels.push(retryModel);
       attempt = await executeProviderAttempt(retryModel);
     }
@@ -799,7 +804,11 @@ app.post('/api/web-search', async (req, res) => {
     res.set('Expires', '0');
 
     initFirebase();
-    const decoded = await verifyIdToken(req);
+    let decoded = null;
+    const localTestBypass = String(process.env.VBAI_LOCAL_TEST || '').trim().toLowerCase() === 'true';
+    if (!localTestBypass) {
+      decoded = await verifyIdToken(req);
+    }
 
     const requestStartMs = Date.now();
     const {
@@ -815,7 +824,7 @@ app.post('/api/web-search', async (req, res) => {
       return res.status(400).json({ error: 'query required' });
     }
 
-    // Fetch system config for Google Search credentials
+    // Fetch system config for web search credentials
     const snap = await getSystemConfigRef().get();
     if (!snap.exists) {
       return res.status(503).json({ error: 'System not configured' });
@@ -828,9 +837,9 @@ app.post('/api/web-search', async (req, res) => {
       key: config.google_search_key,
       cx: config.google_search_cx,
     };
-    const vertexConfig = buildVertexSearchConfig(config);
+    const vertexConfig = getVertexSearchConfig(config);
     const cseConfigured = !!(cseConfig.key && cseConfig.cx);
-    const vertexConfigured = isVertexSearchConfigured(vertexConfig);
+    const vertexConfigured = vertexConfig.configured;
     const effectiveSearchProvider = resolveEffectiveWebSearchProvider({
       requestedProvider: webSearchProviderSetting,
       cseConfigured,
@@ -847,6 +856,11 @@ app.post('/api/web-search', async (req, res) => {
     const inferredPartialDocNumber = extractPartialDocNumber(query);
     const normalizedPartialDocNumber = String(partialDocNumber || inferredPartialDocNumber || '').trim().toUpperCase() || null;
     const effectiveRequestedDocType = sanitizeRequestedDocType(requestedDocType) || inferRequestedDocTypeFromQuery(query);
+
+    // Auto-detect time-sensitive queries and force fresh
+    const isTimeSensitive = isTimeSensitiveQuery(query);
+    const effectiveForceFresh = forceFresh === true || isTimeSensitive;
+
     const requestDocMatchLevel = detectDocNumberMatchLevel({
       expectedDocNumber: normalizedExpectedDocNumber,
       partialDocNumber: normalizedPartialDocNumber,
@@ -859,14 +873,14 @@ app.post('/api/web-search', async (req, res) => {
       expectedDocNumber: normalizedExpectedDocNumber,
       partialDocNumber: normalizedPartialDocNumber,
       requestedDocType: effectiveRequestedDocType,
-      forceFresh: forceFresh === true,
+      forceFresh: effectiveForceFresh,
       freshnessLevel: normalizedFreshnessLevel,
       recencyDays: normalizedRecencyDays,
       webSearchProvider: effectiveSearchProvider,
       webSearchMode,
       fallbackSources,
     });
-    const cachedPayload = forceFresh === true ? null : getWebSearchCache(cacheKey);
+    const cachedPayload = effectiveForceFresh === true ? null : getWebSearchCache(cacheKey);
     if (cachedPayload) {
       const payload = {
         ...cachedPayload,
@@ -879,7 +893,8 @@ app.post('/api/web-search', async (req, res) => {
       return res.json(payload);
     }
 
-    if (forceFresh !== true) {
+    // Skip hot index for time-sensitive queries to ensure fresh data
+    if (effectiveForceFresh !== true) {
       const hotIndexHit = await findHotIndexHit({
         query,
         expectedDocNumber: normalizedExpectedDocNumber || null,
@@ -930,58 +945,6 @@ app.post('/api/web-search', async (req, res) => {
       }
     }
 
-    if (webSearchMode === 'vertex_answer' && effectiveSearchProvider === 'vertex_ai_search') {
-      try {
-        const answerResult = await executeVertexAnswer({
-          query,
-          vertexConfig,
-          timeoutMs: 30000
-        });
-        const validation = validateLegalDocumentMatch({
-          query,
-          items: answerResult.citations || [],
-          expectedDocNumber: normalizedExpectedDocNumber,
-          partialDocNumber: normalizedPartialDocNumber,
-          requestedDocType: effectiveRequestedDocType,
-        });
-        const finalCitations = validation.ok ? validation.approvedItems : [];
-        return res.json({
-          results: validation.ok ? String(answerResult.answer || '') : '',
-          meta: buildWebSearchMeta({
-            strategy: 'vertex_answer_api',
-            webSearchProvider: effectiveSearchProvider,
-            webSearchMode,
-            query,
-            refinedQuery: query,
-            dateRestrict: null,
-            expectedDocNumber: normalizedExpectedDocNumber || null,
-            exactMatch: true,
-            cseStatus: null,
-            cseErrorReason: null,
-            fallbackUsed: false,
-            enabledFallbackSources: fallbackSources,
-            items: finalCitations,
-            requestedDocType: validation.requestedDocType || effectiveRequestedDocType,
-            docNumberMatchLevel: validation.docNumberMatchLevel || requestDocMatchLevel,
-            typeMatch: typeof validation.typeMatch === 'boolean'
-              ? validation.typeMatch
-              : detectTypeMatchFromItems(finalCitations, effectiveRequestedDocType),
-            strictRejectReason: validation.strictRejectReason
-              || (strictPartialReject ? 'partial_doc_number_requires_full' : null),
-            confidence: validation.confidence,
-            matchScore: validation.matchScore,
-            matchBreakdown: validation.matchBreakdown,
-            sourceTierSummary: validation.sourceTierSummary,
-            bestAlternative: validation.bestAlternative,
-            cacheHit: false,
-            servedInMs: Date.now() - requestStartMs,
-          }),
-        });
-      } catch (err) {
-        console.warn('Vertex Answer API failed, falling back to standard search:', err.message);
-      }
-    }
-
     // Prioritize official sources first, then trusted legal references.
     const officialDomainClause = [
       'site:vbpl.vn',
@@ -1009,7 +972,7 @@ app.post('/api/web-search', async (req, res) => {
     const hasSpecificYear = new RegExp(`(202\\d|203\\d)`).test(normQuery);
 
     if (isLegal && !hasSpecificYear && !normQuery.includes('moi nhat')) {
-      refinedQuery += ` má»›i nháº¥t ${current} ${next}`;
+      refinedQuery += ` moi nhat ${current} ${next}`;
     }
 
     const dateRestrict = buildDateRestrict({
@@ -1067,6 +1030,10 @@ app.post('/api/web-search', async (req, res) => {
           ? 'no_type_match'
           : null)
         || (strictPartialReject ? 'partial_doc_number_requires_full' : null);
+      const effectiveStatusInfo = detectEffectiveStatus(finalItems, query);
+      const answerMode = effectiveStrictRejectReason
+        ? 'reject_with_alternative'
+        : detectQueryMode(query, validation.docNumberMatchLevel || requestDocMatchLevel, !!effectiveRequestedDocType);
       const meta = buildWebSearchMeta({
         strategy,
         webSearchProvider: effectiveSearchProvider,
@@ -1092,8 +1059,12 @@ app.post('/api/web-search', async (req, res) => {
         matchBreakdown: validation.matchBreakdown,
         sourceTierSummary: validation.sourceTierSummary,
         bestAlternative: validation.bestAlternative,
+        answerMode,
         cacheHit: false,
         servedInMs: Date.now() - requestStartMs,
+        effectiveStatus: effectiveStatusInfo.status,
+        supersededBy: effectiveStatusInfo.superseded_by,
+        freshnessForced: effectiveForceFresh === true,
       });
       const payload = {
         results: responseResults,
@@ -1134,16 +1105,13 @@ app.post('/api/web-search', async (req, res) => {
     };
 
     const captureCseDiagnostic = (attemptResult) => {
-      if (effectiveSearchProvider !== 'cse') return;
       if (!attemptResult) return;
       if (Number.isFinite(attemptResult.status)) diagnostics.cse_status = attemptResult.status;
       if (attemptResult.errorReason) diagnostics.cse_error_reason = attemptResult.errorReason;
     };
 
-    const providerQuery = effectiveSearchProvider === 'vertex_ai_search'
-      ? refinedQuery
-      : `${refinedQuery} (${officialDomainClause})`;
-    let cseStrategy = effectiveSearchProvider === 'vertex_ai_search' ? 'vertex_primary' : 'cse_official';
+    const providerQuery = `${refinedQuery} (${officialDomainClause})`;
+    let cseStrategy = 'cse_official';
 
     let searchAttempt = await executeSearch(
       providerQuery,
@@ -1154,7 +1122,7 @@ app.post('/api/web-search', async (req, res) => {
 
     // 2nd attempt: trusted legal reference sites
     if ((!items || items.length === 0) && searchBudgets.useTrustedStage && getRemainingCseBudgetMs() > 900) {
-      cseStrategy = effectiveSearchProvider === 'vertex_ai_search' ? 'vertex_trusted' : 'cse_trusted';
+      cseStrategy = 'cse_trusted';
       searchAttempt = await executeSearch(
         `${refinedQuery} (${trustedReferenceClause})`,
         Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
@@ -1165,7 +1133,7 @@ app.post('/api/web-search', async (req, res) => {
 
     // 3rd attempt: broad search fallback
     if ((!items || items.length === 0) && searchBudgets.useBroadStage && getRemainingCseBudgetMs() > 900) {
-      cseStrategy = effectiveSearchProvider === 'vertex_ai_search' ? 'vertex_broad' : 'cse_broad';
+      cseStrategy = 'cse_broad';
       searchAttempt = await executeSearch(
         refinedQuery,
         Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
@@ -1175,9 +1143,9 @@ app.post('/api/web-search', async (req, res) => {
     }
 
     if (!items || items.length === 0) {
-      if (webSearchMode === 'google_only_fast') {
+      if (webSearchMode === 'cse_fast') {
         return sendWebSearchResponse({
-          strategy: diagnostics.cse_error_reason ? 'cse_error_fast' : 'cse_empty_fast',
+          strategy: diagnostics.cse_error_reason ? 'cse_error_fast' : 'cse_empty',
           items: [],
           exactMatch: normalizedExpectedDocNumber ? false : null,
         });
@@ -1185,15 +1153,15 @@ app.post('/api/web-search', async (req, res) => {
       const directItems = await runDirectFallback();
       if (!directItems || directItems.length === 0) {
         return sendWebSearchResponse({
-          strategy: webSearchMode === 'fast_primary' ? 'fast_primary_empty' : 'direct_fallback_empty',
+          strategy: webSearchMode === 'cse_fast' ? 'cse_fast_empty' : 'direct_fallback_empty',
           items: [],
           exactMatch: normalizedExpectedDocNumber ? false : null,
           fallbackUsed: true,
         });
       }
       return sendWebSearchResponse({
-        strategy: webSearchMode === 'fast_primary'
-          ? (diagnostics.cse_error_reason ? 'fast_primary_cse_error_direct_fallback' : 'fast_primary_direct_fallback')
+        strategy: webSearchMode === 'cse_fast'
+          ? (diagnostics.cse_error_reason ? 'cse_fast_error_direct_fallback' : 'cse_fast_direct_fallback')
           : (diagnostics.cse_error_reason ? 'cse_error_direct_fallback' : 'direct_fallback'),
         items: directItems,
         exactMatch: normalizedExpectedDocNumber ? true : null,
@@ -1240,7 +1208,7 @@ app.post('/api/web-search', async (req, res) => {
         }
       }
 
-      if (webSearchMode === 'google_only_fast') {
+      if (webSearchMode === 'cse_fast') {
         return sendWebSearchResponse({
           strategy: 'no_exact_match',
           items: [],
@@ -1327,7 +1295,7 @@ app.post('/api/web-extract', async (req, res) => {
     const html = await fetchDirectSourcePage(parsed.toString(), 8000);
     if (!html) return res.json({ text: '', extracted: false, strict_match: false });
 
-    const plain = cleanStrictText(decodeHtmlEntities(stripHtml(html)));
+    const plain = sanitizeExtractedLegalText(cleanStrictText(decodeHtmlEntities(stripHtml(html))));
     if (!plain) return res.json({ text: '', extracted: false, strict_match: false });
 
     const strictEnabled = strict === true;
@@ -1338,13 +1306,15 @@ app.post('/api/web-extract', async (req, res) => {
     };
     const strictResult = extractStrictLegalText(plain, strictTarget);
     if (strictEnabled) {
+      const strictText = sanitizeExtractedLegalText(strictResult.text || '');
       return res.json({
-        text: strictResult.text || '',
-        extracted: strictResult.extracted === true,
-        strict_match: strictResult.strict_match === true,
+        text: strictText,
+        extracted: strictResult.extracted === true && strictText.length > 0,
+        strict_match: strictResult.strict_match === true && strictText.length > 0,
         article_found: strictResult.article_found,
         clause_found: strictResult.clause_found,
         point_found: strictResult.point_found,
+        extract_mode: 'strict',
       });
     }
 
@@ -1364,25 +1334,27 @@ app.post('/api/web-extract', async (req, res) => {
 
     if (bestStart < 0) {
       return res.json({
-        text: plain.slice(0, 1200),
+        text: sanitizeExtractedLegalText(plain.slice(0, 1200)),
         extracted: false,
         strict_match: strictResult.strict_match === true,
         article_found: strictResult.article_found,
         clause_found: strictResult.clause_found,
         point_found: strictResult.point_found,
+        extract_mode: 'keyword_fallback',
       });
     }
 
     const snippetStart = Math.max(0, bestStart - 240);
     const snippetEnd = Math.min(plain.length, bestStart + 1600);
     return res.json({
-      text: plain.slice(snippetStart, snippetEnd),
+      text: sanitizeExtractedLegalText(plain.slice(snippetStart, snippetEnd)),
       extracted: true,
       keyword: bestKeyword,
       strict_match: strictResult.strict_match === true,
       article_found: strictResult.article_found,
       clause_found: strictResult.clause_found,
       point_found: strictResult.point_found,
+      extract_mode: 'keyword_fallback',
     });
   } catch (err) {
     console.error('POST /api/web-extract error:', err);
@@ -1418,20 +1390,20 @@ function buildDateRestrict({ isLegal, normQuery, forceFresh, freshnessLevel, rec
 
 function resolveWebSearchBudgets(mode = DEFAULT_WEB_SEARCH_MODE) {
   const normalizedMode = sanitizeWebSearchMode(mode);
-  if (normalizedMode === 'fast_primary') {
+  if (normalizedMode === 'cse_fast') {
     return {
-      providerTotalMs: WEB_SEARCH_FAST_PRIMARY_TOTAL_BUDGET_MS,
-      providerTimeoutMs: WEB_SEARCH_FAST_PRIMARY_PROVIDER_TIMEOUT_MS,
-      fallbackBudgetMs: WEB_SEARCH_FAST_PRIMARY_FALLBACK_BUDGET_MS,
+      providerTotalMs: WEB_SEARCH_FAST_TOTAL_BUDGET_MS,
+      providerTimeoutMs: WEB_SEARCH_FAST_PROVIDER_TIMEOUT_MS,
+      fallbackBudgetMs: 0,
       useTrustedStage: false,
-      useBroadStage: true,
+      useBroadStage: false,
     };
   }
   return {
     providerTotalMs: WEB_SEARCH_CSE_TOTAL_BUDGET_MS,
     providerTimeoutMs: WEB_SEARCH_CSE_TIMEOUT_MS,
     fallbackBudgetMs: WEB_SEARCH_FALLBACK_BUDGET_MS,
-    useTrustedStage: true,
+    useTrustedStage: false,
     useBroadStage: true,
   };
 }
@@ -1512,6 +1484,17 @@ function parseUserQueryConstraints({
   };
 }
 
+function isGeneralLegalQuery(constraints = {}) {
+  if (!constraints || typeof constraints !== 'object') return true;
+  return !(
+    constraints.fullDocNumber
+    || constraints.partialDocNumber
+    || constraints.requestedDocType
+    || constraints.issuer
+    || Number.isFinite(constraints.year)
+  );
+}
+
 function normalizeCandidateMetadata(item = {}) {
   const title = String(item?.title || '').trim();
   const snippet = String(item?.snippet || '').trim();
@@ -1567,6 +1550,7 @@ function validateLegalDocumentMatch({
     requestedDocType,
   });
   const originalItems = Array.isArray(items) ? items : [];
+  const generalLegalQuery = isGeneralLegalQuery(constraints);
   const normalized = originalItems.map((item) => ({ item, metadata: normalizeCandidateMetadata(item) }));
   const sourceTierSummaryRaw = normalized.reduce((acc, entry) => {
     if (entry.metadata.source_tier === 'official') acc.official += 1;
@@ -1693,6 +1677,22 @@ function validateLegalDocumentMatch({
     };
   }
 
+  if (generalLegalQuery) {
+    return {
+      ok: true,
+      strictRejectReason: null,
+      confidence: best.confidence,
+      matchScore: best.score,
+      matchBreakdown: best.breakdown,
+      sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+      requestedDocType: constraints.requestedDocType,
+      docNumberMatchLevel: constraints.docNumberMatchLevel,
+      typeMatch,
+      approvedItems: [best.item],
+      bestAlternative,
+    };
+  }
+
   if (constraints.fullDocNumber && best.breakdown.doc_number <= 0) {
     return {
       ok: false,
@@ -1814,8 +1814,12 @@ function buildWebSearchMeta({
   matchBreakdown = null,
   sourceTierSummary = null,
   bestAlternative = null,
+  answerMode = null,
   cacheHit = false,
   servedInMs = null,
+  effectiveStatus = null,
+  supersededBy = null,
+  freshnessForced = false,
 }) {
   return {
     strategy,
@@ -1858,11 +1862,15 @@ function buildWebSearchMeta({
         is_official_source: bestAlternative.is_official_source === true,
       }
       : null,
+    answer_mode: answerMode ? String(answerMode) : null,
     sources_used: collectSourcesUsed(items),
     item_count: Array.isArray(items) ? Math.min(8, items.length) : 0,
     cache_hit: cacheHit === true,
     served_in_ms: Number.isFinite(servedInMs) ? Math.max(0, Math.round(servedInMs)) : null,
     fetched_at: new Date().toISOString(),
+    effective_status: effectiveStatus ? String(effectiveStatus) : null,
+    superseded_by: supersededBy ? String(supersededBy) : null,
+    freshness_forced: freshnessForced === true,
   };
 }
 
@@ -2377,13 +2385,25 @@ function stripHtml(value = '') {
 }
 
 function decodeHtmlEntities(value = '') {
-  return String(value || '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, '\'')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>');
+  let text = String(value || '');
+  for (let i = 0; i < 2; i += 1) {
+    text = text
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;|&apos;/gi, '\'')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+        const code = parseInt(hex, 16);
+        return Number.isFinite(code) ? String.fromCodePoint(code) : '';
+      })
+      .replace(/&#([0-9]+);/g, (_, dec) => {
+        const code = parseInt(dec, 10);
+        return Number.isFinite(code) ? String.fromCodePoint(code) : '';
+      });
+  }
+  return text;
 }
 
 function cleanText(value = '') {
@@ -2391,6 +2411,29 @@ function cleanText(value = '') {
     .replace(/\s+/g, ' ')
     .replace(/[\r\n]+/g, ' ')
     .trim();
+}
+
+function sanitizeExtractedLegalText(value = '') {
+  const base = cleanText(decodeHtmlEntities(String(value || '')));
+  if (!base) return '';
+  const normalized = normalizeVietnamese(base);
+  const boilerplateMarkers = [
+    'goi tong dai',
+    'chung toi luon lang nghe',
+    'bao dien tu chinh phu',
+    'ban doc',
+    'y kien ban doc',
+    'lien he toa soan',
+    'hotline',
+    'ban quyen thuoc',
+  ];
+  let cutIndex = -1;
+  for (const marker of boilerplateMarkers) {
+    const idx = normalized.indexOf(marker);
+    if (idx > 80 && (cutIndex < 0 || idx < cutIndex)) cutIndex = idx;
+  }
+  const cleaned = cutIndex > 0 ? base.slice(0, cutIndex) : base;
+  return cleaned.replace(/\s+/g, ' ').trim();
 }
 
 function isAllowedHost(url, allowedHosts = []) {
@@ -2404,66 +2447,184 @@ function isAllowedHost(url, allowedHosts = []) {
 }
 
 function isValidWebSearchProvider(raw = '') {
-  return String(raw || '').trim().toLowerCase() === 'cse'
-    || String(raw || '').trim().toLowerCase() === 'vertex_ai_search';
+  const provider = String(raw || '').trim().toLowerCase();
+  return provider === 'cse' || provider === 'vertex_search';
 }
 
 function sanitizeWebSearchProvider(raw = '') {
-  const normalized = String(raw || '').trim().toLowerCase();
-  if (normalized === 'vertex_ai_search') return 'vertex_ai_search';
+  const provider = String(raw || '').trim().toLowerCase();
+  if (provider === 'cse') return 'cse';
+  if (provider === 'vertex_search') return 'vertex_search';
   return DEFAULT_WEB_SEARCH_PROVIDER;
 }
 
-function buildVertexSearchConfig(config = {}) {
+function getVertexSearchConfig(config = {}) {
+  const projectId = String(config.vertex_project_id || config.project_id || process.env.FIREBASE_PROJECT_ID || '').trim();
+  const location = String(config.vertex_location || DEFAULT_VERTEX_LOCATION || 'global').trim() || 'global';
+  const dataStoreId = String(config.vertex_data_store_id || '').trim();
+  const servingConfigRaw = String(config.vertex_serving_config || '').trim();
+
+  let servingConfig = servingConfigRaw;
+  if (servingConfig && !servingConfig.includes('/servingConfigs/')) {
+    const servingConfigId = servingConfig.replace(/^\/+|\/+$/g, '') || DEFAULT_VERTEX_SERVING_CONFIG_ID;
+    if (projectId && dataStoreId) {
+      servingConfig = [
+        'projects',
+        projectId,
+        'locations',
+        location,
+        'collections',
+        'default_collection',
+        'dataStores',
+        dataStoreId,
+        'servingConfigs',
+        servingConfigId,
+      ].join('/');
+    }
+  }
+  if (!servingConfig && projectId && dataStoreId) {
+    servingConfig = [
+      'projects',
+      projectId,
+      'locations',
+      location,
+      'collections',
+      'default_collection',
+      'dataStores',
+      dataStoreId,
+      'servingConfigs',
+      DEFAULT_VERTEX_SERVING_CONFIG_ID,
+    ].join('/');
+  }
+
   return {
-    projectId: String(config?.vertex_project_id || '').trim(),
-    location: String(config?.vertex_location || 'global').trim() || 'global',
-    dataStoreId: String(config?.vertex_data_store_id || '').trim(),
-    servingConfig: String(config?.vertex_serving_config || '').trim(),
+    projectId,
+    location,
+    dataStoreId,
+    servingConfig,
+    configured: !!(projectId && servingConfig),
   };
 }
 
-function isVertexSearchConfigured(vertexConfig = {}) {
-  if (!vertexConfig || typeof vertexConfig !== 'object') return false;
-  if (vertexConfig.servingConfig) return true;
-  return Boolean(vertexConfig.projectId && vertexConfig.location && vertexConfig.dataStoreId);
-}
-
-function buildVertexServingConfigPath(vertexConfig = {}) {
-  const direct = String(vertexConfig?.servingConfig || '').trim();
-  if (direct.startsWith('projects/')) return direct;
-  if (!isVertexSearchConfigured(vertexConfig)) return '';
-  return `projects/${vertexConfig.projectId}/locations/${vertexConfig.location}/collections/default_collection/dataStores/${vertexConfig.dataStoreId}/servingConfigs/default_serving_config`;
+function isVertexSearchConfigured(config = {}) {
+  return getVertexSearchConfig(config).configured;
 }
 
 function resolveEffectiveWebSearchProvider({ requestedProvider, cseConfigured, vertexConfigured }) {
   const requested = sanitizeWebSearchProvider(requestedProvider);
-  if (requested === 'vertex_ai_search') {
-    if (vertexConfigured) return 'vertex_ai_search';
-    if (cseConfigured) return 'cse';
-    return '';
-  }
+  if (requested === 'vertex_search' && vertexConfigured) return 'vertex_search';
+  if (requested === 'cse' && cseConfigured) return 'cse';
+  if (vertexConfigured) return 'vertex_search';
   if (cseConfigured) return 'cse';
-  if (vertexConfigured) return 'vertex_ai_search';
   return '';
 }
 
-async function fetchServiceAccountAccessToken(timeoutMs = 3000) {
-  const response = await fetchWithTimeout(
-    'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
-    {
-      headers: {
-        'Metadata-Flavor': 'Google',
-      },
+async function getGoogleAccessToken() {
+  initFirebase();
+  const credential = admin.app().options?.credential;
+  if (!credential || typeof credential.getAccessToken !== 'function') {
+    throw new Error('vertex_auth_not_available');
+  }
+  const token = await credential.getAccessToken();
+  if (!token?.access_token) {
+    throw new Error('vertex_access_token_missing');
+  }
+  return token.access_token;
+}
+
+function normalizeVertexSearchItems(rawItems = []) {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems
+    .map((item) => {
+      const doc = item?.document || {};
+      const derived = doc?.derivedStructData || {};
+      const struct = doc?.structData || {};
+      const title = String(derived?.title || struct?.title || doc?.id || '').trim();
+      const link = String(derived?.link || struct?.link || '').trim();
+      const snippets = Array.isArray(derived?.snippets) ? derived.snippets : [];
+      const snippet = snippets
+        .map((s) => String(s?.snippet || '').trim())
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+      return {
+        title,
+        link,
+        snippet,
+        displayLink: '',
+        source: 'vertex_search',
+      };
+    })
+    .filter((item) => item.title || item.link || item.snippet);
+}
+
+async function executeVertexSearch({ query, timeoutMs, vertexConfig }) {
+  if (!vertexConfig || !vertexConfig.configured) {
+    return {
+      items: [],
+      status: 503,
+      errorReason: 'vertex_not_configured',
+    };
+  }
+
+  const accessToken = await getGoogleAccessToken();
+  const servingConfig = String(vertexConfig.servingConfig || '').trim();
+  const endpoint = `https://discoveryengine.googleapis.com/v1/${servingConfig}:search`;
+  const body = {
+    query,
+    pageSize: 10,
+    queryExpansionSpec: { condition: 'AUTO' },
+    spellCorrectionSpec: { mode: 'AUTO' },
+    contentSearchSpec: {
+      snippetSpec: { returnSnippet: true },
     },
-    timeoutMs,
-  );
-  if (!response || !response.ok) return '';
+  };
+
+  const response = await fetchWithTimeout(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  }, timeoutMs);
+
+  if (!response) {
+    return {
+      items: [],
+      status: 408,
+      errorReason: 'timeout',
+    };
+  }
+
+  if (!response.ok) {
+    let reason = `http_${response.status}`;
+    try {
+      const data = await response.json();
+      const message = String(data?.error?.message || data?.message || '').trim();
+      if (message) reason = message.slice(0, 180);
+    } catch {}
+    return {
+      items: [],
+      status: response.status,
+      errorReason: reason,
+    };
+  }
+
   try {
     const data = await response.json();
-    return String(data?.access_token || '');
+    return {
+      items: normalizeVertexSearchItems(data?.results),
+      status: response.status,
+      errorReason: null,
+    };
   } catch {
-    return '';
+    return {
+      items: [],
+      status: response.status,
+      errorReason: 'invalid_json',
+    };
   }
 }
 
@@ -2530,106 +2691,6 @@ async function executeCseSearch({ query, timeoutMs, dateRestrict, cseConfig }) {
   }
 }
 
-function mapVertexSearchResults(data = {}) {
-  const rawResults = Array.isArray(data?.results) ? data.results : [];
-  return rawResults
-    .map((result) => {
-      const document = result?.document || {};
-      const structData = document?.structData || {};
-      const derived = document?.derivedStructData || {};
-      const title = cleanText(
-        String(derived?.title || structData?.title || document?.title || ''),
-      );
-      const link = String(
-        derived?.link
-        || derived?.uri
-        || structData?.link
-        || structData?.uri
-        || document?.name
-        || '',
-      ).trim();
-      const snippet = cleanText(
-        String(
-          derived?.snippet
-          || structData?.snippet
-          || (Array.isArray(derived?.extractiveSegments) ? derived.extractiveSegments[0]?.content : '')
-          || '',
-        ),
-      );
-      if (!title || !link) return null;
-      return { title, link, snippet };
-    })
-    .filter(Boolean);
-}
-
-async function executeVertexSearch({ query, timeoutMs, vertexConfig }) {
-  const servingConfig = buildVertexServingConfigPath(vertexConfig);
-  if (!servingConfig) {
-    return {
-      items: [],
-      status: 503,
-      errorReason: 'vertex_not_configured',
-    };
-  }
-  const accessToken = await fetchServiceAccountAccessToken(Math.min(3000, timeoutMs));
-  if (!accessToken) {
-    return {
-      items: [],
-      status: 401,
-      errorReason: 'vertex_auth_unavailable',
-    };
-  }
-
-  const url = `https://discoveryengine.googleapis.com/v1/${servingConfig}:search`;
-  const response = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      query,
-      pageSize: 10,
-    }),
-  }, timeoutMs);
-
-  if (!response) {
-    return {
-      items: [],
-      status: 408,
-      errorReason: 'timeout',
-    };
-  }
-  if (!response.ok) {
-    let reason = `http_${response.status}`;
-    try {
-      const data = await response.json();
-      const message = String(data?.error?.message || data?.message || '').trim();
-      if (message) reason = message.slice(0, 140);
-    } catch {}
-    return {
-      items: [],
-      status: response.status,
-      errorReason: reason,
-    };
-  }
-
-  try {
-    const data = await response.json();
-    return {
-      items: mapVertexSearchResults(data),
-      status: response.status,
-      errorReason: null,
-    };
-  } catch {
-    return {
-      items: [],
-      status: response.status,
-      errorReason: 'invalid_json',
-    };
-  }
-}
-
 async function executeWebProviderSearch({
   provider,
   query,
@@ -2638,15 +2699,19 @@ async function executeWebProviderSearch({
   cseConfig,
   vertexConfig,
 }) {
-  const normalized = sanitizeWebSearchProvider(provider);
-  if (normalized === 'vertex_ai_search') {
-    const vertexResult = await executeVertexSearch({ query, timeoutMs, vertexConfig });
+  if (provider === 'vertex_search') {
+    const vertexResult = await executeVertexSearch({
+      query,
+      timeoutMs,
+      vertexConfig,
+    });
     return {
       items: vertexResult.items || [],
       status: vertexResult.status,
       errorReason: vertexResult.errorReason,
     };
   }
+
   const cseResult = await executeCseSearch({
     query,
     timeoutMs,
@@ -2666,9 +2731,9 @@ async function probeWebSearchProvider(config = {}) {
     key: config.google_search_key,
     cx: config.google_search_cx,
   };
-  const vertexConfig = buildVertexSearchConfig(config);
+  const vertexConfig = getVertexSearchConfig(config);
   const cseConfigured = !!(cseConfig.key && cseConfig.cx);
-  const vertexConfigured = isVertexSearchConfigured(vertexConfig);
+  const vertexConfigured = vertexConfig.configured;
   const effectiveProvider = resolveEffectiveWebSearchProvider({
     requestedProvider: provider,
     cseConfigured,
@@ -2709,9 +2774,9 @@ async function runOfficialHotIndexIngest(config = {}, requestedBy = 'system') {
     key: config.google_search_key,
     cx: config.google_search_cx,
   };
-  const vertexConfig = buildVertexSearchConfig(config);
+  const vertexConfig = getVertexSearchConfig(config);
   const cseConfigured = !!(cseConfig.key && cseConfig.cx);
-  const vertexConfigured = isVertexSearchConfigured(vertexConfig);
+  const vertexConfigured = vertexConfig.configured;
   const effectiveProvider = resolveEffectiveWebSearchProvider({
     requestedProvider: provider,
     cseConfigured,
@@ -2817,120 +2882,114 @@ function sanitizeFallbackSources(raw = null) {
 
 function isValidWebSearchMode(raw = '') {
   const m = String(raw || '').trim().toLowerCase();
-  return m === 'google_only_fast'
-    || m === 'hybrid_fallback'
-    || m === 'fast_primary'
-    || m === 'vertex_answer';
+  return m === 'cse_fast'
+    || m === 'cse_with_fallback';
 }
 
 function sanitizeWebSearchMode(raw = '') {
   const normalized = String(raw || '').trim().toLowerCase();
-  if (normalized === 'fast_primary') return 'fast_primary';
-  if (normalized === 'hybrid_fallback') return 'hybrid_fallback';
-  if (normalized === 'vertex_answer') return 'vertex_answer';
+  if (normalized === 'cse_fast') return 'cse_fast';
+  if (normalized === 'cse_with_fallback') return 'cse_with_fallback';
   return DEFAULT_WEB_SEARCH_MODE;
 }
 
-async function executeVertexGeminiChat({ messages, model, temperature, max_tokens, vertexConfig }) {
-  const accessToken = await fetchServiceAccountAccessToken(5000);
-  if (!accessToken) throw new Error('Could not fetch service account token for Vertex AI');
-
-  const projectId = vertexConfig.projectId;
-  const location = vertexConfig.location || 'us-central1';
-  const modelName = String(model || 'gemini-1.5-pro').trim();
-
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${modelName}:generateContent`;
-
-  // Convert chat-style messages to Vertex AI contents
-  const contents = messages
-    .filter(m => m.role !== 'system' && m.role !== 'developer')
-    .map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
-
-  const systemInstruction = messages.find(m => m.role === 'system' || m.role === 'developer')?.content;
-
-  const payload = {
-    contents,
-    generationConfig: {
-      temperature,
-      maxOutputTokens: max_tokens || 2048,
-    },
-    ...(systemInstruction && { systemInstruction: { parts: [{ text: systemInstruction }] } })
-  };
-
-  const response = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload)
-  }, 60000);
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Vertex AI error ${response.status}: ${errText}`);
-  }
-
-  const data = await response.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-  // Return chat-completions-compatible format for the frontend
-  return {
-    id: `chatcmpl-vertex-${Date.now()}`,
-    object: 'chat.completion',
-    created: Math.floor(Date.now() / 1000),
-    model: modelName,
-    choices: [{
-      index: 0,
-      message: { role: 'assistant', content: text },
-      finish_reason: 'stop'
-    }]
-  };
+// Time-sensitive query detection for force fresh retrieval
+function isTimeSensitiveQuery(query = '') {
+  const n = normalizeVietnamese(query);
+  return /(moi nhat|hien hanh|hieu luc|sua doi|bo sung|thay the|bai bo|cap nhat|hom nay|hien tai|ngay nay|ngay hom nay|ngay thang)/.test(n);
 }
 
-async function executeVertexAnswer({ query, vertexConfig, timeoutMs }) {
-  const servingConfig = buildVertexServingConfigPath(vertexConfig);
-  if (!servingConfig) throw new Error('Vertex Search not configured');
+// Query mode detection for legal queries
+function detectQueryMode(query, docNumberMatchLevel, hasDocType) {
+  const n = normalizeVietnamese(query);
 
-  const accessToken = await fetchServiceAccountAccessToken(5000);
-  if (!accessToken) throw new Error('Could not fetch service account token');
-
-  const url = `https://discoveryengine.googleapis.com/v1/${servingConfig}:answer`;
-  const response = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      query: { text: query },
-      answerGenerationSpec: {
-        ignoreAdversarialQuery: true,
-        ignoreNonAnswerSeekingQuery: true,
-        modelSpec: { modelVersion: 'stable' },
-        promptSpec: { preamble: 'Báº¡n lÃ  má»™t trá»£ lÃ½ hÃ nh chÃ­nh chuyÃªn nghiá»‡p. HÃ£y tráº£ lá»i cÃ¢u há»i dá»±a trÃªn cÃ¡c tÃ i liá»‡u phÃ¡p luáº­t Ä‘Æ°á»£c cung cáº¥p.' },
-        includeCitations: true,
-      }
-    })
-  }, timeoutMs);
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Vertex Answer API error ${response.status}: ${errText}`);
+  if (docNumberMatchLevel === 'full' || hasDocType) {
+    return 'strict_legal';
   }
 
-  const data = await response.json();
-  const answer = data?.answer?.answerText || '';
-  const citations = (data?.answer?.citations || []).map(c => ({
-    title: c.title || 'TÃ i liá»‡u dáº«n chá»©ng',
-    link: c.uri || '',
-    snippet: c.snippet || ''
-  }));
+  if (/(co ton tai|da ban hanh|so hieu)/.test(n)) {
+    return 'evidence_only';
+  }
 
-  return { answer, citations };
+  if (/(luat|nghi dinh|thong tu|quyet dinh|van ban|moi nhat|hien hanh)/.test(n)) {
+    return 'grounded_general';
+  }
+
+  return 'grounded_general';
+}
+
+// Effective status detection from search results
+function detectEffectiveStatus(items, query) {
+  for (const item of items) {
+    const title = normalizeVietnamese(item.title || '');
+    const snippet = normalizeVietnamese(item.snippet || '');
+    const combined = `${title} ${snippet}`;
+
+    if (/(bi thay the|het hieu luc|khong con hieu luc|duoc thay the)/.test(combined)) {
+      const supersedeMatch = combined.match(/thay the\s*(?:boi)?\s*(\d+\/\d{4}\/[a-z0-9-]+)/i);
+      if (supersedeMatch) {
+        return { status: 'superseded', superseded_by: String(supersedeMatch[1] || '').toUpperCase() };
+      }
+      return { status: 'superseded', superseded_by: null };
+    }
+
+    if (/(bi huy|vo hieu|khong con gia tri|bi bai bo)/.test(combined)) {
+      return { status: 'invalidated', superseded_by: null };
+    }
+
+    if (/(van ban hien hanh|van ban co hieu luc|con hieu luc|van ban moi nhat|dang co hieu luc)/.test(combined)) {
+      return { status: 'active', superseded_by: null };
+    }
+  }
+
+  return { status: 'unknown', superseded_by: null };
+}
+
+// Score match for legal document candidates
+function calculateMatchScore(item, query = '') {
+  let score = 0;
+
+  const title = normalizeVietnamese(item.title || '');
+  const snippet = normalizeVietnamese(item.snippet || '');
+  const text = title + ' ' + snippet;
+  const queryObject = query && typeof query === 'object' ? query : { query: String(query || '') };
+  const queryNorm = normalizeVietnamese(queryObject.query || '');
+
+  if (queryObject.expectedDocNumber && text.includes(normalizeVietnamese(queryObject.expectedDocNumber))) {
+    score += 100;
+  }
+
+  if (queryObject.partialDocNumber && text.includes(normalizeVietnamese(queryObject.partialDocNumber))) {
+    score += 50;
+  }
+
+  const keywords = queryNorm.split(' ').filter((w) => w.length > 3);
+  for (const keyword of keywords.slice(0, 5)) {
+    if (title.includes(keyword)) {
+      score += 10;
+    } else if (snippet.includes(keyword)) {
+      score += 5;
+    }
+  }
+
+  const tier = detectSourceTier(item);
+  if (tier === 'official') score += 30;
+  if (tier === 'reference') score += 15;
+
+  return score;
+}
+
+// Select best alternative when exact match fails
+function selectBestAlternative(items, requestedDocType, query) {
+  const typeFiltered = requestedDocType
+    ? items.filter(item => detectDocTypeFromText(item.title || '') === requestedDocType)
+    : items;
+
+  const sorted = typeFiltered
+    .map(item => ({ ...item, score: calculateMatchScore(item, query) }))
+    .sort((a, b) => b.score - a.score);
+
+  return sorted.length > 0 ? sorted[0] : null;
 }
 
 // Start server
@@ -2938,4 +2997,3 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`VBAI Proxy listening on port ${PORT}`);
 });
-

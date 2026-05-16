@@ -10,7 +10,8 @@
     "test:integration": "node tests/runtime-web-search.integration.cjs",
     "test:canary": "node tests/runtime-web-search.canary.cjs",
     "test:all": "node tests/run-all.cjs",
-    "test:mint-token": "node tests/mint-firebase-id-token.cjs"
+    "test:mint-token": "node tests/mint-firebase-id-token.cjs",
+    "config:seed": "node tests/seed-system-config.cjs"
   },
   "dependencies": {
     "cors": "^2.8.5",
