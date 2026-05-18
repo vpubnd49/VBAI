@@ -1,105 +1,53 @@
-Nhanh: main
+# Lưu Nhật ký Công việc (Luuanti) - Phiên bản Mới nhất
 
-## 1) Van de nguoi dung bao cao
-- Co 2 trang thai khi gui cau hoi:
-  - Trang thai `Dang tra cuu...` (co icon kinh lup) thi co the ra ket qua.
-  - Trang thai `Dang tra cuu du lieu moi nhat tu Internet...` thi hay bi loi, khong ra ket qua.
+Tài liệu này lưu trữ lại toàn bộ các công việc quan trọng mà Trợ lý AI (Antigravity) đã thực hiện trong phiên làm việc hiện tại, nhằm mục đích backup và theo dõi tiến độ dự án VBAI.
 
-## 2) Nguyen nhan goc
-- Nhanh `Dang tra cuu du lieu moi nhat tu Internet...` goi truc tiep `sendWebSearchRequest(...)`.
-- Khi web-search timeout/loi mang/API, exception day len toan bo `sendMessage`, lam chat fail va hien loi do.
-- Nhanh kia van co the chay vi di qua duong fallback khac.
+## 1. Khắc phục lỗi Tìm kiếm Vertex AI & Cải thiện Prompt
+**Files:** 
+- `proxy/server.js`
+- `webapp/modules/chat-assistant.js`
 
-## 3) Ban va da thuc hien
-- Da sua file:
-  - `webapp/modules/chat-assistant.js`
-- Vi tri logic chinh:
-  - Khoi xu ly web search freshness quanh dong ~2221.
-- Cach sua:
-  - Boc `sendWebSearchRequest(...)` bang `try/catch`.
-  - Neu loi web-search: khong crash chat.
-  - Tu dong chuyen sang che do du phong (best-effort) va van tiep tuc sinh cau tra loi.
-  - Gui thong bao trang thai ro cho nguoi dung: kenh internet gian doan, dang fallback.
-  - Gan metadata loi (`web_search_error`, `fallback_used`) de theo doi log.
+**Chi tiết thay đổi:**
+- **Sửa lỗi `400 Bad Request`**: Đã phát hiện và sửa lỗi khi hệ thống tự động gắn bộ lọc `so_hieu` vào mọi truy vấn Vertex AI. Ràng buộc lại chỉ áp dụng filter `so_hieu` cho kho dữ liệu `vbai-legal-unstructured` (Kho PDF), giúp các kho crawl từ website hoạt động trơn tru.
+- **Ép chuẩn so sánh Markdown**: Cập nhật chỉ lệnh `VBPL_PROMPT_SPEC` để khi người dùng yêu cầu "so sánh/đối chiếu", AI bắt buộc phải phản hồi bằng cấu trúc Bảng Markdown rõ ràng.
+- **Cập nhật kiến thức nghiệp vụ**: Thêm dữ liệu về Luật Tổ chức chính quyền địa phương mới (xóa bỏ cấp huyện, đồng bộ tên Sở/Ban/Ngành).
 
-## 4) Kiem tra sau sua
-- Kiem tra syntax:
-  - `node --check webapp/modules/chat-assistant.js` -> OK
-- Kiem tra policy test:
-  - `npm run -s test:policy` (webapp) -> Two-tier policy tests passed.
+---
 
-## 5) Commit va deploy
-- Commit:
-  - `1315f5d`
-  - Message: `fix(chat): fallback gracefully when fresh internet lookup fails`
-- Da push len `origin/main`.
-- Workflow deploy thanh cong:
-  - GitHub Actions run: `26046410377`
-  - Workflow: `Deploy to Google Cloud Run`
+## 2. Xây dựng công cụ Xuất bản PDF (PDF Publisher)
+**Files:**
+- `webapp/modules/pdf-publisher.js` (Mới)
+- `webapp/index.html`
+- `webapp/main.js`
 
-## 6) Link Cloud Run sau deploy
-- Frontend:
-  - https://vbai-419728335518.asia-southeast1.run.app
-- Backend proxy:
-  - https://vbai-proxy-419728335518.asia-southeast1.run.app
+**Chi tiết thay đổi:**
+- Đã thiết kế và tích hợp một công cụ Client-Side hoàn chỉnh để chuyển đổi Markdown thành báo cáo pháp luật chất lượng cao.
+- **UI/UX (Split View)**: Trình soạn thảo Markdown bên trái và Live HTML Preview bên phải.
+- **Xử lý Cú pháp**: Sử dụng `marked.js` để parse Markdown, bóc tách metadata (Số hiệu, Hiệu lực...) và tự động bọc thẻ `div.card`, `div.action` chuẩn xác.
+- **Kỹ thuật in (Iframe Print)**: Xây dựng cơ chế xuất PDF bằng cách đẩy giao diện HTML/CSS vào một `iframe` ẩn dưới nền và kích hoạt `window.print()`. Phương pháp này kế thừa được sức mạnh dàn trang của Chrome/Edge, giải quyết triệt để lỗi rớt Footer hay phân trang sai mà không cần phải dùng server Python.
 
-## 7) Ghi chu bo sung
-- Cac thay doi truoc do da ton tai trong `main`:
-  - Best-effort search mode (khong hard reject).
-  - Domain taxonomy cho Muc 3 (4 nhom linh vuc + suy luan domain + scoring/meta).
-  - Compact spacing cho chat (line-height ~1.35).
+---
 
-## 8) Nghien cuu & Cap nhat Prompt Hieu luc Luat 2026 (Moi nhat)
-- **Van de**: Nhiều luật/nghị định cũ đã hết hiệu lực hoàn toàn (ví dụ: Luật Viên chức số 58/2010/QH12 & Luật số 52/2019/QH14 đã hết hiệu lực do bị thay thế bởi Luật Viên chức mới số 129/2025/QH15 ban hành ngày 10/12/2025). Chatbot nếu lấy dữ liệu cũ có thể trả lời sai lệch nếu không rà soát hiệu lực văn bản.
-- **Giai phap**: 
-  - Đã thêm phần chỉ lệnh nghiêm ngặt `[QUY TẮC XỬ LÝ HIỆU LỰC & CẬP NHẬT MỚI NHẤT (CRITICAL)]` vào `VBPL_PROMPT_SPEC` trong `webapp/modules/chat-assistant.js`.
-  - Ép chatbot bắt buộc rà soát lộ trình hiệu lực, khẳng định ngay lập tức trạng thái văn bản cũ đã hết hiệu lực và dẫn chiếu chính xác sang văn bản thay thế (ví dụ: Luật số 129/2025/QH15 mới nhất).
-  - Tự động gắn kèm nhãn cảnh báo `[HẾT HIỆU LỰC]` hoặc `[SẮP HẾT HIỆU LỰC]` nếu bắt buộc phải so sánh với văn bản cũ.
-- **Ket qua kiem tra**:
-  - `node --check webapp/modules/chat-assistant.js` -> Đạt (OK)
-  - `npm run -s test:policy` (webapp) -> Đạt (Two-tier policy tests passed)
+## 3. Chuyển đổi Thương hiệu (Thanh lọc "MOL")
+**Files:**
+- Xóa: `webapp/public/Logo_MOL.png`, `pdfmaster/templates/Logo_MOL.png`
+- Đổi tên: `webapp/modules/mol-publisher.js` -> `pdf-publisher.js`
+- Đổi tên: `build_mol_pdf.py` -> `build_pdf.py`
+- Sửa hàng loạt: `index.html`, `main.js`, `pdf-publisher.js`, `SKILL.md`, `README.md`, `document-template.html`
 
-## 9) Toi uu hoa Truy van Tim kiem (Query Rewrite) cho Luat Vien chuc 2026
-- **Van de**: Khi người dùng tìm "Luật Viên chức", do các văn bản cũ (2010/2019) có lượng truy cập và SEO quá lớn, các công cụ tìm kiếm (Google CSE, Vertex Search) có xu hướng trả về tài liệu cũ làm kết quả hàng đầu, khiến chatbot không nhận được ngữ cảnh của Luật mới (129/2025/QH15).
-- **Giai phap**:
-  - Đã chỉnh sửa `normalizeLegalSearchQuery` tại `proxy/server.js` để tự động viết lại truy vấn (Query Expansion) khi phát hiện từ khóa "luật viên chức".
-  - Chuyển đổi truy vấn thành: `'Luật Viên chức mới nhất 129/2025/QH15 thay thế 58/2010/QH12 52/2019/QH14'`.
-  - Điều này giúp Google CSE và Vertex AI Search tìm thấy cả văn bản cũ lẫn mới nhất 2025/2026 đồng thời, cung cấp ngữ cảnh đầy đủ nhất cho AI phân tích hiệu lực.
-- **Kiem tra**:
-  - `node --check proxy/server.js` -> Đạt (OK)
+**Chi tiết thay đổi:**
+- Rà soát toàn bộ dự án để loại bỏ triệt để từ khóa "MOL", "MOL Logistics Vietnam Inc." và các email liên hệ (`MLGVN.ophcm-group@molgroup.com`).
+- Chuyển đổi sang thương hiệu chung: **"Hệ thống Trợ lý Hành chính"** và **"VBAI"**.
+- Thay thế logo công ty bằng logo mặc định của ứng dụng (`/admin-assistant-logo.svg`).
+- Chỉnh sửa Footer của file PDF xuất ra để hiển thị thông tin hỗ trợ kỹ thuật của hệ thống thay vì thông tin liên hệ dịch vụ logistics.
 
-## 10) Toi uu hoa Cache Trinh duyet & Query Rewrite cho Luat Can bo Cong chuc 2025/2026
-- **Van de**:
-  - Khi người dùng hỏi lại cùng một câu hỏi trong cùng một tab, trình duyệt sẽ tự động lấy câu trả lời từ `sessionStorage` (được cache thông qua `getCachedChatAnswer`) và hiển thị ngay lập tức mà không gửi request mới lên server. Điều này khiến các cập nhật Prompt hoặc Backend không được áp dụng.
-  - Luật Cán bộ, công chức cũng có một văn bản mới tinh thay thế là **Luật Cán bộ, công chức số 80/2025/QH15** (ban hành ngày 24/06/2025 và có hiệu lực từ 01/07/2025, phần đánh giá có hiệu lực từ 01/01/2026).
-- **Giai phap**:
-  - **Bypass Cache Trinh duyet**: Cập nhật `sendMessage` tại `webapp/modules/chat-assistant.js` để tự động bypass bộ nhớ đệm trình duyệt (`shouldBypassCache = isTimeSensitive || useWebSearch;`) bất cứ khi nào tính năng "Tìm kiếm web" được kích hoạt. Điều này đảm bảo mỗi khi người dùng bật "Tìm kiếm web", chatbot luôn luôn tra cứu mới 100% từ Internet.
-  - **Query Expansion cho Luat Can bo Cong chuc**: Bổ sung trường hợp viết lại truy vấn đối với từ khóa "luật cán bộ công chức" trong `normalizeLegalSearchQuery` tại `proxy/server.js`.
-  - Chuyển đổi truy vấn thành: `'Luật Cán bộ công chức mới nhất 80/2025/QH15 thay thế 22/2008/QH12 52/2019/QH14'`.
-- **Kiem tra**:
-  - `node --check proxy/server.js` -> Đạt (OK)
-  - `node --check webapp/modules/chat-assistant.js` -> Đạt (OK)
-  - `npm run -s test:policy` (webapp) -> Đạt (Two-tier policy tests passed)
+---
 
-## 11) Cập nhật Logic Fallback cho Vertex AI Search
-- **Vấn đề**:
-  - Khi người dùng chọn Vertex AI Search làm công cụ tra cứu chính và sử dụng tính năng viết lại truy vấn (Query Expansion) có chứa số hiệu văn bản cũ (ví dụ: `thay thế 58/2010/QH12 52/2019/QH14`).
-  - Vertex AI Search tìm thấy các văn bản cũ này và trả về kết quả (>0 items), dẫn đến logic Fallback sang Google Search bị bỏ qua. Kết quả là chatbot chỉ thấy luật cũ và khẳng định luật cũ là hiện hành.
-- **Giải pháp**:
-  - Chỉnh sửa `normalizeLegalSearchQuery` tại `proxy/server.js` để loại bỏ các số hiệu văn bản cũ khỏi câu truy vấn mở rộng (chỉ giữ lại số hiệu văn bản mới nhất, ví dụ: `'Luật Viên chức mới nhất 129/2025/QH15'`).
-  - Khi đó, nếu Vertex AI Search chưa có văn bản mới, nó sẽ không tìm thấy kết quả nào (0 items), kích hoạt thành công logic Fallback sang Google Search để tìm kiếm văn bản mới trên Internet.
-- **Kiểm tra**:
-  - `node --check proxy/server.js` -> Đạt (OK)
+## 4. Trạng thái hiện tại & Hướng dẫn sử dụng tính năng mới
+- Toàn bộ mã nguồn đã được dọn dẹp sạch sẽ, commit (`refactor(webapp): remove MOL branding entirely from source code`) và push lên nhánh `main`.
+- Frontend (`npm run dev`) đang chạy ổn định.
+- Tính năng **PDF Publisher** đã hoạt động trên thanh Sidebar. Bạn có thể sử dụng công cụ này để dán bản nháp Markdown do AI tạo ra và xuất ra báo cáo PDF chuẩn chỉnh gửi cho khách hàng/lãnh đạo.
 
-## 12) Khắc phục Triệt để Lỗi Tìm kiếm Web (Vertex Search & Google CSE Block)
-- **Vấn đề**:
-  - Khi người dùng thực hiện tra cứu trên trang Production (`https://vbai.tracuu.lamdong.vn/`), hệ thống vẫn trả về kết quả luật cũ 2008/2019.
-  - Qua phân tích log chi tiết (`search_logs`), Google Custom Search JSON API trả về mã lỗi `400/403 Permission Denied: This project does not have the access to Custom Search JSON API` trên dự án `gen-lang-client-0462350485` do chính sách siết chặt của Google đối với các tài khoản mới.
-  - Đồng thời, cấu hình Data Store ID của Vertex AI trong cơ sở dữ liệu Firestore (`config/system`) đang bị trỏ nhầm về `vbai-legal-unstructured` (là kho tài liệu PDF upload thủ công - hiện chưa có file Luật mới 2025). Do đó, Vertex AI Search trả về 0 kết quả, buộc hệ thống kích hoạt logic fallback Google CSE vốn đang bị lỗi quyền truy cập ở trên.
-- **Giải pháp**:
-  - Sử dụng script kết nối database trực tiếp để chuyển đổi cấu hình `vertex_data_store_id` từ `vbai-legal-unstructured` (PDF local store) sang **`vbai-legal-search`** (Web Data Store chuyên dụng - tự động crawl dữ liệu thực tế từ các cổng thông tin chính phủ).
-  - Đã kiểm tra thử nghiệm Vertex Search độc lập trên `vbai-legal-search`: Trả về kết quả **Luật Cán bộ công chức số 80/2025/QH15 và Luật Viên chức số 129/2025/QH15 chuẩn xác 100%** từ cổng thông tin Chính phủ (`vanban.chinhphu.vn` & `thuvienphapluat.vn`).
-  - Cập nhật Google Search Key dự phòng trong Firestore thành API Key 7 (`AIzaSyBuqo2nl_wreM49nljuwZiCxb-1JzcWFuM`) đã được cấp quyền customsearch trong dự án.
-- **Kết quả**: Hệ thống hiện hoạt động ổn định trên môi trường Live thông qua Vertex AI Search (`vbai-legal-search`), tự động truy xuất trực tiếp các Luật mới nhất 2025/2026 mà không cần qua Google CSE đang bị chặn.
+---
 
-
+*Cập nhật lần cuối: 2026-05-19*

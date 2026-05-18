@@ -48,4 +48,4 @@ pdf-pdf-pipeline/
 - Nếu gặp lỗi `PermissionError` khi xuất PDF, tức là file PDF hiện tại đang được mở bởi trình đọc (Acrobat/Edge). Hãy đóng file hoặc tăng version (vd: `_v8.pdf` → `_v9.pdf`) trong file `build_pdf.py`.
 
 ## 📌 Về dự án này
-Đây là một **AI Agent Skill** thuộc hệ sinh thái **Google Antigravity Framework** của người dùng Minh Đỗ, đảm bảo tự động hóa quy trình Content Pipeline cho Hệ thống Trợ lý Hành chính với độ ổn định cao nhất (Zone B).
+Đây là một **AI Agent Skill** thuộc hệ sinh thái **Google Antigravity Framework**, đảm bảo tự động hóa quy trình Content Pipeline cho Hệ thống Trợ lý Hành chính với độ ổn định cao nhất (Zone B).

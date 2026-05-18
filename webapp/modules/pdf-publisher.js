@@ -1,5 +1,8 @@
 import { marked } from 'marked';
 import { showToast } from '../main.js';
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { firebaseConfig } from '../firebase-config.js';
 
 const TEMPLATE_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -23,6 +26,8 @@ body{font-family:'Inter',sans-serif;font-size:12.5px;color:#333;line-height:1.55
     height: 65px; 
     object-fit: cover; 
     object-position: center; 
+    margin-left: -15px; 
+    margin-right: 15px; 
     border-radius: 4px;
 }
 .header-right{text-align:right}
@@ -134,11 +139,13 @@ function processMarkdown(mdContent) {
     tenNganGon = tenNganGon.substring(0, 57) + "...";
   }
 
+  // Remove YAML Frontmatter if present
+  let mdBody = mdContent.replace(/^---\n[\s\S]*?\n---\n/, '');
   // Remove metadata blockquote block at top
-  let mdBody = mdContent.replace(/^# .*?\n\n(?:> .*?\n)+\n---\n/, '');
+  mdBody = mdBody.replace(/^# .*?\n\n(?:> .*?\n)+\n---\n/, '');
   // If fallback, just try removing blockquotes at start
   if (mdBody === mdContent) {
-     mdBody = mdContent.replace(/^(>.*?\n)+/m, '');
+     mdBody = mdBody.replace(/^(>.*?\n)+/m, '');
   }
 
   let htmlContent = marked.parse(mdBody, { breaks: true });
@@ -231,6 +238,21 @@ ${TEMPLATE_CSS}
 `;
 }
 
+function logToFirestore(meta) {
+  try {
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    const db = getFirestore(app);
+    addDoc(collection(db, 'search_logs'), {
+      query: `[Xuất PDF] ${meta.soHieuVanBan} — ${meta.tieuDeChinh}`,
+      model: "PDF Publisher", 
+      userEmail: window.currentUser?.email || 'Unknown', 
+      timestamp: serverTimestamp()
+    }).catch(() => {});
+  } catch (e) {
+    console.warn("Lỗi ghi log Firestore:", e);
+  }
+}
+
 export function renderPdfPublisher(container) {
   container.innerHTML = `
     <div class="pdf-publisher-container" style="display: flex; height: calc(100vh - 120px); gap: 20px; padding-bottom: 20px;">
@@ -301,12 +323,29 @@ Thủ tục giao đất đã được rút ngắn thời gian xử lý từ 30 n
 | 🔴 Cao | Nộp hồ sơ xin giao đất mới | 28/02/2026 |
 | 🟡 TB  | Rà soát lại hợp đồng thuê đất cũ | 30/03/2026 |`;
 
-  btnRender.addEventListener('click', () => {
+  let cachedLogoBase64 = '';
+  async function getLogoBase64() {
+    if (cachedLogoBase64) return cachedLogoBase64;
+    try {
+      const res = await fetch(window.location.origin + '/admin-assistant-logo.svg');
+      const blob = await res.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => { cachedLogoBase64 = reader.result; resolve(cachedLogoBase64); };
+        reader.readAsDataURL(blob);
+      });
+    } catch(e) {
+      console.warn("Lỗi load logo:", e);
+      return window.location.origin + '/admin-assistant-logo.svg';
+    }
+  }
+
+  btnRender.addEventListener('click', async () => {
     try {
       const mdContent = txtInput.value;
       const meta = processMarkdown(mdContent);
-      // We will use the absolute URL for the logo so it resolves correctly in iframe
-      const logoUrl = window.location.origin + '/admin-assistant-logo.svg';
+      // We will use the absolute URL or Base64 for the logo so it resolves correctly in iframe
+      const logoUrl = await getLogoBase64();
       currentHtml = generateFullHtml(meta, logoUrl);
       
       // Inject into preview by putting it in a shadow dom or iframe so styles don't leak
@@ -321,16 +360,32 @@ Thủ tục giao đất đã được rút ngắn thời gian xử lý từ 30 n
     }
   });
 
+  let renderTimeout;
+  txtInput.addEventListener('input', () => {
+    clearTimeout(renderTimeout);
+    renderTimeout = setTimeout(() => {
+      btnRender.click();
+    }, 500);
+  });
+
   btnExport.addEventListener('click', () => {
     if (!currentHtml) {
       btnRender.click();
     }
+    
+    // Ghi log hoạt động xuất bản vào Firestore
+    try {
+      const meta = processMarkdown(txtInput.value);
+      logToFirestore(meta);
+    } catch(e) {}
+
     setTimeout(() => {
       // Create hidden iframe for printing
       const printIframe = document.createElement('iframe');
       printIframe.style.position = 'absolute';
-      printIframe.style.width = '0px';
-      printIframe.style.height = '0px';
+      printIframe.style.width = '1px';
+      printIframe.style.height = '1px';
+      printIframe.style.left = '-10000px';
       printIframe.style.border = 'none';
       document.body.appendChild(printIframe);
 

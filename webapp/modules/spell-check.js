@@ -142,9 +142,9 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
     config?.gemini_model || 'gemini-2.5-pro'
   );
 
-  // 2. Batching paragraphs — batch nhỏ hơn để AI chính xác hơn
+  // 2. Batching paragraphs — batch lớn hơn để tối ưu số lần gọi API
   const validParas = paragraphs.filter(p => p.text.trim().length > 10);
-  const BATCH_SIZE = 3;
+  const BATCH_SIZE = 5;
   const batches = [];
   for (let i = 0; i < validParas.length; i += BATCH_SIZE) {
     batches.push(validParas.slice(i, i + BATCH_SIZE));
@@ -176,72 +176,79 @@ TRẢ VỀ JSON ARRAY:
 [{"para_id": 5, "original": "triểm khai", "suggestion": "triển khai", "reason": "Sai phụ âm: triểm → triển"}]
 Nếu không có lỗi, trả []. CHỈ JSON, KHÔNG markdown, KHÔNG giải thích.`;
 
-  // 3. Process batches
-  for (let i = 0; i < batches.length; i++) {
-    const batch = batches[i];
-    progressTextEl.innerText = `Đang phân tích đoạn ${i * BATCH_SIZE + 1} đến ${Math.min((i + 1) * BATCH_SIZE, validParas.length)} / ${validParas.length}...`;
+  // 3. Process batches concurrently
+  let completedBatches = 0;
+  const MAX_CONCURRENT = 4;
+  
+  for (let i = 0; i < batches.length; i += MAX_CONCURRENT) {
+    const currentChunk = batches.slice(i, i + MAX_CONCURRENT);
     
-    let combinedText = "";
-    batch.forEach(p => combinedText += `[ID:${p.index}] ${p.text}\n`);
+    await Promise.all(currentChunk.map(async (batch) => {
+      let combinedText = "";
+      batch.forEach(p => combinedText += `[ID:${p.index}] ${p.text}\n`);
 
-    try {
-      const messages = [
-        { role: "system", content: systemInstruction },
-        { role: "user", content: combinedText }
-      ];
-      let resText = await sendChatRequest(messages, modelName, { temperature: 0.1, context: 'spellcheck' });
-      resText = resText.replace(/^\`\`\`json/m, '').replace(/^\`\`\`/m, '').trim();
-      
-      let aiErrors = [];
-      try { aiErrors = JSON.parse(resText); } catch(err) { console.warn("Parse JSON failed for batch", i, resText); }
+      try {
+        const messages = [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: combinedText }
+        ];
+        let resText = await sendChatRequest(messages, modelName, { temperature: 0.1, context: 'spellcheck' });
+        resText = resText.replace(/^\`\`\`json/m, '').replace(/^\`\`\`/m, '').trim();
+        
+        let aiErrors = [];
+        try { aiErrors = JSON.parse(resText); } catch(err) { console.warn("Parse JSON failed for batch", resText); }
 
-      for (const err of aiErrors) {
-        if (!err.original || !err.suggestion) continue;
-        if (err.original === err.suggestion) continue;
+        for (const err of aiErrors) {
+          if (!err.original || !err.suggestion) continue;
+          if (err.original === err.suggestion) continue;
 
-        // BẢO VỆ: Không lẫn Hội viên/Ủy viên
-        const lowOrig = err.original.toLowerCase();
-        const lowSugg = err.suggestion.toLowerCase();
-        if ((lowOrig.includes('hội viên') && lowSugg.includes('ủy viên')) ||
-            (lowOrig.includes('ủy viên') && lowSugg.includes('hội viên'))) {
-          continue;
-        }
-
-        // BẢO VỆ: Bỏ qua nếu AI chỉ thay đổi viết hoa (chức danh)
-        if (lowOrig === lowSugg) continue;
-
-        // Tìm đoạn chính xác bằng para_id hoặc fallback tìm trong batch
-        const targetParas = err.para_id !== undefined
-          ? batch.filter(p => p.index === err.para_id)
-          : batch;
-
-        for (const p of targetParas) {
-          // Dùng indexOf chính xác thay vì regex fuzzy
-          const pos = p.text.indexOf(err.original);
-          if (pos === -1) continue;
-
-          // Kiểm tra không trùng lặp/chồng chéo
-          const isOverlap = errors.some(e => e.paraIdx === p.index && 
-            ((pos >= e.pos && pos < e.pos + e.length) || (e.pos >= pos && e.pos < pos + err.original.length)));
-          
-          if (!isOverlap) {
-            errors.push({
-              type: 'spelling_ai',
-              paraIdx: p.index,
-              pos: pos,
-              length: err.original.length,
-              original: p.text.substring(pos, pos + err.original.length),
-              suggestion: err.suggestion,
-              reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
-              message: `"${err.original}" → "${err.suggestion}"`
-            });
+          // BẢO VỆ: Không lẫn Hội viên/Ủy viên
+          const lowOrig = err.original.toLowerCase();
+          const lowSugg = err.suggestion.toLowerCase();
+          if ((lowOrig.includes('hội viên') && lowSugg.includes('ủy viên')) ||
+              (lowOrig.includes('ủy viên') && lowSugg.includes('hội viên'))) {
+            continue;
           }
-          break; // Chỉ match 1 lần mỗi đoạn
+
+          // BẢO VỆ: Bỏ qua nếu AI chỉ thay đổi viết hoa (chức danh)
+          if (lowOrig === lowSugg) continue;
+
+          // Tìm đoạn chính xác bằng para_id hoặc fallback tìm trong batch
+          const targetParas = err.para_id !== undefined
+            ? batch.filter(p => p.index === err.para_id)
+            : batch;
+
+          for (const p of targetParas) {
+            // Dùng indexOf chính xác thay vì regex fuzzy
+            const pos = p.text.indexOf(err.original);
+            if (pos === -1) continue;
+
+            // Kiểm tra không trùng lặp/chồng chéo
+            const isOverlap = errors.some(e => e.paraIdx === p.index && 
+              ((pos >= e.pos && pos < e.pos + e.length) || (e.pos >= pos && e.pos < pos + err.original.length)));
+            
+            if (!isOverlap) {
+              errors.push({
+                type: 'spelling_ai',
+                paraIdx: p.index,
+                pos: pos,
+                length: err.original.length,
+                original: p.text.substring(pos, pos + err.original.length),
+                suggestion: err.suggestion,
+                reason: err.reason || "Sửa lỗi chính tả/ngữ pháp",
+                message: `"${err.original}" → "${err.suggestion}"`
+              });
+            }
+            break; // Chỉ match 1 lần mỗi đoạn
+          }
         }
+      } catch(err) {
+        console.warn("AI Generation error for batch", err);
+      } finally {
+        completedBatches++;
+        progressTextEl.innerText = `Đang phân tích... hoàn thành ${Math.min(completedBatches * BATCH_SIZE, validParas.length)} / ${validParas.length} đoạn.`;
       }
-    } catch(err) {
-      console.warn("AI Generation error for batch", i, err);
-    }
+    }));
   }
 
   progressTextEl.innerText = "Hoàn tất kiểm tra AI!";
