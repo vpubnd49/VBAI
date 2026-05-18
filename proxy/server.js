@@ -346,6 +346,10 @@ function normalizeLegalSearchQuery(query = '') {
     return 'Nghị định 168/2024/NĐ-CP xử phạt vi phạm giao thông đường bộ';
   }
 
+  if (/\bluat\s*vien\s*chuc\b/.test(n)) {
+    return 'Luật Viên chức mới nhất 129/2025/QH15 thay thế 58/2010/QH12 52/2019/QH14';
+  }
+
   return raw;
 }
 

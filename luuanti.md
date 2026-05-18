@@ -59,3 +59,12 @@ Nhanh: main
   - `node --check webapp/modules/chat-assistant.js` -> Đạt (OK)
   - `npm run -s test:policy` (webapp) -> Đạt (Two-tier policy tests passed)
 
+## 9) Toi uu hoa Truy van Tim kiem (Query Rewrite) cho Luat Vien chuc 2026
+- **Van de**: Khi người dùng tìm "Luật Viên chức", do các văn bản cũ (2010/2019) có lượng truy cập và SEO quá lớn, các công cụ tìm kiếm (Google CSE, Vertex Search) có xu hướng trả về tài liệu cũ làm kết quả hàng đầu, khiến chatbot không nhận được ngữ cảnh của Luật mới (129/2025/QH15).
+- **Giai phap**:
+  - Đã chỉnh sửa `normalizeLegalSearchQuery` tại `proxy/server.js` để tự động viết lại truy vấn (Query Expansion) khi phát hiện từ khóa "luật viên chức".
+  - Chuyển đổi truy vấn thành: `'Luật Viên chức mới nhất 129/2025/QH15 thay thế 58/2010/QH12 52/2019/QH14'`.
+  - Điều này giúp Google CSE và Vertex AI Search tìm thấy cả văn bản cũ lẫn mới nhất 2025/2026 đồng thời, cung cấp ngữ cảnh đầy đủ nhất cho AI phân tích hiệu lực.
+- **Kiem tra**:
+  - `node --check proxy/server.js` -> Đạt (OK)
+
