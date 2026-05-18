@@ -269,6 +269,64 @@ const LEGAL_DOC_TYPE_PATTERNS = Object.freeze({
   luat: /\bluat\b|\bbo\s*luat\b/,
 });
 
+const LEGAL_DOMAIN_TAXONOMY = Object.freeze({
+  lao_dong_tien_luong: Object.freeze([
+    'hop dong lao dong',
+    'thoi viec',
+    'tro cap that nghiep',
+    'bhxh 1 lan',
+    'bao hiem xa hoi 1 lan',
+    'luong toi thieu',
+    'tien luong',
+  ]),
+  thue_doanh_nghiep: Object.freeze([
+    'thue tncn',
+    'thue tndn',
+    'hoa don dien tu',
+    'chi phi hop ly',
+    'quyet toan thue',
+    'ke khai thue',
+  ]),
+  dat_dai_nha_o: Object.freeze([
+    'boi thuong dat',
+    'tach thua',
+    'so do',
+    'chuyen muc dich su dung dat',
+    'quyen su dung dat',
+    'nha o',
+  ]),
+  hon_nhan_gia_dinh: Object.freeze([
+    'ly hon don phuong',
+    'chia tai san',
+    'quyen nuoi con',
+    'hon nhan gia dinh',
+    'cap duong',
+    'ly hon',
+  ]),
+});
+
+function inferDomainFromQuery(text = '') {
+  const n = normalizeVietnamese(String(text || ''));
+  if (!n) return { domain_id: null, domain_confidence: 0, domain_keywords_hit: [] };
+
+  const ranked = Object.entries(LEGAL_DOMAIN_TAXONOMY).map(([domainId, keywords]) => {
+    const hits = [];
+    for (const keyword of keywords) {
+      const k = normalizeVietnamese(String(keyword || '').trim());
+      if (k && n.includes(k)) hits.push(k);
+    }
+    return { domainId, hits };
+  }).sort((a, b) => b.hits.length - a.hits.length);
+
+  const best = ranked[0];
+  if (!best || best.hits.length === 0) return { domain_id: null, domain_confidence: 0, domain_keywords_hit: [] };
+  return {
+    domain_id: best.domainId,
+    domain_confidence: Math.max(0, Math.min(1, Number((best.hits.length / 3).toFixed(2)))),
+    domain_keywords_hit: best.hits.slice(0, 4),
+  };
+}
+
 function hasBroadComparisonIntent(text = '') {
   const n = normalizeVietnamese(text);
   if (!/(so sanh|doi chieu|khac nhau giua)/.test(n)) return false;
@@ -498,6 +556,7 @@ function normalizeLegalQuery(userMessage = '', searchContext = {}) {
   else if (detailedIntent) intent = 'detailed_lookup';
   else if (/(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|ngay hieu luc|hieu luc tu ngay nao)/.test(normalized)) intent = 'effectiveness_check';
   else if (/(moi nhat|co gi moi|moi nhat so bao nhieu|so bao nhieu|la so bao nhieu|ban hanh ngay nao|ngay ban hanh nao|ngay nao ban hanh)/.test(normalized)) intent = 'latest_doc_lookup';
+  const domainInfo = inferDomainFromQuery(raw);
 
   return {
     originalText: raw,
@@ -513,6 +572,9 @@ function normalizeLegalQuery(userMessage = '', searchContext = {}) {
     asksForDelegationFocus: delegationIntent,
     asksForDetailedAnswer: detailedIntent,
     asksForSubstantiveUpdate: updateIntent,
+    domain_id: domainInfo.domain_id,
+    domain_confidence: domainInfo.domain_confidence,
+    domain_keywords_hit: domainInfo.domain_keywords_hit,
   };
 }
 

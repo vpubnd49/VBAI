@@ -161,6 +161,137 @@ const LEGAL_DOC_TYPE_PATTERNS = Object.freeze({
   quyet_dinh: /\bquyet\s*dinh\b|\bquyetdinh\b|\bqd\b/,
 });
 
+const LEGAL_DOMAIN_TAXONOMY = Object.freeze({
+  lao_dong_tien_luong: Object.freeze({
+    label: 'Lao dong - Tien luong',
+    keywords: Object.freeze([
+      'hop dong lao dong',
+      'thoi viec',
+      'tro cap that nghiep',
+      'bhxh 1 lan',
+      'bao hiem xa hoi 1 lan',
+      'luong toi thieu',
+      'tien luong',
+      'luong co so',
+      'bao hiem xa hoi',
+    ]),
+  }),
+  thue_doanh_nghiep: Object.freeze({
+    label: 'Thue - Doanh nghiep',
+    keywords: Object.freeze([
+      'thue tncn',
+      'thue tndn',
+      'hoa don dien tu',
+      'chi phi hop ly',
+      'ke khai thue',
+      'quyet toan thue',
+      'thue gia tri gia tang',
+      'vat',
+    ]),
+  }),
+  dat_dai_nha_o: Object.freeze({
+    label: 'Dat dai - Nha o',
+    keywords: Object.freeze([
+      'boi thuong dat',
+      'tach thua',
+      'so do',
+      'chuyen muc dich su dung dat',
+      'dat dai',
+      'nha o',
+      'cap giay chung nhan',
+      'quyen su dung dat',
+    ]),
+  }),
+  hon_nhan_gia_dinh: Object.freeze({
+    label: 'Hon nhan - Gia dinh',
+    keywords: Object.freeze([
+      'ly hon don phuong',
+      'chia tai san',
+      'quyen nuoi con',
+      'hon nhan gia dinh',
+      'cap duong',
+      'ket hon',
+      'ly hon',
+    ]),
+  }),
+});
+
+const LEGAL_ACTION_KEYWORDS = Object.freeze([
+  'quy dinh ve',
+  'dieu kien',
+  'trinh tu',
+  'thu tuc',
+  'xu phat vi pham hanh chinh',
+  'bieu mau',
+  'huong dan',
+]);
+
+function inferDomainFromQuery(query = '') {
+  const normalized = normalizeVietnamese(String(query || ''));
+  if (!normalized) {
+    return { domain_id: null, domain_confidence: 0, domain_keywords_hit: [] };
+  }
+
+  const entries = Object.entries(LEGAL_DOMAIN_TAXONOMY).map(([domainId, spec]) => {
+    const hits = [];
+    let weightedScore = 0;
+    for (const keyword of (spec?.keywords || [])) {
+      const key = normalizeVietnamese(String(keyword || '').trim());
+      if (!key) continue;
+      if (normalized.includes(key)) {
+        hits.push(key);
+        weightedScore += key.includes(' ') ? 1.2 : 0.8;
+      }
+    }
+    return {
+      domainId,
+      hits: Array.from(new Set(hits)),
+      weightedScore,
+    };
+  });
+
+  entries.sort((a, b) => {
+    if (b.weightedScore !== a.weightedScore) return b.weightedScore - a.weightedScore;
+    return b.hits.length - a.hits.length;
+  });
+  const best = entries[0];
+  if (!best || best.hits.length === 0 || best.weightedScore <= 0) {
+    return { domain_id: null, domain_confidence: 0, domain_keywords_hit: [] };
+  }
+
+  const confidence = Math.max(0, Math.min(1, best.weightedScore / 3.5));
+  return {
+    domain_id: best.domainId,
+    domain_confidence: Number(confidence.toFixed(2)),
+    domain_keywords_hit: best.hits.slice(0, 4),
+  };
+}
+
+function extractActionKeywords(query = '') {
+  const normalized = normalizeVietnamese(String(query || ''));
+  if (!normalized) return [];
+  const hits = [];
+  for (const keyword of LEGAL_ACTION_KEYWORDS) {
+    const key = normalizeVietnamese(String(keyword || '').trim());
+    if (key && normalized.includes(key)) hits.push(key);
+  }
+  return Array.from(new Set(hits)).slice(0, 2);
+}
+
+function buildDomainSeedQueries(baseQuery = '', domainInference = null, actionKeywords = []) {
+  const base = String(baseQuery || '').trim();
+  if (!base) return [];
+  const domainId = String(domainInference?.domain_id || '').trim();
+  if (!domainId) return [];
+  const hits = Array.isArray(domainInference?.domain_keywords_hit) ? domainInference.domain_keywords_hit : [];
+  const actionHit = Array.isArray(actionKeywords) && actionKeywords.length > 0 ? String(actionKeywords[0] || '').trim() : '';
+  return dedupeStringList([
+    hits[0] ? `${base} ${hits[0]}` : '',
+    hits[0] && actionHit ? `${base} ${hits[0]} ${actionHit}` : '',
+    hits[1] ? `${base} ${hits[1]}` : '',
+  ]).slice(0, 3);
+}
+
 function sanitizeRequestedDocType(raw = '') {
   const normalized = normalizeVietnamese(String(raw || '')).replace(/\s+/g, '_');
   if (normalized in LEGAL_DOC_TYPE_PATTERNS) return normalized;
@@ -1568,6 +1699,8 @@ app.post('/api/web-search', async (req, res) => {
     const normalizedPartialDocNumber = String(partialDocNumber || inferredPartialDocNumber || '').trim().toUpperCase() || null;
     const effectiveRequestedDocType = sanitizeRequestedDocType(requestedDocType) || inferRequestedDocTypeFromQuery(query);
     const searchQuery = normalizeLegalSearchQuery(query);
+    const domainInference = inferDomainFromQuery(searchQuery || query);
+    const domainActionKeywords = extractActionKeywords(searchQuery || query);
     const normalized = {
       route: '/api/web-search',
       originalQuery: String(query || '').trim(),
@@ -1575,6 +1708,9 @@ app.post('/api/web-search', async (req, res) => {
       expectedDocNumber: normalizedExpectedDocNumber,
       partialDocNumber: normalizedPartialDocNumber,
       requestedDocType: effectiveRequestedDocType,
+      domainId: domainInference.domain_id || null,
+      domainConfidence: domainInference.domain_confidence || 0,
+      domainKeywordsHit: domainInference.domain_keywords_hit || [],
       forceFresh: forceFresh === true,
       freshnessLevel: normalizedFreshnessLevel || null,
       recencyDays: Number.isFinite(normalizedRecencyDays) ? normalizedRecencyDays : null,
@@ -1625,6 +1761,13 @@ app.post('/api/web-search', async (req, res) => {
         ...cachedPayload,
         meta: {
           ...(cachedPayload.meta || {}),
+          domain_id: cachedPayload?.meta?.domain_id || domainInference.domain_id || null,
+          domain_confidence: Number.isFinite(Number(cachedPayload?.meta?.domain_confidence))
+            ? Number(cachedPayload.meta.domain_confidence)
+            : domainInference.domain_confidence || 0,
+          domain_keywords_hit: Array.isArray(cachedPayload?.meta?.domain_keywords_hit)
+            ? cachedPayload.meta.domain_keywords_hit
+            : domainInference.domain_keywords_hit || [],
           cache_hit: true,
           served_in_ms: Date.now() - requestStartMs,
         },
@@ -1644,14 +1787,15 @@ app.post('/api/web-search', async (req, res) => {
       if (hotIndexHit && Array.isArray(hotIndexHit.items) && hotIndexHit.items.length > 0) {
         const typedHotItems = filterItemsByRequestedDocType(hotIndexHit.items, effectiveRequestedDocType);
         const hotItems = effectiveRequestedDocType ? typedHotItems : hotIndexHit.items;
-        const validation = validateLegalDocumentMatch({
-          query,
-          items: hotItems,
-          expectedDocNumber: normalizedExpectedDocNumber,
-          partialDocNumber: normalizedPartialDocNumber,
-          requestedDocType: effectiveRequestedDocType,
-          knownDocument,
-        });
+      const validation = validateLegalDocumentMatch({
+        query,
+        items: hotItems,
+        expectedDocNumber: normalizedExpectedDocNumber,
+        partialDocNumber: normalizedPartialDocNumber,
+        requestedDocType: effectiveRequestedDocType,
+        knownDocument,
+        domainInference,
+      });
         const finalHotItems = validation.ok ? validation.approvedItems : [];
         const hotIndexStrongEnough = validation.ok === true
           || hotIndexHit.exactMatch === true
@@ -1742,6 +1886,9 @@ app.post('/api/web-search', async (req, res) => {
     if (isLegal && !hasSpecificYear && !normQuery.includes('moi nhat')) {
       refinedQuery += ` moi nhat ${current} ${next}`;
     }
+    const domainSeedQueries = (!normalizedExpectedDocNumber && !knownDocument?.documentNumber)
+      ? buildDomainSeedQueries(refinedQuery, domainInference, domainActionKeywords)
+      : [];
 
     const dateRestrict = buildDateRestrict({
       isLegal,
@@ -1802,6 +1949,7 @@ app.post('/api/web-search', async (req, res) => {
         partialDocNumber: normalizedPartialDocNumber,
         requestedDocType: effectiveRequestedDocType,
         knownDocument,
+        domainInference,
       });
       const typedItems = filterItemsByRequestedDocType(items, effectiveRequestedDocType);
       const knownDocumentOfficialCandidateItems = strategy === 'known_document_official_lookup'
@@ -1867,6 +2015,9 @@ app.post('/api/web-search', async (req, res) => {
         effectiveStatus: effectiveStatusInfo.status,
         supersededBy: effectiveStatusInfo.superseded_by,
         freshnessForced: effectiveForceFresh === true,
+        domainId: domainInference.domain_id || null,
+        domainConfidence: domainInference.domain_confidence || 0,
+        domainKeywordsHit: domainInference.domain_keywords_hit || [],
       });
       const payload = {
         results: responseResults,
@@ -2063,6 +2214,28 @@ app.post('/api/web-search', async (req, res) => {
       );
       captureCseDiagnostic(searchAttempt);
       items = searchAttempt.items || [];
+    }
+
+    if ((!items || items.length === 0) && domainSeedQueries.length > 0 && getRemainingCseBudgetMs() > 900) {
+      cseStrategy = 'cse_domain_seeded';
+      for (const seededQuery of domainSeedQueries) {
+        if (getRemainingCseBudgetMs() <= 900) break;
+        searchAttempt = await executeSearch(
+          `${seededQuery} (${officialDomainClause})`,
+          Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
+        );
+        captureCseDiagnostic(searchAttempt);
+        items = searchAttempt.items || [];
+        recordStrategyAttempt({
+          step: 'domain_seeded_official',
+          strategy: 'cse_domain_seeded',
+          finalQuery: `${seededQuery} (${officialDomainClause})`,
+          itemCount: Array.isArray(items) ? items.length : 0,
+          status: searchAttempt?.status,
+          errorReason: searchAttempt?.errorReason,
+        });
+        if (items && items.length > 0) break;
+      }
     }
 
     // 2nd attempt: trusted legal reference sites
@@ -2851,6 +3024,7 @@ function parseUserQueryConstraints({
   expectedDocNumber = null,
   partialDocNumber = null,
   requestedDocType = null,
+  domainInference = null,
 } = {}) {
   const text = String(query || '');
   const normalizedExpected = String(expectedDocNumber || '').trim().toUpperCase() || null;
@@ -2876,6 +3050,9 @@ function parseUserQueryConstraints({
     issuer,
     year,
     titleTerms,
+    domainId: String(domainInference?.domain_id || '').trim() || null,
+    domainConfidence: Number(domainInference?.domain_confidence || 0) || 0,
+    domainKeywordsHit: Array.isArray(domainInference?.domain_keywords_hit) ? domainInference.domain_keywords_hit : [],
   };
 }
 
@@ -2947,12 +3124,14 @@ function validateLegalDocumentMatch({
   partialDocNumber = null,
   requestedDocType = null,
   knownDocument = null,
+  domainInference = null,
 } = {}) {
   const constraints = parseUserQueryConstraints({
     query,
     expectedDocNumber: expectedDocNumber || knownDocument?.documentNumber || null,
     partialDocNumber,
     requestedDocType: requestedDocType || knownDocument?.requestedDocType || null,
+    domainInference,
   });
   const originalItems = Array.isArray(items) ? items : [];
   const generalLegalQuery = isGeneralLegalQuery(constraints);
@@ -3091,7 +3270,14 @@ function validateLegalDocumentMatch({
       entry.metadata.co_quan_ban_hanh,
       entry.metadata.trich_yeu_hoac_ten_van_ban,
     ].filter(Boolean).length * 3;
-    const score = breakdown.doc_type + breakdown.doc_number + breakdown.title + breakdown.issuer + breakdown.date + breakdown.consensus + sourcePriority + completenessBonus;
+    const domainBonus = (() => {
+      if (!constraints.domainId || constraints.domainConfidence <= 0) return 0;
+      const hayNorm = normalizeVietnamese(`${entry.item?.title || ''} ${entry.item?.snippet || ''}`);
+      const domainHit = (constraints.domainKeywordsHit || []).some((kw) => kw && hayNorm.includes(normalizeVietnamese(kw)));
+      if (!domainHit) return 0;
+      return Math.round(Math.max(0, Math.min(12, constraints.domainConfidence * 12)));
+    })();
+    const score = breakdown.doc_type + breakdown.doc_number + breakdown.title + breakdown.issuer + breakdown.date + breakdown.consensus + sourcePriority + completenessBonus + domainBonus;
     const confidence = Math.max(0, Math.min(1, score / 100));
     const metadataComplete = Boolean(
       entry.metadata.loai_van_ban
@@ -3342,6 +3528,9 @@ function buildWebSearchMeta({
   effectiveStatus = null,
   supersededBy = null,
   freshnessForced = false,
+  domainId = null,
+  domainConfidence = 0,
+  domainKeywordsHit = [],
 }) {
   const sourceAudit = summarizeTopSourceAudit(items, 5);
   return {
@@ -3398,6 +3587,11 @@ function buildWebSearchMeta({
     effective_status: effectiveStatus ? String(effectiveStatus) : null,
     superseded_by: supersededBy ? String(supersededBy) : null,
     freshness_forced: freshnessForced === true,
+    domain_id: domainId ? String(domainId) : null,
+    domain_confidence: Number.isFinite(Number(domainConfidence))
+      ? Math.max(0, Math.min(1, Number(domainConfidence)))
+      : 0,
+    domain_keywords_hit: Array.isArray(domainKeywordsHit) ? domainKeywordsHit.slice(0, 6) : [],
   };
 }
 
