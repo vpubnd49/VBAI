@@ -1124,26 +1124,7 @@ function buildDocTypeMismatchMessage(rawUserText = '', requestedDocType = '', fu
 }
 
 function shouldUseStrictRejection(rawUserText = '', searchContext = {}) {
-  const n = normalizeVietnamese(rawUserText);
-
-  // If the query is a general status query or relationship query, NEVER strictly reject it.
-  // We want to let Gemini explain replacements, draft statuses, and general questions.
-  const generalStatusOrRelation = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|thay the|bai bo|co hieu luc chua|moi nhat|co gi moi|la gi|so sanh|doi chieu|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat|ban hanh ngay nao|ngay nao hieu luc|quy dinh ve|trinh tu|thu tuc|bieu mau)/.test(n);
-  if (generalStatusOrRelation) {
-    return false;
-  }
-
-  // Only apply strict rejection if they are asking for a specific article, clause, or verbatim citation
-  const hasSpecificArticleOrClause = /\b(dieu|khoan|diem)\s+\d+\b/.test(n) || /\b(dieu|khoan|diem)\s+[a-z]\b/.test(n);
-  const isStrictRequest = hasCitationIntent(rawUserText)
-    || !!parseComparisonTargets(rawUserText)
-    || isDelegationFocusQuery(rawUserText)
-    || (hasSpecificArticleOrClause && /\b(trich|trich dan|nguyen van|chi tiet|noi dung|doc|xem)\b/.test(n));
-
-  if (isStrictRequest) {
-    return true;
-  }
-
+  // Best-effort mode: never hard-reject search answers.
   return false;
 }
 
@@ -2199,7 +2180,7 @@ export async function sendMessage(text, onChunk) {
           || Boolean(parseComparisonTargets(rawUserText))
         ),
       );
-      if (webSearchResultsText && (earlyStrictReason || earlyLowConfidence) && strictBoundQuery && !contextualExtractionIntent && !allowBestAlternativeForLatestLookup) {
+      if (false && webSearchResultsText && (earlyStrictReason || earlyLowConfidence) && strictBoundQuery && !contextualExtractionIntent && !allowBestAlternativeForLatestLookup) {
         const bestAlternative = webSearchMeta?.best_alternative && typeof webSearchMeta.best_alternative === 'object'
           ? webSearchMeta.best_alternative
           : null;
@@ -2243,7 +2224,7 @@ export async function sendMessage(text, onChunk) {
         if (onChunk) onChunk(guardText);
         return guardText;
       }
-      if (searchResults === "__NO_EXACT_MATCH__" && searchContext.effectiveDocNumber) {
+      if (false && searchResults === "__NO_EXACT_MATCH__" && searchContext.effectiveDocNumber) {
  const guardText = ensureFollowUpQuestion(
           searchResults === "__NO_EXACT_MATCH__" && searchContext.effectiveDocNumber
             ? buildFreshnessGuardMessage(rawUserText, `Khong tim thay van ban co so hieu ${searchContext.effectiveDocNumber} trong du lieu tra cuu moi nhat.`)
@@ -2293,6 +2274,10 @@ export async function sendMessage(text, onChunk) {
         }
         finalUserText = `${contextualUserText}\n\n[Du lieu truc tuyen cap nhat, tra cuu luc ${new Date().toLocaleTimeString('vi-VN')}]:\n${webSearchResultsText}`;
       } else {
+        if (webSearchMeta?.strict_reject_reason) {
+          // Continue with best-effort synthesis even when backend marks strict reject.
+          webSearchMeta = { ...(webSearchMeta || {}), strict_reject_reason: null };
+        }
         const cseDenied = Number(webSearchMeta?.cse_status) === 403
           && /custom search|permission|access/i.test(String(webSearchMeta?.cse_error_reason || ''));
         const fallbackUsed = webSearchMeta?.fallback_used === true;

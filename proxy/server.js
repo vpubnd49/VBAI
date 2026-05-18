@@ -1812,10 +1812,13 @@ app.post('/api/web-search', async (req, res) => {
         finalItems = Array.isArray(validation.approvedItems) ? validation.approvedItems : [];
       } else if (knownDocumentOfficialCandidateItems.length > 0) {
         finalItems = knownDocumentOfficialCandidateItems;
-      } else if (!effectiveRequestedDocType && !validation.strictRejectReason) {
+      } else if (typedItems.length > 0) {
         finalItems = typedItems;
+      } else if (Array.isArray(items) && items.length > 0) {
+        // Best-effort mode: return available items even when strict validation does not pass.
+        finalItems = items;
       }
-      const responseResults = noExactMatch ? '__NO_EXACT_MATCH__' : formatSearchResults(finalItems);
+      const responseResults = formatSearchResults(finalItems);
       diagnostics.fallback_used = fallbackUsed === true;
       const effectiveStrictRejectReason = knownDocumentOfficialCandidateItems.length > 0
         ? null
@@ -1825,10 +1828,11 @@ app.post('/api/web-search', async (req, res) => {
             ? 'no_type_match'
             : null)
           || (strictPartialReject ? 'partial_doc_number_requires_full' : null));
+      const strictRejectForMeta = finalItems.length > 0 ? null : effectiveStrictRejectReason;
       const effectiveStatusInfo = knownDocumentOfficialCandidateItems.length > 0
         ? { status: null, superseded_by: null }
         : detectEffectiveStatus(finalItems, query);
-      const answerMode = effectiveStrictRejectReason
+      const answerMode = strictRejectForMeta
         ? 'reject_with_alternative'
         : detectQueryMode(query, validation.docNumberMatchLevel || requestDocMatchLevel, !!effectiveRequestedDocType);
       const meta = buildWebSearchMeta({
@@ -1850,7 +1854,7 @@ app.post('/api/web-search', async (req, res) => {
         typeMatch: typeof validation.typeMatch === 'boolean'
           ? validation.typeMatch
           : detectTypeMatchFromItems(finalItems, effectiveRequestedDocType),
-        strictRejectReason: effectiveStrictRejectReason,
+        strictRejectReason: strictRejectForMeta,
         confidence: validation.confidence,
         matchScore: validation.matchScore,
         matchBreakdown: validation.matchBreakdown,
@@ -2989,10 +2993,24 @@ function validateLegalDocumentMatch({
     };
   }
 
-  const typed = constraints.requestedDocType
+  let typed = constraints.requestedDocType
     ? normalized.filter((entry) => entry.metadata.loai_van_ban === constraints.requestedDocType)
     : normalized;
-  const typeMatch = constraints.requestedDocType ? typed.length > 0 : null;
+  let typeMatch = constraints.requestedDocType ? typed.length > 0 : null;
+  if (constraints.requestedDocType && typed.length === 0) {
+    // Relax type gate when we already matched a known canonical doc number.
+    // Some sources/snippets do not expose enough Vietnamese metadata for reliable doc-type extraction.
+    const knownDocFallback = canonicalDocNumber
+      ? normalized.filter((entry) => {
+        const hay = `${entry?.item?.title || ''} ${entry?.item?.snippet || ''} ${entry?.item?.link || ''}`;
+        return hasExpectedDocNumber(hay, canonicalDocNumber);
+      })
+      : [];
+    if (knownDocFallback.length > 0) {
+      typed = knownDocFallback;
+      typeMatch = null;
+    }
+  }
   if (constraints.requestedDocType && typed.length === 0) {
     return {
       ok: false,
@@ -3167,6 +3185,25 @@ function validateLegalDocumentMatch({
       docNumberMatchLevel: constraints.docNumberMatchLevel,
       typeMatch,
       approvedItems: [],
+      bestAlternative,
+      consensusConflict,
+    };
+  }
+
+  // If a canonical/expected doc number is matched, prioritize returning the grounded item
+  // instead of hard-failing on sparse metadata from search providers.
+  if (constraints.fullDocNumber && best.breakdown.doc_number > 0) {
+    return {
+      ok: true,
+      strictRejectReason: null,
+      confidence: best.confidence,
+      matchScore: best.score,
+      matchBreakdown: best.breakdown,
+      sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+      requestedDocType: constraints.requestedDocType,
+      docNumberMatchLevel: constraints.docNumberMatchLevel,
+      typeMatch,
+      approvedItems: [best.item],
       bestAlternative,
       consensusConflict,
     };
