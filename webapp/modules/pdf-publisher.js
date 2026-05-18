@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import { showToast } from '../main.js';
+import { sendChatRequest } from './ai-proxy.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
@@ -257,9 +258,16 @@ export function renderPdfPublisher(container) {
   container.innerHTML = `
     <div class="pdf-publisher-container" style="display: flex; height: calc(100vh - 120px); gap: 20px; padding-bottom: 20px;">
         <div class="editor-pane" style="flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden;">
+            <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f0f4f3; display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">🪄 Tự động hóa bằng AI</div>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="pdf-ai-input" placeholder="Nhập số hiệu hoặc link VB (VD: 25/2026/NĐ-CP)" style="flex: 1; padding: 6px 12px; border: 1px solid var(--border-subtle); border-radius: 4px; outline: none; font-size: 13px;">
+                    <button id="btn-ai-generate" class="btn-primary" style="padding: 6px 12px; font-size: 13px; background: #8b5cf6; border-color: #8b5cf6;">✨ Tự động tạo</button>
+                </div>
+            </div>
             <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">Markdown Editor</span>
-                <button id="btn-render-pdf" class="btn-primary" style="padding: 6px 12px; font-size: 13px;">Render Preview</button>
+                <button id="btn-render-pdf" class="btn-primary" style="padding: 6px 12px; font-size: 13px; display: none;">Render Preview</button>
             </div>
             <textarea id="pdf-markdown-input" style="flex: 1; border: none; padding: 16px; font-family: monospace; font-size: 13px; line-height: 1.6; outline: none; resize: none;"></textarea>
         </div>
@@ -322,6 +330,100 @@ Thủ tục giao đất đã được rút ngắn thời gian xử lý từ 30 n
 |---------|----------|----------|
 | 🔴 Cao | Nộp hồ sơ xin giao đất mới | 28/02/2026 |
 | 🟡 TB  | Rà soát lại hợp đồng thuê đất cũ | 30/03/2026 |`;
+
+  const btnAiGenerate = document.getElementById('btn-ai-generate');
+  const aiInput = document.getElementById('pdf-ai-input');
+
+  btnAiGenerate.addEventListener('click', async () => {
+    const query = aiInput.value.trim();
+    if (!query) {
+      showToast('Vui lòng nhập link hoặc số hiệu văn bản', 'error');
+      return;
+    }
+    
+    btnAiGenerate.disabled = true;
+    btnAiGenerate.textContent = '⏳ Đang xử lý...';
+    
+    try {
+      const systemPrompt = `Bạn là Trợ lý phân tích văn bản pháp luật. Nhiệm vụ của bạn là đọc yêu cầu/link văn bản của người dùng, phân tích và trích xuất thành tài liệu highlights định dạng Markdown ĐÚNG CHUẨN như sau.
+TUYỆT ĐỐI KHÔNG dùng YAML Frontmatter (---) ở đầu file.
+KHÔNG bọc kết quả trong markdown codeblock (\`\`\`markdown). Trả về thuần text.
+
+CẤU TRÚC BẮT BUỘC:
+# [Tên Ngắn Gọn Của Văn Bản] - Highlights & Lưu Ý
+
+> **Tên đầy đủ:** [Tên chính thức đầy đủ]
+>
+> **Số hiệu:** [Số hiệu]
+>
+> **Ngày ban hành:** [DD/MM/YYYY]
+>
+> **Hiệu lực:** [DD/MM/YYYY]
+>
+> **Căn cứ chính:** [Tên luật gốc]
+>
+> **Nguồn:** [URL hoặc Tên nguồn]
+
+---
+
+## 1. PHẠM VI ĐIỀU CHỈNH (Điều X)
+
+[Tóm tắt ngắn gọn phạm vi]
+
+---
+
+## 2. CÁC ĐIỂM HIGHLIGHT QUAN TRỌNG
+
+### 🔴 2.1 [Tên điểm nhấn] (Điều XX)
+
+[Nội dung chi tiết — bám sát nguyên văn]
+
+**💡 Đề xuất lưu ý:**
+- [Gợi ý hành động]
+
+---
+
+## 3. BẢNG HÀNH ĐỘNG ƯU TIÊN CHO DOANH NGHIỆP
+
+| Ưu tiên | Hành động | Deadline |
+|---------|----------|----------|
+| 🔴 Cao | [Hành động] | [Thời hạn] |
+| 🟡 TB  | [Hành động] | [Thời hạn] |
+`;
+
+      const responseText = await sendChatRequest([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Hãy tạo highlights cho văn bản sau: ${query}` }
+      ], null, { timeoutMs: 60000 });
+
+      // Gán vào textarea
+      txtInput.value = responseText.replace(/^```markdown\n/i, '').replace(/```$/i, '').trim();
+      
+      // Kích hoạt render preview
+      txtInput.dispatchEvent(new Event('input'));
+      
+      showToast('Đã tạo xong Markdown!', 'success');
+
+      // Log to firestore
+      try {
+        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        const db = getFirestore(app);
+        addDoc(collection(db, 'search_logs'), {
+          query: `[PDF Publisher AI] Tạo tài liệu từ: ${query}`,
+          model: "PDF Publisher AI", 
+          userEmail: window.currentUser?.email || 'Unknown', 
+          timestamp: serverTimestamp()
+        }).catch(() => {});
+      } catch (e) {}
+      
+    } catch (e) {
+      console.error(e);
+      showToast('Lỗi AI: ' + e.message, 'error');
+    } finally {
+      btnAiGenerate.disabled = false;
+      btnAiGenerate.textContent = '✨ Tự động tạo';
+    }
+  });
 
   let cachedLogoBase64 = '';
   async function getLogoBase64() {
