@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>{{DOC_TITLE}} - {{DOC_SUBTITLE}}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;font-size:12.5px;color:#333;line-height:1.55;background:#f0f4f3}
+
+/* === HEADER VBAI === */
+.page-header{
+    background:linear-gradient(135deg,#ffffff 0%,#edf2f7 100%);
+    color:#2d3748;padding:14px 40px;
+    border-bottom:3px solid #3182ce;
+    display:flex;align-items:center;justify-content:space-between;
+}
+.header-left {
+    height: 65px;
+    display: flex;
+    align-items: center;
+}
+.header-left img {
+    /* Lưu ý: Thay đổi src thành Base64 để nhúng trực tiếp hình ảnh */
+    width: 300px; 
+    height: 65px; 
+    object-fit: cover; 
+    object-position: center; 
+    margin-left: -15px; 
+    margin-right: 15px; 
+    border-radius: 4px;
+}
+.header-right{text-align:right}
+.header-right .doc-title{font-size:15px;font-weight:800;letter-spacing:0.3px;color:#1a365d;text-transform:uppercase}
+.header-right .doc-number{font-size:11.5px;color:#4a5568;margin-top:2px;font-weight:500}
+.header-right .doc-effect{
+    display:inline-block;margin-top:6px;
+    background:#e53e3e;color:#fff;font-size:10px;font-weight:700;
+    padding:3px 12px;border-radius:20px;letter-spacing:0.3px;
+}
+
+/* === CONTAINER === */
+.container{max-width:800px;margin:0 auto;background:#fff;padding:35px 40px;box-shadow:0 4px 6px rgba(0,0,0,.1)}
+
+h1{font-size:20px;text-align:center;color:#1a365d;margin-bottom:18px;font-weight:800}
+h2{font-size:16px;color:#276749;border-bottom:2px solid #c6f6d5;padding-bottom:5px;margin-top:28px;font-weight:700}
+.meta{background:#ebf8ff;border-left:4px solid #3182ce;padding:14px 16px;margin-bottom:18px;border-radius:4px}
+.meta p{margin:4px 0;font-weight:500;font-size:12px}
+
+/* === HIỆU LỰC BOX === */
+.effect-box{
+    background:linear-gradient(135deg,#fff5f5,#fed7d7);
+    border:2px solid #fc8181;border-radius:10px;
+    padding:18px 22px;margin:18px 0;text-align:center;
+}
+.effect-box .label{font-size:12px;color:#c53030;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.effect-box .date{font-size:28px;font-weight:800;color:#e53e3e;margin:6px 0}
+.effect-box .note{font-size:11px;color:#742a2a}
+
+/* === CARDS === */
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:18px;margin-bottom:18px;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+.card h3{font-size:13.5px;color:#2d3748;margin-top:0;margin-bottom:10px}
+.card h2:first-child{margin-top:0}
+.action{background:#fffaf0;border-left:4px solid #dd6b20;padding:12px;margin-top:12px;border-radius:4px}
+.action strong{color:#dd6b20;font-size:12px;font-weight:700}
+.action ul{margin:0;padding-left:18px}
+.action li{margin-bottom:3px;font-size:12px}
+
+table{width:100%;border-collapse:collapse;margin:8px 0}
+th,td{border:1px solid #e2e8f0;padding:7px 9px;text-align:left;font-size:11.5px}
+th{background:#edf2f7;color:#4a5568;font-weight:600}
+ul{padding-left:18px}
+li{margin-bottom:3px}
+hr{display:none}
+
+/* === SUMMARY === */
+.summary{display:flex;flex-wrap:wrap;gap:16px}
+.scard{flex:1 1 calc(50% - 16px);background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;page-break-inside:avoid}
+.scard h4{margin-top:0;color:#276749;font-size:12.5px;margin-bottom:8px}
+.scard ul{padding-left:16px;margin-bottom:0;font-size:11.5px}
+
+/* === FOOTER VBAI === */
+.page-footer{
+    background:linear-gradient(135deg,#1a3a5c 0%,#2c5282 100%);
+    color:#fff;padding:20px 40px;margin-top:0;
+    page-break-inside:avoid;
+}
+.footer-disclaimer{
+    text-align:center;font-size:10.5px;color:#fbd38d;
+    font-style:italic;margin-bottom:14px;padding-bottom:12px;
+    border-bottom:1px solid rgba(255,255,255,0.2);
+}
+.footer-contact{display:flex;justify-content:center;gap:120px;font-size:10px;color:#bee3f8}
+.footer-col{text-align:left}
+.footer-col h5{color:#fff;font-size:11px;margin-bottom:6px;font-weight:700}
+.footer-col p{margin:2px 0;color:#bee3f8}
+.footer-services{
+    text-align:center;margin-top:14px;padding-top:12px;
+    border-top:1px solid rgba(255,255,255,0.2);
+    font-size:10px;color:#90cdf4;
+}
+.footer-services span{margin:0 8px;display:inline-block}
+.footer-bottom{text-align:center;margin-top:10px;font-size:9px;color:rgba(255,255,255,0.5)}
+
+@media print{
+    body{background:#fff;padding:0;margin:0}
+    .page-header,.page-footer{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .container{box-shadow:none;padding:25px 30px;max-width:100%}
+    .card,.scard{border:1px solid #cbd5e0;box-shadow:none}
+    h2{page-break-after:avoid}
+    .effect-box{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @page{margin:10mm}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="page-header">
+    <div class="header-left">
+        <!-- BASE64 IMAGE PLACEHOLDER -->
+        <img src="data:image/png;base64,{{LOGO_BASE64}}" alt="Hệ thống Trợ lý Hành chính">
+    </div>
+    <div class="header-right">
+        <div class="doc-title">{{SO_HIEU_VAN_BAN}}</div>
+        <div class="doc-number">{{TEN_NGAN_GON}}</div>
+        <div class="doc-effect">HIỆU LỰC TỪ {{NGAY_HIEU_LUC}}</div>
+    </div>
+</div>
+
+<!-- ===== CONTENT ===== -->
+<div class="container">
+    <h1>{{TIEU_DE_CHINH}}</h1>
+    
+    <div class="meta">
+        <p><strong>Tên đầy đủ:</strong> {{TEN_DAY_DU}}</p>
+        <p><strong>Số hiệu:</strong> {{SO_HIEU}}</p>
+        <p><strong>Ngày ban hành:</strong> {{NGAY_BAN_HANH}}</p>
+        <p><strong>Căn cứ chính:</strong> {{CAN_CU}}</p>
+    </div>
+
+    <!-- NỘI DUNG CHÍNH Ở ĐÂY -->
+    
+</div>
+
+<!-- ===== FOOTER ===== -->
+<div class="page-footer">
+    <div class="footer-disclaimer">
+        📋 Đây là tài liệu do <strong>Team Customs Clearance</strong> biên soạn dùng làm tài liệu để đào tạo nội bộ và gửi khách hàng tham khảo.
+    </div>
+    <div class="footer-contact">
+        <div class="footer-col">
+            <h5>📍 Khu vực Hồ Chí Minh, Đồng Nai, Vũng Tàu</h5>
+            <p>📧 Email: admin@vbai.vn</p>
+            <p>📞 Điện thoại (Trụ sở HCM): +84-28-3812-1349</p>
+        </div>
+        <div class="footer-col">
+            <h5>📍 Khu vực Bình Dương</h5>
+            <p>📧 Email: admin@vbai.vn</p>
+            <p>📞 Điện thoại: +84-274-377-2638</p>
+        </div>
+    </div>
+    <div class="footer-services">
+        <strong>DỊCH VỤ CỦA Hệ thống Trợ lý Hành chính</strong>
+        <div style="display: grid; grid-template-columns: repeat(3, max-content); gap: 6px 24px; justify-content: center; margin-top: 8px;">
+            <span>🚢 Vận tải biển quốc tế</span>
+            <span>✈️ Vận tải hàng không</span>
+            <span>📋 Dịch vụ hải quan</span>
+            <span>📦 Kho bãi & phân phối (CTC)</span>
+            <span>🚛 Vận tải nội địa</span>
+            <span>💼 Tư vấn logistics</span>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        LIÊN HỆ Hệ thống Trợ lý Hành chính ĐỂ ĐƯỢC TƯ VẤN & HỖ TRỢ &nbsp;|&nbsp; Cập nhật: {{NGAY_CAP_NHAT}}
+    </div>
+</div>
+
+</body>
+</html>

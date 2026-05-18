@@ -1,0 +1,22 @@
+[
+  {
+    "query": "luật an ninh mạng số bao nhiêu",
+    "known_document_documentNumber": "24/2018/QH14",
+    "known_document_canonicalQuery": "Luật An ninh mạng 24/2018/QH14",
+    "status": "no_search_results_but_known_document_resolved",
+    "selected_strategy": "cse_official",
+    "strategy": "cse_official",
+    "confidence": 0.5,
+    "attempted_strategies": []
+  },
+  {
+    "query": "nghị định 100 còn hiệu lực không",
+    "known_document_documentNumber": "100/2019/NĐ-CP",
+    "known_document_canonicalQuery": "Nghị định 100/2019/NĐ-CP",
+    "status": "no_search_results_but_known_document_resolved",
+    "selected_strategy": "cse_official",
+    "strategy": "cse_official",
+    "confidence": 0.28,
+    "attempted_strategies": []
+  }
+]

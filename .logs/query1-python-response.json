@@ -1,0 +1,77 @@
+{
+  "results": "",
+  "known_document": {
+    "canonicalQuery": "Luật An ninh mạng 24/2018/QH14",
+    "documentNumber": "24/2018/QH14",
+    "titleHint": "Luật An ninh mạng",
+    "topicHint": "an ninh mạng",
+    "confidence": "high"
+  },
+  "meta": {
+    "strategy": "cse_official",
+    "web_search_provider": "vertex_search",
+    "web_search_mode": "cse_with_fallback",
+    "query": "luật an ninh mạng số bao nhiêu",
+    "refined_query": "Luật An ninh mạng 24/2018/QH14 số hiệu ngày hiệu lực moi nhat 2026 2027",
+    "date_restrict": "y1",
+    "expected_doc_number": null,
+    "exact_match": null,
+    "cse_status": 200,
+    "cse_error_reason": null,
+    "fallback_used": false,
+    "enabled_fallback_sources": [
+      "vbpl",
+      "chinhphu",
+      "quochoi",
+      "thuvienphapluat",
+      "luatvietnam"
+    ],
+    "requested_doc_type": "luat",
+    "doc_number_match_level": "none",
+    "type_match": true,
+    "strict_reject_reason": "low_confidence",
+    "confidence": 0.5,
+    "match_score": 50,
+    "match_breakdown": {
+      "doc_type": 20,
+      "doc_number": 0,
+      "title": 30,
+      "issuer": 0,
+      "date": 0
+    },
+    "source_tier_summary": {
+      "official_count": 0,
+      "reference_count": 0
+    },
+    "best_alternative": {
+      "so_hieu": "24/2018/QH14",
+      "loai_van_ban": "luat",
+      "trich_yeu_hoac_ten_van_ban": "Hồ sơ chính sách Luật Giao dịch hàng hóa phái sinh - Dự thảo Online",
+      "nguon": "duthaoonline.quochoi.vn",
+      "is_official_source": false
+    },
+    "answer_mode": "reject_with_alternative",
+    "sources_used": [],
+    "top_sources": [],
+    "top_source_tiers": {},
+    "official_count_top5": 0,
+    "item_count": 0,
+    "cache_hit": false,
+    "served_in_ms": 3000,
+    "fetched_at": "2026-05-16T15:58:01.007Z",
+    "effective_status": "unknown",
+    "superseded_by": null,
+    "freshness_forced": false,
+    "status": "no_search_results_but_known_document_resolved",
+    "selected_strategy": "cse_official",
+    "attempted_strategies": [],
+    "tool_result_count": 0,
+    "known_document": {
+      "canonicalQuery": "Luật An ninh mạng 24/2018/QH14",
+      "documentNumber": "24/2018/QH14",
+      "titleHint": "Luật An ninh mạng",
+      "topicHint": "an ninh mạng",
+      "confidence": "high"
+    }
+  }
+}

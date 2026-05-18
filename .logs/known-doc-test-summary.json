@@ -1,0 +1,38 @@
+[
+  {
+    "query": "luật an ninh mạng số bao nhiêu",
+    "known_document_documentNumber": "24/2018/QH14",
+    "known_document_canonicalQuery": "Luật An ninh mạng 24/2018/QH14",
+    "status": "official_candidate_found_metadata_incomplete",
+    "effective_status": null,
+    "superseded_by": null,
+    "selected_strategy": "known_document_official_lookup",
+    "strategy": "known_document_official_lookup",
+    "tool_result_count": 1,
+    "top_sources": [
+      "vanban.chinhphu.vn"
+    ],
+    "confidence": 0.73,
+    "strict_reject_reason": null,
+    "results_preview": "- [Luật số 24/2018/QH14 của Quốc hội: Luật an ninh mạng](https://vanban.chinhphu.vn/?pageid=27160&docid=206114): Số ký hiệu, 24/2018/QH14. Ngày ban hành, 12-06-2018. Ngày có hiệu lực, 01-01-2019. Loại văn bản, Luật. Cơ quan ban hành, Quốc hội. Luật An ninh mạng 24/2018/QH14 [Nguon: vanban.chinhphu.vn (Khac)]"
+  },
+  {
+    "query": "nghị định 100 còn hiệu lực không",
+    "known_document_documentNumber": "100/2019/NĐ-CP",
+    "known_document_canonicalQuery": "Nghị định 100/2019/NĐ-CP",
+    "status": "official_candidate_found_metadata_incomplete",
+    "effective_status": null,
+    "superseded_by": null,
+    "selected_strategy": "known_document_official_lookup",
+    "strategy": "known_document_official_lookup",
+    "tool_result_count": 3,
+    "top_sources": [
+      "vanban.chinhphu.vn",
+      "vanban.chinhphu.vn",
+      "vanban.chinhphu.vn"
+    ],
+    "confidence": 0.73,
+    "strict_reject_reason": null,
+    "results_preview": "- [Nghị định số 100/2019/NĐ-CP của Chính phủ: Quy định xử phạt vi ...](https://vanban.chinhphu.vn/?pageid=27160&docid=198733): Nghị định số 100/2019/NĐ-CP của Chính phủ: Quy định xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt. Nghị định 100/2019/NĐ-CP 100/2019/NĐ-CP [Nguon: vanban.chinhphu.vn (Khac)]\n\n- [Chỉ thị số 03/CT-TTg của Thủ tướng Chính phủ: Về tăng cường thực ...](https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=198888): Chỉ thị số 03/CT-TTg của Thủ tướng Chính phủ: Về tăng cường thực hiện Luật Phòng, chống tác hại của rượu, bia và Nghị định số 100/2019/NĐ-CP của Chính phủ ... Nghị định 100/2019/NĐ-CP 100/2019/NĐ-CP [Nguon: vanban.chinhphu.vn (Khac)]\n\n- [Thông cáo báo chí tháng 12 năm 2021 - Hệ thống văn bản](https://vanban.chinhphu.vn/thong-c"
+  }
+]

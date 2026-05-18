@@ -1,0 +1,110 @@
+{
+  "results": "- [Nghị định số 100/2019/NĐ-CP của Chính phủ: Quy định xử phạt vi ...](https://vanban.chinhphu.vn/?pageid=27160&docid=198733): Nghị định số 100/2019/NĐ-CP của Chính phủ: Quy định xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt. Nghị định 100/2019/NĐ-CP 100/2019/NĐ-CP [Nguon: vanban.chinhphu.vn (Khac)]\n\n- [Chỉ thị số 03/CT-TTg của Thủ tướng Chính phủ: Về tăng cường thực ...](https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=198888): Chỉ thị số 03/CT-TTg của Thủ tướng Chính phủ: Về tăng cường thực hiện Luật Phòng, chống tác hại của rượu, bia và Nghị định số 100/2019/NĐ-CP của Chính phủ ... Nghị định 100/2019/NĐ-CP 100/2019/NĐ-CP [Nguon: vanban.chinhphu.vn (Khac)]\n\n- [Thông cáo báo chí tháng 12 năm 2021 - Hệ thống văn bản](https://vanban.chinhphu.vn/thong-cao-bao-chi-vbqppl-do-chinh-phu-thu-tuong-chinh-phu-ban-hanh/thong-cao-bao-chi-thang-12-nam-2021-12091786): ... 100/2019/NĐ-CP ngày 30/12/2019), lĩnh vực hàng không dân dụng (được quy định tại Nghị định số 162/2018/NĐ-CP ngày 30/11/2018) phải được cập nhật, sửa đổi ... Nghị định 100/2019/NĐ-CP 100/2019/NĐ-CP [Nguon: vanban.chinhphu.vn (Khac)]",
+  "known_document": {
+    "canonicalQuery": "Nghị định 100/2019/NĐ-CP",
+    "documentNumber": "100/2019/NĐ-CP",
+    "titleHint": "Nghị định 100/2019/NĐ-CP",
+    "topicHint": "xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt",
+    "confidence": "high"
+  },
+  "meta": {
+    "strategy": "known_document_official_lookup",
+    "web_search_provider": "vertex_search",
+    "web_search_mode": "cse_with_fallback",
+    "query": "nghị định 100 còn hiệu lực không",
+    "refined_query": "Nghị định 100/2019/NĐ-CP hiệu lực sửa đổi bổ sung bãi bỏ moi nhat 2026 2027",
+    "date_restrict": "y1",
+    "expected_doc_number": null,
+    "exact_match": true,
+    "cse_status": 200,
+    "cse_error_reason": null,
+    "fallback_used": false,
+    "enabled_fallback_sources": [
+      "vbpl",
+      "chinhphu",
+      "quochoi",
+      "thuvienphapluat",
+      "luatvietnam"
+    ],
+    "requested_doc_type": "nghi_dinh",
+    "doc_number_match_level": "full",
+    "type_match": true,
+    "strict_reject_reason": null,
+    "confidence": 0.73,
+    "match_score": 73,
+    "match_breakdown": {
+      "doc_type": 20,
+      "doc_number": 25,
+      "title": 18,
+      "issuer": 0,
+      "date": 10
+    },
+    "source_tier_summary": {
+      "official_count": 0,
+      "reference_count": 0
+    },
+    "best_alternative": {
+      "so_hieu": "100/2019/N",
+      "loai_van_ban": "nghi_dinh",
+      "trich_yeu_hoac_ten_van_ban": "Thông cáo báo chí tháng 12 năm 2021 - Hệ thống văn bản",
+      "nguon": "vanban.chinhphu.vn",
+      "is_official_source": false
+    },
+    "answer_mode": "strict_legal",
+    "sources_used": [
+      "vertex_search"
+    ],
+    "top_sources": [
+      "vanban.chinhphu.vn",
+      "vanban.chinhphu.vn",
+      "vanban.chinhphu.vn"
+    ],
+    "top_source_tiers": {
+      "vanban.chinhphu.vn": "unknown"
+    },
+    "official_count_top5": 0,
+    "item_count": 3,
+    "cache_hit": false,
+    "served_in_ms": 2323,
+    "fetched_at": "2026-05-16T16:18:08.244Z",
+    "effective_status": null,
+    "superseded_by": null,
+    "freshness_forced": true,
+    "status": "official_candidate_found_metadata_incomplete",
+    "selected_strategy": "known_document_official_lookup",
+    "attempted_strategies": [
+      {
+        "step": "known_document_official_lookup",
+        "strategy": "known_document_exact_query",
+        "query": "\"100/2019/NĐ-CP\"",
+        "status": 200,
+        "error_reason": null,
+        "item_count": 10
+      },
+      {
+        "step": "known_document_official_lookup",
+        "strategy": "known_document_exact_query",
+        "query": "\"Nghị định 100/2019/NĐ-CP\" \"100/2019/NĐ-CP\"",
+        "status": 200,
+        "error_reason": null,
+        "item_count": 10
+      },
+      {
+        "step": "known_document_official_lookup",
+        "strategy": "known_document_exact_query",
+        "query": "site:vanban.chinhphu.vn \"100/2019/NĐ-CP\"",
+        "status": 200,
+        "error_reason": null,
+        "item_count": 3
+      }
+    ],
+    "tool_result_count": 3,
+    "known_document": {
+      "canonicalQuery": "Nghị định 100/2019/NĐ-CP",
+      "documentNumber": "100/2019/NĐ-CP",
+      "titleHint": "Nghị định 100/2019/NĐ-CP",
+      "topicHint": "xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt",
+      "confidence": "high"
+    }
+  }
+}

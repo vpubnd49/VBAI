@@ -1,0 +1,108 @@
+{
+  "results": "- [Luật số 24/2018/QH14 của Quốc hội: Luật an ninh mạng](https://vanban.chinhphu.vn/?pageid=27160&docid=206114): Số ký hiệu, 24/2018/QH14. Ngày ban hành, 12-06-2018. Ngày có hiệu lực, 01-01-2019. Loại văn bản, Luật. Cơ quan ban hành, Quốc hội. Luật An ninh mạng 24/2018/QH14 [Nguon: vanban.chinhphu.vn (Khac)]",
+  "known_document": {
+    "canonicalQuery": "Luật An ninh mạng 24/2018/QH14",
+    "documentNumber": "24/2018/QH14",
+    "titleHint": "Luật An ninh mạng",
+    "topicHint": "an ninh mạng",
+    "confidence": "high"
+  },
+  "meta": {
+    "strategy": "known_document_official_lookup",
+    "web_search_provider": "vertex_search",
+    "web_search_mode": "cse_with_fallback",
+    "query": "luật an ninh mạng số bao nhiêu",
+    "refined_query": "Luật An ninh mạng 24/2018/QH14 số hiệu ngày hiệu lực moi nhat 2026 2027",
+    "date_restrict": "y1",
+    "expected_doc_number": null,
+    "exact_match": true,
+    "cse_status": 200,
+    "cse_error_reason": null,
+    "fallback_used": false,
+    "enabled_fallback_sources": [
+      "vbpl",
+      "chinhphu",
+      "quochoi",
+      "thuvienphapluat",
+      "luatvietnam"
+    ],
+    "requested_doc_type": "luat",
+    "doc_number_match_level": "full",
+    "type_match": true,
+    "strict_reject_reason": null,
+    "confidence": 0.73,
+    "match_score": 73,
+    "match_breakdown": {
+      "doc_type": 20,
+      "doc_number": 25,
+      "title": 18,
+      "issuer": 0,
+      "date": 10
+    },
+    "source_tier_summary": {
+      "official_count": 0,
+      "reference_count": 0
+    },
+    "best_alternative": {
+      "so_hieu": "24/2018/QH14",
+      "loai_van_ban": "luat",
+      "trich_yeu_hoac_ten_van_ban": "Luật số 24/2018/QH14 của Quốc hội: Luật an ninh mạng",
+      "nguon": "vanban.chinhphu.vn",
+      "is_official_source": false
+    },
+    "answer_mode": "strict_legal",
+    "sources_used": [
+      "vertex_search"
+    ],
+    "top_sources": [
+      "vanban.chinhphu.vn"
+    ],
+    "top_source_tiers": {
+      "vanban.chinhphu.vn": "unknown"
+    },
+    "official_count_top5": 0,
+    "item_count": 1,
+    "cache_hit": false,
+    "served_in_ms": 3421,
+    "fetched_at": "2026-05-16T16:18:05.910Z",
+    "effective_status": null,
+    "superseded_by": null,
+    "freshness_forced": false,
+    "status": "official_candidate_found_metadata_incomplete",
+    "selected_strategy": "known_document_official_lookup",
+    "attempted_strategies": [
+      {
+        "step": "known_document_official_lookup",
+        "strategy": "known_document_exact_query",
+        "query": "\"24/2018/QH14\"",
+        "status": 200,
+        "error_reason": null,
+        "item_count": 10
+      },
+      {
+        "step": "known_document_official_lookup",
+        "strategy": "known_document_exact_query",
+        "query": "\"Luật An ninh mạng\" \"24/2018/QH14\"",
+        "status": 200,
+        "error_reason": null,
+        "item_count": 10
+      },
+      {
+        "step": "known_document_official_lookup",
+        "strategy": "known_document_exact_query",
+        "query": "site:vanban.chinhphu.vn \"24/2018/QH14\"",
+        "status": 200,
+        "error_reason": null,
+        "item_count": 1
+      }
+    ],
+    "tool_result_count": 1,
+    "known_document": {
+      "canonicalQuery": "Luật An ninh mạng 24/2018/QH14",
+      "documentNumber": "24/2018/QH14",
+      "titleHint": "Luật An ninh mạng",
+      "topicHint": "an ninh mạng",
+      "confidence": "high"
+    }
+  }
+}

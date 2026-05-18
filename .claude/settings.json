@@ -1,0 +1,27 @@
+{
+  "env": {
+    "TZ": "Asia/Ho_Chi_Minh"
+  },
+  "allowedTools": [
+    "Bash",
+    "Read",
+    "Edit",
+    "Write",
+    "MultiEdit",
+    "Glob",
+    "Grep",
+    "LS",
+    "WebFetch",
+    "WebSearch"
+  ],
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.git/**",
+    "**/*sa-key*.json",
+    "**/*adminsdk*.json",
+    "**/*service-account*.json",
+    "**/.env*"
+  ]
+}
+

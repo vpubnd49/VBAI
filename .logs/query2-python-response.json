@@ -1,0 +1,77 @@
+{
+  "results": "",
+  "known_document": {
+    "canonicalQuery": "Nghị định 100/2019/NĐ-CP",
+    "documentNumber": "100/2019/NĐ-CP",
+    "titleHint": "Nghị định 100/2019/NĐ-CP",
+    "topicHint": "xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt",
+    "confidence": "high"
+  },
+  "meta": {
+    "strategy": "cse_official",
+    "web_search_provider": "vertex_search",
+    "web_search_mode": "cse_with_fallback",
+    "query": "nghị định 100 còn hiệu lực không",
+    "refined_query": "Nghị định 100/2019/NĐ-CP hiệu lực sửa đổi bổ sung bãi bỏ moi nhat 2026 2027",
+    "date_restrict": "y1",
+    "expected_doc_number": null,
+    "exact_match": null,
+    "cse_status": 200,
+    "cse_error_reason": null,
+    "fallback_used": false,
+    "enabled_fallback_sources": [
+      "vbpl",
+      "chinhphu",
+      "quochoi",
+      "thuvienphapluat",
+      "luatvietnam"
+    ],
+    "requested_doc_type": "nghi_dinh",
+    "doc_number_match_level": "none",
+    "type_match": true,
+    "strict_reject_reason": "low_confidence",
+    "confidence": 0.28,
+    "match_score": 28,
+    "match_breakdown": {
+      "doc_type": 20,
+      "doc_number": 0,
+      "title": 8,
+      "issuer": 0,
+      "date": 0
+    },
+    "source_tier_summary": {
+      "official_count": 0,
+      "reference_count": 0
+    },
+    "best_alternative": {
+      "so_hieu": "168/2024/N",
+      "loai_van_ban": "nghi_dinh",
+      "trich_yeu_hoac_ten_van_ban": "Những hành vi vi phạm giao thông phổ biến có mức phạt tiền cao",
+      "nguon": "xaydungchinhsach.chinhphu.vn",
+      "is_official_source": false
+    },
+    "answer_mode": "reject_with_alternative",
+    "sources_used": [],
+    "top_sources": [],
+    "top_source_tiers": {},
+    "official_count_top5": 0,
+    "item_count": 0,
+    "cache_hit": false,
+    "served_in_ms": 976,
+    "fetched_at": "2026-05-16T15:58:01.992Z",
+    "effective_status": "unknown",
+    "superseded_by": null,
+    "freshness_forced": true,
+    "status": "no_search_results_but_known_document_resolved",
+    "selected_strategy": "cse_official",
+    "attempted_strategies": [],
+    "tool_result_count": 0,
+    "known_document": {
+      "canonicalQuery": "Nghị định 100/2019/NĐ-CP",
+      "documentNumber": "100/2019/NĐ-CP",
+      "titleHint": "Nghị định 100/2019/NĐ-CP",
+      "topicHint": "xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt",
+      "confidence": "high"
+    }
+  }
+}

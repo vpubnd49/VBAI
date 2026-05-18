@@ -1,12 +1,12 @@
 import { marked } from 'marked';
 import { showToast } from '../main.js';
 
-const MOL_TEMPLATE_CSS = `
+const TEMPLATE_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',sans-serif;font-size:12.5px;color:#333;line-height:1.55;background:#f0f4f3}
 
-/* === HEADER MOL LOGISTICS === */
+/* === HEADER === */
 .page-header{
     background:linear-gradient(135deg,#ffffff 0%,#edf2f7 100%);
     color:#2d3748;padding:14px 40px;
@@ -23,8 +23,6 @@ body{font-family:'Inter',sans-serif;font-size:12.5px;color:#333;line-height:1.55
     height: 65px; 
     object-fit: cover; 
     object-position: center; 
-    margin-left: -15px; 
-    margin-right: 15px; 
     border-radius: 4px;
 }
 .header-right{text-align:right}
@@ -76,7 +74,7 @@ hr{display:none}
 .scard h4{margin-top:0;color:#276749;font-size:12.5px;margin-bottom:8px}
 .scard ul{padding-left:16px;margin-bottom:0;font-size:11.5px}
 
-/* === FOOTER MOL LOGISTICS === */
+/* === FOOTER === */
 .page-footer{
     background:linear-gradient(135deg,#1a3a5c 0%,#2c5282 100%);
     color:#fff;padding:20px 40px;margin-top:0;
@@ -166,14 +164,14 @@ function generateFullHtml(meta, logoUrl) {
 <meta charset="UTF-8">
 <title>${meta.tieuDeChinh} - ${meta.tenNganGon}</title>
 <style>
-${MOL_TEMPLATE_CSS}
+${TEMPLATE_CSS}
 </style>
 </head>
 <body>
 <!-- ===== HEADER ===== -->
 <div class="page-header">
     <div class="header-left">
-        <img src="${logoUrl}" alt="MOL Logistics Vietnam Inc.">
+        <img src="${logoUrl}" alt="Hệ thống Trợ lý Hành chính">
     </div>
     <div class="header-right">
         <div class="doc-title">${meta.soHieuVanBan}</div>
@@ -200,33 +198,32 @@ ${MOL_TEMPLATE_CSS}
 <!-- ===== FOOTER ===== -->
 <div class="page-footer">
     <div class="footer-disclaimer">
-        📋 Đây là tài liệu do <strong>Team Customs Clearance</strong> biên soạn dùng làm tài liệu để đào tạo nội bộ và gửi khách hàng tham khảo.
+        📋 Đây là tài liệu do <strong>Hệ thống Trợ lý Hành chính</strong> tổng hợp và xuất bản. 
+        Nội dung chỉ mang tính chất tham khảo.
     </div>
     <div class="footer-contact">
         <div class="footer-col">
-            <h5>📍 Khu vực Hồ Chí Minh, Đồng Nai, Vũng Tàu</h5>
-            <p>📧 Email: MLGVN.ophcm-group@molgroup.com</p>
-            <p>📞 Điện thoại (Trụ sở HCM): +84-28-3812-1349</p>
+            <h5>📍 Ban Quản trị Hệ thống</h5>
+            <p>📧 Email: admin@vbai.vn</p>
         </div>
         <div class="footer-col">
-            <h5>📍 Khu vực Bình Dương</h5>
-            <p>📧 Email: MLGVN.mlgbdg-group@molgroup.com</p>
-            <p>📞 Điện thoại: +84-274-377-2638</p>
+            <h5>📍 Hỗ trợ Kỹ thuật</h5>
+            <p>📞 Điện thoại: 1900 xxxx</p>
         </div>
     </div>
     <div class="footer-services">
-        <strong>DỊCH VỤ CỦA MOL LOGISTICS VIETNAM</strong>
+        <strong>TIỆN ÍCH CỦA HỆ THỐNG TRỢ LÝ</strong>
         <div style="display: grid; grid-template-columns: repeat(3, max-content); gap: 6px 24px; justify-content: center; margin-top: 8px;">
-            <span>🚢 Vận tải biển quốc tế</span>
-            <span>✈️ Vận tải hàng không</span>
-            <span>📋 Dịch vụ hải quan</span>
-            <span>📦 Kho bãi & phân phối (CTC)</span>
-            <span>🚛 Vận tải nội địa</span>
-            <span>💼 Tư vấn logistics</span>
+            <span>📖 Tra cứu pháp luật</span>
+            <span>📝 Soạn thảo văn bản</span>
+            <span>✓ Kiểm tra thể thức</span>
+            <span>📑 Xử lý PDF/OCR</span>
+            <span>🎙️ Tổng hợp ghi âm</span>
+            <span>📊 Báo cáo thông minh</span>
         </div>
     </div>
     <div class="footer-bottom">
-        LIÊN HỆ MOL LOGISTICS VIETNAM INC. ĐỂ ĐƯỢC TƯ VẤN & HỖ TRỢ &nbsp;|&nbsp; Cập nhật: ${ngayCapNhat}
+        LIÊN HỆ HỆ THỐNG TRỢ LÝ ĐỂ ĐƯỢC HỖ TRỢ &nbsp;|&nbsp; Cập nhật: ${ngayCapNhat}
     </div>
 </div>
 </body>
@@ -234,32 +231,32 @@ ${MOL_TEMPLATE_CSS}
 `;
 }
 
-export function renderMolPublisher(container) {
+export function renderPdfPublisher(container) {
   container.innerHTML = `
-    <div class="mol-publisher-container" style="display: flex; height: calc(100vh - 120px); gap: 20px; padding-bottom: 20px;">
+    <div class="pdf-publisher-container" style="display: flex; height: calc(100vh - 120px); gap: 20px; padding-bottom: 20px;">
         <div class="editor-pane" style="flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden;">
             <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">Markdown Editor</span>
-                <button id="btn-render-mol" class="btn-primary" style="padding: 6px 12px; font-size: 13px;">Render Preview</button>
+                <button id="btn-render-pdf" class="btn-primary" style="padding: 6px 12px; font-size: 13px;">Render Preview</button>
             </div>
-            <textarea id="mol-markdown-input" style="flex: 1; border: none; padding: 16px; font-family: monospace; font-size: 13px; line-height: 1.6; outline: none; resize: none;"></textarea>
+            <textarea id="pdf-markdown-input" style="flex: 1; border: none; padding: 16px; font-family: monospace; font-size: 13px; line-height: 1.6; outline: none; resize: none;"></textarea>
         </div>
         <div class="preview-pane" style="flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden;">
             <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">Live Preview</span>
                 <button id="btn-export-pdf" class="btn-primary" style="padding: 6px 12px; font-size: 13px; background-color: var(--pine-500); border-color: var(--pine-500);">Xuất PDF</button>
             </div>
-            <div id="mol-html-preview" style="flex: 1; padding: 16px; background: #f0f4f3; overflow-y: auto;">
+            <div id="pdf-html-preview" style="flex: 1; padding: 16px; background: #f0f4f3; overflow-y: auto;">
                 <div style="text-align: center; color: var(--text-tertiary); margin-top: 40px; font-style: italic;">Nhấn Render Preview để xem trước</div>
             </div>
         </div>
     </div>
   `;
 
-  const btnRender = document.getElementById('btn-render-mol');
+  const btnRender = document.getElementById('btn-render-pdf');
   const btnExport = document.getElementById('btn-export-pdf');
-  const txtInput = document.getElementById('mol-markdown-input');
-  const previewDiv = document.getElementById('mol-html-preview');
+  const txtInput = document.getElementById('pdf-markdown-input');
+  const previewDiv = document.getElementById('pdf-html-preview');
 
   let currentHtml = '';
 
@@ -309,7 +306,7 @@ Thủ tục giao đất đã được rút ngắn thời gian xử lý từ 30 n
       const mdContent = txtInput.value;
       const meta = processMarkdown(mdContent);
       // We will use the absolute URL for the logo so it resolves correctly in iframe
-      const logoUrl = window.location.origin + '/Logo_MOL.png';
+      const logoUrl = window.location.origin + '/admin-assistant-logo.svg';
       currentHtml = generateFullHtml(meta, logoUrl);
       
       // Inject into preview by putting it in a shadow dom or iframe so styles don't leak
