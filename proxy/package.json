@@ -9,6 +9,7 @@
     "test:golden": "node tests/golden-legal-extract.test.cjs",
     "test:integration": "node tests/runtime-web-search.integration.cjs",
     "test:canary": "node tests/runtime-web-search.canary.cjs",
+    "test:legal-smoke": "node tests/runtime-legal-smoke.cjs",
     "test:all": "node tests/run-all.cjs",
     "test:mint-token": "node tests/mint-firebase-id-token.cjs",
     "config:seed": "node tests/seed-system-config.cjs"

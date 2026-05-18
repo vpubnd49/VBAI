@@ -15,8 +15,9 @@ runStep('Golden legal extract tests', 'node', ['tests/golden-legal-extract.test.
 if (process.env.VBAI_PROXY_BASE_URL && process.env.VBAI_TEST_ID_TOKEN) {
   runStep('Runtime integration tests', 'node', ['tests/runtime-web-search.integration.cjs']);
   runStep('Runtime canary checks', 'node', ['tests/runtime-web-search.canary.cjs']);
+  runStep('Runtime legal smoke checks', 'node', ['tests/runtime-legal-smoke.cjs']);
 } else {
-  console.log('\nSkipping runtime integration/canary (missing VBAI_PROXY_BASE_URL or VBAI_TEST_ID_TOKEN).');
+  console.log('\nSkipping runtime integration/canary/legal-smoke (missing VBAI_PROXY_BASE_URL or VBAI_TEST_ID_TOKEN).');
 }
 
 console.log('\nAll available checks finished.');

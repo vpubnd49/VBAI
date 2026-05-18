@@ -40,7 +40,9 @@ const WEB_SEARCH_RESULT_CACHE_TTL_MS = Number(process.env.WEB_SEARCH_RESULT_CACH
 const WEB_SEARCH_RESULT_CACHE_MAX = Number(process.env.WEB_SEARCH_RESULT_CACHE_MAX || '200');
 const WEB_SEARCH_HOT_INDEX_TTL_MS = Number(process.env.WEB_SEARCH_HOT_INDEX_TTL_MS || '21600000'); // 6h
 const WEB_SEARCH_HOT_INDEX_MAX_ITEMS = Number(process.env.WEB_SEARCH_HOT_INDEX_MAX_ITEMS || '8');
+const LEGAL_CRAWL_DEBUG = String(process.env.LEGAL_CRAWL_DEBUG || '').trim().toLowerCase() === 'true';
 const DIRECT_SOURCE_USER_AGENT = 'VBAI-Freshness-Bot/1.0 (+https://vbai.tracuu.lamdong.vn)';
+
 const DEFAULT_WEB_SEARCH_FALLBACK_SOURCES = Object.freeze({
   vbpl: true,
   chinhphu: true,
@@ -88,6 +90,13 @@ function normalizeVietnamese(value = '') {
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toLowerCase();
+}
+
+function logLegalCrawlDebug(event = '', details = {}) {
+  if (!LEGAL_CRAWL_DEBUG) return;
+  try {
+    console.debug('[legal-crawl]', event, details);
+  } catch {}
 }
 
 const LEGAL_DOC_TYPE_PATTERNS = Object.freeze({
@@ -203,6 +212,53 @@ async function fetchDeepContent(url) {
     console.error('[Deep Fetch] Bỏ qua cào dữ liệu từ URL:', url, error.message);
     return '';
   }
+}
+
+function parseLegalDocumentMetadata(html = '', baseUrl = '') {
+  const plain = cleanText(decodeHtmlEntities(stripHtml(html)));
+  const normalized = normalizeVietnamese(plain);
+  const result = {
+    so_hieu: '',
+    loai_van_ban: '',
+    co_quan_ban_hanh: '',
+    ngay_ban_hanh: '',
+    ngay_hieu_luc: '',
+    tinh_trang_hieu_luc: '',
+    trich_yeu_hoac_ten_van_ban: '',
+  };
+
+  const docNumberMatch = plain.match(/\b(\d{1,4}\/\d{4}\/[A-Z0-9-]{2,16})\b/i);
+  if (docNumberMatch) result.so_hieu = String(docNumberMatch[1] || '').toUpperCase();
+
+  const docType = inferDocTypeFromText(plain);
+  if (docType) result.loai_van_ban = docType;
+
+  const issuer = inferIssuerFromText(plain);
+  if (issuer) result.co_quan_ban_hanh = issuer;
+
+  const dateMatch = plain.match(/\b(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{4})\b/);
+  if (dateMatch) result.ngay_ban_hanh = String(dateMatch[1] || '');
+
+  if (/\bhet\s*hieu\s*luc\b/.test(normalized)) result.tinh_trang_hieu_luc = 'het_hieu_luc';
+  else if (/\bco\s*hieu\s*luc\b/.test(normalized)) result.tinh_trang_hieu_luc = 'co_hieu_luc';
+
+  const titleTagMatch = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)
+    || html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+  if (titleTagMatch && titleTagMatch[1]) {
+    result.trich_yeu_hoac_ten_van_ban = cleanText(decodeHtmlEntities(stripHtml(titleTagMatch[1]))).slice(0, 240);
+  }
+
+  if (!result.trich_yeu_hoac_ten_van_ban) {
+    const fallbackTitle = plain.split(/(?<=[\.\!\?])\s+|\n+/).find((line) => line.trim().length >= 20 && line.trim().length <= 240);
+    if (fallbackTitle) result.trich_yeu_hoac_ten_van_ban = fallbackTitle.trim();
+  }
+
+  if (result.so_hieu) {
+    const year = extractYearFromText(result.so_hieu || result.ngay_ban_hanh || plain);
+    if (year) result.nam_ban_hanh = year;
+  }
+
+  return (result.so_hieu || result.loai_van_ban || result.trich_yeu_hoac_ten_van_ban) ? result : null;
 }
 
 
@@ -2204,6 +2260,156 @@ function buildTrustedLegalSourceContext({
   };
 }
 
+function extractHostSpecificLegalPlain(html = '', url = '') {
+  const host = toHost(url);
+  const raw = String(html || '');
+  if (!raw) {
+    logLegalCrawlDebug('host-specific-plain:empty-html', { host, url });
+    return '';
+  }
+
+  const extractBlocks = (patterns = []) => {
+    const blocks = [];
+    for (const pattern of patterns) {
+      let match;
+      while ((match = pattern.exec(raw)) !== null) {
+        const text = cleanText(decodeHtmlEntities(stripHtml(match[1] || '')));
+        if (text && text.length > 40) blocks.push(text);
+      }
+    }
+    return blocks;
+  };
+
+  if (host === 'quochoi.vn') {
+    const blocks = extractBlocks([
+      // Primary: content-detail, detail-content, article-content, news-detail, page-content, content
+      /<(?:div|section|article)[^>]+class=["'][^"']*(?:content-detail|detail-content|article-content|news-detail|page-content|content|vanban)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+      // Primary: id-based: content, main-content, article-content, ctl00_maincontent
+      /<(?:div|section|article)[^>]+id=["'][^"']*(?:content|main-content|article-content|ctl00_maincontent)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+      // Secondary: contentbody, detail-content
+      /<(?:div|section|article)[^>]+(?:class|id)=["'][^"']*(?:contentbody|detail-content|content-detail)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+      // Fallback: wide div with class containing 'detail' or 'news'
+      /<div[^>]+class=["'][^"']*detail[^"']*["'][^>]*>([\s\S]{1000,30000}?)<\/div>/gi,
+    ]);
+    if (blocks.length > 0) {
+      const selected = sanitizeExtractedLegalText(cleanStrictText(blocks.sort((a, b) => b.length - a.length)[0]));
+      logLegalCrawlDebug('host-specific-plain:matched', { host, url, blockCount: blocks.length, returnedLength: selected.length });
+      return selected;
+    }
+  }
+
+  if (host === 'vbpl.vn') {
+    const blocks = extractBlocks([
+      // Primary: toanvan, fulltext, content1, content-detail, content-doc, vanban-content, docitem
+      /<(?:div|section|article)[^>]+class=["'][^"']*(?:toanvan|fulltext|content1|content-detail|content-doc|vanban-content|docitem)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+      // Primary: id-based: toanvan, fulltext, content1, tab1, article_content, divContentDoc
+      /<(?:div|section|article)[^>]+id=["'][^"']*(?:toanvan|fulltext|content1|tab1|article_content|divContentDoc)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+      // Secondary: detail-content, content-detail
+      /<(?:div|section|article)[^>]+(?:class|id)=["'][^"']*(?:detail-content|content-detail|content1)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+      // Fallback: wide div with class containing 'content' or 'vanban'
+      /<div[^>]+class=["'][^"']*(?:content|vanban)[^"']*["'][^>]*>([\s\S]{1000,30000}?)<\/div>/gi,
+    ]);
+    if (blocks.length > 0) {
+      const selected = sanitizeExtractedLegalText(cleanStrictText(blocks.sort((a, b) => b.length - a.length)[0]));
+      logLegalCrawlDebug('host-specific-plain:matched', { host, url, blockCount: blocks.length, returnedLength: selected.length });
+      return selected;
+    }
+  }
+
+  if (host === 'vanban.chinhphu.vn' || host === 'chinhphu.vn' || host === 'congbao.chinhphu.vn') {
+    const blocks = extractBlocks([
+      // Primary: content, detail, article-content, content-detail, contentnews
+      /<(?:div|section|article)[^>]+class=["'][^"']*(?:content|detail|article-content|content-detail|contentnews)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+      // Primary: id-based: content, main-content, article-content, contentdetail
+      /<(?:div|section|article)[^>]+id=["'][^"']*(?:content|main-content|article-content|contentdetail)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+      // Secondary: contentdetail, detail-content
+      /<(?:div|section|article)[^>]+(?:class|id)=["'][^"']*(?:contentdetail|detail-content|content-detail)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi,
+      // Fallback: wide div with class containing 'news' or 'detail'
+      /<div[^>]+class=["'][^"']*(?:news|detail)[^"']*["'][^>]*>([\s\S]{1000,30000}?)<\/div>/gi,
+    ]);
+    if (blocks.length > 0) {
+      const selected = sanitizeExtractedLegalText(cleanStrictText(blocks.sort((a, b) => b.length - a.length)[0]));
+      logLegalCrawlDebug('host-specific-plain:matched', { host, url, blockCount: blocks.length, returnedLength: selected.length });
+      return selected;
+    }
+  }
+
+  logLegalCrawlDebug('host-specific-plain:fallback-generic', { host, url });
+  return '';
+}
+
+function parseHostSpecificLegalMetadata(html = '', url = '') {
+  const host = toHost(url);
+  const raw = String(html || '');
+  if (!raw) return null;
+  const generic = parseLegalDocumentMetadata(html, url) || {};
+  const metadata = { ...generic };
+
+  const pullLabeledValue = (labels = []) => {
+    for (const label of labels) {
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = raw.match(new RegExp(`${escaped}[\\s\\S]{0,220}?<[^>]*>([\\s\\S]{1,320}?)<\/`, 'i'))
+        || raw.match(new RegExp(`${escaped}\\s*[:\\-]?\\s*([^<\\n\\r]{1,220})`, 'i'));
+      if (match && match[1]) {
+        const text = cleanText(decodeHtmlEntities(stripHtml(match[1])));
+        if (text) return text;
+      }
+    }
+    return '';
+  };
+
+  const titleFromMeta = (() => {
+    const match = raw.match(/<meta[^>]+(?:property|name)=["'](?:og:title|title)["'][^>]+content=["']([^"']+)["']/i)
+      || raw.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)
+      || raw.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+    if (!match || !match[1]) return '';
+    return cleanText(decodeHtmlEntities(stripHtml(match[1]))).slice(0, 240);
+  })();
+
+  if (host === 'quochoi.vn') {
+    metadata.so_hieu = metadata.so_hieu || pullLabeledValue(['Số ký hiệu', 'Số hiệu', 'Ký hiệu']);
+    metadata.ngay_ban_hanh = metadata.ngay_ban_hanh || pullLabeledValue(['Ngày ban hành', 'Ngày ký']);
+    metadata.ngay_hieu_luc = metadata.ngay_hieu_luc || pullLabeledValue(['Ngày có hiệu lực', 'Hiệu lực thi hành', 'Hiệu lực']);
+    metadata.trich_yeu_hoac_ten_van_ban = metadata.trich_yeu_hoac_ten_van_ban || pullLabeledValue(['Trích yếu', 'Tên văn bản']) || titleFromMeta;
+    metadata.co_quan_ban_hanh = metadata.co_quan_ban_hanh || pullLabeledValue(['Cơ quan ban hành']) || 'quoc_hoi';
+    metadata.loai_van_ban = metadata.loai_van_ban || inferDocTypeFromText(`${metadata.trich_yeu_hoac_ten_van_ban || ''} ${titleFromMeta}`) || 'luat';
+    metadata.tinh_trang_hieu_luc = metadata.tinh_trang_hieu_luc || pullLabeledValue(['Tình trạng hiệu lực']);
+  }
+
+  if (host === 'vbpl.vn') {
+    metadata.so_hieu = metadata.so_hieu || pullLabeledValue(['Số ký hiệu', 'Số hiệu', 'Ký hiệu']);
+    metadata.ngay_ban_hanh = metadata.ngay_ban_hanh || pullLabeledValue(['Ngày ban hành', 'Ngày ký']);
+    metadata.ngay_hieu_luc = metadata.ngay_hieu_luc || pullLabeledValue(['Ngày có hiệu lực', 'Hiệu lực thi hành']);
+    metadata.tinh_trang_hieu_luc = metadata.tinh_trang_hieu_luc || pullLabeledValue(['Tình trạng hiệu lực', 'Hiệu lực']);
+    metadata.trich_yeu_hoac_ten_van_ban = metadata.trich_yeu_hoac_ten_van_ban || pullLabeledValue(['Trích yếu', 'Tên văn bản']) || titleFromMeta;
+    metadata.co_quan_ban_hanh = metadata.co_quan_ban_hanh || pullLabeledValue(['Cơ quan ban hành']);
+    metadata.loai_van_ban = metadata.loai_van_ban || inferDocTypeFromText(`${metadata.trich_yeu_hoac_ten_van_ban || ''} ${titleFromMeta}`);
+  }
+
+  if ((host === 'vanban.chinhphu.vn' || host === 'chinhphu.vn' || host === 'congbao.chinhphu.vn')) {
+    metadata.so_hieu = metadata.so_hieu || pullLabeledValue(['Số ký hiệu', 'Số hiệu']);
+    metadata.ngay_ban_hanh = metadata.ngay_ban_hanh || pullLabeledValue(['Ngày ban hành', 'Ngày ký']);
+    metadata.ngay_hieu_luc = metadata.ngay_hieu_luc || pullLabeledValue(['Ngày có hiệu lực', 'Hiệu lực thi hành']);
+    metadata.trich_yeu_hoac_ten_van_ban = metadata.trich_yeu_hoac_ten_van_ban || pullLabeledValue(['Trích yếu', 'Tên văn bản']) || titleFromMeta;
+    metadata.co_quan_ban_hanh = metadata.co_quan_ban_hanh || pullLabeledValue(['Cơ quan ban hành']) || inferIssuerFromText(titleFromMeta);
+    metadata.loai_van_ban = metadata.loai_van_ban || inferDocTypeFromText(`${metadata.trich_yeu_hoac_ten_van_ban || ''} ${titleFromMeta}`);
+  }
+
+  if (!metadata.trich_yeu_hoac_ten_van_ban) metadata.trich_yeu_hoac_ten_van_ban = titleFromMeta;
+  const result = (metadata.so_hieu || metadata.trich_yeu_hoac_ten_van_ban || metadata.ngay_ban_hanh) ? metadata : null;
+  logLegalCrawlDebug('host-specific-metadata:parsed', {
+    host,
+    url,
+    found: Boolean(result),
+    so_hieu: result?.so_hieu || '',
+    loai_van_ban: result?.loai_van_ban || '',
+    ngay_ban_hanh: result?.ngay_ban_hanh || '',
+    co_quan_ban_hanh: result?.co_quan_ban_hanh || '',
+    title: String(result?.trich_yeu_hoac_ten_van_ban || '').slice(0, 160),
+  });
+  return result;
+}
+
 async function extractTrustedLegalContent({
   url = '',
   keywords = [],
@@ -2250,7 +2456,16 @@ async function extractTrustedLegalContent({
     };
   }
 
-  const plain = sanitizeExtractedLegalText(cleanStrictText(decodeHtmlEntities(stripHtml(html))));
+  const hostSpecificPlain = extractHostSpecificLegalPlain(html, context.parsed.toString());
+  const plain = hostSpecificPlain || sanitizeExtractedLegalText(cleanStrictText(decodeHtmlEntities(stripHtml(html))));
+  logLegalCrawlDebug('trusted-content:plain-ready', {
+    url: context.parsed.toString(),
+    sourceTier: context.sourceTier,
+    usedHostSpecificPlain: Boolean(hostSpecificPlain),
+    plainLength: plain.length,
+    keywordCount: context.keywords.length,
+    strictTarget: context.strictTarget,
+  });
   if (!plain) {
     return {
       parsed: context.parsed,
@@ -2513,20 +2728,21 @@ function normalizeCandidateMetadata(item = {}) {
   const snippet = String(item?.snippet || '').trim();
   const link = String(item?.link || '').trim();
   const hay = `${title} ${snippet} ${link}`.trim();
-  const soHieu = extractFirstDocNumber(hay);
-  const issuer = inferIssuerFromText(hay);
+  const crawled = item?.metadata && typeof item.metadata === 'object' ? item.metadata : {};
+  const soHieu = String(crawled.so_hieu || '').trim().toUpperCase() || extractFirstDocNumber(hay);
+  const issuer = String(crawled.co_quan_ban_hanh || '').trim() || inferIssuerFromText(hay);
   const sourceTier = detectSourceTier({ link, source: item?.source });
 
   return {
-    loai_van_ban: inferDocTypeFromText(hay),
+    loai_van_ban: String(crawled.loai_van_ban || '').trim() || inferDocTypeFromText(hay),
     so_hieu: soHieu || '',
-    ngay_ban_hanh: '',
-    ngay_hieu_luc: '',
+    ngay_ban_hanh: String(crawled.ngay_ban_hanh || '').trim(),
+    ngay_hieu_luc: String(crawled.ngay_hieu_luc || '').trim(),
     co_quan_ban_hanh: issuer || '',
-    trich_yeu_hoac_ten_van_ban: title || '',
-    tinh_trang_hieu_luc: '',
-    nam_ban_hanh: extractYearFromText(soHieu || hay),
-    nguon: toHost(link) || String(item?.source || '').trim().toLowerCase(),
+    trich_yeu_hoac_ten_van_ban: String(crawled.trich_yeu_hoac_ten_van_ban || '').trim() || title || '',
+    tinh_trang_hieu_luc: String(crawled.tinh_trang_hieu_luc || '').trim(),
+    nam_ban_hanh: extractYearFromText(String(crawled.nam_ban_hanh || '').trim() || soHieu || hay),
+    nguon: String(crawled.nguon || '').trim() || toHost(link) || String(item?.source || '').trim().toLowerCase(),
     is_official_source: sourceTier === 'official',
     source_tier: sourceTier,
   };
@@ -3275,6 +3491,12 @@ async function fetchDirectOfficialSources({
       const html = await fetchDirectSourcePage(url, Math.min(DIRECT_SOURCE_TIMEOUT_MS, remainingMs));
       if (!html) continue;
       const links = parseLinksFromHtml(html, url, sourceConfig.allowedHosts);
+      logLegalCrawlDebug('direct-source:links-parsed', {
+        source: sourceConfig.id,
+        searchUrl: url,
+        linkCount: links.length,
+        remainingMs,
+      });
       for (const link of links) {
         localCandidates.push({
           ...link,
@@ -3295,8 +3517,39 @@ async function fetchDirectOfficialSources({
       .filter((candidate) => candidate.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, DIRECT_SOURCE_MAX_PER_SOURCE);
+    logLegalCrawlDebug('direct-source:scored-candidates', {
+      source: sourceConfig.id,
+      uniqueCount: uniqueMap.size,
+      keptCount: scored.length,
+      topCandidates: scored.slice(0, 3).map((candidate) => ({
+        link: candidate.link,
+        score: candidate.score,
+        title: String(candidate.title || '').slice(0, 120),
+      })),
+    });
 
-    allCandidates.push(...scored);
+    const enriched = [];
+    for (const candidate of scored) {
+      const remainingMs = deadlineAt - Date.now();
+      if (remainingMs <= 0) break;
+      const html = await fetchDirectSourcePage(candidate.link, Math.min(DIRECT_SOURCE_TIMEOUT_MS, remainingMs));
+      if (!html) {
+        enriched.push(candidate);
+        continue;
+      }
+      const metadata = parseHostSpecificLegalMetadata(html, candidate.link) || parseLegalDocumentMetadata(html, candidate.link);
+      enriched.push(metadata ? {
+        ...candidate,
+        metadata: {
+          ...metadata,
+          nguon: toHost(candidate.link) || candidate.source,
+        },
+        snippet: metadata.trich_yeu_hoac_ten_van_ban || candidate.snippet,
+        title: metadata.trich_yeu_hoac_ten_van_ban || candidate.title,
+      } : candidate);
+    }
+
+    allCandidates.push(...enriched);
   }));
 
   const deduped = new Map();
