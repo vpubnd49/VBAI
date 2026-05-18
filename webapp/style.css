@@ -1127,7 +1127,7 @@ body {
 }
 .chat-msg {
   max-width: 100%; width: 100%; padding: 10px 14px; border-radius: var(--radius-md);
-  font-size: 0.85rem; line-height: 1.45; position: relative;
+  font-size: 0.85rem; line-height: 1.35; position: relative;
   animation: msgIn 0.3s ease-out; word-wrap: break-word;
 }
 @keyframes msgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -1161,17 +1161,17 @@ body {
   font-size: 0.82em;
 }
 .chat-msg-rich {
-  line-height: 1.42;
+  line-height: 1.35;
 }
 .chat-msg-rich p {
-  margin: 0 0 6px 0;
+  margin: 0 0 4px 0;
 }
 .chat-msg-rich p:last-child {
   margin-bottom: 0;
 }
 .chat-msg-rich ul,
 .chat-msg-rich ol {
-  margin: 6px 0 6px 18px;
+  margin: 4px 0 4px 16px;
 }
 .chat-compare-card {
   margin: 10px 0;
@@ -1814,13 +1814,13 @@ input:checked + .slider-round:before {
 
 /* 3. Custom Markdown Lists Spacing */
 .chat-rich-list {
-  margin: 6px 0 6px 20px !important;
+  margin: 4px 0 4px 16px !important;
   padding: 0 !important;
   list-style-type: disc !important;
 }
 .chat-rich-list li {
-  margin-bottom: 3px !important;
-  line-height: 1.4 !important;
+  margin-bottom: 2px !important;
+  line-height: 1.35 !important;
   color: var(--text-primary) !important;
 }
 .chat-rich-list li strong {
