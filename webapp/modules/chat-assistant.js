@@ -2220,17 +2220,30 @@ export async function sendMessage(text, onChunk) {
 
     if (useWebSearch && shouldSearchWebForFreshness) {
       if (onChunk) onChunk("Đang tra cứu dữ liệu mới nhất từ Internet...\n");
-      const searchResults = await sendWebSearchRequest(
-        searchContext.effectiveQuery,
-        searchContext.effectiveDocNumber,
-        {
-          ...buildFreshWebSearchOptions(rawUserText),
-          requestedDocType: searchContext.requestedDocType || undefined,
-          partialDocNumber: searchContext.partialDocNumber || undefined,
-        },
-      );
+      let searchResults = '';
+      let webSearchFailure = null;
+      try {
+        searchResults = await sendWebSearchRequest(
+          searchContext.effectiveQuery,
+          searchContext.effectiveDocNumber,
+          {
+            ...buildFreshWebSearchOptions(rawUserText),
+            requestedDocType: searchContext.requestedDocType || undefined,
+            partialDocNumber: searchContext.partialDocNumber || undefined,
+          },
+        );
+      } catch (webErr) {
+        webSearchFailure = webErr;
+        console.warn('Fresh web-search failed, continuing in best-effort mode:', webErr?.message || webErr);
+        webSearchMeta = {
+          ...(getLastWebSearchMeta() || {}),
+          fallback_used: true,
+          web_search_error: String(webErr?.message || webErr || 'web_search_error').slice(0, 400),
+        };
+        if (onChunk) onChunk("Kênh tra cứu Internet đang gián đoạn, tôi chuyển sang chế độ dự phòng để vẫn trả kết quả...\n");
+      }
       webSearchResultsText = String(searchResults || '');
-      webSearchMeta = getLastWebSearchMeta();
+      webSearchMeta = webSearchMeta || getLastWebSearchMeta();
       const earlyStrictReason = String(webSearchMeta?.strict_reject_reason || '').trim().toLowerCase();
       const earlyLowConfidence = typeof webSearchMeta?.confidence === 'number' && webSearchMeta.confidence < 0.85;
       const strictBoundQuery = shouldUseStrictRejection(rawUserText, searchContext);
@@ -2336,63 +2349,70 @@ export async function sendMessage(text, onChunk) {
         }
         finalUserText = `${contextualUserText}\n\n[Du lieu truc tuyen cap nhat, tra cuu luc ${new Date().toLocaleTimeString('vi-VN')}]:\n${webSearchResultsText}`;
       } else {
-        if (webSearchMeta?.strict_reject_reason) {
-          // Continue with best-effort synthesis even when backend marks strict reject.
-          webSearchMeta = { ...(webSearchMeta || {}), strict_reject_reason: null };
-        }
-        const cseDenied = Number(webSearchMeta?.cse_status) === 403
-          && /custom search|permission|access/i.test(String(webSearchMeta?.cse_error_reason || ''));
-        const fallbackUsed = webSearchMeta?.fallback_used === true;
-        const strictRejectReason = String(webSearchMeta?.strict_reject_reason || '').trim().toLowerCase();
-        const bestAlternative = webSearchMeta?.best_alternative && typeof webSearchMeta.best_alternative === 'object'
-          ? webSearchMeta.best_alternative
-          : null;
-        const shouldStrictReject = strictBoundQuery && Boolean(strictRejectReason) && !allowBestAlternativeForLatestLookup;
-        const guardReason = strictRejectReason === 'partial_doc_number_requires_full'
-          ? buildNeedFullDocNumberMessage(
-              rawUserText,
-              searchContext.requestedDocType || webSearchMeta?.requested_doc_type || '',
-            searchContext.partialDocNumber || '',
-          )
-          : strictRejectReason === 'no_type_match'
-            ? buildDocTypeMismatchMessage(
-              rawUserText,
-              searchContext.requestedDocType || webSearchMeta?.requested_doc_type || '',
-              searchContext.effectiveDocNumber || '',
+        if (webSearchFailure) {
+          finalUserText = `${contextualUserText}\n\n[Luu y he thong]: Kenh tra cuu Internet tam thoi gian doan. Hay tiep tuc tra loi theo che do du phong, uu tien noi ro muc do chac chan va khuyen nghi doi chieu nguon chinh thuc.`;
+          if (webSearchMeta?.strict_reject_reason) {
+            webSearchMeta = { ...(webSearchMeta || {}), strict_reject_reason: null };
+          }
+        } else {
+          if (webSearchMeta?.strict_reject_reason) {
+            // Continue with best-effort synthesis even when backend marks strict reject.
+            webSearchMeta = { ...(webSearchMeta || {}), strict_reject_reason: null };
+          }
+          const cseDenied = Number(webSearchMeta?.cse_status) === 403
+            && /custom search|permission|access/i.test(String(webSearchMeta?.cse_error_reason || ''));
+          const fallbackUsed = webSearchMeta?.fallback_used === true;
+          const strictRejectReason = String(webSearchMeta?.strict_reject_reason || '').trim().toLowerCase();
+          const bestAlternative = webSearchMeta?.best_alternative && typeof webSearchMeta.best_alternative === 'object'
+            ? webSearchMeta.best_alternative
+            : null;
+          const shouldStrictReject = strictBoundQuery && Boolean(strictRejectReason) && !allowBestAlternativeForLatestLookup;
+          const guardReason = strictRejectReason === 'partial_doc_number_requires_full'
+            ? buildNeedFullDocNumberMessage(
+                rawUserText,
+                searchContext.requestedDocType || webSearchMeta?.requested_doc_type || '',
+              searchContext.partialDocNumber || '',
             )
-            : strictRejectReason === 'low_confidence' || strictRejectReason === 'metadata_incomplete' || strictRejectReason === 'no_exact_match'
-              ? (() => {
-                const base = 'Chua du can cu xac dinh van ban dung theo tieu chi doi chieu bat buoc (loai, so hieu, ten/trich yeu, co quan, nam/ngay ban hanh).';
-                if (!bestAlternative) return base;
-                const altLabel = `${bestAlternative.loai_van_ban || 'van ban'} ${bestAlternative.so_hieu || ''}`.trim();
-                const altTitle = String(bestAlternative.trich_yeu_hoac_ten_van_ban || '').trim();
-                return `${base} Co the ban dang nham so hieu. Phuong an phu hop nhat hien tim thay: ${altLabel}${altTitle ? ` - ${altTitle}` : ''}${bestAlternative.nguon ? ` (nguon: ${bestAlternative.nguon}${bestAlternative.is_official_source === true ? ' - Chinh thuc' : ' - Tham khao'})` : ''}.`;
-              })()
-            : cseDenied
-          ? (fallbackUsed
-            ? 'Web Search dang loi quyen truy cap. He thong da chuyen sang nguon chinh thong truc tiep nhung chua tim thay ket qua phu hop.'
-            : 'Web Search dang loi quyen truy cap nen he thong khong lay duoc ket qua Internet.')
-          : 'Khong co ket qua tra cuu phu hop tu Internet.';
-        const bestAlternativeLatestAnswer = allowBestAlternativeForLatestLookup
-          ? buildBestAlternativeLatestAnswer(rawUserText, bestAlternative)
-          : '';
-        const guardText = ensureFollowUpQuestion(
-          bestAlternativeLatestAnswer || (shouldStrictReject ? guardReason : buildFreshnessGuardMessage(rawUserText, guardReason)),
-          rawUserText,
-          { forceAsk: !bestAlternativeLatestAnswer },
-          webSearchMeta,
-        );
-        pushTurn("user", rawUserText);
-        pushTurn("assistant", guardText);
-        lastUserQuery = rawUserText;
-        lastAssistantReply = guardText;
-        rememberResolvedDocNumber(searchContext, guardText);
-        logSearchEvent(guardText, {
-          webSearchUsed: true,
-          webSearchMeta: webSearchMeta || null,
-        });
-        if (onChunk) onChunk(guardText);
-        return guardText;
+            : strictRejectReason === 'no_type_match'
+              ? buildDocTypeMismatchMessage(
+                rawUserText,
+                searchContext.requestedDocType || webSearchMeta?.requested_doc_type || '',
+                searchContext.effectiveDocNumber || '',
+              )
+              : strictRejectReason === 'low_confidence' || strictRejectReason === 'metadata_incomplete' || strictRejectReason === 'no_exact_match'
+                ? (() => {
+                  const base = 'Chua du can cu xac dinh van ban dung theo tieu chi doi chieu bat buoc (loai, so hieu, ten/trich yeu, co quan, nam/ngay ban hanh).';
+                  if (!bestAlternative) return base;
+                  const altLabel = `${bestAlternative.loai_van_ban || 'van ban'} ${bestAlternative.so_hieu || ''}`.trim();
+                  const altTitle = String(bestAlternative.trich_yeu_hoac_ten_van_ban || '').trim();
+                  return `${base} Co the ban dang nham so hieu. Phuong an phu hop nhat hien tim thay: ${altLabel}${altTitle ? ` - ${altTitle}` : ''}${bestAlternative.nguon ? ` (nguon: ${bestAlternative.nguon}${bestAlternative.is_official_source === true ? ' - Chinh thuc' : ' - Tham khao'})` : ''}.`;
+                })()
+              : cseDenied
+            ? (fallbackUsed
+              ? 'Web Search dang loi quyen truy cap. He thong da chuyen sang nguon chinh thong truc tiep nhung chua tim thay ket qua phu hop.'
+              : 'Web Search dang loi quyen truy cap nen he thong khong lay duoc ket qua Internet.')
+            : 'Khong co ket qua tra cuu phu hop tu Internet.';
+          const bestAlternativeLatestAnswer = allowBestAlternativeForLatestLookup
+            ? buildBestAlternativeLatestAnswer(rawUserText, bestAlternative)
+            : '';
+          const guardText = ensureFollowUpQuestion(
+            bestAlternativeLatestAnswer || (shouldStrictReject ? guardReason : buildFreshnessGuardMessage(rawUserText, guardReason)),
+            rawUserText,
+            { forceAsk: !bestAlternativeLatestAnswer },
+            webSearchMeta,
+          );
+          pushTurn("user", rawUserText);
+          pushTurn("assistant", guardText);
+          lastUserQuery = rawUserText;
+          lastAssistantReply = guardText;
+          rememberResolvedDocNumber(searchContext, guardText);
+          logSearchEvent(guardText, {
+            webSearchUsed: true,
+            webSearchMeta: webSearchMeta || null,
+          });
+          if (onChunk) onChunk(guardText);
+          return guardText;
+        }
       }
 
     }
