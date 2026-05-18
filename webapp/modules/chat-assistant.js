@@ -340,20 +340,20 @@ function buildFreshWebSearchOptions(rawText = '') {
   const isTimeSensitive = isTimeSensitiveQuery(rawText);
 
   if (!isTimeSensitive) {
-    return { forceFresh: false, freshnessLevel: 'month', recencyDays: 365, timeoutMs: 12000 };
+    return { forceFresh: false, freshnessLevel: 'month', recencyDays: 365, timeoutMs: 30000 };
   }
 
   if (/(hom nay|hien tai|ngay nay)/.test(t)) {
-    return { forceFresh: true, freshnessLevel: 'day', recencyDays: 7, timeoutMs: 15000 };
+    return { forceFresh: true, freshnessLevel: 'day', recencyDays: 7, timeoutMs: 40000 };
   }
   if (/(tuan nay|7 ngay|7ngay)/.test(t)) {
-    return { forceFresh: true, freshnessLevel: 'week', recencyDays: 30, timeoutMs: 15000 };
+    return { forceFresh: true, freshnessLevel: 'week', recencyDays: 30, timeoutMs: 40000 };
   }
   if (/(thang nay|30 ngay|30ngay)/.test(t)) {
-    return { forceFresh: true, freshnessLevel: 'month', recencyDays: 90, timeoutMs: 15000 };
+    return { forceFresh: true, freshnessLevel: 'month', recencyDays: 90, timeoutMs: 40000 };
   }
   // Default time-sensitive legal query
-  return { forceFresh: true, freshnessLevel: 'month', recencyDays: 365, timeoutMs: 16000 };
+  return { forceFresh: true, freshnessLevel: 'month', recencyDays: 365, timeoutMs: 45000 };
 }
 
 function getChatCacheStore() {
@@ -2016,7 +2016,7 @@ export async function runDailyLegalSync() {
     }
 
     const query = "van ban phap luat moi ban hanh hom nay";
-    const results = await sendWebSearchRequest(query, null, { forceFresh: true, freshnessLevel: 'day', recencyDays: 7, timeoutMs: 12000 });
+    const results = await sendWebSearchRequest(query, null, { forceFresh: true, freshnessLevel: 'day', recencyDays: 7, timeoutMs: 30000 });
     if (results) {
       localStorage.setItem(DAILY_SYNC_TIMESTAMP_KEY, String(now));
       console.log("[VBAI] Daily legal sync successful.");
@@ -2272,7 +2272,7 @@ export async function sendMessage(text, onChunk) {
               searchContext.effectiveDocNumber,
               {
                 ...buildFreshWebSearchOptions(rawUserText),
-                timeoutMs: 12000,
+                timeoutMs: 30000,
                 requestedDocType: searchContext.requestedDocType || undefined,
                 partialDocNumber: searchContext.partialDocNumber || undefined,
               },
