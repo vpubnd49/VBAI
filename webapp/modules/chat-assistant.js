@@ -1281,6 +1281,7 @@ function isDetailedLegalIntent(rawUserText = '', searchContext = {}) {
   if (hasCitationIntent(rawUserText)) return false;
   if (/(toan van|nguyen van|chi tiet|day du noi dung|toan bo noi dung|nguyen ban)/.test(n)) return true;
   if (/(liet ke|danh sach|dan ra|ke ra|toan bo cac dieu|toan bo dieu|cac dieu|dieu khoan|chuong dieu)/.test(n)) return true;
+  if (/(neu ro|neu cu the|noi dung cu the|noi dung gi|noi dung chinh|quy dinh gi|quy dinh nhu the nao|trinh bay noi dung|mo ta noi dung)/.test(n)) return true;
   if (
     searchContext?.effectiveDocNumber
     && /(co gi moi|diem moi|noi dung moi|moi gi|thay doi gi|quy dinh moi|diem sua doi|diem bo sung)/.test(n)
@@ -1346,7 +1347,29 @@ async function buildDetailedLegalAgentAnswer(rawUserText = '', searchContext = {
   if (!retrieval || !String(retrieval.text || '').trim()) return '';
 
   const sourceLine = extractPrimarySourceLine(webSearchMeta) || `Nguồn: ${retrieval.link}`;
-  const guidance = 'Neu nguoi dung yeu cau noi dung chi tiet/nguyen van, uu tien tra loi day du theo pham vi du lieu da trich xuat, khong tom tat qua muc.';
+  const guidanceLines = [
+    'Ban la “CHATBOT TRA CUU VBPL” — tro ly phap luat chuyen sau ve he thong VBPL Viet Nam.',
+    'Nhiem vu: dua tren noi dung phap ly da trich xuat tu nguon web, tra loi day du, chinh xac, uu tien phien ban moi nhat va nguon chinh thuc.',
+    'Khong duoc lam mat noi dung quan trong khi rut gon cach trinh bay.',
+    'Neu cau hoi yeu cau noi dung chi tiet/nguyen van, uu tien giu du noi dung trong pham vi du lieu da co.',
+    'Neu du lieu chua du de ket luan mot y quan trong, noi ro chua du can cu va khong suy doan.',
+    'Bat buoc ghi ro tinh trang hieu luc neu du lieu trich xuat cho phep xac dinh.',
+    'Bat buoc tra loi bang markdown voi cau truc sau:',
+    '## Tóm tắt',
+    '- Tối đa 120 từ.',
+    '',
+    '### Thông tin chi tiết / Phân tích',
+    '- Trinh bay ro theo y chinh; neu co the thi dan chieu dieu/khoan/diem.',
+    '- Neu trich dan duoc, dung dang: **Theo Số [x], Điều [y], Khoản [z]**: [Nội dung trích dẫn].',
+    '- Nêu rõ nguồn văn bản và đường dẫn đã dùng.',
+    '',
+    '### Giải thích / Hướng dẫn thêm nếu cần',
+    '- Chi them muc nay khi thuc su can de lam ro cach hieu/ap dung.',
+    '',
+    '---',
+    'Checklist (5 mục): Trích dẫn đầy đủ; hiệu lực đúng; nguồn chính thức; tóm tắt chuẩn; không suy đoán.',
+    'Khong chen ma nguon, khong chen noi dung ngoai pham vi cau hoi, khong lap lai cau hoi nguyen van.'
+  ];
 
   const isArticleListingRequest = /(liet ke|danh sach|toan bo cac dieu|toan bo dieu|cac dieu|dieu khoan)/.test(normalizeVietnamese(rawUserText));
   if (isArticleListingRequest) {
@@ -1365,13 +1388,11 @@ async function buildDetailedLegalAgentAnswer(rawUserText = '', searchContext = {
     {
       role: 'system',
       content: [
-        'Ban la tro ly tra cuu VBPL Viet Nam.',
-        'Nhiem vu: dua tren noi dung phap ly da trich xuat tu nguon web, tra loi day du hon so voi che do tom tat mac dinh.',
-        'Khong duoc lam mat noi dung quan trong khi rut gon cach trinh bay.',
-        'Neu cau hoi yeu cau nguyen van/trich dan/chi tiet, uu tien giu du noi dung trong pham vi du lieu da co.',
-        guidance,
-        'Khong chen checklist. Khong lap lai cau hoi. Co the dung gach dau dong neu can ro y.'
-      ].join('\n')
+        ...guidanceLines,
+        searchContext?.effectiveDocNumber ? `So hieu dang uu tien doi chieu: ${searchContext.effectiveDocNumber}` : '',
+        bestTitle ? `Tieu de uu tien doi chieu: ${bestTitle}` : '',
+        retrieval.link ? `Nguon uu tien: ${retrieval.link}` : '',
+      ].filter(Boolean).join('\n')
     },
     ...getConversationalMemory(),
     {
