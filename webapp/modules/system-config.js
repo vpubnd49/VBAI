@@ -258,3 +258,40 @@ export function isCurrentUserAdmin() {
 }
 
 export { isCurrentUserAdmin as isAdmin };
+
+/**
+ * Trigger Vertex AI Search document ingestion (Sync) (admin only).
+ */
+export async function triggerVertexIngestion(options = {}) {
+  const token = await getIdToken();
+  if (!token) throw new Error('Not authenticated');
+
+  let backendUrl = DEFAULT_BACKEND_BASE;
+  try {
+    backendUrl = resolveBackendBase();
+  } catch (e) {
+    throw new Error(e?.message || 'Backend URL khong hop le');
+  }
+
+  const payload = {
+    vertex_project_id: options?.projectId || undefined,
+    vertex_location: options?.location || undefined,
+    vertex_data_store_id: options?.dataStoreId || undefined,
+    bucket_name: options?.bucketName || undefined,
+  };
+
+  const response = await fetch(`${backendUrl}/admin/ingest-vertex`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.message || data?.error || `HTTP ${response.status}`);
+  }
+  return data;
+}

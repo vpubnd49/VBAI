@@ -43,7 +43,7 @@ function normalizeForMatch(value = '') {
 function collectCandidateLinks(results = '') {
   const links = new Set(extractLinks(results));
   const fallbackLinks = [
-    'https://xaydungchinhsach.chinhphu.vn/toan-van-luat-so-72-2025-qh15-to-chuc-chinh-quyen-dia-phuong-119250618161434371.htm',
+    'https://thuvienphapluat.vn/van-ban/Bo-may-hanh-chinh/Luat-To-chuc-chinh-quyen-dia-phuong-2015-282141.aspx',
     'https://vanban.chinhphu.vn/?pageid=27160&docid=214553',
   ];
   for (const link of fallbackLinks) links.add(link);

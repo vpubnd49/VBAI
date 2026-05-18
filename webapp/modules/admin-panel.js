@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, query, orderBy, limit, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { fetchSystemConfig, updateSystemConfig, validateGeminiApiKey } from './system-config.js';
+import { fetchSystemConfig, updateSystemConfig, validateGeminiApiKey, triggerVertexIngestion } from './system-config.js';
 
 import { firebaseConfig } from '../firebase-config.js';
 
@@ -105,6 +105,13 @@ export function renderAdminPanel(container) {
               <div class="form-group">
                 <label class="form-label">Serving Config</label>
                 <input type="text" id="vertex_serving_config" class="form-input" placeholder="projects/.../servingConfigs/default_search">
+              </div>
+              <div class="form-group" style="margin-top: 15px;">
+                <label class="form-label">Đồng bộ Dữ liệu từ Storage</label>
+                <button type="button" id="trigger-vertex-ingest-btn" class="btn btn-secondary btn-sm" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                  🔄 Đồng bộ dữ liệu (Ingest)
+                </button>
+                <small id="vertex-ingest-status" class="config-hint" style="margin-top: 4px; display: block;"></small>
               </div>
               <div class="form-group">
                 <label class="form-label">Web Search Fallback Sources</label>
@@ -271,6 +278,8 @@ async function initSystemConfigPanel(container) {
   const vertexLocationInput = formEl.querySelector('#vertex_location');
   const vertexDataStoreIdInput = formEl.querySelector('#vertex_data_store_id');
   const vertexServingConfigInput = formEl.querySelector('#vertex_serving_config');
+  const triggerVertexIngestBtn = formEl.querySelector('#trigger-vertex-ingest-btn');
+  const vertexIngestStatus = formEl.querySelector('#vertex-ingest-status');
 
   const fallbackCheckboxes = {
     vbpl: formEl.querySelector('#fallback_vbpl'),
@@ -472,6 +481,33 @@ async function initSystemConfigPanel(container) {
     void runGeminiKeyValidation({ useStoredKey });
   });
   refreshBtn.addEventListener('click', loadConfig);
+  triggerVertexIngestBtn?.addEventListener('click', async () => {
+    if (!confirm('Bạn có chắc chắn muốn kích hoạt tiến trình đồng bộ (Ingest) dữ liệu từ GCS Storage vào Vertex AI Search ngay bây giờ không?')) return;
+    
+    triggerVertexIngestBtn.disabled = true;
+    triggerVertexIngestBtn.textContent = '⏳ Đang đồng bộ...';
+    vertexIngestStatus.textContent = 'Đang gửi yêu cầu đồng bộ lên Vertex AI Search...';
+    vertexIngestStatus.style.color = 'var(--text-muted)';
+    
+    try {
+      const result = await triggerVertexIngestion({
+        projectId: vertexProjectIdInput?.value?.trim() || undefined,
+        location: vertexLocationInput?.value?.trim() || undefined,
+        dataStoreId: vertexDataStoreIdInput?.value?.trim() || undefined,
+      });
+      
+      vertexIngestStatus.textContent = '✅ Đã kích hoạt tiến trình đồng bộ thành công!';
+      vertexIngestStatus.style.color = '#34d399';
+      alert(result.message || 'Kích hoạt đồng bộ thành công!');
+    } catch (err) {
+      vertexIngestStatus.textContent = `❌ Thất bại: ${err.message}`;
+      vertexIngestStatus.style.color = '#f87171';
+      alert('Lỗi kích hoạt đồng bộ: ' + err.message);
+    } finally {
+      triggerVertexIngestBtn.disabled = false;
+      triggerVertexIngestBtn.textContent = '🔄 Đồng bộ dữ liệu (Ingest)';
+    }
+  });
   geminiModelInput.addEventListener('input', () => {
     updateGeminiRuntimeWarning(geminiModelInput.value, geminiKeyInput.value.includes('•') || !!geminiKeyInput.value.trim());
   });

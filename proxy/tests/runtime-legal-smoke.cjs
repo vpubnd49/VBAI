@@ -245,6 +245,18 @@ async function run() {
     mustIncludeAny: ['ủy quyền', 'thực hiện bằng văn bản', 'không được ủy quyền lại'],
   });
 
+  const stateSecretsLaw = await runWebSearchCase({
+    label: 'StateSecretsLaw',
+    query: 'luật bảo vệ bí mật nhà nước mới nhất số bao nhiêu',
+    expectedDocNumber: '117/2025/QH15',
+    expectedOfficialHosts: ['quochoi.vn', 'vbpl.vn', 'vanban.chinhphu.vn', 'congbao.chinhphu.vn'],
+  });
+
+  assert.ok(
+    /117\/2025\/QH15/i.test(`${stateSecretsLaw.results}\n${JSON.stringify(stateSecretsLaw.meta)}`),
+    'StateSecretsLaw expected 117/2025/QH15 in final answer/meta',
+  );
+
   const civilServants = await runWebSearchCase({
     label: 'LatestCivilServantsLaw',
     query: 'luật cán bộ công chức mới nhất số bao nhiêu',
