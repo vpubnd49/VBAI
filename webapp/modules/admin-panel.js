@@ -582,7 +582,7 @@ function renderPage(container) {
   if (!tbody) return;
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const pageLogs = allLogs.slice(start, start + ITEMS_PER_PAGE);
-  tbody.innerHTML = pageLogs.map((item) => `
+  tbody.innerHTML = pageLogs.length > 0 ? pageLogs.map((item) => `
     <tr style="border-bottom:1px solid var(--border-color)">
       <td style="padding:12px;">${item.data.timestamp?.toDate().toLocaleString('vi-VN') || ''}</td>
       <td style="padding:12px;">${escapeHtml(item.data.userEmail || '')}</td>
@@ -590,7 +590,21 @@ function renderPage(container) {
       <td style="padding:12px;">${escapeHtml(item.data.model || '')}</td>
       <td style="padding:12px;"><button class="btn-delete" data-id="${item.id}">Xóa</button></td>
     </tr>
-  `).join('');
+  `).join('') : '<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
+
+  const totalPages = Math.ceil(allLogs.length / ITEMS_PER_PAGE) || 1;
+  const paginationControls = container.querySelector('#pagination-controls');
+  const pageIndicator = container.querySelector('#page-indicator');
+  if (paginationControls && pageIndicator) {
+    if (allLogs.length > ITEMS_PER_PAGE) {
+      paginationControls.style.display = 'flex';
+      pageIndicator.textContent = `Trang ${currentPage} / ${totalPages}`;
+      container.querySelector('#prev-page-btn').disabled = currentPage === 1;
+      container.querySelector('#next-page-btn').disabled = currentPage === totalPages;
+    } else {
+      paginationControls.style.display = 'none';
+    }
+  }
 }
 
 async function loadUsers(container) {
@@ -612,14 +626,28 @@ function renderUsersPage(container) {
   if (!tbody) return;
   const start = (currentUsersPage - 1) * ITEMS_PER_PAGE;
   const pageUsers = allUsers.slice(start, start + ITEMS_PER_PAGE);
-  tbody.innerHTML = pageUsers.map((item) => `
+  tbody.innerHTML = pageUsers.length > 0 ? pageUsers.map((item) => `
     <tr style="border-bottom:1px solid var(--border-color)">
       <td style="padding:12px;">${escapeHtml(item.data.email || '')}</td>
       <td style="padding:12px;">${escapeHtml(item.data.displayName || '')}</td>
       <td style="padding:12px;">${item.data.createdAt?.toDate().toLocaleString('vi-VN') || ''}</td>
       <td style="padding:12px;">${item.data.lastLogin?.toDate().toLocaleString('vi-VN') || ''}</td>
     </tr>
-  `).join('');
+  `).join('') : '<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
+
+  const totalPages = Math.ceil(allUsers.length / ITEMS_PER_PAGE) || 1;
+  const paginationControls = container.querySelector('#users-pagination-controls');
+  const pageIndicator = container.querySelector('#users-page-indicator');
+  if (paginationControls && pageIndicator) {
+    if (allUsers.length > ITEMS_PER_PAGE) {
+      paginationControls.style.display = 'flex';
+      pageIndicator.textContent = `Trang ${currentUsersPage} / ${totalPages}`;
+      container.querySelector('#users-prev-page-btn').disabled = currentUsersPage === 1;
+      container.querySelector('#users-next-page-btn').disabled = currentUsersPage === totalPages;
+    } else {
+      paginationControls.style.display = 'none';
+    }
+  }
 }
 
 function escapeHtml(unsafe) {
