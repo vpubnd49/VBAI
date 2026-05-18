@@ -9,6 +9,7 @@ import { renderVBDang, handleVBDangAction } from './modules/vb-dang.js';
 import { renderVBND30, handleVBND30Action } from './modules/vb-nd30.js';
 import { renderPdfTool } from './modules/pdf-tool.js';
 import { renderDocxTool } from './modules/docx-tool.js';
+import { renderMolPublisher } from './modules/mol-publisher.js';
 import { renderSpellCheck } from './modules/spell-check.js';
 import { renderAdminPanel } from './modules/admin-panel.js';
 import { renderLogin } from './modules/login.js';
@@ -81,6 +82,7 @@ const PAGE_TITLES = {
   'docx-tool': 'Tạo & Xuất DOCX',
   'spell-check': 'Kiểm tra chính tả & thể thức',
   'meeting-minutes': 'Xử lý ghi âm cuộc họp',
+  'mol-publisher': 'MOL PDF Publisher',
   'admin-panel': 'Quản Trị Hệ Thống',
 };
 
@@ -123,6 +125,7 @@ function renderPage(page) {
     case 'vb-nd30': renderVBND30(container); break;
     case 'pdf-tool': renderPdfTool(container); break;
     case 'docx-tool': renderDocxTool(container); break;
+    case 'mol-publisher': renderMolPublisher(container); break;
     case 'spell-check': renderSpellCheck(container); break;
     case 'meeting-minutes': renderMeetingMinutes(container); break;
     case 'admin-panel':
