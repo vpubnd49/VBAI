@@ -2197,7 +2197,7 @@ export async function sendMessage(text, onChunk) {
       return guardText;
     }
     const shouldSearchWebForFreshness = shouldPreferWebSearch(rawUserText) || shouldForceContextualWebSearch(rawUserText, searchContext);
-    const shouldBypassCache = isTimeSensitive;
+    const shouldBypassCache = isTimeSensitive || useWebSearch;
     const cached = shouldBypassCache ? '' : getCachedChatAnswer(rawUserText, currentModelName, useWebSearch);
     if (cached) {
       pushTurn("user", rawUserText);

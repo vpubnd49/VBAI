@@ -350,6 +350,10 @@ function normalizeLegalSearchQuery(query = '') {
     return 'Luật Viên chức mới nhất 129/2025/QH15 thay thế 58/2010/QH12 52/2019/QH14';
   }
 
+  if (/\bluat\s*can\s*bo\s*cong\s*chuc\b/.test(n)) {
+    return 'Luật Cán bộ công chức mới nhất 80/2025/QH15 thay thế 22/2008/QH12 52/2019/QH14';
+  }
+
   return raw;
 }
 

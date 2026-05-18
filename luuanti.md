@@ -68,3 +68,16 @@ Nhanh: main
 - **Kiem tra**:
   - `node --check proxy/server.js` -> Đạt (OK)
 
+## 10) Toi uu hoa Cache Trinh duyet & Query Rewrite cho Luat Can bo Cong chuc 2025/2026
+- **Van de**:
+  - Khi người dùng hỏi lại cùng một câu hỏi trong cùng một tab, trình duyệt sẽ tự động lấy câu trả lời từ `sessionStorage` (được cache thông qua `getCachedChatAnswer`) và hiển thị ngay lập tức mà không gửi request mới lên server. Điều này khiến các cập nhật Prompt hoặc Backend không được áp dụng.
+  - Luật Cán bộ, công chức cũng có một văn bản mới tinh thay thế là **Luật Cán bộ, công chức số 80/2025/QH15** (ban hành ngày 24/06/2025 và có hiệu lực từ 01/07/2025, phần đánh giá có hiệu lực từ 01/01/2026).
+- **Giai phap**:
+  - **Bypass Cache Trinh duyet**: Cập nhật `sendMessage` tại `webapp/modules/chat-assistant.js` để tự động bypass bộ nhớ đệm trình duyệt (`shouldBypassCache = isTimeSensitive || useWebSearch;`) bất cứ khi nào tính năng "Tìm kiếm web" được kích hoạt. Điều này đảm bảo mỗi khi người dùng bật "Tìm kiếm web", chatbot luôn luôn tra cứu mới 100% từ Internet.
+  - **Query Expansion cho Luat Can bo Cong chuc**: Bổ sung trường hợp viết lại truy vấn đối với từ khóa "luật cán bộ công chức" trong `normalizeLegalSearchQuery` tại `proxy/server.js`.
+  - Chuyển đổi truy vấn thành: `'Luật Cán bộ công chức mới nhất 80/2025/QH15 thay thế 22/2008/QH12 52/2019/QH14'`.
+- **Kiem tra**:
+  - `node --check proxy/server.js` -> Đạt (OK)
+  - `node --check webapp/modules/chat-assistant.js` -> Đạt (OK)
+  - `npm run -s test:policy` (webapp) -> Đạt (Two-tier policy tests passed)
+
