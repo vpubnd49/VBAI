@@ -81,3 +81,13 @@ Nhanh: main
   - `node --check webapp/modules/chat-assistant.js` -> Đạt (OK)
   - `npm run -s test:policy` (webapp) -> Đạt (Two-tier policy tests passed)
 
+## 11) Cập nhật Logic Fallback cho Vertex AI Search
+- **Vấn đề**:
+  - Khi người dùng chọn Vertex AI Search làm công cụ tra cứu chính và sử dụng tính năng viết lại truy vấn (Query Expansion) có chứa số hiệu văn bản cũ (ví dụ: `thay thế 58/2010/QH12 52/2019/QH14`).
+  - Vertex AI Search tìm thấy các văn bản cũ này và trả về kết quả (>0 items), dẫn đến logic Fallback sang Google Search bị bỏ qua. Kết quả là chatbot chỉ thấy luật cũ và khẳng định luật cũ là hiện hành.
+- **Giải pháp**:
+  - Chỉnh sửa `normalizeLegalSearchQuery` tại `proxy/server.js` để loại bỏ các số hiệu văn bản cũ khỏi câu truy vấn mở rộng (chỉ giữ lại số hiệu văn bản mới nhất, ví dụ: `'Luật Viên chức mới nhất 129/2025/QH15'`).
+  - Khi đó, nếu Vertex AI Search chưa có văn bản mới, nó sẽ không tìm thấy kết quả nào (0 items), kích hoạt thành công logic Fallback sang Google Search để tìm kiếm văn bản mới trên Internet.
+- **Kiểm tra**:
+  - `node --check proxy/server.js` -> Đạt (OK)
+
