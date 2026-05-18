@@ -258,6 +258,23 @@ function normalizeVietnamese(text = '') {
     .replace(/\u0111/g, 'd');
 }
 
+const LEGAL_DOC_TYPE_PATTERNS = Object.freeze({
+  thong_tu_lien_tich: /\bthong\s*tu\s*lien\s*tich\b|\bthongtulientich\b|\bttlt\b/,
+  nghi_quyet: /\bnghi\s*quyet\b|\bnghiquyet\b|\bnq\b/,
+  phap_lenh: /\bphap\s*lenh\b|\bphaplenh\b|\bpl\b/,
+  nghi_dinh: /\bnghi\s*dinh\b|\bnghidinh\b|\bnd(?:-cp)?\b/,
+  thong_tu: /\bthong\s*tu\b|\bthongtu\b|\btt(?:-[a-z0-9]+)?\b/,
+  quyet_dinh: /\bquyet\s*dinh\b|\bquyetdinh\b|\bqd\b/,
+  chi_thi: /\bchi\s*thi\b|\bchithi\b|\bct\b/,
+  luat: /\bluat\b|\bbo\s*luat\b/,
+});
+
+function hasBroadComparisonIntent(text = '') {
+  const n = normalizeVietnamese(text);
+  if (!/(so sanh|doi chieu|khac nhau giua)/.test(n)) return false;
+  return /(luat|bo luat|nghi dinh|nghi quyet|thong tu|quyet dinh|phap lenh|chi thi|dieu|khoan|diem|van ban)/.test(n);
+}
+
 function isDraftRequest(text = '') {
   const t = normalizeVietnamese(text);
   return /(soan|du thao|mau van ban|quyet dinh|to trinh|thong bao|cong van|bao cao|nghi quyet|ke hoach)/.test(t);
@@ -286,7 +303,7 @@ function isTimeSensitiveQuery(text = '') {
   const t = normalizeVietnamese(text);
   const { current, next, prev } = getCurrentYearContext();
   const yearPattern = new RegExp(`nam (${current}|${next}|${prev}|202\\d|203\\d)`);
-  return /(moi nhat|cap nhat|hom nay|hieu luc|sua doi|bo sung|thay the|van ban moi|vua ban hanh|hien hanh|ngay nay)/.test(t) || yearPattern.test(t);
+  return /(moi nhat|co gi moi|diem moi|cap nhat|hom nay|hieu luc|ngay hieu luc|ban hanh ngay|ngay ban hanh|sua doi|bo sung|thay the|van ban moi|vua ban hanh|hien hanh|ngay nay)/.test(t) || yearPattern.test(t);
 }
 
 function buildFreshnessGuardMessage(query = '', reason = '') {
@@ -314,7 +331,8 @@ function shouldPreferWebSearch(text = '') {
   const t = normalizeVietnamese(text);
   if (isTimeSensitiveQuery(t)) return true;
   if (/\b\d{1,4}\/\d{4}\/[a-z0-9-]+\b/i.test(t)) return true;
-  return /(so hieu|ban hanh|hieu luc|toan van|trich|dieu\s*\d+|khoan\s*\d+|diem\s*[a-z]|uy quyen|phan cap|phan quyen|van ban nao|co ton tai khong)/.test(t);
+  if (/\b\d{1,4}\/\d{4}\b/i.test(t)) return true;
+  return /(so hieu|ban hanh|hieu luc|toan van|trich|dieu\s*\d+|khoan\s*\d+|diem\s*[a-z]|uy quyen|phan cap|phan quyen|van ban nao|co ton tai khong|huong dan|to trinh|quy dinh ve|dieu kien|trinh tu|thu tuc|xu phat|bieu mau|so sanh|doi chieu|luat|nghi dinh|thong tu|nghi quyet|quyet dinh|phap lenh|chi thi|ttlt|nq|pl|qd|ct)/.test(t);
 }
 
 function buildFreshWebSearchOptions(rawText = '') {
@@ -455,7 +473,7 @@ function shouldTreatAsFollowUpQuery(query = "") {
   const t = normalizeVietnamese(query);
   if (!t) return false;
 
-  const hasExplicitNewTopic = /(luat|nghi dinh|thong tu|quyet dinh|to trinh|thong bao|nghi quyet|bao cao|cong van|van ban|chinh sach|huong dan|ve viec)/.test(t);
+  const hasExplicitNewTopic = /(luat|bo luat|nghi dinh|thong tu|thong tu lien tich|ttlt|quyet dinh|to trinh|thong bao|nghi quyet|phap lenh|chi thi|bao cao|cong van|van ban|chinh sach|huong dan|ve viec)/.test(t);
   if (/(uy quyen|uy quyen la gi|co nghia la gi|co nghia|the nao|ra sao|noi ro|lam ro|ky hon|chi tiet hon|bo sung)/.test(t)) return true;
   if (/(cau hoi thu 2|cau thu 2|noi dung tren|y tren|van de nay|chu de nay|phan nay)/.test(t)) return true;
   if (!hasExplicitNewTopic && t.length <= 90) return true;
@@ -466,19 +484,20 @@ function normalizeLegalQuery(userMessage = '', searchContext = {}) {
   const raw = String(userMessage || '').trim();
   const normalized = normalizeVietnamese(raw);
   const comparison = parseComparisonTargets(raw);
+  const broadComparison = hasBroadComparisonIntent(raw);
   const citationIntent = hasCitationIntent(raw);
   const delegationIntent = isDelegationFocusQuery(raw);
   const updateIntent = isSubstantiveUpdateQuery(raw, searchContext);
   const detailedIntent = isDetailedLegalIntent(raw, searchContext);
 
   let intent = 'general_lookup';
-  if (comparison) intent = 'comparison';
+  if (comparison || broadComparison) intent = 'comparison';
   else if (citationIntent) intent = 'citation';
   else if (delegationIntent) intent = 'delegation_focus';
   else if (updateIntent) intent = 'substantive_update';
   else if (detailedIntent) intent = 'detailed_lookup';
-  else if (/(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong)/.test(normalized)) intent = 'effectiveness_check';
-  else if (/(moi nhat|moi nhat so bao nhieu|so bao nhieu|la so bao nhieu)/.test(normalized)) intent = 'latest_doc_lookup';
+  else if (/(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|ngay hieu luc|hieu luc tu ngay nao)/.test(normalized)) intent = 'effectiveness_check';
+  else if (/(moi nhat|co gi moi|moi nhat so bao nhieu|so bao nhieu|la so bao nhieu|ban hanh ngay nao|ngay ban hanh nao|ngay nao ban hanh)/.test(normalized)) intent = 'latest_doc_lookup';
 
   return {
     originalText: raw,
@@ -489,7 +508,7 @@ function normalizeLegalQuery(userMessage = '', searchContext = {}) {
     docNumberMatchLevel: searchContext?.docNumberMatchLevel || 'none',
     intent,
     asksForWebFreshness: isTimeSensitiveQuery(raw),
-    asksForComparison: Boolean(comparison),
+    asksForComparison: Boolean(comparison || broadComparison),
     asksForCitation: citationIntent,
     asksForDelegationFocus: delegationIntent,
     asksForDetailedAnswer: detailedIntent,
@@ -1060,11 +1079,14 @@ function extractPartialDocNumber(text = '') {
 
 function inferRequestedDocType(text = '') {
   const n = normalizeVietnamese(text);
-  if (/\bnghi\s*quyet\b/.test(n)) return 'nghi_quyet';
-  if (/\bnghi\s*dinh\b/.test(n)) return 'nghi_dinh';
-  if (/\bthong\s*tu\b/.test(n)) return 'thong_tu';
-  if (/\bquyet\s*dinh\b/.test(n)) return 'quyet_dinh';
-  if (/\bluat\b/.test(n)) return 'luat';
+  if (LEGAL_DOC_TYPE_PATTERNS.thong_tu_lien_tich.test(n)) return 'thong_tu_lien_tich';
+  if (LEGAL_DOC_TYPE_PATTERNS.nghi_quyet.test(n)) return 'nghi_quyet';
+  if (LEGAL_DOC_TYPE_PATTERNS.phap_lenh.test(n)) return 'phap_lenh';
+  if (LEGAL_DOC_TYPE_PATTERNS.nghi_dinh.test(n)) return 'nghi_dinh';
+  if (LEGAL_DOC_TYPE_PATTERNS.thong_tu.test(n)) return 'thong_tu';
+  if (LEGAL_DOC_TYPE_PATTERNS.quyet_dinh.test(n)) return 'quyet_dinh';
+  if (LEGAL_DOC_TYPE_PATTERNS.chi_thi.test(n)) return 'chi_thi';
+  if (LEGAL_DOC_TYPE_PATTERNS.luat.test(n)) return 'luat';
   return null;
 }
 
@@ -1075,7 +1097,10 @@ function buildNeedFullDocNumberMessage(rawUserText = '', requestedDocType = '', 
     nghi_dinh: 'nghị định',
     thong_tu: 'thông tư',
     nghi_quyet: 'nghị quyết',
+    thong_tu_lien_tich: 'thông tư liên tịch',
+    phap_lenh: 'pháp lệnh',
     quyet_dinh: 'quyết định',
+    chi_thi: 'chỉ thị',
   }[requestedDocType] || 'văn bản');
   const shortNo = String(partialDocNumber || '').trim();
   const hint = shortNo ? ` "${shortNo}"` : '';
@@ -1088,7 +1113,10 @@ function buildDocTypeMismatchMessage(rawUserText = '', requestedDocType = '', fu
     luat: 'Luat',
     nghi_dinh: 'Nghi dinh',
     thong_tu: 'Thong tu',
+    thong_tu_lien_tich: 'Thong tu lien tich',
+    phap_lenh: 'Phap lenh',
     nghi_quyet: 'Nghi quyet',
+    chi_thi: 'Chi thi',
     quyet_dinh: 'Quyet dinh',
   }[requestedDocType] || 'van ban');
   const docLabel = fullDocNumber ? ` co so hieu ${fullDocNumber}` : '';
@@ -1100,7 +1128,7 @@ function shouldUseStrictRejection(rawUserText = '', searchContext = {}) {
 
   // If the query is a general status query or relationship query, NEVER strictly reject it.
   // We want to let Gemini explain replacements, draft statuses, and general questions.
-  const generalStatusOrRelation = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|thay the|bai bo|co hieu luc chua|moi nhat|la gi|so sanh|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat)/.test(n);
+  const generalStatusOrRelation = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|thay the|bai bo|co hieu luc chua|moi nhat|co gi moi|la gi|so sanh|doi chieu|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat|ban hanh ngay nao|ngay nao hieu luc|quy dinh ve|trinh tu|thu tuc|bieu mau)/.test(n);
   if (generalStatusOrRelation) {
     return false;
   }
@@ -1121,7 +1149,7 @@ function shouldUseStrictRejection(rawUserText = '', searchContext = {}) {
 
 function shouldRequireFullDocNumber(query = '', searchContext = {}) {
   const n = normalizeVietnamese(query);
-  const hasStatusKeyword = /(thay the|hieu luc|con hieu luc|moi nhat)/i.test(n);
+  const hasStatusKeyword = /(thay the|hieu luc|con hieu luc|moi nhat|co gi moi|ban hanh|ngay ban hanh|ngay hieu luc)/i.test(n);
   if (hasStatusKeyword) {
     return false;
   }
@@ -1183,7 +1211,7 @@ function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
 function shouldForceContextualWebSearch(rawUserText = '', searchContext = {}) {
   if (!searchContext?.effectiveDocNumber) return false;
   const n = normalizeVietnamese(rawUserText);
-  return /(uy quyen|phan cap|phan quyen|chi tiet|noi dung|dieu\s*\d+|hieu luc|ngay ban hanh|diem moi|toan van|luat tren|van ban tren|luat nay|van ban nay|liet ke|toan bo cac dieu|toan bo dieu|cac dieu|dieu khoan|noi dung day du|nguyen van)/.test(n);
+  return /(uy quyen|phan cap|phan quyen|chi tiet|noi dung|dieu\s*\d+|hieu luc|ngay ban hanh|diem moi|co gi moi|toan van|luat tren|van ban tren|luat nay|van ban nay|liet ke|toan bo cac dieu|toan bo dieu|cac dieu|dieu khoan|noi dung day du|nguyen van|so sanh|doi chieu|quy dinh ve|dieu kien|trinh tu|thu tuc|xu phat|bieu mau)/.test(n);
 }
 
 function rememberResolvedDocNumber(searchContext = {}, text = '') {
@@ -1277,11 +1305,11 @@ function buildEvidenceResponse(rawUserText = '', searchContext = {}, searchResul
 
 function isDetailedLegalIntent(rawUserText = '', searchContext = {}) {
   const n = normalizeVietnamese(rawUserText);
-  if (parseComparisonTargets(rawUserText)) return false;
+  if (parseComparisonTargets(rawUserText) || hasBroadComparisonIntent(rawUserText)) return false;
   if (hasCitationIntent(rawUserText)) return false;
   if (/(toan van|nguyen van|chi tiet|day du noi dung|toan bo noi dung|nguyen ban)/.test(n)) return true;
   if (/(liet ke|danh sach|dan ra|ke ra|toan bo cac dieu|toan bo dieu|cac dieu|dieu khoan|chuong dieu)/.test(n)) return true;
-  if (/(neu ro|neu cu the|noi dung cu the|noi dung gi|noi dung chinh|quy dinh gi|quy dinh nhu the nao|trinh bay noi dung|mo ta noi dung)/.test(n)) return true;
+  if (/(neu ro|neu cu the|noi dung cu the|noi dung gi|noi dung chinh|quy dinh gi|quy dinh nhu the nao|trinh bay noi dung|mo ta noi dung|dieu kien|trinh tu|thu tuc|xu phat|bieu mau|huong dan)/.test(n)) return true;
   if (
     searchContext?.effectiveDocNumber
     && /(co gi moi|diem moi|noi dung moi|moi gi|thay doi gi|quy dinh moi|diem sua doi|diem bo sung)/.test(n)
@@ -1432,9 +1460,9 @@ function isSubstantiveUpdateQuery(rawUserText = '', searchContext = {}) {
   const n = normalizeVietnamese(rawUserText);
   if (!searchContext?.effectiveDocNumber) return false;
   if (hasCitationIntent(rawUserText)) return false;
-  if (parseComparisonTargets(rawUserText)) return false;
+  if (parseComparisonTargets(rawUserText) || hasBroadComparisonIntent(rawUserText)) return false;
   if (/(toan van|nguyen van|trich dan|dieu\s*\d+|khoan\s*\d+|diem\s*[a-z])/.test(n)) return false;
-  return /(co gi moi|diem moi|noi dung moi|moi gi|thay doi gi|quy dinh moi|diem sua doi|diem bo sung)/.test(n);
+  return /(co gi moi|co gi moi hay khong|diem moi|noi dung moi|moi gi|thay doi gi|quy dinh moi|diem sua doi|diem bo sung)/.test(n);
 }
 
 async function extractBroadLegalContextFromLinks(links = [], keywords = []) {
@@ -1587,7 +1615,7 @@ function sanitizeTableCell(text = '') {
 
 function parseComparisonTargets(text = '') {
   const n = normalizeVietnamese(text);
-  if (!/\bso sanh\b/.test(n)) return null;
+  if (!/(so sanh|doi chieu)/.test(n)) return null;
 
   const clausePattern = /\bkhoan\s+(\d+)\s+dieu\s+(\d+)\s+(?:voi|va|vs)\s+khoan\s+(\d+)\s+dieu\s+(\d+)\b/;
   const clauseMatch = n.match(clausePattern);
@@ -1834,13 +1862,14 @@ function inferIssuerFromText(text = '') {
 function getCanonicalLegalSourcePriority(host = '') {
   const h = String(host || '').toLowerCase().replace(/^www\./, '');
   if (!h) return 99;
-  if (h === 'quochoi.vn') return 0;
-  if (h === 'vbpl.vn') return 1;
+  if (h === 'thuvienphapluat.vn') return 0;
+  if (h === 'quochoi.vn') return 1;
   if (h === 'vanban.chinhphu.vn') return 2;
   if (h === 'congbao.chinhphu.vn') return 3;
   if (h === 'chinhphu.vn') return 4;
   if (h.endsWith('.gov.vn')) return 5;
-  if (h === 'thuvienphapluat.vn' || h === 'luatvietnam.vn') return 10;
+  if (h === 'vbpl.vn') return 6;
+  if (h === 'luatvietnam.vn') return 10;
   return 20;
 }
 
@@ -1854,8 +1883,9 @@ function getSourceTierLabelFromHost(host = '') {
     || h === 'congbao.chinhphu.vn'
     || h === 'chinhphu.vn'
     || h === 'quochoi.vn'
+    || h === 'thuvienphapluat.vn'
   ) return 'Chinh thuc';
-  if (h === 'thuvienphapluat.vn' || h === 'luatvietnam.vn' || h === 'vanbanphapluat.com') return 'Tham khao';
+  if (h === 'luatvietnam.vn' || h === 'vanbanphapluat.com') return 'Tham khao';
   return 'Khac';
 }
 
@@ -1923,8 +1953,11 @@ function buildGroundedAnswer(rawUserText = '', searchResults = '', webSearchMeta
     luat: 'Luat',
     nghi_dinh: 'Nghi dinh',
     thong_tu: 'Thong tu',
+    thong_tu_lien_tich: 'Thong tu lien tich',
     nghi_quyet: 'Nghi quyet',
+    phap_lenh: 'Phap lenh',
     quyet_dinh: 'Quyet dinh',
+    chi_thi: 'Chi thi',
   }[docTypeRaw] || 'Van ban');
   const docNo = dominantDoc || extractFirstDocNumberFromText(`${best.title} ${best.snippet} ${best.link}`);
   const issuer = inferIssuerFromText(`${best.title} ${best.snippet}`);

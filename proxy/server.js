@@ -74,13 +74,23 @@ const OFFICIAL_SOURCE_HOSTS = Object.freeze([
   'moj.gov.vn',
   'baochinhphu.vn',
   'dangcongsan.vn',
-  'xaydungchinhsach.chinhphu.vn',
+  'thuvienphapluat.vn',
 ]);
 const REFERENCE_SOURCE_HOSTS = Object.freeze([
-  'thuvienphapluat.vn',
   'luatvietnam.vn',
   'vanbanphapluat.com',
   'thanhchuong.com.vn',
+]);
+const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
+  {
+    patterns: [/bao ve bi mat nha nuoc/, /bi mat nha nuoc/],
+    documentNumber: '117/2025/QH15',
+    titleHint: 'Luật Bảo vệ bí mật nhà nước',
+    topicHint: 'bảo vệ bí mật nhà nước',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
 ]);
 
 function normalizeVietnamese(value = '') {
@@ -92,6 +102,47 @@ function normalizeVietnamese(value = '') {
     .toLowerCase();
 }
 
+function normalizeSourceHost(urlOrHost = '') {
+  const raw = String(urlOrHost || '').trim().toLowerCase().replace(/^www\./, '');
+  if (!raw) return '';
+  try {
+    return new URL(raw).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return raw;
+  }
+}
+
+function isOfficialLegalSourceHost(host = '') {
+  const h = normalizeSourceHost(host);
+  if (!h) return false;
+  if (OFFICIAL_SOURCE_HOSTS.some((official) => h === official || h.endsWith(`.${official}`))) return true;
+  return h.endsWith('.gov.vn');
+}
+
+function isReferenceLegalSourceHost(host = '') {
+  const h = normalizeSourceHost(host);
+  if (!h) return false;
+  return REFERENCE_SOURCE_HOSTS.some((reference) => h === reference || h.endsWith(`.${reference}`));
+}
+
+function buildLegalCanonicalKey({ docNumber = '', titleHint = '', issuer = '', topicHint = '', year = '' } = {}) {
+  return [docNumber, titleHint, issuer, topicHint, year]
+    .map((part) => normalizeVietnamese(String(part || '').trim()).replace(/[^a-z0-9]+/g, ' '))
+    .map((part) => part.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('|');
+}
+
+function inferLegalConsensusCandidate(query = '') {
+  const normalized = normalizeVietnamese(query);
+  for (const entry of LEGAL_TOPIC_CONSENSUS_MAP) {
+    if (entry.patterns.some((pattern) => pattern.test(normalized))) {
+      return entry;
+    }
+  }
+  return null;
+}
+
 function logLegalCrawlDebug(event = '', details = {}) {
   if (!LEGAL_CRAWL_DEBUG) return;
   try {
@@ -100,11 +151,14 @@ function logLegalCrawlDebug(event = '', details = {}) {
 }
 
 const LEGAL_DOC_TYPE_PATTERNS = Object.freeze({
+  thong_tu_lien_tich: /\bthong\s*tu\s*lien\s*tich\b|\bthongtulientich\b|\bttlt\b/,
+  phap_lenh: /\bphap\s*lenh\b|\bphaplenh\b|\bpl\b/,
+  chi_thi: /\bchi\s*thi\b|\bchithi\b|\bct\b/,
   luat: /\bluat\b/,
-  nghi_dinh: /\bnghi\s*dinh\b/,
-  thong_tu: /\bthong\s*tu\b/,
-  nghi_quyet: /\bnghi\s*quyet\b/,
-  quyet_dinh: /\bquyet\s*dinh\b/,
+  nghi_dinh: /\bnghi\s*dinh\b|\bnghidinh\b|\bnd(?:-cp)?\b/,
+  thong_tu: /\bthong\s*tu\b|\bthongtu\b|\btt(?:-[a-z0-9]+)?\b/,
+  nghi_quyet: /\bnghi\s*quyet\b|\bnghiquyet\b|\bnq\b/,
+  quyet_dinh: /\bquyet\s*dinh\b|\bquyetdinh\b|\bqd\b/,
 });
 
 function sanitizeRequestedDocType(raw = '') {
@@ -115,6 +169,9 @@ function sanitizeRequestedDocType(raw = '') {
 
 function inferRequestedDocTypeFromQuery(query = '') {
   const n = normalizeVietnamese(query);
+  if (LEGAL_DOC_TYPE_PATTERNS.thong_tu_lien_tich.test(n)) return 'thong_tu_lien_tich';
+  if (LEGAL_DOC_TYPE_PATTERNS.phap_lenh.test(n)) return 'phap_lenh';
+  if (LEGAL_DOC_TYPE_PATTERNS.chi_thi.test(n)) return 'chi_thi';
   if (LEGAL_DOC_TYPE_PATTERNS.nghi_quyet.test(n)) return 'nghi_quyet';
   if (LEGAL_DOC_TYPE_PATTERNS.nghi_dinh.test(n)) return 'nghi_dinh';
   if (LEGAL_DOC_TYPE_PATTERNS.thong_tu.test(n)) return 'thong_tu';
@@ -125,6 +182,9 @@ function inferRequestedDocTypeFromQuery(query = '') {
 
 function inferDocTypeFromText(text = '') {
   const n = normalizeVietnamese(text);
+  if (LEGAL_DOC_TYPE_PATTERNS.thong_tu_lien_tich.test(n)) return 'thong_tu_lien_tich';
+  if (LEGAL_DOC_TYPE_PATTERNS.phap_lenh.test(n)) return 'phap_lenh';
+  if (LEGAL_DOC_TYPE_PATTERNS.chi_thi.test(n)) return 'chi_thi';
   if (LEGAL_DOC_TYPE_PATTERNS.nghi_quyet.test(n)) return 'nghi_quyet';
   if (LEGAL_DOC_TYPE_PATTERNS.nghi_dinh.test(n)) return 'nghi_dinh';
   if (LEGAL_DOC_TYPE_PATTERNS.thong_tu.test(n)) return 'thong_tu';
@@ -273,6 +333,20 @@ function resolveKnownLegalDocument(query = '') {
   const normalized = normalizeVietnamese(raw);
   if (!raw) return null;
 
+  const consensus = inferLegalConsensusCandidate(raw);
+  if (consensus) {
+    return {
+      canonicalQuery: `${consensus.titleHint} ${consensus.documentNumber}`.trim(),
+      documentNumber: consensus.documentNumber,
+      titleHint: consensus.titleHint,
+      topicHint: consensus.topicHint,
+      issuer: consensus.issuer || '',
+      confidence: consensus.confidence || 'high',
+      requestedDocType: consensus.requestedDocType || null,
+      canonicalKey: buildLegalCanonicalKey(consensus),
+    };
+  }
+
   if (/\bnghi\s*dinh\s*100\b/.test(normalized)) {
     return {
       canonicalQuery: 'Nghị định 100/2019/NĐ-CP',
@@ -280,6 +354,11 @@ function resolveKnownLegalDocument(query = '') {
       titleHint: 'Nghị định 100/2019/NĐ-CP',
       topicHint: 'xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt',
       confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '100/2019/NĐ-CP',
+        titleHint: 'Nghị định 100/2019/NĐ-CP',
+        topicHint: 'xử phạt vi phạm hành chính trong lĩnh vực giao thông đường bộ và đường sắt',
+      }),
     };
   }
 
@@ -290,6 +369,11 @@ function resolveKnownLegalDocument(query = '') {
       titleHint: 'Luật An ninh mạng',
       topicHint: 'an ninh mạng',
       confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '24/2018/QH14',
+        titleHint: 'Luật An ninh mạng',
+        topicHint: 'an ninh mạng',
+      }),
     };
   }
 
@@ -300,6 +384,11 @@ function resolveKnownLegalDocument(query = '') {
       titleHint: 'Nghị định 168/2024/NĐ-CP',
       topicHint: 'xử phạt vi phạm giao thông đường bộ',
       confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '168/2024/NĐ-CP',
+        titleHint: 'Nghị định 168/2024/NĐ-CP',
+        topicHint: 'xử phạt vi phạm giao thông đường bộ',
+      }),
     };
   }
 
@@ -310,10 +399,13 @@ function buildKnownDocumentOfficialQueries(knownDocument = null) {
   const docNumber = String(knownDocument?.documentNumber || '').trim().toUpperCase();
   if (!docNumber) return [];
   const titleHint = String(knownDocument?.titleHint || knownDocument?.canonicalQuery || '').trim();
+  const topicHint = String(knownDocument?.topicHint || '').trim();
 
   return dedupeStringList([
     `"${docNumber}"`,
     titleHint && `"${titleHint}" "${docNumber}"`,
+    topicHint && `"${topicHint}" "${docNumber}"`,
+    titleHint && topicHint && `"${titleHint}" "${topicHint}"`,
     `site:vanban.chinhphu.vn "${docNumber}"`,
     `site:vbpl.vn "${docNumber}"`,
     `site:quochoi.vn "${docNumber}"`,
@@ -338,7 +430,10 @@ function buildLegalSearchQueries({
     nghi_dinh: 'Nghị định',
     thong_tu: 'Thông tư',
     nghi_quyet: 'Nghị quyết',
-    quyet_dinh: 'Quyết định',
+    quyet_dinh: 'Quyet dinh',
+    thong_tu_lien_tich: 'Thong tu lien tich',
+    phap_lenh: 'Phap lenh',
+    chi_thi: 'Chi thi',
   }[requestedDocType] || '').trim();
 
   const primaryQueries = dedupeStringList([
@@ -354,20 +449,26 @@ function buildLegalSearchQueries({
   ]);
 
   const officialSiteQueries = dedupeStringList([
-    isTimeSensitive && docNumber ? `("thay thế" OR "hiệu lực" OR "dự thảo") "${docNumber}" site:xaydungchinhsach.chinhphu.vn OR site:vbpl.vn` : '',
-    isTimeSensitive && docNumber ? `site:xaydungchinhsach.chinhphu.vn "${docNumber}"` : '',
+    isTimeSensitive && docNumber ? `("thay thế" OR "hiệu lực" OR "dự thảo") "${docNumber}" site:thuvienphapluat.vn OR site:vbpl.vn` : '',
+    isTimeSensitive && docNumber ? `site:thuvienphapluat.vn "${docNumber}"` : '',
     docNumber ? `"${docNumber}" site:vanban.chinhphu.vn` : '',
     docNumber ? `"${docNumber}" site:vbpl.vn` : '',
+    docNumber ? `"${docNumber}" site:quochoi.vn` : '',
+    docNumber ? `"${docNumber}" site:congbao.chinhphu.vn` : '',
     titleHint ? `"${titleHint}" site:vanban.chinhphu.vn` : '',
     titleHint ? `"${titleHint}" site:vbpl.vn` : '',
     titleHint ? `"${titleHint}" site:quochoi.vn` : '',
+    titleHint ? `"${titleHint}" site:congbao.chinhphu.vn` : '',
     docTypeLabel && topicHint ? `${docTypeLabel} ${topicHint} site:vbpl.vn` : '',
+    docTypeLabel && topicHint ? `${docTypeLabel} ${topicHint} site:quochoi.vn` : '',
+    docTypeLabel && topicHint ? `${docTypeLabel} ${topicHint} site:congbao.chinhphu.vn` : '',
   ]);
 
   const broadQueries = dedupeStringList([
     canonicalQuery && !/\bmoi nhat\b/i.test(canonicalQuery) ? `${canonicalQuery} mới nhất` : '',
     normalizedQuery,
     titleHint,
+    topicHint,
     originalQuery,
     isTimeSensitive && docNumber ? `${docNumber} hiện hành` : '',
   ]);
@@ -840,6 +941,65 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
   } catch (err) {
     console.error('POST /api/admin/validate-gemini-key error:', err);
     return res.status(500).json({ valid: false, error: 'Internal server error', message: err.message });
+  }
+});
+
+// POST: Admin trigger Vertex AI Search document ingestion (Sync)
+app.post('/api/admin/ingest-vertex', async (req, res) => {
+  try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!isAdmin(decoded)) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
+    }
+
+    const snap = await getSystemConfigRef().get();
+    const config = snap.exists ? snap.data() || {} : {};
+
+    const projectId = String(req.body?.vertex_project_id || config.vertex_project_id || 'gen-lang-client-0462350485').trim();
+    const location = String(req.body?.vertex_location || config.vertex_location || 'global').trim();
+    const dataStoreId = String(req.body?.vertex_data_store_id || config.vertex_data_store_id || 'vbai-legal-unstructured').trim();
+    const bucketName = String(req.body?.bucket_name || 'vbai-legal-documents-0462350485').trim();
+
+    const collection = 'default_collection';
+    const importEndpoint = `https://discoveryengine.googleapis.com/v1beta/projects/${projectId}/locations/${location}/collections/${collection}/dataStores/${dataStoreId}/branches/0/documents:import`;
+    
+    const importBody = {
+      gcsSource: {
+        inputUris: [`gs://${bucketName}/metadata.jsonl`],
+        dataSchema: 'document'
+      },
+      reconciliationMode: 'INCREMENTAL'
+    };
+
+    const accessToken = await getGoogleAccessToken();
+    const importResponse = await fetch(importEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(importBody),
+    });
+
+    const importResult = await importResponse.json();
+    if (!importResponse.ok) {
+      return res.status(importResponse.status || 500).json({
+        success: false,
+        error: 'Ingestion failed',
+        message: importResult.error?.message || JSON.stringify(importResult),
+      });
+    }
+
+    console.info(`[AUDIT] Vertex Ingestion triggered by admin: ${decoded.email || decoded.uid}, Operation: ${importResult.name}`);
+    return res.json({
+      success: true,
+      message: 'Đã kích hoạt tiến trình đồng bộ tài liệu từ Storage vào Chatbot thành công!',
+      operation_id: importResult.name || null,
+    });
+  } catch (err) {
+    console.error('POST /api/admin/ingest-vertex error:', err);
+    return res.status(500).json({ success: false, error: 'Internal server error', message: err.message });
   }
 });
 
@@ -1433,7 +1593,7 @@ app.post('/api/web-search', async (req, res) => {
       expectedDocNumber: normalizedExpectedDocNumber,
       partialDocNumber: normalizedPartialDocNumber,
     });
-    const isStatusOrRelationQuery = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|thay the|bai bo|co hieu luc chua|moi nhat|la gi|so sanh|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat|cho biet|huong dan|co dac diem|quy dinh ve)/i.test(normalizeVietnamese(query));
+    const isStatusOrRelationQuery = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|ngay hieu luc|ban hanh ngay nao|thay the|bai bo|co hieu luc chua|moi nhat|co gi moi|la gi|so sanh|doi chieu|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat|cho biet|huong dan|co dac diem|quy dinh ve|dieu kien|trinh tu|thu tuc|xu phat|bieu mau)/i.test(normalizeVietnamese(query));
     const strictPartialReject = requestDocMatchLevel === 'partial'
       && !!effectiveRequestedDocType
       && !normalizedExpectedDocNumber
@@ -1490,6 +1650,7 @@ app.post('/api/web-search', async (req, res) => {
           expectedDocNumber: normalizedExpectedDocNumber,
           partialDocNumber: normalizedPartialDocNumber,
           requestedDocType: effectiveRequestedDocType,
+          knownDocument,
         });
         const finalHotItems = validation.ok ? validation.approvedItems : [];
         const hotIndexStrongEnough = validation.ok === true
@@ -1526,6 +1687,7 @@ app.post('/api/web-search', async (req, res) => {
                 matchBreakdown: validation.matchBreakdown,
                 sourceTierSummary: validation.sourceTierSummary,
                 bestAlternative: validation.bestAlternative,
+                consensusConflict: validation.consensusConflict,
                 cacheHit: false,
                 servedInMs: Date.now() - requestStartMs,
               }),
@@ -1561,11 +1723,10 @@ app.post('/api/web-search', async (req, res) => {
       'site:dangcongsan.vn',
       'site:moj.gov.vn',
       'site:baochinhphu.vn',
-      'site:xaydungchinhsach.chinhphu.vn',
+      'site:thuvienphapluat.vn',
     ].join(' OR ');
 
     const trustedReferenceClause = [
-      'site:thuvienphapluat.vn',
       'site:luatvietnam.vn',
       'site:thanhchuong.com.vn',
       'site:vanbanphapluat.com',
@@ -1574,7 +1735,7 @@ app.post('/api/web-search', async (req, res) => {
     // Refine query for legal/policy documents to ensure latest data is fetched
     let refinedQuery = searchQuery;
     const normQuery = normalizeVietnamese(searchQuery);
-    const isLegal = /(luat|nghi dinh|thong tu|quyet dinh|quy dinh|van ban|chinh sach|huong dan|tien luong|huu tri|bao hiem|thue|dat dai|xay dung|dau thau|doanh nghiep|can bo|cong chuc)/.test(normQuery);
+    const isLegal = /(luat|bo luat|nghi dinh|thong tu|thong tu lien tich|ttlt|nghi quyet|quyet dinh|phap lenh|chi thi|quy dinh|van ban|chinh sach|huong dan|to trinh|tien luong|huu tri|bao hiem|thue|dat dai|xay dung|dau thau|doanh nghiep|can bo|cong chuc|dieu kien|trinh tu|thu tuc|xu phat|bieu mau|so sanh|doi chieu)/.test(normQuery);
     const { current, next } = getCurrentYearContext();
     const hasSpecificYear = /\b(199\d|20[0-3]\d)\b/.test(normQuery);
 
@@ -1640,6 +1801,7 @@ app.post('/api/web-search', async (req, res) => {
         expectedDocNumber: normalizedExpectedDocNumber || knownDocument?.documentNumber || null,
         partialDocNumber: normalizedPartialDocNumber,
         requestedDocType: effectiveRequestedDocType,
+        knownDocument,
       });
       const typedItems = filterItemsByRequestedDocType(items, effectiveRequestedDocType);
       const knownDocumentOfficialCandidateItems = strategy === 'known_document_official_lookup'
@@ -1694,6 +1856,7 @@ app.post('/api/web-search', async (req, res) => {
         matchBreakdown: validation.matchBreakdown,
         sourceTierSummary: validation.sourceTierSummary,
         bestAlternative: validation.bestAlternative,
+        consensusConflict: validation.consensusConflict,
         answerMode,
         cacheHit: false,
         servedInMs: Date.now() - requestStartMs,
@@ -1755,6 +1918,7 @@ app.post('/api/web-search', async (req, res) => {
         dateRestrict,
         cseConfig,
         vertexConfig,
+        expectedDocNumber: normalizedExpectedDocNumber, // THÊM DÒNG NÀY
       });
     };
 
@@ -1773,8 +1937,8 @@ app.post('/api/web-search', async (req, res) => {
       if (isTimeSensitive) {
         // Intercept time-sensitive queries to query for status changes/replacements of the known document
         exactQueries = [
-          `("thay thế" OR "hiệu lực" OR "dự thảo") "${docNumber}" site:xaydungchinhsach.chinhphu.vn OR site:vbpl.vn`,
-          `site:xaydungchinhsach.chinhphu.vn "${docNumber}"`,
+          `("thay thế" OR "hiệu lực" OR "dự thảo") "${docNumber}" site:thuvienphapluat.vn OR site:vbpl.vn`,
+          `site:thuvienphapluat.vn "${docNumber}"`,
           `"thay thế" "${docNumber}"`,
           `"hết hiệu lực" "${docNumber}"`,
           `"bãi bỏ" "${docNumber}"`,
@@ -2240,7 +2404,6 @@ function buildTrustedLegalSourceContext({
     'congbao.chinhphu.vn',
     'vbpl.vn',
     'quochoi.vn',
-    'xaydungchinhsach.chinhphu.vn',
     'thuvienphapluat.vn',
     'luatvietnam.vn',
   ];
@@ -2636,8 +2799,8 @@ function shouldApplyOfficialDomainClause({
   const normalizedExpectedDocNumber = String(expectedDocNumber || '').trim().toUpperCase();
   const normalizedRequestedDocType = sanitizeRequestedDocType(requestedDocType) || inferRequestedDocTypeFromQuery(query);
   const hasDocNumber = Boolean(normalizedExpectedDocNumber || /\b\d{1,4}\/\d{4}\/[a-z0-9-]+\b/i.test(String(query || '')));
-  const hasDocType = Boolean(normalizedRequestedDocType || /\b(luat|bo luat|nghi dinh|nghi quyet|thong tu|quyet dinh|van ban)\b/.test(normalizedQuery));
-  const hasStatusSignal = /(moi nhat|hien hanh|hieu luc|sua doi|bo sung|co gi moi|diem moi|noi dung moi|thay doi gi|quy dinh moi)/.test(normalizedQuery);
+  const hasDocType = Boolean(normalizedRequestedDocType || /\b(luat|bo luat|nghi dinh|nghi quyet|thong tu|thong tu lien tich|ttlt|quyet dinh|phap lenh|chi thi|van ban)\b/.test(normalizedQuery));
+  const hasStatusSignal = /(moi nhat|hien hanh|hieu luc|ngay hieu luc|ban hanh ngay|sua doi|bo sung|co gi moi|diem moi|noi dung moi|thay doi gi|quy dinh moi)/.test(normalizedQuery);
   const tooBroad = /(tu van|hoi dap|giai dap|thu tuc|quy trinh|mau don|kinh nghiem)/.test(normalizedQuery)
     && !hasDocNumber
     && !hasStatusSignal;
@@ -2696,7 +2859,7 @@ function parseUserQueryConstraints({
 
   const stripped = normalizeVietnamese(text)
     .replace(/\b\d{1,4}\/\d{4}(?:\/[a-z0-9-]+)?\b/g, ' ')
-    .replace(/\b(luat|nghi dinh|thong tu|nghi quyet|quyet dinh|cong van|so|hieu|nam|ban hanh|hieu luc)\b/g, ' ')
+    .replace(/\b(luat|bo luat|nghi dinh|thong tu|thong tu lien tich|nghi quyet|quyet dinh|phap lenh|chi thi|cong van|to trinh|so|hieu|nam|ban hanh|hieu luc)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
   const titleTerms = tokenizeText(stripped).filter((token) => token.length >= 3).slice(0, 12);
@@ -2732,6 +2895,7 @@ function normalizeCandidateMetadata(item = {}) {
   const soHieu = String(crawled.so_hieu || '').trim().toUpperCase() || extractFirstDocNumber(hay);
   const issuer = String(crawled.co_quan_ban_hanh || '').trim() || inferIssuerFromText(hay);
   const sourceTier = detectSourceTier({ link, source: item?.source });
+  const year = String(crawled.nam_ban_hanh || '').trim() || extractYearFromText(soHieu || hay);
 
   return {
     loai_van_ban: String(crawled.loai_van_ban || '').trim() || inferDocTypeFromText(hay),
@@ -2741,10 +2905,17 @@ function normalizeCandidateMetadata(item = {}) {
     co_quan_ban_hanh: issuer || '',
     trich_yeu_hoac_ten_van_ban: String(crawled.trich_yeu_hoac_ten_van_ban || '').trim() || title || '',
     tinh_trang_hieu_luc: String(crawled.tinh_trang_hieu_luc || '').trim(),
-    nam_ban_hanh: extractYearFromText(String(crawled.nam_ban_hanh || '').trim() || soHieu || hay),
+    nam_ban_hanh: year,
     nguon: String(crawled.nguon || '').trim() || toHost(link) || String(item?.source || '').trim().toLowerCase(),
     is_official_source: sourceTier === 'official',
     source_tier: sourceTier,
+    host: toHost(link) || String(item?.source || '').trim().toLowerCase(),
+    canonical_key: buildLegalCanonicalKey({
+      docNumber: soHieu,
+      titleHint: String(crawled.trich_yeu_hoac_ten_van_ban || '').trim() || title || '',
+      issuer,
+      year,
+    }),
   };
 }
 
@@ -2771,16 +2942,29 @@ function validateLegalDocumentMatch({
   expectedDocNumber = null,
   partialDocNumber = null,
   requestedDocType = null,
+  knownDocument = null,
 } = {}) {
   const constraints = parseUserQueryConstraints({
     query,
-    expectedDocNumber,
+    expectedDocNumber: expectedDocNumber || knownDocument?.documentNumber || null,
     partialDocNumber,
-    requestedDocType,
+    requestedDocType: requestedDocType || knownDocument?.requestedDocType || null,
   });
   const originalItems = Array.isArray(items) ? items : [];
   const generalLegalQuery = isGeneralLegalQuery(constraints);
   const normalized = originalItems.map((item) => ({ item, metadata: normalizeCandidateMetadata(item) }));
+  const canonicalDocNumber = String(knownDocument?.documentNumber || constraints.fullDocNumber || '').trim().toUpperCase();
+  const canonicalTitle = String(knownDocument?.titleHint || knownDocument?.canonicalQuery || '').trim();
+  const canonicalIssuer = String(knownDocument?.issuer || '').trim();
+  const canonicalTopic = String(knownDocument?.topicHint || '').trim();
+  const canonicalYear = String(knownDocument?.year || '').trim();
+  const canonicalKey = buildLegalCanonicalKey({
+    docNumber: canonicalDocNumber,
+    titleHint: canonicalTitle,
+    issuer: canonicalIssuer,
+    topicHint: canonicalTopic,
+    year: canonicalYear,
+  });
   const sourceTierSummaryRaw = normalized.reduce((acc, entry) => {
     if (entry.metadata.source_tier === 'official') acc.official += 1;
     else if (entry.metadata.source_tier === 'reference') acc.reference += 1;
@@ -2788,7 +2972,7 @@ function validateLegalDocumentMatch({
     return acc;
   }, { official: 0, reference: 0, unknown: 0 });
 
-  const isStatusOrRelationQuery = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|thay the|bai bo|co hieu luc chua|moi nhat|la gi|so sanh|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat|cho biet|huong dan|co dac diem|quy dinh ve)/i.test(normalizeVietnamese(query));
+  const isStatusOrRelationQuery = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|ngay hieu luc|ban hanh ngay nao|thay the|bai bo|co hieu luc chua|moi nhat|co gi moi|la gi|so sanh|doi chieu|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat|cho biet|huong dan|co dac diem|quy dinh ve|dieu kien|trinh tu|thu tuc|xu phat|bieu mau)/i.test(normalizeVietnamese(query));
   if (constraints.docNumberMatchLevel === 'partial' && constraints.requestedDocType && !constraints.fullDocNumber && !isStatusOrRelationQuery) {
     return {
       ok: false,
@@ -2826,7 +3010,7 @@ function validateLegalDocumentMatch({
   }
 
   const isContentOrAnalysisQuery = isStatusOrRelationQuery
-    || /(uy quyen|phan cap|phan quyen|chi tiet|huong dan|so sanh|phan tich|diem moi|noi dung)/i.test(normalizeVietnamese(query));
+    || /(uy quyen|phan cap|phan quyen|chi tiet|huong dan|so sanh|doi chieu|phan tich|diem moi|co gi moi|noi dung|dieu kien|trinh tu|thu tuc|xu phat|bieu mau|to trinh)/i.test(normalizeVietnamese(query));
   const isLatestLookupQuery = /(moi nhat|hien hanh|so bao nhieu|la so bao nhieu)/i.test(normalizeVietnamese(query));
   const isDraftEntry = (entry) => /(du thao|xin y kien|lay y kien)/.test(normalizeVietnamese(`${entry?.item?.title || ''} ${entry?.item?.snippet || ''} ${entry?.metadata?.trich_yeu_hoac_ten_van_ban || ''}`));
 
@@ -2839,7 +3023,7 @@ function validateLegalDocumentMatch({
   const scoringPool = filteredPreferredPool.length > 0 ? filteredPreferredPool : preferredPool;
 
   const scored = scoringPool.map((entry) => {
-    const breakdown = { doc_type: 0, doc_number: 0, title: 0, issuer: 0, date: 0 };
+    const breakdown = { doc_type: 0, doc_number: 0, title: 0, issuer: 0, date: 0, consensus: 0 };
 
     if (constraints.requestedDocType && entry.metadata.loai_van_ban === constraints.requestedDocType) {
       breakdown.doc_type = 20;
@@ -2865,7 +3049,31 @@ function validateLegalDocumentMatch({
       breakdown.date = 10;
     }
 
-    const score = breakdown.doc_type + breakdown.doc_number + breakdown.title + breakdown.issuer + breakdown.date + (entry.metadata.is_official_source ? 25 : 0);
+    if (canonicalDocNumber && entry.metadata.so_hieu && entry.metadata.so_hieu === canonicalDocNumber) {
+      breakdown.consensus += 30;
+    }
+    if (canonicalTitle && normalizeVietnamese(entry.metadata.trich_yeu_hoac_ten_van_ban || '').includes(normalizeVietnamese(canonicalTitle))) {
+      breakdown.consensus += 18;
+    }
+    if (canonicalIssuer && normalizeVietnamese(entry.metadata.co_quan_ban_hanh || '') === normalizeVietnamese(canonicalIssuer)) {
+      breakdown.consensus += 10;
+    }
+    if (canonicalTopic && normalizeVietnamese(`${entry.metadata.trich_yeu_hoac_ten_van_ban || ''} ${entry.item?.snippet || ''}`).includes(normalizeVietnamese(canonicalTopic))) {
+      breakdown.consensus += 10;
+    }
+    if (canonicalKey && entry.metadata.canonical_key && entry.metadata.canonical_key === canonicalKey) {
+      breakdown.consensus += 16;
+    }
+
+    const sourcePriority = entry.metadata.is_official_source ? 30 : (entry.metadata.source_tier === 'reference' ? 10 : 0);
+    const completenessBonus = [
+      entry.metadata.loai_van_ban,
+      entry.metadata.so_hieu,
+      entry.metadata.nam_ban_hanh,
+      entry.metadata.co_quan_ban_hanh,
+      entry.metadata.trich_yeu_hoac_ten_van_ban,
+    ].filter(Boolean).length * 3;
+    const score = breakdown.doc_type + breakdown.doc_number + breakdown.title + breakdown.issuer + breakdown.date + breakdown.consensus + sourcePriority + completenessBonus;
     const confidence = Math.max(0, Math.min(1, score / 100));
     const metadataComplete = Boolean(
       entry.metadata.loai_van_ban
@@ -2881,6 +3089,7 @@ function validateLegalDocumentMatch({
       score,
       confidence,
       metadataComplete,
+      canonicalMatch: Boolean(canonicalKey) && entry.metadata.canonical_key === canonicalKey,
     };
   }).sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
@@ -2892,6 +3101,18 @@ function validateLegalDocumentMatch({
   });
 
   const best = scored[0] || null;
+  const officialScored = scored.filter((entry) => entry.metadata.is_official_source);
+  const officialBest = officialScored[0] || null;
+  const consensusWinner = officialScored.find((entry) => entry.canonicalMatch === true)
+    || scored.find((entry) => entry.canonicalMatch === true)
+    || officialBest
+    || best;
+  const consensusConflict = Boolean(
+    officialBest
+    && best
+    && officialBest.canonicalMatch !== best.canonicalMatch
+    && officialBest.score !== best.score
+  );
   const bestAlternative = best ? {
     so_hieu: best.metadata.so_hieu || null,
     loai_van_ban: best.metadata.loai_van_ban || null,
@@ -2913,6 +3134,7 @@ function validateLegalDocumentMatch({
       typeMatch,
       approvedItems: [],
       bestAlternative: null,
+      consensusConflict,
     };
   }
 
@@ -2920,15 +3142,16 @@ function validateLegalDocumentMatch({
     return {
       ok: true,
       strictRejectReason: null,
-      confidence: best.confidence,
-      matchScore: best.score,
-      matchBreakdown: best.breakdown,
+      confidence: consensusWinner.confidence,
+      matchScore: consensusWinner.score,
+      matchBreakdown: consensusWinner.breakdown,
       sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
       requestedDocType: constraints.requestedDocType,
       docNumberMatchLevel: constraints.docNumberMatchLevel,
       typeMatch,
-      approvedItems: [best.item],
+      approvedItems: [consensusWinner.item],
       bestAlternative,
+      consensusConflict,
     };
   }
 
@@ -2945,6 +3168,7 @@ function validateLegalDocumentMatch({
       typeMatch,
       approvedItems: [],
       bestAlternative,
+      consensusConflict,
     };
   }
 
@@ -2961,6 +3185,7 @@ function validateLegalDocumentMatch({
       typeMatch,
       approvedItems: [],
       bestAlternative,
+      consensusConflict,
     };
   }
 
@@ -2977,26 +3202,38 @@ function validateLegalDocumentMatch({
       typeMatch,
       approvedItems: [],
       bestAlternative,
+      consensusConflict,
     };
   }
 
-  return {
-    ok: true,
-    strictRejectReason: null,
-    confidence: best.confidence,
-    matchScore: best.score,
-    matchBreakdown: best.breakdown,
-    sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
-    requestedDocType: constraints.requestedDocType,
-    docNumberMatchLevel: constraints.docNumberMatchLevel,
-    typeMatch,
-    approvedItems: [best.item],
-    bestAlternative,
-  };
-}
+    return {
+      ok: true,
+      strictRejectReason: null,
+      confidence: consensusWinner.confidence,
+      matchScore: consensusWinner.score,
+      matchBreakdown: consensusWinner.breakdown,
+      sourceTierSummary: { official_count: sourceTierSummaryRaw.official, reference_count: sourceTierSummaryRaw.reference },
+      requestedDocType: constraints.requestedDocType,
+      docNumberMatchLevel: constraints.docNumberMatchLevel,
+      typeMatch,
+      approvedItems: [consensusWinner.item],
+      bestAlternative,
+      consensusConflict,
+    };
+  }
 
 function formatSearchResults(items = []) {
-  const orderedItems = (items || [])
+  const deduped = [];
+  const seen = new Set();
+  for (const item of (Array.isArray(items) ? items : [])) {
+    const link = String(item?.link || '').trim();
+    const key = link || `${String(item?.title || '').trim()}|${String(item?.snippet || '').trim()}`;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+  }
+
+  const orderedItems = deduped
     .slice(0, 15)
     .sort((a, b) => {
       const aOfficial = detectSourceTier({ link: a?.link, source: a?.source }) === 'official';
@@ -3062,6 +3299,7 @@ function buildWebSearchMeta({
   sourceTierSummary = null,
   bestAlternative = null,
   answerMode = null,
+  consensusConflict = false,
   cacheHit = false,
   servedInMs = null,
   effectiveStatus = null,
@@ -3111,6 +3349,7 @@ function buildWebSearchMeta({
       }
       : null,
     answer_mode: answerMode ? String(answerMode) : null,
+    consensus_conflict: consensusConflict === true,
     sources_used: collectSourcesUsed(items),
     top_sources: sourceAudit.topSources,
     top_source_tiers: sourceAudit.topSourceTiers,
@@ -3851,17 +4090,29 @@ function normalizeVertexSearchItems(rawItems = []) {
       const struct = doc?.structData || {};
       const title = String(derived?.title || struct?.title || doc?.id || '').trim();
       const link = String(derived?.link || struct?.link || '').trim();
-      const snippets = Array.isArray(derived?.snippets) ? derived.snippets : [];
-      const snippet = snippets
-        .map((s) => String(s?.snippet || '').trim())
+      
+      // THÊM MỚI: Ưu tiên lấy extractiveSegments (đoạn văn bản nguyên vẹn, đủ ngữ cảnh)
+      const segments = Array.isArray(derived?.extractiveSegments) ? derived.extractiveSegments : [];
+      let snippet = segments
+        .map((s) => String(s?.content || '').trim())
         .filter(Boolean)
-        .join(' ')
+        .join('\n\n')
         .trim();
+
+      // Fallback về snippet ngắn nếu không có segment
+      if (!snippet) {
+        const snippets = Array.isArray(derived?.snippets) ? derived.snippets : [];
+        snippet = snippets
+          .map((s) => String(s?.snippet || '').trim())
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+      }
 
       return {
         title,
         link,
-        snippet,
+        snippet, // Lúc này snippet đã chứa nội dung rất dài và đầy đủ
         displayLink: '',
         source: 'vertex_search',
       };
@@ -3869,7 +4120,7 @@ function normalizeVertexSearchItems(rawItems = []) {
     .filter((item) => item.title || item.link || item.snippet);
 }
 
-async function executeVertexSearch({ query, timeoutMs, vertexConfig }) {
+async function executeVertexSearch({ query, timeoutMs, vertexConfig, expectedDocNumber }) {
   if (!vertexConfig || !vertexConfig.configured) {
     return {
       items: [],
@@ -3881,6 +4132,7 @@ async function executeVertexSearch({ query, timeoutMs, vertexConfig }) {
   const accessToken = await getGoogleAccessToken();
   const servingConfig = String(vertexConfig.servingConfig || '').trim();
   const endpoint = `https://discoveryengine.googleapis.com/v1/${servingConfig}:search`;
+  
   const body = {
     query,
     pageSize: 10,
@@ -3888,8 +4140,20 @@ async function executeVertexSearch({ query, timeoutMs, vertexConfig }) {
     spellCorrectionSpec: { mode: 'AUTO' },
     contentSearchSpec: {
       snippetSpec: { returnSnippet: true },
+      // THÊM MỚI: Yêu cầu Vertex trả về đoạn nội dung dài (Extractive Segments)
+      extractiveContentSpec: {
+        maxExtractiveAnswerCount: 1,
+        maxExtractiveSegmentCount: 1,
+        returnExtractiveSegmentScore: true
+      }
     },
   };
+
+  // THÊM MỚI: Truyền bộ lọc metadata để Vertex tìm chính xác số hiệu văn bản
+  if (expectedDocNumber) {
+    // Lưu ý: Đảm bảo Data Store của bạn có trường metadata là 'so_hieu'
+    body.filter = `so_hieu = "${expectedDocNumber}"`; 
+  }
 
   const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
@@ -3946,8 +4210,8 @@ async function executeCseSearch({ query, timeoutMs, dateRestrict, cseConfig, exp
     expectedDocNumber: expectedDocNumber,
     requestedDocType: requestedDocType,
   });
-  if (appliesOfficialDomain && !/site:vbpl\.vn|site:vanban\.chinhphu\.vn|site:congbao\.chinhphu\.vn|site:chinhphu\.vn|site:quochoi\.vn/.test(rewrittenQuery)) {
-    const officialDomains = '(site:vbpl.vn OR site:vanban.chinhphu.vn OR site:congbao.chinhphu.vn OR site:chinhphu.vn OR site:quochoi.vn)';
+  if (appliesOfficialDomain && !/site:vbpl\.vn|site:vanban\.chinhphu\.vn|site:congbao\.chinhphu\.vn|site:chinhphu\.vn|site:quochoi\.vn|site:thuvienphapluat\.vn/.test(rewrittenQuery)) {
+    const officialDomains = '(site:vbpl.vn OR site:vanban.chinhphu.vn OR site:congbao.chinhphu.vn OR site:chinhphu.vn OR site:quochoi.vn OR site:thuvienphapluat.vn)';
     rewrittenQuery = `${rewrittenQuery} ${officialDomains}`;
   }
 
@@ -4019,12 +4283,14 @@ async function executeWebProviderSearch({
   dateRestrict,
   cseConfig,
   vertexConfig,
+  expectedDocNumber, // Thêm tham số này
 }) {
   if (provider === 'vertex_search') {
     const vertexResult = await executeVertexSearch({
       query,
       timeoutMs,
       vertexConfig,
+      expectedDocNumber, // Truyền xuống Vertex
     });
     return {
       items: vertexResult.items || [],
@@ -4217,7 +4483,7 @@ function sanitizeWebSearchMode(raw = '') {
 // Time-sensitive query detection for force fresh retrieval
 function isTimeSensitiveQuery(query = '') {
   const n = normalizeVietnamese(query);
-  return /(moi nhat|hien hanh|hieu luc|sua doi|bo sung|thay the|bai bo|cap nhat|hom nay|hien tai|ngay nay|ngay hom nay|ngay thang)/.test(n);
+  return /(moi nhat|co gi moi|diem moi|hien hanh|hieu luc|ngay hieu luc|ban hanh ngay|ngay ban hanh|sua doi|bo sung|thay the|bai bo|cap nhat|hom nay|hien tai|ngay nay|ngay hom nay|ngay thang)/.test(n);
 }
 
 // Query mode detection for legal queries
@@ -4228,11 +4494,11 @@ function detectQueryMode(query, docNumberMatchLevel, hasDocType) {
     return 'strict_legal';
   }
 
-  if (/(co ton tai|da ban hanh|so hieu)/.test(n)) {
+  if (/(co ton tai|da ban hanh|so hieu|ban hanh ngay nao|ngay hieu luc|hieu luc tu ngay nao)/.test(n)) {
     return 'evidence_only';
   }
 
-  if (/(luat|nghi dinh|thong tu|quyet dinh|van ban|moi nhat|hien hanh)/.test(n)) {
+  if (/(luat|bo luat|nghi dinh|thong tu|thong tu lien tich|ttlt|nghi quyet|quyet dinh|phap lenh|chi thi|van ban|moi nhat|co gi moi|hien hanh|quy dinh ve|dieu kien|trinh tu|thu tuc|xu phat|bieu mau|so sanh|doi chieu)/.test(n)) {
     return 'grounded_general';
   }
 
@@ -4322,3 +4588,4 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`VBAI Proxy listening on port ${PORT}`);
 });
+
