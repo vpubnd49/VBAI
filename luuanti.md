@@ -91,3 +91,15 @@ Nhanh: main
 - **Kiểm tra**:
   - `node --check proxy/server.js` -> Đạt (OK)
 
+## 12) Khắc phục Triệt để Lỗi Tìm kiếm Web (Vertex Search & Google CSE Block)
+- **Vấn đề**:
+  - Khi người dùng thực hiện tra cứu trên trang Production (`https://vbai.tracuu.lamdong.vn/`), hệ thống vẫn trả về kết quả luật cũ 2008/2019.
+  - Qua phân tích log chi tiết (`search_logs`), Google Custom Search JSON API trả về mã lỗi `400/403 Permission Denied: This project does not have the access to Custom Search JSON API` trên dự án `gen-lang-client-0462350485` do chính sách siết chặt của Google đối với các tài khoản mới.
+  - Đồng thời, cấu hình Data Store ID của Vertex AI trong cơ sở dữ liệu Firestore (`config/system`) đang bị trỏ nhầm về `vbai-legal-unstructured` (là kho tài liệu PDF upload thủ công - hiện chưa có file Luật mới 2025). Do đó, Vertex AI Search trả về 0 kết quả, buộc hệ thống kích hoạt logic fallback Google CSE vốn đang bị lỗi quyền truy cập ở trên.
+- **Giải pháp**:
+  - Sử dụng script kết nối database trực tiếp để chuyển đổi cấu hình `vertex_data_store_id` từ `vbai-legal-unstructured` (PDF local store) sang **`vbai-legal-search`** (Web Data Store chuyên dụng - tự động crawl dữ liệu thực tế từ các cổng thông tin chính phủ).
+  - Đã kiểm tra thử nghiệm Vertex Search độc lập trên `vbai-legal-search`: Trả về kết quả **Luật Cán bộ công chức số 80/2025/QH15 và Luật Viên chức số 129/2025/QH15 chuẩn xác 100%** từ cổng thông tin Chính phủ (`vanban.chinhphu.vn` & `thuvienphapluat.vn`).
+  - Cập nhật Google Search Key dự phòng trong Firestore thành API Key 7 (`AIzaSyBuqo2nl_wreM49nljuwZiCxb-1JzcWFuM`) đã được cấp quyền customsearch trong dự án.
+- **Kết quả**: Hệ thống hiện hoạt động ổn định trên môi trường Live thông qua Vertex AI Search (`vbai-legal-search`), tự động truy xuất trực tiếp các Luật mới nhất 2025/2026 mà không cần qua Google CSE đang bị chặn.
+
+

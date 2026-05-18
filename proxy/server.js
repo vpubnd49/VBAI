@@ -4388,8 +4388,8 @@ async function executeVertexSearch({ query, timeoutMs, vertexConfig, expectedDoc
     },
   };
 
-  // THÊM MỚI: Truyền bộ lọc metadata để Vertex tìm chính xác số hiệu văn bản
-  if (expectedDocNumber) {
+  // THÊM MỚI: Truyền bộ lọc metadata để Vertex tìm chính xác số hiệu văn bản (chỉ áp dụng cho kho tài liệu Unstructured)
+  if (expectedDocNumber && vertexConfig.dataStoreId === 'vbai-legal-unstructured') {
     // Lưu ý: Đảm bảo Data Store của bạn có trường metadata là 'so_hieu'
     body.filter = `so_hieu = "${expectedDocNumber}"`; 
   }
