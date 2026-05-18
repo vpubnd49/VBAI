@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VBAI Cloud Run Proxy Service
  *
  * Provides secure, authenticated endpoints for:
@@ -62,7 +62,7 @@ const GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS = Object.freeze([
   'gemini-2.0-flash-exp',
   'gemini-2.0-flash',
 ]);
-const LEGAL_MATCH_PASS_SCORE = 85;
+const LEGAL_MATCH_PASS_SCORE = 70;
 const OFFICIAL_SOURCE_HOSTS = Object.freeze([
   'vbpl.vn',
   'vanban.chinhphu.vn',
@@ -72,6 +72,7 @@ const OFFICIAL_SOURCE_HOSTS = Object.freeze([
   'moj.gov.vn',
   'baochinhphu.vn',
   'dangcongsan.vn',
+  'xaydungchinhsach.chinhphu.vn',
 ]);
 const REFERENCE_SOURCE_HOSTS = Object.freeze([
   'thuvienphapluat.vn',
@@ -164,6 +165,46 @@ function repairMojibakeUtf8(value = '') {
   }
 }
 
+// Hàm hỗ trợ cào dữ liệu sâu từ các trang văn bản pháp luật
+async function fetchDeepContent(url) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'vi,en-US;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return '';
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    if (!contentType.includes('text/html')) return '';
+
+    const html = await response.text();
+
+    let cleanText = html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ').trim();
+
+    const repairedText = repairMojibakeUtf8(cleanText);
+    return repairedText.substring(0, 8000);
+  } catch (error) {
+    console.error('[Deep Fetch] Bỏ qua cào dữ liệu từ URL:', url, error.message);
+    return '';
+  }
+}
+
 
 function dedupeStringList(list = []) {
   return Array.from(new Set((Array.isArray(list) ? list : [])
@@ -209,6 +250,21 @@ function resolveKnownLegalDocument(query = '') {
   return null;
 }
 
+function buildKnownDocumentOfficialQueries(knownDocument = null) {
+  const docNumber = String(knownDocument?.documentNumber || '').trim().toUpperCase();
+  if (!docNumber) return [];
+  const titleHint = String(knownDocument?.titleHint || knownDocument?.canonicalQuery || '').trim();
+
+  return dedupeStringList([
+    `"${docNumber}"`,
+    titleHint && `"${titleHint}" "${docNumber}"`,
+    `site:vanban.chinhphu.vn "${docNumber}"`,
+    `site:vbpl.vn "${docNumber}"`,
+    `site:quochoi.vn "${docNumber}"`,
+    `site:congbao.chinhphu.vn "${docNumber}"`,
+  ]);
+}
+
 function buildLegalSearchQueries({
   originalQuery = '',
   normalizedQuery = '',
@@ -242,6 +298,8 @@ function buildLegalSearchQueries({
   ]);
 
   const officialSiteQueries = dedupeStringList([
+    isTimeSensitive && docNumber ? `("thay thế" OR "hiệu lực" OR "dự thảo") "${docNumber}" site:xaydungchinhsach.chinhphu.vn OR site:vbpl.vn` : '',
+    isTimeSensitive && docNumber ? `site:xaydungchinhsach.chinhphu.vn "${docNumber}"` : '',
     docNumber ? `"${docNumber}" site:vanban.chinhphu.vn` : '',
     docNumber ? `"${docNumber}" site:vbpl.vn` : '',
     titleHint ? `"${titleHint}" site:vanban.chinhphu.vn` : '',
@@ -295,9 +353,14 @@ function isReferenceHost(host = '') {
   return REFERENCE_SOURCE_HOSTS.some((reference) => h === reference || h.endsWith(`.${reference}`));
 }
 
+function isOfficialLegalSource(url = '') {
+  const host = toHost(url);
+  if (!host) return false;
+  return isOfficialHost(host);
+}
+
 function detectSourceTier({ link = '', source = '' } = {}) {
-  const fromSource = String(source || '').trim().toLowerCase().replace(/^www\./, '');
-  const host = fromSource || toHost(link);
+  const host = toHost(link) || String(source || '').trim().toLowerCase().replace(/^www\./, '');
   if (isOfficialHost(host)) return 'official';
   if (isReferenceHost(host)) return 'reference';
   return 'unknown';
@@ -384,6 +447,21 @@ function inferAudioFormat({ mimeType = '', filename = '' } = {}) {
   return 'wav';
 }
 
+function convertContentsToMessages(contents = []) {
+  if (!Array.isArray(contents)) return [];
+  return contents
+    .map((item) => {
+      const text = Array.isArray(item?.parts)
+        ? item.parts.map((part) => String(part?.text || '').trim()).filter(Boolean).join('\n').trim()
+        : '';
+      if (!text) return null;
+      const rawRole = String(item?.role || '').toLowerCase();
+      const role = rawRole === 'model' ? 'assistant' : rawRole === 'user' ? 'user' : rawRole;
+      return { role, content: text };
+    })
+    .filter(Boolean);
+}
+
 function extractTextFromProviderPayload(data = {}) {
   if (!data || typeof data !== 'object') return '';
   if (typeof data.text === 'string' && data.text.trim()) return data.text.trim();
@@ -404,6 +482,7 @@ function extractTextFromProviderPayload(data = {}) {
   }
   return '';
 }
+
 
 async function executeGeminiNativeAudioTranscription({
   apiKey,
@@ -528,6 +607,8 @@ let firebaseInitialized = false;
 const initFirebase = () => {
   if (firebaseInitialized) return;
 
+  const projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0462350485';
+
   // Try to initialize with service account key if present (Cloud Run will inject via env)
   const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
     ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
@@ -536,15 +617,19 @@ const initFirebase = () => {
   if (serviceAccount) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
+      databaseURL: `https://${projectId}.firebaseio.com`,
+      projectId: projectId
     });
   } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     admin.initializeApp({
       credential: admin.credential.applicationDefault(),
+      projectId: projectId
     });
   } else {
     // Fallback: initialize with default credentials (works on Cloud Run with service account attached)
-    admin.initializeApp();
+    admin.initializeApp({
+      projectId: projectId
+    });
   }
 
   firebaseInitialized = true;
@@ -874,9 +959,12 @@ app.post('/api/chat', async (req, res) => {
     initFirebase();
     const decoded = await verifyIdToken(req);
 
-    const { messages, model, stream = false, temperature = 0.7, max_tokens } = req.body;
-    if (!messages || !Array.isArray(messages)) {
-      return res.status(400).json({ error: 'messages array required' });
+    const { messages, contents, model, stream = false, temperature = 0.7, max_tokens } = req.body;
+    const normalizedMessages = Array.isArray(messages)
+      ? messages
+      : (Array.isArray(contents) ? convertContentsToMessages(contents) : null);
+    if (!normalizedMessages || !Array.isArray(normalizedMessages)) {
+      return res.status(400).json({ error: 'messages or contents array required' });
     }
 
     // Fetch system config
@@ -890,14 +978,14 @@ app.post('/api/chat', async (req, res) => {
     const apiKey = config.gemini_api_key;
     const effectiveModel = model || config.gemini_model;
 
-    const userMessage = Array.isArray(messages)
-      ? [...messages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
+    const userMessage = Array.isArray(normalizedMessages)
+      ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
       : '';
     console.log('USER QUERY:', userMessage);
     console.log('NORMALIZED:', {
       route: '/api/chat',
       model: effectiveModel,
-      message_count: Array.isArray(messages) ? messages.length : 0,
+      message_count: Array.isArray(normalizedMessages) ? normalizedMessages.length : 0,
       stream: stream === true,
       note: 'No backend tool loop in /api/chat; web search runs via /api/web-search before chat synthesis.',
     });
@@ -923,7 +1011,7 @@ app.post('/api/chat', async (req, res) => {
     const executeProviderAttempt = async (modelName) => {
       const payload = {
         model: modelName,
-        messages,
+        messages: normalizedMessages,
         stream: false, // TODO: implement streaming if needed
         temperature,
         ...(max_tokens && { max_tokens })
@@ -1289,9 +1377,11 @@ app.post('/api/web-search', async (req, res) => {
       expectedDocNumber: normalizedExpectedDocNumber,
       partialDocNumber: normalizedPartialDocNumber,
     });
+    const isStatusOrRelationQuery = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|thay the|bai bo|co hieu luc chua|moi nhat|la gi|so sanh|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat|cho biet|huong dan|co dac diem|quy dinh ve)/i.test(normalizeVietnamese(query));
     const strictPartialReject = requestDocMatchLevel === 'partial'
       && !!effectiveRequestedDocType
-      && !normalizedExpectedDocNumber;
+      && !normalizedExpectedDocNumber
+      && !isStatusOrRelationQuery;
     const cacheKey = buildWebSearchCacheKey({
       query,
       expectedDocNumber: normalizedExpectedDocNumber,
@@ -1415,6 +1505,7 @@ app.post('/api/web-search', async (req, res) => {
       'site:dangcongsan.vn',
       'site:moj.gov.vn',
       'site:baochinhphu.vn',
+      'site:xaydungchinhsach.chinhphu.vn',
     ].join(' OR ');
 
     const trustedReferenceClause = [
@@ -1429,7 +1520,7 @@ app.post('/api/web-search', async (req, res) => {
     const normQuery = normalizeVietnamese(searchQuery);
     const isLegal = /(luat|nghi dinh|thong tu|quyet dinh|quy dinh|van ban|chinh sach|huong dan|tien luong|huu tri|bao hiem|thue|dat dai|xay dung|dau thau|doanh nghiep|can bo|cong chuc)/.test(normQuery);
     const { current, next } = getCurrentYearContext();
-    const hasSpecificYear = new RegExp(`(202\\d|203\\d)`).test(normQuery);
+    const hasSpecificYear = /\b(199\d|20[0-3]\d)\b/.test(normQuery);
 
     if (isLegal && !hasSpecificYear && !normQuery.includes('moi nhat')) {
       refinedQuery += ` moi nhat ${current} ${next}`;
@@ -1490,26 +1581,35 @@ app.post('/api/web-search', async (req, res) => {
       const validation = validateLegalDocumentMatch({
         query,
         items,
-        expectedDocNumber: normalizedExpectedDocNumber,
+        expectedDocNumber: normalizedExpectedDocNumber || knownDocument?.documentNumber || null,
         partialDocNumber: normalizedPartialDocNumber,
         requestedDocType: effectiveRequestedDocType,
       });
       const typedItems = filterItemsByRequestedDocType(items, effectiveRequestedDocType);
+      const knownDocumentOfficialCandidateItems = strategy === 'known_document_official_lookup'
+        ? (Array.isArray(items) ? items : []).filter((item) => item?._knownDocumentOfficialCandidate === true)
+        : [];
       let finalItems = [];
       if (validation.ok) {
         finalItems = Array.isArray(validation.approvedItems) ? validation.approvedItems : [];
+      } else if (knownDocumentOfficialCandidateItems.length > 0) {
+        finalItems = knownDocumentOfficialCandidateItems;
       } else if (!effectiveRequestedDocType && !validation.strictRejectReason) {
         finalItems = typedItems;
       }
       const responseResults = noExactMatch ? '__NO_EXACT_MATCH__' : formatSearchResults(finalItems);
       diagnostics.fallback_used = fallbackUsed === true;
-      const effectiveStrictRejectReason = strictRejectReason
-        || validation.strictRejectReason
-        || (effectiveRequestedDocType && (!finalItems || finalItems.length === 0) && Array.isArray(items) && items.length > 0
-          ? 'no_type_match'
-          : null)
-        || (strictPartialReject ? 'partial_doc_number_requires_full' : null);
-      const effectiveStatusInfo = detectEffectiveStatus(finalItems, query);
+      const effectiveStrictRejectReason = knownDocumentOfficialCandidateItems.length > 0
+        ? null
+        : (strictRejectReason
+          || validation.strictRejectReason
+          || (effectiveRequestedDocType && (!finalItems || finalItems.length === 0) && Array.isArray(items) && items.length > 0
+            ? 'no_type_match'
+            : null)
+          || (strictPartialReject ? 'partial_doc_number_requires_full' : null));
+      const effectiveStatusInfo = knownDocumentOfficialCandidateItems.length > 0
+        ? { status: null, superseded_by: null }
+        : detectEffectiveStatus(finalItems, query);
       const answerMode = effectiveStrictRejectReason
         ? 'reject_with_alternative'
         : detectQueryMode(query, validation.docNumberMatchLevel || requestDocMatchLevel, !!effectiveRequestedDocType);
@@ -1550,7 +1650,9 @@ app.post('/api/web-search', async (req, res) => {
         known_document: knownDocument,
         meta: {
           ...meta,
-          status: finalItems.length > 0 ? 'ok' : (knownDocument ? 'no_search_results_but_known_document_resolved' : 'no_results_after_fallback'),
+          status: finalItems.length > 0
+            ? (knownDocumentOfficialCandidateItems.length > 0 ? 'official_candidate_found_metadata_incomplete' : 'ok')
+            : (knownDocument ? 'no_search_results_but_known_document_resolved' : 'no_results_after_fallback'),
           selected_strategy: strategy,
           attempted_strategies: attemptedStrategies,
           tool_result_count: Array.isArray(finalItems) ? finalItems.length : 0,
@@ -1588,9 +1690,10 @@ app.post('/api/web-search', async (req, res) => {
       return searchBudgets.providerTotalMs - used;
     };
 
+    let activeProvider = effectiveSearchProvider;
     const executeSearch = async (q, timeoutMs = searchBudgets.providerTimeoutMs) => {
       return executeWebProviderSearch({
-        provider: effectiveSearchProvider,
+        provider: activeProvider,
         query: q,
         timeoutMs: Math.max(1200, timeoutMs),
         dateRestrict,
@@ -1605,6 +1708,117 @@ app.post('/api/web-search', async (req, res) => {
       if (attemptResult.errorReason) diagnostics.cse_error_reason = attemptResult.errorReason;
     };
 
+    const runKnownDocumentOfficialLookup = async () => {
+      const docNumber = String(knownDocument?.documentNumber || '').trim().toUpperCase();
+      if (!docNumber) return [];
+      const titleHint = String(knownDocument?.titleHint || knownDocument?.canonicalQuery || '').trim();
+      let exactQueries = buildKnownDocumentOfficialQueries(knownDocument);
+
+      if (isTimeSensitive) {
+        // Intercept time-sensitive queries to query for status changes/replacements of the known document
+        exactQueries = [
+          `("thay thế" OR "hiệu lực" OR "dự thảo") "${docNumber}" site:xaydungchinhsach.chinhphu.vn OR site:vbpl.vn`,
+          `site:xaydungchinhsach.chinhphu.vn "${docNumber}"`,
+          `"thay thế" "${docNumber}"`,
+          `"hết hiệu lực" "${docNumber}"`,
+          `"bãi bỏ" "${docNumber}"`,
+          ...exactQueries
+        ];
+      }
+
+      for (const exactQuery of exactQueries) {
+        if (getRemainingCseBudgetMs() <= 900) break;
+        let attempt = await executeSearch(
+          exactQuery,
+          Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
+        );
+        captureCseDiagnostic(attempt);
+
+        if ((!attempt.items || attempt.items.length === 0) && activeProvider === 'vertex_search' && cseConfigured) {
+          console.log('[Provider Fallback Exact] Vertex Search returned 0 results for exact lookup. Switching to google_search...');
+          activeProvider = 'google_search';
+          diagnostics.fallback_used = true;
+          attempt = await executeSearch(
+            exactQuery,
+            Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
+          );
+          captureCseDiagnostic(attempt);
+        }
+
+        recordStrategyAttempt({
+          step: 'known_document_official_lookup',
+          strategy: 'known_document_exact_query',
+          finalQuery: exactQuery,
+          itemCount: Array.isArray(attempt.items) ? attempt.items.length : 0,
+          status: attempt.status,
+          errorReason: attempt.errorReason,
+        });
+        const siteConstrained = /\bsite:(vanban\.chinhphu\.vn|vbpl\.vn|quochoi\.vn|congbao\.chinhphu\.vn)\b/i.test(exactQuery);
+        const candidateItems = (attempt.items || []).filter((item) => {
+          const isOfficial = isOfficialLegalSource(item?.link) || detectSourceTier(item) === 'official';
+          const isAllowedReference = isTimeSensitive && (detectSourceTier(item) === 'reference' || /thuvienphapluat\.vn|luatvietnam\.vn/i.test(item?.link || ''));
+          if (!isOfficial && !isAllowedReference) return false;
+          if (!siteConstrained && !exactQuery.includes(`"${docNumber}"`)) return false;
+          return isKnownDocumentOfficialCandidate(item, knownDocument, isTimeSensitive ? true : false);
+        });
+        const exactOfficialItems = pickExactDocItems(candidateItems, docNumber);
+        const officialCandidates = exactOfficialItems.length > 0 ? exactOfficialItems : candidateItems;
+        const exactItems = filterItemsByRequestedDocType(
+          officialCandidates
+            .filter((item) => {
+              if (!effectiveRequestedDocType) return true;
+              const originalHay = `${String(item?.title || '')} ${String(item?.snippet || '')} ${String(item?.link || '')}`;
+              const originalType = inferDocTypeFromText(originalHay);
+              const titleMatches = titleHint && normalizeVietnamese(originalHay).includes(normalizeVietnamese(titleHint));
+              return originalType === effectiveRequestedDocType || titleMatches;
+            })
+            .map((item) => ({
+              ...item,
+              snippet: `${String(item?.snippet || item?.title || '').trim()} ${titleHint} ${docNumber}`.trim(),
+              _knownDocumentOfficialCandidate: true,
+            })),
+          effectiveRequestedDocType,
+        );
+        if (exactItems.length > 0) return exactItems;
+      }
+
+      const directQueries = dedupeStringList([
+        `"${docNumber}"`,
+        titleHint && `"${titleHint}" "${docNumber}"`,
+        knownDocument?.canonicalQuery,
+      ]);
+      for (const directQuery of directQueries) {
+        const directItems = filterItemsByRequestedDocType(
+          (await runDirectFallback(docNumber, directQuery))
+            .filter((item) => isKnownDocumentOfficialCandidate(item, knownDocument, isTimeSensitive ? true : false))
+            .map((item) => ({
+              ...item,
+              _knownDocumentOfficialCandidate: true,
+            })),
+          effectiveRequestedDocType,
+        );
+        recordStrategyAttempt({
+          step: 'known_document_direct_official_lookup',
+          strategy: 'known_document_direct_source',
+          finalQuery: directQuery,
+          itemCount: Array.isArray(directItems) ? directItems.length : 0,
+        });
+        if (directItems.length > 0) return directItems;
+      }
+
+      return [];
+    };
+
+    const knownDocumentOfficialItems = await runKnownDocumentOfficialLookup();
+    if (knownDocumentOfficialItems.length > 0) {
+      return sendWebSearchResponse({
+        strategy: 'known_document_official_lookup',
+        items: knownDocumentOfficialItems,
+        exactMatch: true,
+        fallbackUsed: false,
+      });
+    }
+
     const providerQuery = `${refinedQuery} (${officialDomainClause})`;
     let cseStrategy = 'cse_official';
 
@@ -1614,6 +1828,18 @@ app.post('/api/web-search', async (req, res) => {
     );
     captureCseDiagnostic(searchAttempt);
     let items = searchAttempt.items || [];
+
+    if ((!items || items.length === 0) && activeProvider === 'vertex_search' && cseConfigured) {
+      console.log('[Provider Fallback] Vertex Search returned 0 results. Switching activeProvider to google_search...');
+      activeProvider = 'google_search';
+      diagnostics.fallback_used = true;
+      searchAttempt = await executeSearch(
+        providerQuery,
+        Math.min(searchBudgets.providerTimeoutMs, getRemainingCseBudgetMs()),
+      );
+      captureCseDiagnostic(searchAttempt);
+      items = searchAttempt.items || [];
+    }
 
     // 2nd attempt: trusted legal reference sites
     if ((!items || items.length === 0) && searchBudgets.useTrustedStage && getRemainingCseBudgetMs() > 900) {
@@ -1664,7 +1890,21 @@ app.post('/api/web-search', async (req, res) => {
       });
     }
 
-    // If an exact document number is expected, filter results to only those containing it.
+    if (items && items.length > 0) {
+      for (let i = 0; i < Math.min(items.length, 2); i += 1) {
+        const item = items[i];
+        const link = String(item?.link || '').trim();
+        const host = toHost(link);
+        const isOfficialSource = link && (isOfficialHost(host) || isReferenceHost(host));
+
+        if (!isOfficialSource) continue;
+        console.log(`[Deep Fetch] Đang trích xuất toàn văn từ: ${link}`);
+        const deepText = await fetchDeepContent(link);
+        if (deepText && deepText.length > 500) {
+          item.snippet = `${String(item.snippet || '').trim()}\n\n[NỘI DUNG TOÀN VĂN TRÍCH XUẤT]:\n${deepText}`.trim();
+        }
+      }
+    }
     if (normalizedExpectedDocNumber) {
       const exactItems = filterItemsByRequestedDocType(
         pickExactDocItems(items, normalizedExpectedDocNumber),
@@ -2097,11 +2337,16 @@ function buildDateRestrict({ isLegal, normQuery, forceFresh, freshnessLevel, rec
   if (freshnessLevel === 'week') return 'w4';
   if (freshnessLevel === 'month') return 'm6';
 
-  if (forceFresh) return 'm6';
-
   if (!isLegal) return '';
-  if (/(hom nay|hien tai|moi nhat|cap nhat|vua ban hanh)/.test(normQuery)) return 'm3';
-  return 'y1';
+
+  // Do NOT restrict dates for general legal document lookups or "mới nhất" queries,
+  // as laws, decrees, and circulars are long-lived documents.
+  // Only restrict dates if there is an explicit very recent timeline context.
+  if (/(hom nay|tuan nay|thang nay|nam nay|vua ban hanh hom nay|tin tuc moi)/.test(normQuery)) {
+    return 'm3';
+  }
+
+  return '';
 }
 
 function resolveWebSearchBudgets(mode = DEFAULT_WEB_SEARCH_MODE) {
@@ -2327,7 +2572,8 @@ function validateLegalDocumentMatch({
     return acc;
   }, { official: 0, reference: 0, unknown: 0 });
 
-  if (constraints.docNumberMatchLevel === 'partial' && constraints.requestedDocType && !constraints.fullDocNumber) {
+  const isStatusOrRelationQuery = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|thay the|bai bo|co hieu luc chua|moi nhat|la gi|so sanh|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat|cho biet|huong dan|co dac diem|quy dinh ve)/i.test(normalizeVietnamese(query));
+  if (constraints.docNumberMatchLevel === 'partial' && constraints.requestedDocType && !constraints.fullDocNumber && !isStatusOrRelationQuery) {
     return {
       ok: false,
       strictRejectReason: 'partial_doc_number_requires_full',
@@ -2363,11 +2609,20 @@ function validateLegalDocumentMatch({
     };
   }
 
-  const preferredPool = typed.some((entry) => entry.metadata.is_official_source)
+  const isContentOrAnalysisQuery = isStatusOrRelationQuery
+    || /(uy quyen|phan cap|phan quyen|chi tiet|huong dan|so sanh|phan tich|diem moi|noi dung)/i.test(normalizeVietnamese(query));
+  const isLatestLookupQuery = /(moi nhat|hien hanh|so bao nhieu|la so bao nhieu)/i.test(normalizeVietnamese(query));
+  const isDraftEntry = (entry) => /(du thao|xin y kien|lay y kien)/.test(normalizeVietnamese(`${entry?.item?.title || ''} ${entry?.item?.snippet || ''} ${entry?.metadata?.trich_yeu_hoac_ten_van_ban || ''}`));
+
+  const preferredPool = (typed.some((entry) => entry.metadata.is_official_source) && !isContentOrAnalysisQuery)
     ? typed.filter((entry) => entry.metadata.is_official_source)
     : typed;
+  const filteredPreferredPool = isLatestLookupQuery
+    ? preferredPool.filter((entry) => !isDraftEntry(entry))
+    : preferredPool;
+  const scoringPool = filteredPreferredPool.length > 0 ? filteredPreferredPool : preferredPool;
 
-  const scored = preferredPool.map((entry) => {
+  const scored = scoringPool.map((entry) => {
     const breakdown = { doc_type: 0, doc_number: 0, title: 0, issuer: 0, date: 0 };
 
     if (constraints.requestedDocType && entry.metadata.loai_van_ban === constraints.requestedDocType) {
@@ -2702,6 +2957,19 @@ function pickExactDocItems(items = [], expectedDocNumber = '') {
     const hay = `${String(item?.title || '')} ${String(item?.snippet || '')} ${String(item?.link || '')}`;
     return hasExpectedDocNumber(hay, expectedDocNumber);
   });
+}
+
+function isKnownDocumentOfficialCandidate(item = {}, knownDocument = null, allowReference = false) {
+  const docNumber = String(knownDocument?.documentNumber || '').trim().toUpperCase();
+  if (!docNumber) return false;
+  const titleHint = String(knownDocument?.titleHint || knownDocument?.canonicalQuery || '').trim();
+  const hay = `${String(item?.title || '')} ${String(item?.snippet || '')} ${String(item?.link || '')}`;
+  const hasDocNumber = hasExpectedDocNumber(hay, docNumber);
+  const hasTitleHint = titleHint && normalizeVietnamese(hay).includes(normalizeVietnamese(titleHint));
+  const hasOfficialSignal = isOfficialLegalSource(item?.link)
+    || detectSourceTier(item) === 'official'
+    || (allowReference && (detectSourceTier(item) === 'reference' || /thuvienphapluat\.vn|luatvietnam\.vn/i.test(item?.link || '')));
+  return hasOfficialSignal && (hasDocNumber || hasTitleHint);
 }
 
 function filterItemsByRequestedDocType(items = [], requestedDocType = null) {
@@ -3236,12 +3504,13 @@ function isAllowedHost(url, allowedHosts = []) {
 
 function isValidWebSearchProvider(raw = '') {
   const provider = String(raw || '').trim().toLowerCase();
-  return provider === 'vertex_search';
+  return provider === 'vertex_search' || provider === 'google_search' || provider === 'custom_search';
 }
 
 function sanitizeWebSearchProvider(raw = '') {
   const provider = String(raw || '').trim().toLowerCase();
   if (provider === 'vertex_search') return 'vertex_search';
+  if (provider === 'google_search' || provider === 'custom_search') return 'google_search';
   return DEFAULT_WEB_SEARCH_PROVIDER;
 }
 
@@ -3300,7 +3569,10 @@ function isVertexSearchConfigured(config = {}) {
 function resolveEffectiveWebSearchProvider({ requestedProvider, cseConfigured, vertexConfigured }) {
   const requested = sanitizeWebSearchProvider(requestedProvider);
   if (requested === 'vertex_search' && vertexConfigured) return 'vertex_search';
+  if (requested === 'google_search' && cseConfigured) return 'google_search';
+
   if (vertexConfigured) return 'vertex_search';
+  if (cseConfigured) return 'google_search';
   return '';
 }
 
@@ -3431,7 +3703,6 @@ async function executeCseSearch({ query, timeoutMs, dateRestrict, cseConfig, exp
     cx: cseConfig.cx,
     q: rewrittenQuery,
     num: '10',
-    sort: 'date',
     hl: 'vi',
     gl: 'vn',
     safe: 'off',
@@ -3772,6 +4043,10 @@ function calculateMatchScore(item, query = '') {
   const tier = detectSourceTier(item);
   if (tier === 'official') score += 30;
   if (tier === 'reference') score += 15;
+
+  // Penalize drafts heavily for latest-law queries
+  const isDraft = /(dự thảo|draft|drafting|xin ý kiến|lấy ý kiến)/.test(text);
+  if (isDraft) score -= 50;
 
   return score;
 }

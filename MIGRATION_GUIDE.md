@@ -8,21 +8,20 @@ You need to create a new Firebase project and update the `firebaseConfig` in `we
 **Current Configuration:**
 ```javascript
 const firebaseConfig = {
-  apiKey: "AIzaSyAmdSiD2byxr19cZZ7xc2HUpbsAWDChZzw",
-  authDomain: "vbai-a1729.firebaseapp.com",
-  projectId: "vbai-a1729",
-  storageBucket: "vbai-a1729.firebasestorage.app",
-  messagingSenderId: "691819234622",
-  appId: "1:691819234622:web:d34caa7684c1949a5c986f",
-  measurementId: "G-XLHHMNXRND"
+  apiKey: "AIzaSyC_abC-4uR72rFd8SXnaHFYY_kJ2R0CFcA",
+  authDomain: "vbai.tracuu.lamdong.vn",
+  projectId: "gen-lang-client-0462350485",
+  storageBucket: "gen-lang-client-0462350485.firebasestorage.app",
+  messagingSenderId: "419728335518",
+  appId: "1:419728335518:web:d62ad8064acf7df8fa118f"
 };
 ```
 
 ## 2. Google Cloud Platform (GCP)
 The application is deployed to **Google Cloud Run**.
 
-- **Project ID:** `alvb-app-83921`
-- **Service Name:** `vbai-app`
+- **Project ID:** `gen-lang-client-0462350485`
+- **Service Name:** `vbai`
 - **Region:** `asia-southeast1`
 
 ### Steps for New Account:

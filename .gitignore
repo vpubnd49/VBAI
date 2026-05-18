@@ -27,3 +27,7 @@ github-sa-key.json
 
 # Large local template data
 Skill_The_Thuc_VB_ND30/templates/
+
+# Runtime tokens and transient artifacts
+**/token.txt
+**/*.token

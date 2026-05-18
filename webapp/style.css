@@ -1718,3 +1718,98 @@ input:checked + .slider-round:before {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Premium "AI Luật Pro" Aesthetics & Layout Styling
+   ========================================================================== */
+
+/* 1. Premium Citation Card Box (Full width) */
+.chat-quote-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(148, 197, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 10px 0;
+  text-decoration: none !important;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+.chat-quote-card:hover {
+  background: rgba(96, 165, 250, 0.05);
+  border-color: rgba(96, 165, 250, 0.28);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+.chat-quote-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+.chat-quote-text {
+  font-style: italic;
+  color: #dbeafe;
+  line-height: 1.5;
+  font-size: 0.84rem;
+  transition: color 0.2s ease;
+}
+.chat-quote-card:hover .chat-quote-text {
+  color: #ffffff;
+}
+
+/* 2. Premium Inline Link Blue Pill Style (Matching Căn cứ pháp lý pills) */
+.chat-msg-rich a.chat-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(37, 99, 235, 0.14);
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 14px;
+  padding: 2px 10px;
+  color: #60a5fa !important;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+  margin: 2px 2px;
+}
+.chat-msg-rich a.chat-inline-link:hover {
+  background: rgba(37, 99, 235, 0.24);
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #93c5fd !important;
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.1);
+}
+.chat-msg-rich a.chat-inline-link::after {
+  content: "↗";
+  font-size: 0.72rem;
+  margin-left: 2px;
+  font-weight: bold;
+}
+
+/* 3. Custom Markdown Lists Spacing */
+.chat-rich-list {
+  margin: 10px 0 10px 24px !important;
+  padding: 0 !important;
+  list-style-type: disc !important;
+}
+.chat-rich-list li {
+  margin-bottom: 6px !important;
+  line-height: 1.6 !important;
+  color: var(--text-primary) !important;
+}
+.chat-rich-list li strong {
+  color: #dbeafe;
+}

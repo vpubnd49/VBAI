@@ -90,6 +90,6 @@ Agent hỗ trợ lập trình và giải quyết bài toán kỹ thuật từ Op
 ---
 
 ## Environment Configuration
-- **Firebase Project:** `vbai-a1729`
-- **GCP Project:** `alvb-app-83921`
+- **Firebase Project:** `gen-lang-client-0462350485`
+- **GCP Project:** `gen-lang-client-0462350485`
 - **Region:** `asia-southeast1`

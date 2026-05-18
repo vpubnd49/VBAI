@@ -156,6 +156,25 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU VBPL" - tro ly phap luat chuye
 - Neu het hieu luc: neu van ban thay the va ngay hieu luc moi.
 - Chi hoi lam ro khi thieu du lieu quan trong de tra loi; neu van co the tra loi tong quan thi cu tra loi truoc.
 
+[Premium Legal Answer Layout Specification]
+Khi người dùng tra cứu thông tin văn bản pháp luật, bạn BẮT BUỘC phải tổ chức cấu trúc câu trả lời của mình theo khung chuẩn hóa "Pro" cực kỳ chuyên nghiệp như sau:
+1. [Đoạn mở đầu]: Là 1-2 câu văn xuôi tự nhiên, trả lời trực tiếp và tổng quan nhất cho câu hỏi của người dùng (Ví dụ: "Luật An ninh mạng ở Việt Nam mới nhất là...").
+2. [Khung Tóm tắt]:
+Tóm lại:
+* Tên luật: [Tên chính thức của văn bản]
+* Số hiệu: [Số hiệu đầy đủ]
+* Ngày ban hành: [Ngày/Tháng/Năm ban hành]
+* Ngày có hiệu lực: [Ngày/Tháng/Năm có hiệu lực]
+* Nội dung chính: [Tóm tắt ngắn gọn về nội dung chính của văn bản]
+3. [Đoạn giải thích bổ sung]: 1-3 đoạn văn ngắn phân tích lộ trình áp dụng, sự thay đổi hoặc điều khoản cần lưu ý.
+4. [Đoạn khuyến nghị]: 1 câu khuyến nghị tư vấn pháp lý (Ví dụ: "Thông tin trên chỉ mang tính tham khảo, bạn nên liên hệ với chuyên gia pháp lý...").
+5. [Khung Căn cứ pháp lý]:
+Căn cứ pháp lý:
+* [Tên văn bản hoặc Số hiệu văn bản](link nếu có) [Mô tả ngắn gọn về quan hệ pháp lý, ví dụ: "về việc ban hành..." hoặc "bị thay thế bởi..."].
+6. [Khung Trích dẫn nguồn]:
+Trích dẫn:
+[1] [Tên văn bản hoặc tài liệu tham khảo](link nếu có)
+
 [Constraints/Guardrails]
 1. Ngon ngu: Tieng Viet.
 2. Khong suy doan; neu thieu du lieu quan trong chi duoc hoi toi da 3 cau lam ro.
@@ -173,11 +192,10 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU VBPL" - tro ly phap luat chuye
 14. Neu co nguon web phu hop, dat 1 dong "Nguon:" ngan gon ngay sau phan tra loi chinh, uu tien link chinh thong dau tien; khong ke qua nhieu metadata tru khi nguoi dung hoi.
 
 [Default Answer Style]
-- Mac dinh: 1-3 doan ngan hoac 3-6 gach dau dong.
+- Mac dinh: Dung dung bo khung [Premium Legal Answer Layout Specification] khi tra cuu van ban.
 - Neu nguoi dung hoi tong quat, tra loi ngan gon truoc, sau do moi goi y dao sau neu can.
 - Neu nguoi dung hoi so sanh/doi chieu, phai liet ke day du theo tung diem khac nhau; co the dung gach dau dong theo tung nhom noi dung.
 - Neu nguoi dung yeu cau trich dieu/khoan/diem, noi dung nguyen van, hoac danh sach day du, moi chuyen sang dang trinh bay chi tiet hon va giu du noi dung.
-- Neu nguoi dung hoi "co gi moi" doi voi 1 van ban, uu tien liet ke 3-7 y noi dung moi/de dang nhan biet nhat. Neu chua xac dinh duoc thi noi ro la chua trich xuat duoc noi dung diem moi, khong duoc thay bang cau xac nhan su ton tai cua van ban.
 
 [When to use structured markdown]
 - Chi dung cac heading nhu "Tom tat", "Thong tin chi tiet", "Giai thich them" khi cau tra loi dai, co nhieu phan, hoac nguoi dung yeu cau phan tich chi tiet.
@@ -189,7 +207,12 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU VBPL" - tro ly phap luat chuye
 - Khong tu lap lai cau hoi cua nguoi dung trong cau tra loi.
 - Neu chua chac ve tinh "moi nhat", noi ro muc do chac chan thay vi noi dai dong.
 - Rut gon cach trinh bay, khong rut gon noi dung can co.
-- Dong "Nguon:" neu co chi de 1-2 link ngan gon, dat ben duoi phan tra loi chinh.`;
+- Dong "Nguon:" neu co chi de 1-2 link ngan gon, dat ben duoi phan tra loi chinh.
+
+ĐỐI VỚI CÁC YÊU CẦU SO SÁNH, ĐỐI CHIẾU HOẶC PHÂN TÍCH VĂN BẢN (VD: Luật cũ vs Luật mới): Bạn BẮT BUỘC tuân thủ định dạng trình bày sau:
+1. Mở bài: Khẳng định văn bản nào đang có hiệu lực, thay thế cho văn bản nào.
+2. Nội dung phân tích: KHÔNG viết thành các đoạn văn dài. BẮT BUỘC chia thành các tiêu đề lớn bằng danh sách đánh số (1, 2, 3...). Dưới mỗi tiêu đề lớn, BẮT BUỘC sử dụng gạch đầu dòng (-) để liệt kê các chi tiết cụ thể.
+3. Luôn kết thúc bằng mục 'Căn cứ pháp lý:' và 'Trích dẫn:' theo đúng chuẩn đã quy định.`;
 const SYSTEM_INSTRUCTION = VBPL_PROMPT_SPEC;
 const FAST_SYSTEM_INSTRUCTION = `${VBPL_PROMPT_SPEC}
 
@@ -270,6 +293,21 @@ function buildFreshnessGuardMessage(query = '', reason = '') {
   const topic = String(query || '').trim() || 'noi dung nay';
   const reasonText = reason ? ` ${reason}` : '';
   return `Tôi chưa thể xác minh dữ liệu mới nhất từ Internet cho yêu cầu: "${topic}".${reasonText} Vui lòng nêu rõ hơn số hiệu văn bản, năm ban hành/hiệu lực hoặc kiểm tra thêm từ nguồn chính thức như vbpl.vn, chinhphu.vn, quochoi.vn.`;
+}
+
+function buildBestAlternativeLatestAnswer(query = '', bestAlternative = null) {
+  if (!bestAlternative || typeof bestAlternative !== 'object') return '';
+  const docType = String(bestAlternative.loai_van_ban || 'Văn bản').trim();
+  const docNo = String(bestAlternative.so_hieu || '').trim();
+  const title = String(bestAlternative.trich_yeu_hoac_ten_van_ban || '').trim();
+  const source = String(bestAlternative.nguon || '').trim();
+  const sourceLabel = bestAlternative.is_official_source === true ? 'Chính thức' : 'Tham khảo';
+  const headline = docNo
+    ? `${docType} mới nhất tôi tìm được cho yêu cầu này là số ${docNo}.`
+    : `${docType} mới nhất tôi tìm được cho yêu cầu này hiện chưa thấy rõ số hiệu trong dữ liệu tra cứu.`;
+  const detail = title ? `Tên văn bản phù hợp nhất: ${title}.` : '';
+  const sourceLine = source ? `Nguồn: ${source} (${sourceLabel}).` : '';
+  return [headline, detail, sourceLine].filter(Boolean).join(' ');
 }
 
 function shouldPreferWebSearch(text = '') {
@@ -367,6 +405,43 @@ function pushTurn(role, content) {
   }
 }
 
+function getConversationalMemory() {
+  const toContents = (turns = []) => turns
+    .slice(-6)
+    .map((t) => {
+      const role = t.role === 'assistant' ? 'assistant' : 'user';
+      const text = String(t.content || '').trim();
+      if (!text) return null;
+      return {
+        role,
+        parts: [{ text }],
+      };
+    })
+    .filter(Boolean);
+
+  if (Array.isArray(recentTurns) && recentTurns.length > 0) {
+    return toContents(recentTurns);
+  }
+  if (typeof document !== 'undefined') {
+    try {
+      const bubbles = document.querySelectorAll('.chat-message-bubble, .message-bubble, .chat-bubble, .message-content');
+      const turns = [];
+      bubbles.forEach(el => {
+        const isUser = el.classList.contains('user') || el.closest('.user') || el.closest('[data-role="user"]') || el.closest('.message-right');
+        const role = isUser ? 'user' : 'assistant';
+        const text = String(el.textContent || '').trim();
+        if (text) {
+          turns.push({ role, content: text });
+        }
+      });
+      if (turns.length > 0) {
+        return toContents(turns);
+      }
+    } catch {}
+  }
+  return [];
+}
+
 function buildRecentContextBlock() {
   if (recentTurns.length === 0) return "";
   return recentTurns
@@ -386,6 +461,42 @@ function shouldTreatAsFollowUpQuery(query = "") {
   if (!hasExplicitNewTopic && t.length <= 90) return true;
   return false;
 }
+
+function normalizeLegalQuery(userMessage = '', searchContext = {}) {
+  const raw = String(userMessage || '').trim();
+  const normalized = normalizeVietnamese(raw);
+  const comparison = parseComparisonTargets(raw);
+  const citationIntent = hasCitationIntent(raw);
+  const delegationIntent = isDelegationFocusQuery(raw);
+  const updateIntent = isSubstantiveUpdateQuery(raw, searchContext);
+  const detailedIntent = isDetailedLegalIntent(raw, searchContext);
+
+  let intent = 'general_lookup';
+  if (comparison) intent = 'comparison';
+  else if (citationIntent) intent = 'citation';
+  else if (delegationIntent) intent = 'delegation_focus';
+  else if (updateIntent) intent = 'substantive_update';
+  else if (detailedIntent) intent = 'detailed_lookup';
+  else if (/(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong)/.test(normalized)) intent = 'effectiveness_check';
+  else if (/(moi nhat|moi nhat so bao nhieu|so bao nhieu|la so bao nhieu)/.test(normalized)) intent = 'latest_doc_lookup';
+
+  return {
+    originalText: raw,
+    normalizedText: normalized,
+    docType: searchContext?.requestedDocType || null,
+    fullDocNumber: searchContext?.effectiveDocNumber || searchContext?.fullDocNumber || null,
+    partialDocNumber: searchContext?.partialDocNumber || null,
+    docNumberMatchLevel: searchContext?.docNumberMatchLevel || 'none',
+    intent,
+    asksForWebFreshness: isTimeSensitiveQuery(raw),
+    asksForComparison: Boolean(comparison),
+    asksForCitation: citationIntent,
+    asksForDelegationFocus: delegationIntent,
+    asksForDetailedAnswer: detailedIntent,
+    asksForSubstantiveUpdate: updateIntent,
+  };
+}
+
 
 function buildContextAwareUserPrompt(query = "") {
   const q = String(query || "").trim();
@@ -548,95 +659,8 @@ function extractPrimarySourceLine(meta = null) {
 }
 
 function enforceLegalMarkdownEnvelope(answer = '', query = '', meta = null) {
-  const compact = compactLegalAnswer(answer, query, meta);
-  const text = String(compact || '').trim();
-  if (!text) return text;
-  if (!shouldApplyLegalEnvelope(text, query)) return text;
-
-  const sourceLine = extractPrimarySourceLine(meta);
-  const substantiveQuery = isSubstantiveUpdateQuery(query, { effectiveDocNumber: extractPotentialDocNumber(query) || lastResolvedDocNumber || null });
-  const isBriefGeneralQuery = substantiveQuery ? false : shouldUseCompactLegalAnswer(text, query, meta);
-  const wantsFullIntent = meta?.rawIntent === 'full';
-  const hasSummaryHeading = /^##\s*T[oó]m t[aá]t/im.test(text);
-  const hasDetailHeading = /^###\s*Th[oô]ng tin chi ti[eế]t\s*\/\s*Ph[aâ]n t[ií]ch/im.test(text);
-  if (hasSummaryHeading || hasDetailHeading) {
-    const cleaned = text
-      .replace(/\n+---\s*\n*Checklist \(5 m(?:ụ|u)c\):[^\n]*/gi, '')
-      .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
-      .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    return sourceLine && !/\bNgu[oồ]n:\b/i.test(cleaned) ? `${cleaned}\n\n${sourceLine}` : cleaned;
-  }
-
-  if (wantsFullIntent) {
-    const cleaned = text
-      .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
-      .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    return sourceLine && !/\bNgu[oồ]n:\b/i.test(cleaned) ? `${cleaned}\n\n${sourceLine}` : cleaned;
-  }
-
-  if (isBriefGeneralQuery) {
-    const cleaned = text
-      .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
-      .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    return sourceLine && !/\bNgu[oồ]n:\b/i.test(cleaned) ? `${cleaned}\n\n${sourceLine}` : cleaned;
-  }
-
-  if (substantiveQuery) {
-    return text
-      .replace(/^\s*[-*]\s*Ngu[oồ]n:[^\n]*$/gim, '')
-      .replace(/^\s*Ngu[oồ]n:\s*[^\n]*$/gim, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim() + (sourceLine && !/\bNgu[oồ]n:\b/i.test(text) ? `\n\n${sourceLine}` : '');
-  }
-
-  const summary = extractSummaryText(text, query);
-
-  const metaInfo = [];
-  if (meta && typeof meta === 'object') {
-    if (meta.source_tier_summary) {
-      const officialCount = meta.source_tier_summary.official_count || 0;
-      const referenceCount = meta.source_tier_summary.reference_count || 0;
-      metaInfo.push(`Nguồn: ${officialCount} chính thống, ${referenceCount} tham khảo`);
-    }
-    if (meta.effective_status) {
-      const statusLabel = {
-        active: 'Còn hiệu lực',
-        superseded: meta.superseded_by ? `Đã bị thay thế bởi ${meta.superseded_by}` : 'Đã bị thay thế',
-        invalidated: 'Đã bị hủy bỏ',
-        unknown: 'Chưa xác minh được',
-      }[meta.effective_status] || meta.effective_status;
-      metaInfo.push(`Tình trạng hiệu lực: ${statusLabel}`);
-    }
-    if (typeof meta.confidence === 'number') {
-      const confLabel = meta.confidence >= 0.95 ? 'Rất cao'
-        : meta.confidence >= 0.85 ? 'Cao'
-        : meta.confidence >= 0.70 ? 'Trung bình' : 'Thấp';
-      metaInfo.push(`Mức độ chắc chắn: ${confLabel}`);
-    }
-    if (meta.exact_match === true) {
-      metaInfo.push('Khớp chính xác số hiệu văn bản');
-    }
-  }
-
-  const metaBlock = metaInfo.length > 0
-    ? ['', '**Thông tin tra cứu**:', ...metaInfo.map((i) => `- ${i}`), ''].join('\n')
-    : '';
-
-  return [
-    '## Tóm tắt',
-    summary,
-    sourceLine ? `\n${sourceLine}` : '',
-    metaBlock,
-    '',
-    '### Thông tin chi tiết / Phân tích',
-    text,
-  ].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  // Return the raw natural AI response directly to keep Gemini's beautiful Pro-style structure untouched
+  return String(answer || '').trim();
 }
 
 function ensureFollowUpQuestion(answer = "", query = "", options = {}, meta = null) {
@@ -832,11 +856,30 @@ function decodeNumericHtmlEntities(raw = '') {
 }
 
 function applyInlineMarkdown(text = "") {
-  return String(text || "")
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>');
+  let html = String(text || "");
+
+  // 1. Matches citation cards starting at the beginning of a line (e.g. [1] [Title](url) or [1] (url))
+  html = html.replace(/^\[(\d+)\]\s+\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (match, num, title, url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-quote-card"><span class="chat-quote-index">${num}</span><span class="chat-quote-text">${title}</span></a>`;
+  });
+  html = html.replace(/^\[(\d+)\]\s+\((https?:\/\/[^\s)]+)\)/g, (match, num, url) => {
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-quote-card"><span class="chat-quote-index">${num}</span><span class="chat-quote-text">Nguồn trích</span></a>`;
+  });
+
+  // 2. Matches citation cards starting at the beginning of a line without links: [1] Title
+  html = html.replace(/^\[(\d+)\]\s+([^<\n]+)/g, (match, num, title) => {
+    return `<span class="chat-quote-card"><span class="chat-quote-index">${num}</span><span class="chat-quote-text">${title.trim()}</span></span>`;
+  });
+
+  // 3. Matches standard links (which will be styled as gorgeous blue link pills!): [Text](url)
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="chat-inline-link">$1</a>');
+
+  // 4. Matches bold, italics, code
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+             .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+             .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  return html;
 }
 
 function splitTableRow(line = "") {
@@ -868,7 +911,7 @@ function renderComparisonTable(blockLines = []) {
   const thead = `<thead><tr>${headerCells.map((c) => `<th>${applyInlineMarkdown(escapeHtml(c))}</th>`).join("")}</tr></thead>`;
   const tbody = `<tbody>${normalizedBody.map((row) => `<tr>${row.map((c) => `<td>${applyInlineMarkdown(escapeHtml(c))}</td>`).join("")}</tr>`).join("")}</tbody>`;
 
- return `<div class="chat-compare-card"><div class="chat-compare-title">So sanh</div><div class="chat-table-wrap"><table class="chat-compare-table">${thead}${tbody}</table></div></div>`;
+  return `<div class="chat-compare-card"><div class="chat-compare-title">So sanh</div><div class="chat-table-wrap"><table class="chat-compare-table">${thead}${tbody}</table></div></div>`;
 }
 
 function renderAssistantRichText(rawText = "") {
@@ -876,12 +919,17 @@ function renderAssistantRichText(rawText = "") {
   const lines = src.split("\n");
   const chunks = [];
   let i = 0;
+  let inList = false;
 
   while (i < lines.length) {
     const ln = lines[i] || "";
     const trimmed = ln.trim();
 
     if (trimmed.startsWith("|") && i + 1 < lines.length && String(lines[i + 1] || "").trim().startsWith("|")) {
+      if (inList) {
+        chunks.push("</ul>");
+        inList = false;
+      }
       const block = [];
       let j = i;
       while (j < lines.length) {
@@ -898,8 +946,29 @@ function renderAssistantRichText(rawText = "") {
       }
     }
 
+    // High-fidelity Markdown list parsing
+    if (trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
+      const content = trimmed.substring(2).trim();
+      if (!inList) {
+        chunks.push('<ul class="chat-rich-list">');
+        inList = true;
+      }
+      chunks.push(`<li>${applyInlineMarkdown(escapeHtml(content))}</li>`);
+      i += 1;
+      continue;
+    } else {
+      if (inList) {
+        chunks.push("</ul>");
+        inList = false;
+      }
+    }
+
     chunks.push(applyInlineMarkdown(escapeHtml(ln)));
     i += 1;
+  }
+
+  if (inList) {
+    chunks.push("</ul>");
   }
 
   return chunks.join("<br>");
@@ -988,15 +1057,15 @@ function inferRequestedDocType(text = '') {
 function buildNeedFullDocNumberMessage(rawUserText = '', requestedDocType = '', partialDocNumber = '') {
   const topic = String(rawUserText || '').trim() || 'yeu cau nay';
   const docTypeLabel = ({
-    luat: 'Luat',
-    nghi_dinh: 'Nghi dinh',
-    thong_tu: 'Thong tu',
-    nghi_quyet: 'Nghi quyet',
-    quyet_dinh: 'Quyet dinh',
-  }[requestedDocType] || 'van ban');
+    luat: 'luật',
+    nghi_dinh: 'nghị định',
+    thong_tu: 'thông tư',
+    nghi_quyet: 'nghị quyết',
+    quyet_dinh: 'quyết định',
+  }[requestedDocType] || 'văn bản');
   const shortNo = String(partialDocNumber || '').trim();
-  const hint = shortNo ? ` \"${shortNo}\"` : '';
-  return `Chưa thể kết luận chính xác cho yêu cầu "${topic}" vì số hiệu${hint} chưa đầy đủ hậu tố của ${docTypeLabel}. Vui lòng cung cấp số hiệu đầy đủ (ví dụ: 72/2025/QH15) để tôi tra cứu đúng văn bản.`;
+  const hint = shortNo ? ` "${shortNo}"` : '';
+  return `Tôi chưa thể kết luận chính xác cho yêu cầu "${topic}" vì số hiệu${hint} chưa đủ để xác định đúng ${docTypeLabel}. Vui lòng cung cấp số hiệu đầy đủ hoặc năm ban hành để tôi tra cứu đúng văn bản.`;
 }
 
 function buildDocTypeMismatchMessage(rawUserText = '', requestedDocType = '', fullDocNumber = '') {
@@ -1014,13 +1083,39 @@ function buildDocTypeMismatchMessage(rawUserText = '', requestedDocType = '', fu
 
 function shouldUseStrictRejection(rawUserText = '', searchContext = {}) {
   const n = normalizeVietnamese(rawUserText);
-  if (searchContext?.effectiveDocNumber) return true;
-  if (searchContext?.partialDocNumber) return true;
-  if (/\b(so hieu|trich|dieu|khoan|diem|so sanh)\b/.test(n)) return true;
-  if (hasCitationIntent(rawUserText)) return true;
-  if (parseComparisonTargets(rawUserText)) return true;
-  if (isDelegationFocusQuery(rawUserText)) return true;
+
+  // If the query is a general status query or relationship query, NEVER strictly reject it.
+  // We want to let Gemini explain replacements, draft statuses, and general questions.
+  const generalStatusOrRelation = /(con hieu luc|het hieu luc|hieu luc khong|hieu luc hay khong|thay the|bai bo|co hieu luc chua|moi nhat|la gi|so sanh|nhu the nao|ke ten|cac hinh thuc|hinh thuc xu phat)/.test(n);
+  if (generalStatusOrRelation) {
+    return false;
+  }
+
+  // Only apply strict rejection if they are asking for a specific article, clause, or verbatim citation
+  const hasSpecificArticleOrClause = /\b(dieu|khoan|diem)\s+\d+\b/.test(n) || /\b(dieu|khoan|diem)\s+[a-z]\b/.test(n);
+  const isStrictRequest = hasCitationIntent(rawUserText)
+    || !!parseComparisonTargets(rawUserText)
+    || isDelegationFocusQuery(rawUserText)
+    || (hasSpecificArticleOrClause && /\b(trich|trich dan|nguyen van|chi tiet|noi dung|doc|xem)\b/.test(n));
+
+  if (isStrictRequest) {
+    return true;
+  }
+
   return false;
+}
+
+function shouldRequireFullDocNumber(query = '', searchContext = {}) {
+  const n = normalizeVietnamese(query);
+  const hasStatusKeyword = /(thay the|hieu luc|con hieu luc|moi nhat)/i.test(n);
+  if (hasStatusKeyword) {
+    return false;
+  }
+  return !!(
+    searchContext?.requestedDocType
+    && searchContext?.docNumberMatchLevel === 'partial'
+    && !searchContext?.effectiveDocNumber
+  );
 }
 
 function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
@@ -1045,8 +1140,9 @@ function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
   }
 
   const normalized = normalizeVietnamese(rawUserText);
-  const isFollowupRef = /(luat tren|van ban tren|luat nay|van ban nay|noi dung uy quyen cua luat tren|cua luat tren|tren la gi|chi tiet|uy quyen|phan cap|phan quyen|dieu\s*\d+|hieu luc|ngay ban hanh)/.test(normalized);
-  if (!isFollowupRef) {
+  const isFollowupRef = /(luat tren|van ban tren|luat nay|van ban nay|noi dung uy quyen cua luat tren|cua luat tren|tren la gi|chi tiet|uy quyen|phan cap|phan quyen|dieu\s*\d+|hieu luc|ngay ban hanh|liet ke|toan bo cac dieu|toan bo dieu|cac dieu|dieu khoan|noi dung day du|toan van|nguyen van)/.test(normalized);
+  const hasNewExplicitDoc = requestedDocType && partialDocNumber;
+  if (!isFollowupRef || hasNewExplicitDoc) {
     return {
       ...baseContext,
       effectiveQuery: rawUserText,
@@ -1073,7 +1169,7 @@ function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
 function shouldForceContextualWebSearch(rawUserText = '', searchContext = {}) {
   if (!searchContext?.effectiveDocNumber) return false;
   const n = normalizeVietnamese(rawUserText);
-  return /(uy quyen|phan cap|phan quyen|chi tiet|noi dung|dieu\s*\d+|hieu luc|ngay ban hanh|diem moi|toan van|luat tren|van ban tren|luat nay|van ban nay)/.test(n);
+  return /(uy quyen|phan cap|phan quyen|chi tiet|noi dung|dieu\s*\d+|hieu luc|ngay ban hanh|diem moi|toan van|luat tren|van ban tren|luat nay|van ban nay|liet ke|toan bo cac dieu|toan bo dieu|cac dieu|dieu khoan|noi dung day du|nguyen van)/.test(n);
 }
 
 function rememberResolvedDocNumber(searchContext = {}, text = '') {
@@ -1118,6 +1214,12 @@ function shouldUseEvidenceResponse(rawUserText = '', searchContext = {}, searchR
   if (!searchContext?.effectiveDocNumber) return false;
   if (!String(searchResults || '').trim()) return false;
   if (isSubstantiveUpdateQuery(rawUserText, searchContext)) return false;
+  
+  // Prevent dry evidence bypass for detailed analytical or delegation queries
+  if (isDelegationFocusQuery(rawUserText) || isDetailedLegalIntent(rawUserText, searchContext) || parseComparisonTargets(rawUserText)) {
+    return false;
+  }
+
   const docNo = String(searchContext.effectiveDocNumber || '').toUpperCase();
   const hasDocNoInResults = String(searchResults || '').toUpperCase().includes(docNo);
   if (webSearchMeta?.exact_match !== true && !hasDocNoInResults) return false;
@@ -1164,6 +1266,12 @@ function isDetailedLegalIntent(rawUserText = '', searchContext = {}) {
   if (parseComparisonTargets(rawUserText)) return false;
   if (hasCitationIntent(rawUserText)) return false;
   if (/(toan van|nguyen van|chi tiet|day du noi dung|toan bo noi dung|nguyen ban)/.test(n)) return true;
+  if (
+    searchContext?.effectiveDocNumber
+    && /(co gi moi|diem moi|noi dung moi|moi gi|thay doi gi|quy dinh moi|diem sua doi|diem bo sung)/.test(n)
+  ) {
+    return true;
+  }
   if (searchContext?.effectiveDocNumber && /(dieu\s*\d+|khoan\s*\d+|diem\s*[a-z])/.test(n)) return false;
   return false;
 }
@@ -1235,6 +1343,7 @@ async function buildDetailedLegalAgentAnswer(rawUserText = '', searchContext = {
         'Khong chen checklist. Khong lap lai cau hoi. Co the dung gach dau dong neu can ro y.'
       ].join('\n')
     },
+    ...getConversationalMemory(),
     {
       role: 'user',
       content: [
@@ -1357,6 +1466,7 @@ async function buildSubstantiveUpdateAnswer(rawUserText = '', searchContext = {}
         'Khong chen heading, khong chen checklist, khong lap lai cau hoi.'
       ].join('\n')
     },
+    ...getConversationalMemory(),
     {
       role: 'user',
       content: [
@@ -1661,18 +1771,8 @@ function pickDominantDocNumberFromItems(items = []) {
 }
 
 function shouldUseGroundedAnswer(rawUserText = '', searchResults = '', webSearchMeta = null) {
-  if (!String(searchResults || '').trim()) return false;
-  const items = parseWebSearchMarkdownItems(searchResults);
-  if (items.length === 0) return false;
-  const n = normalizeVietnamese(rawUserText);
-  const legalOrPolicy = /(luat|nghi dinh|thong tu|quyet dinh|van ban|chinh sach|hieu luc|moi nhat|so hieu|uy quyen|phan cap|phan quyen)/.test(n);
-  if (!legalOrPolicy) return false;
-  if (webSearchMeta?.strategy === 'cse_empty') return false;
-  if (webSearchMeta?.strict_reject_reason) return false;
-  if (webSearchMeta?.doc_number_match_level === 'partial' && webSearchMeta?.requested_doc_type) return false;
-  if (webSearchMeta?.requested_doc_type && webSearchMeta?.type_match === false) return false;
-  if (typeof webSearchMeta?.confidence === 'number' && webSearchMeta.confidence < 0.85) return false;
-  return true;
+  // Always fall through to live Gemini synthesis to construct premium, fluent, Pro-style responses
+  return false;
 }
 
 function buildGroundedAnswer(rawUserText = '', searchResults = '', webSearchMeta = null) {
@@ -1704,10 +1804,13 @@ function buildGroundedAnswer(rawUserText = '', searchResults = '', webSearchMeta
   const sourceLabel = getSourceTierLabelFromHost(host);
   const summarySeed = `${best.title}. ${String(best.snippet || '').replace(/\[[^\]]+\]/g, '').trim()}`.replace(/\s+/g, ' ').trim();
   const summary = summarySeed.length > 120 ? `${summarySeed.slice(0, 117)}...` : summarySeed;
+  const directAnswer = docNo
+    ? `${docTypeLabel} mới nhất tôi tìm được cho yêu cầu này là số ${docNo}.`
+    : `${docTypeLabel} mới nhất tôi tìm được cho yêu cầu này là văn bản: ${best.title || 'Chưa đủ dữ liệu tên văn bản'}.`;
 
   const lines = [];
   lines.push('Tom tat');
-  lines.push(summary || `Da xac dinh van ban ${docNo || ''} theo du lieu tra cuu co doi chieu nguon.`);
+  lines.push(`${directAnswer} ${summary || ''}`.trim());
   lines.push('');
   lines.push('Ket qua tra cuu van ban');
   lines.push('| Truong thong tin | Noi dung |');
@@ -1849,12 +1952,9 @@ export async function sendMessage(text, onChunk) {
     const isTimeSensitive = isTimeSensitiveQuery(rawUserText);
     const expectedDocNumber = extractPotentialDocNumber(rawUserText);
     const searchContext = resolveWebSearchContext(rawUserText, expectedDocNumber);
-    const shouldRequireFullDocNumber = !!(
-      searchContext?.requestedDocType
-      && searchContext?.docNumberMatchLevel === 'partial'
-      && !searchContext?.effectiveDocNumber
-    );
-    if (shouldRequireFullDocNumber) {
+    const normalizedLegalQuery = normalizeLegalQuery(rawUserText, searchContext);
+    const allowBestAlternativeForLatestLookup = normalizedLegalQuery.intent === 'latest_doc_lookup';
+    if (shouldRequireFullDocNumber(rawUserText, searchContext)) {
       const guardText = ensureFollowUpQuestion(
         buildNeedFullDocNumberMessage(
           rawUserText,
@@ -1893,7 +1993,7 @@ export async function sendMessage(text, onChunk) {
       return cached;
     }
 
-    let finalUserText = contextualUserText;
+    let finalUserText = `${contextualUserText}\n\n[Thong tin chuan hoa tu he thong]\n${JSON.stringify(normalizedLegalQuery, null, 2)}\n\nYeu cau:\n- Dung thong tin chuan hoa nay nhu tin hieu goi y ban dau.\n- Khong duoc coi do la ket luan cuoi cung.\n- Phai doi chieu lai voi nguon tra cuu thuc te truoc khi ket luan.\n- Neu nguon khong du chac chan hoac khong khop hoan toan, phai noi ro chua du can cu.`;
     if (shouldSearchWebForFreshness && !useWebSearch) {
       const guardText = ensureFollowUpQuestion(
         buildFreshnessGuardMessage(rawUserText, 'He thong chua cau hinh Web Search nen khong the dam bao thong tin moi nhat theo thoi diem hien tai.'),
@@ -1937,11 +2037,14 @@ export async function sendMessage(text, onChunk) {
           || Boolean(parseComparisonTargets(rawUserText))
         ),
       );
-      if (webSearchResultsText && (earlyStrictReason || earlyLowConfidence) && strictBoundQuery && !contextualExtractionIntent) {
+      if (webSearchResultsText && (earlyStrictReason || earlyLowConfidence) && strictBoundQuery && !contextualExtractionIntent && !allowBestAlternativeForLatestLookup) {
         const bestAlternative = webSearchMeta?.best_alternative && typeof webSearchMeta.best_alternative === 'object'
           ? webSearchMeta.best_alternative
           : null;
-        const rejectMessage = earlyStrictReason === 'partial_doc_number_requires_full'
+        const bestAlternativeLatestAnswerEarly = allowBestAlternativeForLatestLookup
+          ? buildBestAlternativeLatestAnswer(rawUserText, bestAlternative)
+          : '';
+        const rejectMessage = bestAlternativeLatestAnswerEarly || (earlyStrictReason === 'partial_doc_number_requires_full'
           ? buildNeedFullDocNumberMessage(
             rawUserText,
             searchContext.requestedDocType || webSearchMeta?.requested_doc_type || '',
@@ -1959,11 +2062,11 @@ export async function sendMessage(text, onChunk) {
               const altLabel = `${bestAlternative.loai_van_ban || 'van ban'} ${bestAlternative.so_hieu || ''}`.trim();
               const altTitle = String(bestAlternative.trich_yeu_hoac_ten_van_ban || '').trim();
               return `${base} Co the ban dang nham so hieu. Phuong an phu hop nhat hien tim thay: ${altLabel}${altTitle ? ` - ${altTitle}` : ''}${bestAlternative.nguon ? ` (nguon: ${bestAlternative.nguon}${bestAlternative.is_official_source === true ? ' - Chinh thuc' : ' - Tham khao'})` : ''}.`;
-            })();
+            })());
       const guardText = ensureFollowUpQuestion(
         rejectMessage,
         rawUserText,
-        {},
+        { forceAsk: !bestAlternativeLatestAnswerEarly },
         webSearchMeta,
       );
         pushTurn("user", rawUserText);
@@ -2035,7 +2138,7 @@ export async function sendMessage(text, onChunk) {
         const bestAlternative = webSearchMeta?.best_alternative && typeof webSearchMeta.best_alternative === 'object'
           ? webSearchMeta.best_alternative
           : null;
-        const shouldStrictReject = strictBoundQuery && Boolean(strictRejectReason);
+        const shouldStrictReject = strictBoundQuery && Boolean(strictRejectReason) && !allowBestAlternativeForLatestLookup;
         const guardReason = strictRejectReason === 'partial_doc_number_requires_full'
           ? buildNeedFullDocNumberMessage(
               rawUserText,
@@ -2061,10 +2164,13 @@ export async function sendMessage(text, onChunk) {
             ? 'Web Search dang loi quyen truy cap. He thong da chuyen sang nguon chinh thong truc tiep nhung chua tim thay ket qua phu hop.'
             : 'Web Search dang loi quyen truy cap nen he thong khong lay duoc ket qua Internet.')
           : 'Khong co ket qua tra cuu phu hop tu Internet.';
+        const bestAlternativeLatestAnswer = allowBestAlternativeForLatestLookup
+          ? buildBestAlternativeLatestAnswer(rawUserText, bestAlternative)
+          : '';
         const guardText = ensureFollowUpQuestion(
-          shouldStrictReject ? guardReason : buildFreshnessGuardMessage(rawUserText, guardReason),
+          bestAlternativeLatestAnswer || (shouldStrictReject ? guardReason : buildFreshnessGuardMessage(rawUserText, guardReason)),
           rawUserText,
-          { forceAsk: true },
+          { forceAsk: !bestAlternativeLatestAnswer },
           webSearchMeta,
         );
         pushTurn("user", rawUserText);
@@ -2159,7 +2265,6 @@ export async function sendMessage(text, onChunk) {
       if (onChunk) onChunk(evidenceAnswer);
       return evidenceAnswer;
     }
-
     const substantiveUpdateAnswerRaw = await buildSubstantiveUpdateAnswer(rawUserText, searchContext, webSearchResultsText, webSearchMeta);
     if (String(substantiveUpdateAnswerRaw || '').trim()) {
       const substantiveUpdateAnswer = enforceTwoTierTerminology(
@@ -2201,7 +2306,7 @@ export async function sendMessage(text, onChunk) {
 
     const messages = [
       { role: "system", content: dynamicInstruction },
-      ...recentTurns.map(t => ({ role: t.role, content: t.content })),
+      ...getConversationalMemory(),
       { role: "user", content: finalUserText }
     ];
 

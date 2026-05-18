@@ -97,6 +97,35 @@ function normalizeMessagesForProvider(messages = [], model = '') {
   return messages.map((msg) => msg.role === 'system' ? { ...msg, role: 'developer' } : msg);
 }
 
+function extractMessageText(message = {}) {
+  if (typeof message?.content === 'string') return String(message.content || '').trim();
+  if (Array.isArray(message?.parts)) {
+    return message.parts
+      .map((part) => String(part?.text || '').trim())
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  }
+  return '';
+}
+
+function normalizeContentsForProvider(messages = [], model = '') {
+  const normalizedMessages = normalizeMessagesForProvider(messages, model);
+  if (!Array.isArray(normalizedMessages)) return [];
+  return normalizedMessages
+    .map((msg) => {
+      const text = extractMessageText(msg);
+      if (!text) return null;
+      const rawRole = String(msg?.role || '').toLowerCase();
+      const role = rawRole === 'assistant' ? 'model' : rawRole === 'developer' ? 'user' : rawRole;
+      return {
+        role: role === 'system' ? 'user' : role,
+        parts: [{ text }],
+      };
+    })
+    .filter(Boolean);
+}
+
 async function getIdToken() {
   if (typeof window === 'undefined' || !window.currentUser) return null;
   try {
@@ -183,9 +212,14 @@ export async function sendChatRequest(messages, model, options = {}) {
   const resolvedModel = normalizeModelName(
     model || systemConfig.gemini_model || DEFAULT_PROXY_MODEL
   );
+
+  const messagesList = normalizeMessagesForProvider(messages, resolvedModel);
+  const contentsList = normalizeContentsForProvider(messages, resolvedModel);
+
   const payload = {
     model: resolvedModel,
-    messages: normalizeMessagesForProvider(messages, resolvedModel),
+    messages: messagesList,
+    contents: contentsList,
     stream: false,
     ...requestOptions,
   };
