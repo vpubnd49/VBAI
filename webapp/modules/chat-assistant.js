@@ -222,8 +222,12 @@ Trích dẫn:
 
 ĐỐI VỚI CÁC YÊU CẦU SO SÁNH, ĐỐI CHIẾU HOẶC PHÂN TÍCH VĂN BẢN (VD: Luật cũ vs Luật mới): Bạn BẮT BUỘC tuân thủ định dạng trình bày sau:
 1. Mở bài: Khẳng định văn bản nào đang có hiệu lực, thay thế cho văn bản nào.
-2. Nội dung phân tích: KHÔNG viết thành các đoạn văn dài. BẮT BUỘC chia thành các tiêu đề lớn bằng danh sách đánh số (1, 2, 3...). Dưới mỗi tiêu đề lớn, BẮT BUỘC sử dụng gạch đầu dòng (-) để liệt kê các chi tiết cụ thể.
-3. Luôn kết thúc bằng mục 'Căn cứ pháp lý:' và 'Trích dẫn:' theo đúng chuẩn đã quy định.`;
+2. Khung so sánh: BẮT BUỘC xây dựng một bảng so sánh Markdown (Comparison Grid) trực quan với 3 cột: [Tiêu chí so sánh, Quy định cũ (Luật cũ), Quy định mới (Luật mới)] để làm nổi bật các điểm khác biệt lớn nhất.
+3. Nội dung phân tích chi tiết: Bên dưới bảng so sánh, KHÔNG viết thành các đoạn văn dài. BẮT BUỘC chia thành các tiêu đề lớn bằng danh sách đánh số (1, 2, 3...). Dưới mỗi tiêu đề lớn, sử dụng gạch đầu dòng (-) để phân tích chi tiết và nêu rõ ý nghĩa thực tiễn của sự thay đổi.
+4. ĐỐI VỚI SO SÁNH LUẬT TỔ CHỨC CHÍNH QUYỀN ĐỊA PHƯƠNG (LUẬT CŨ VS LUẬT MỚI 72/2025/QH15): Bạn BẮT BUỘC phải làm nổi bật 2 thay đổi mang tính cách mạng sau trong bảng so sánh và phần phân tích:
+   - **Xóa bỏ cấp hành chính cấp huyện**: Luật mới 72/2025/QH15 chính thức xóa bỏ hoàn toàn chính quyền địa phương cấp huyện (HĐND & UBND cấp huyện), chỉ còn lại tổ chức chính quyền địa phương tinh gọn ở 2 cấp: cấp Tỉnh (Tỉnh/Thành phố trực thuộc Trung ương) và cấp Xã (Xã/Phường/Thị trấn).
+   - **Đổi tên các Sở, Ban, Ngành ở địa phương**: Các cơ quan chuyên môn dưới UBND cấp tỉnh (Sở, Ban, Ngành) được đổi tên đồng nhất trực tiếp theo tên gọi của các cơ quan Bộ ở Trung ương (Ví dụ: Sở Tư pháp, Sở Tài chính, Sở Lao động - Thương binh và Xã hội... được đổi tên đồng bộ tương ứng trực tiếp theo các Bộ ở trung ương) để đồng bộ hóa chỉ đạo điều hành và tinh gọn bộ máy.
+5. Luôn kết thúc bằng mục 'Căn cứ pháp lý:' và 'Trích dẫn:' theo đúng chuẩn đã quy định.`;
 const SYSTEM_INSTRUCTION = VBPL_PROMPT_SPEC;
 const FAST_SYSTEM_INSTRUCTION = `${VBPL_PROMPT_SPEC}
 
