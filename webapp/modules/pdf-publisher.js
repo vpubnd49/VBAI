@@ -366,7 +366,10 @@ TUYỆT ĐỐI KHÔNG dùng YAML Frontmatter (---) ở đầu file.
 KHÔNG bọc kết quả trong markdown codeblock (\`\`\`markdown). Trả về thuần text.
 
 QUY TẮC BÓC TÁCH CĂN CỨ VÀ SỐ HIỆU (RẤT QUAN TRỌNG):
-1. Mục "Căn cứ chính": Tuyệt đối KHÔNG ĐƯỢC ghi là "Hiến pháp nước Cộng hòa xã hội chủ nghĩa Việt Nam" hoặc "Hiến pháp". Nếu văn bản là Luật/Bộ luật, phần căn cứ chính hãy để trống hoặc ghi tên cơ quan ban hành (ví dụ: Quốc hội). Nếu là Nghị định/Thông tư, hãy ghi tên Luật/Nghị định là căn cứ trực tiếp.
+1. Mục "Căn cứ chính": Tuyệt đối KHÔNG ĐƯỢC ghi là "Hiến pháp nước Cộng hòa xã hội chủ nghĩa Việt Nam" hoặc "Hiến pháp". 
+   - Khi đọc nội dung thấy rõ cơ quan phát hành (ví dụ: của Quốc hội, của Chính phủ, của Bộ Tài chính, của Ủy ban nhân dân...), thì **Căn cứ chính phải ghi ĐÚNG LÀ TÊN CƠ QUAN PHÁT HÀNH ĐÓ**.
+   - Ví dụ: "Luật Viên chức số 129/2025/QH15 của Quốc hội" -> Căn cứ chính: Quốc hội.
+   - Ví dụ: "Nghị định số... của Chính phủ" -> Căn cứ chính: Chính phủ.
 2. Dịch các từ viết tắt trong cơ quan ban hành/số hiệu:
    - "QH14", "QH15" -> "Quốc hội"
    - "NĐ", "NĐ-CP" -> "Nghị định"
@@ -384,7 +387,7 @@ CẤU TRÚC BẮT BUỘC:
 >
 > **Hiệu lực:** [DD/MM/YYYY]
 >
-> **Căn cứ chính:** [Tên luật gốc - KHÔNG ghi Hiến pháp]
+> **Căn cứ chính:** [Tên Cơ quan phát hành - KHÔNG ghi Hiến pháp]
 >
 > **Nguồn:** [URL hoặc Tên nguồn]
 
