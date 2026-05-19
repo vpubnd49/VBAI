@@ -5,7 +5,7 @@ const DEFAULT_BACKEND_BASE = '/api';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
 const DEFAULT_GEMINI_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
-const DEFAULT_TRANSCRIBE_CHUNK_BYTES = 20 * 1024 * 1024; // 20MB
+const DEFAULT_TRANSCRIBE_CHUNK_BYTES = 10 * 1024 * 1024; // 10MB (an toàn với giới hạn 20MB của Gemini)
 let lastWebSearchMeta = null;
 const ALLOWED_BACKEND_HOSTS = new Set([
   'vbai.tracuu.lamdong.vn',

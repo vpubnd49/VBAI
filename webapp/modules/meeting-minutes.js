@@ -657,8 +657,8 @@ async function processAudioWithProxy(file, progressEl) {
   const transcriptModel = chatModel;
   let transcript = '';
   let usedTranscriptModel = chatModel;
-  const transcribeTimeoutMs = Number(localStorage.getItem('vbai_transcribe_timeout_ms') || '45000');
-  const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : 45000;
+  const transcribeTimeoutMs = Number(localStorage.getItem('vbai_transcribe_timeout_ms') || '120000');
+  const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : 120000;
   const transcribeCandidates = modelCandidates;
 
   try {
@@ -666,17 +666,17 @@ async function processAudioWithProxy(file, progressEl) {
     for (const modelCandidate of transcribeCandidates) {
       try {
         progressEl.textContent = PROCESSING_TEXT;
-        const text = useGeminiDirectChat
-          ? await sendAudioTranscription(activeFile, modelCandidate, {
-            temperature: 0,
-            context: transcribeContext,
-            timeoutMs: safeTranscribeTimeoutMs,
-          })
-          : await sendAudioTranscription(activeFile, modelCandidate, {
-            temperature: 0,
-            context: transcribeContext,
-            timeoutMs: safeTranscribeTimeoutMs,
-          });
+        const text = await sendAudioTranscription(activeFile, modelCandidate, {
+          temperature: 0,
+          context: transcribeContext,
+          timeoutMs: safeTranscribeTimeoutMs,
+          chunkWhenLarge: true,
+          maxBytes: 10 * 1024 * 1024, // 10MB (đảm bảo base64 dưới 20MB giới hạn của Gemini)
+          onProgress: (info) => {
+            if (!info || !info.part || !info.total) return;
+            progressEl.textContent = `Đang xử lý phần ${info.part}/${info.total}...`;
+          }
+        });
         if (String(text || "").trim()) {
           transcript = text.trim();
           usedTranscriptModel = modelCandidate;
@@ -693,8 +693,8 @@ async function processAudioWithProxy(file, progressEl) {
   } catch (e) {
     progressEl.textContent = PROCESSING_TEXT;
     try {
-      const defaultChunkMb = 24;
-      const minChunkMb = 8;
+      const defaultChunkMb = 10;
+      const minChunkMb = 4;
       const maxChunkMb = Number(localStorage.getItem('vbai_transcribe_chunk_mb') || String(defaultChunkMb));
       const safeChunkMb = Number.isFinite(maxChunkMb) && maxChunkMb >= minChunkMb ? maxChunkMb : defaultChunkMb;
       let lastFallbackErr = null;
@@ -710,7 +710,7 @@ async function processAudioWithProxy(file, progressEl) {
             timeoutMs: safeTranscribeTimeoutMs,
             onProgress: (info) => {
               if (!info || !info.part || !info.total) return;
-              progressEl.textContent = PROCESSING_TEXT;
+              progressEl.textContent = `Đang xử lý phần ${info.part}/${info.total} (fallback)...`;
             }
           });
           if (String(text || "").trim()) {

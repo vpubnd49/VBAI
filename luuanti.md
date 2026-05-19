@@ -11,7 +11,7 @@ Với mục tiêu số hóa và tối ưu hóa quy trình làm việc của cán
 2. 📄 **Công cụ Tóm tắt - Xuất PDF:** Tự động tóm lược nội dung văn bản dài, xuất bản file PDF chuyên nghiệp, chuẩn hóa nhận diện thương hiệu.
 3. 📝 **Soạn thảo Văn bản tự động (Đảng & Hành chính):** Hỗ trợ thiết lập nhanh văn bản theo chuẩn Hướng dẫn 36-HD/VPTW (Văn bản Đảng) và Nghị định 30/2020/NĐ-CP (Văn bản Hành chính).
 4. 🔍 **Kiểm tra Chính tả & Thể thức:** "Soi" nhanh các lỗi sai định dạng, khoảng cách, chữ viết hoa theo đúng quy định hành chính nhà nước.
-5. 🎙️ **Ghi âm → Thông báo Kết luận:** Tự động chuyển file ghi âm cuộc họp thành văn bản, bóc băng chính xác và lập dự thảo Thông báo kết luận bằng AI.
+5. 🎙️ **Thu âm trực tiếp & Xử lý Ghi âm cuộc họp:** Tính năng mới cho phép **thu âm trực tiếp qua Microphone ngay trên trình duyệt** hoặc tải lên file có sẵn. AI tự động bóc băng nguyên văn và lập dự thảo Thông báo kết luận (theo mẫu NĐ30/HD36) nhanh chóng, chính xác.
 6. 📷 **Xử lý PDF / OCR Ảnh:** Quét nhanh ảnh chụp tài liệu, trích xuất nguyên văn văn bản tiếng Việt cực chuẩn.
 
 ---
