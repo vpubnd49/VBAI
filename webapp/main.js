@@ -82,7 +82,7 @@ const PAGE_TITLES = {
   'docx-tool': 'Tạo & Xuất DOCX',
   'spell-check': 'Kiểm tra chính tả & thể thức',
   'meeting-minutes': 'Xử lý ghi âm cuộc họp',
-  'pdf-publisher': 'Công cụ Xuất bản PDF',
+  'pdf-publisher': 'Công cụ Tóm tắt - Xuất PDF',
   'admin-panel': 'Quản Trị Hệ Thống',
 };
 
