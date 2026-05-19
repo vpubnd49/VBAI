@@ -48,6 +48,63 @@ const MAX_AUDIO_UPLOAD_BYTES = MAX_AUDIO_UPLOAD_MB * 1024 * 1024;
 let mediaRecorder = null;
 let audioChunks = [];
 let recordingTimerInterval = null;
+let wakeLock = null;
+let silentAudio = null;
+
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      console.log('VBAI Screen Wake Lock acquired.');
+    }
+  } catch (err) {
+    console.warn('Không thể thiết lập Screen Wake Lock:', err);
+  }
+}
+
+function releaseWakeLock() {
+  try {
+    if (wakeLock) {
+      wakeLock.release().then(() => {
+        wakeLock = null;
+        console.log('VBAI Screen Wake Lock released.');
+      });
+    }
+  } catch (e) {
+    console.warn('Không thể giải phóng Screen Wake Lock:', e);
+  }
+}
+
+function playSilentAudio() {
+  try {
+    if (!silentAudio) {
+      // 1-second silent WAV base64
+      const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+      silentAudio = new Audio(silentWav);
+      silentAudio.loop = true;
+    }
+    silentAudio.play().catch(e => console.warn('Silent audio play failed:', e));
+  } catch (err) {
+    console.warn('Silent audio error:', err);
+  }
+}
+
+function stopSilentAudio() {
+  try {
+    if (silentAudio) {
+      silentAudio.pause();
+      silentAudio.currentTime = 0;
+    }
+  } catch (e) {}
+}
+
+// Khôi phục wake lock khi ứng dụng hiển thị lại và đang ghi âm
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && mediaRecorder && mediaRecorder.state === 'recording') {
+    await requestWakeLock();
+  }
+});
+
 
 let formState = {
   step: 1, audioFile: null, isProcessing: false,
@@ -190,6 +247,11 @@ function renderStep1(sc, c) {
       formState.isPaused = false;
       formState.recordingTime = 0;
       formState.audioFile = null;
+
+      // Giữ màn hình luôn sáng và giữ phiên chạy ngầm
+      await requestWakeLock();
+      playSilentAudio();
+
       startTimer();
       doRender(c);
     } catch (err) {
@@ -202,15 +264,25 @@ function renderStep1(sc, c) {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.pause();
       formState.isPaused = true;
+
+      // Giải phóng wake lock và tắt silent audio khi tạm dừng để tiết kiệm pin
+      releaseWakeLock();
+      stopSilentAudio();
+
       stopTimer();
       doRender(c);
     }
   }
 
-  function resumeRecording() {
+  async function resumeRecording() {
     if (mediaRecorder && mediaRecorder.state === 'paused') {
       mediaRecorder.resume();
       formState.isPaused = false;
+
+      // Kích hoạt lại wake lock và silent audio
+      await requestWakeLock();
+      playSilentAudio();
+
       startTimer();
       doRender(c);
     }
@@ -226,6 +298,10 @@ function renderStep1(sc, c) {
         const file = new File([audioBlob], filename, { type: mediaRecorder.mimeType });
         file.isRecorded = true;
         formState.audioFile = file;
+
+        // Giải phóng hoàn toàn các luồng chạy ngầm
+        releaseWakeLock();
+        stopSilentAudio();
 
         // Lưu trực tiếp tệp âm thanh về máy (PC/Mobile)
         try {
