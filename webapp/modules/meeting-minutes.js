@@ -726,20 +726,9 @@ async function processAudioWithProxy(file, progressEl) {
   const transcribeRouteLabel = 'Proxy';
   const provider = systemConfigCache?.active_provider || 'gemini';
 
-  // Support for M4A on Gemini via client-side conversion to WAV
+  // Không chuyển đổi âm thanh sang WAV nữa, giữ định dạng nén nhỏ gọn (m4a, aac, ogg, mp3, webm...)
+  // Gemini API chính thức hỗ trợ trực tiếp các định dạng này một cách tối ưu nhất.
   let activeFile = file;
-  if (provider === 'gemini') {
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (ext === 'm4a' || ext === 'aac' || ext === 'ogg') {
-      progressEl.textContent = "Đang chuyển đổi định dạng âm thanh cho Gemini...";
-      try {
-        activeFile = await convertToWav(file);
-      } catch (convErr) {
-        showToast("Lỗi chuyển đổi âm thanh: " + convErr.message, "error");
-        // Fallback to original file, though Gemini will likely fail
-      }
-    }
-  }
 
   const analysisContext = transcribeContext;
   const modelCandidates = await resolveMeetingAudioModelCandidates(transcribeContext);
@@ -758,21 +747,35 @@ async function processAudioWithProxy(file, progressEl) {
   const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : 120000;
   const transcribeCandidates = modelCandidates;
 
+  // Tạo hàm cập nhật tiến trình bóc băng song song chuyên nghiệp
+  const createProgressBar = (label = "Đang xử lý") => {
+    let completedCount = 0;
+    return (info) => {
+      if (!info || !info.part || !info.total) return;
+      if (info.type === 'complete') {
+        completedCount++;
+      }
+      if (info.total > 1) {
+        progressEl.textContent = `${label} song song: Phần ${completedCount}/${info.total} hoàn thành...`;
+      } else {
+        progressEl.textContent = `${label}...`;
+      }
+    };
+  };
+
   try {
     let lastErr = null;
     for (const modelCandidate of transcribeCandidates) {
       try {
         progressEl.textContent = PROCESSING_TEXT;
+        const progressTracker = createProgressBar("Đang bóc băng");
         const text = await sendAudioTranscription(activeFile, modelCandidate, {
           temperature: 0,
           context: transcribeContext,
           timeoutMs: safeTranscribeTimeoutMs,
           chunkWhenLarge: true,
           maxBytes: 10 * 1024 * 1024, // 10MB (đảm bảo base64 dưới 20MB giới hạn của Gemini)
-          onProgress: (info) => {
-            if (!info || !info.part || !info.total) return;
-            progressEl.textContent = `Đang xử lý phần ${info.part}/${info.total}...`;
-          }
+          onProgress: progressTracker
         });
         if (String(text || "").trim()) {
           transcript = text.trim();
@@ -799,16 +802,14 @@ async function processAudioWithProxy(file, progressEl) {
       for (const modelCandidate of chatCandidates) {
         try {
           progressEl.textContent = PROCESSING_TEXT;
+          const progressTracker = createProgressBar("Đang bóc băng (fallback)");
           const text = await sendAudioTranscription(activeFile, modelCandidate, {
             temperature: 0,
             maxBytes: safeChunkMb * 1024 * 1024,
             chunkWhenLarge: true,
             context: transcribeContext,
             timeoutMs: safeTranscribeTimeoutMs,
-            onProgress: (info) => {
-              if (!info || !info.part || !info.total) return;
-              progressEl.textContent = `Đang xử lý phần ${info.part}/${info.total} (fallback)...`;
-            }
+            onProgress: progressTracker
           });
           if (String(text || "").trim()) {
             transcript = text.trim();
