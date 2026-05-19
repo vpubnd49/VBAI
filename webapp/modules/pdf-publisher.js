@@ -324,7 +324,7 @@ Thủ tục giao đất đã được rút ngắn thời gian xử lý từ 30 n
 
 ---
 
-## 3. BẢNG HÀNH ĐỘNG ƯU TIÊN CHO DOANH NGHIỆP
+## 3. BẢNG HÀNH ĐỘNG ƯU TIÊN
 
 | Ưu tiên | Hành động | Deadline |
 |---------|----------|----------|
@@ -410,7 +410,7 @@ CẤU TRÚC BẮT BUỘC:
 
 ---
 
-## 3. BẢNG HÀNH ĐỘNG ƯU TIÊN CHO DOANH NGHIỆP / CƠ QUAN
+## 3. BẢNG HÀNH ĐỘNG ƯU TIÊN
 
 | Ưu tiên | Hành động | Deadline |
 |---------|----------|----------|
