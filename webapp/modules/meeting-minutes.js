@@ -221,9 +221,30 @@ function renderStep1(sc, c) {
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
-        const file = new File([audioBlob], `ghi_am_truc_tiep_${Date.now()}.webm`, { type: mediaRecorder.mimeType });
+        const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `VBAI_GhiAm_${timestampStr}.webm`;
+        const file = new File([audioBlob], filename, { type: mediaRecorder.mimeType });
         file.isRecorded = true;
         formState.audioFile = file;
+
+        // Lưu trực tiếp tệp âm thanh về máy (PC/Mobile)
+        try {
+          const downloadUrl = URL.createObjectURL(audioBlob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = downloadUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(downloadUrl);
+          }, 150);
+          showToast('Đã lưu bản sao file ghi âm về máy của bạn!', 'success');
+        } catch (downloadErr) {
+          console.error('Không thể tự động tải file xuống:', downloadErr);
+        }
+
         doRender(c);
       };
       mediaRecorder.stop();
