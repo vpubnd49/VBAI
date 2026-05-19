@@ -1560,41 +1560,43 @@ app.post('/api/transcribe', (req, res, next) => {
     let finalAttempt = null;
     let finalModel = null;
 
-    for (const candidateModel of compatCandidateModels) {
-      attemptedModels.push(candidateModel);
-      const attempt = await executeCompatAttempt(candidateModel);
-      if (attempt.ok && String(attempt.text || '').trim()) {
-        finalAttempt = attempt;
+    // Ưu tiên chạy Native Gemini trước vì Gemini API không hỗ trợ OpenAI-compatibility endpoint cho /audio/transcriptions
+    const audioBase64 = audioBuffer.toString('base64');
+    for (const candidateModel of nativeCandidateModels) {
+      if (!attemptedModels.includes(candidateModel)) attemptedModels.push(candidateModel);
+      const nativeAttempt = await executeGeminiNativeAudioTranscription({
+        apiKey,
+        modelName: candidateModel,
+        audioBase64,
+        mimeType: compatibleAudioMime,
+      });
+      if (nativeAttempt.ok && String(nativeAttempt.text || '').trim()) {
+        finalAttempt = {
+          ok: true,
+          status: nativeAttempt.status,
+          text: nativeAttempt.text,
+          data: { text: nativeAttempt.text },
+          via: 'gemini_native_generate_content',
+        };
         finalModel = candidateModel;
         break;
       }
-      finalAttempt = attempt;
-      if (!shouldRetryWithinTranscriptionPath(attempt)) break;
+      finalAttempt = nativeAttempt;
+      if (!shouldRetryWithinTranscriptionPath(nativeAttempt)) break;
     }
 
-    if (shouldFallbackTranscriptionPath(finalAttempt)) {
-      const audioBase64 = audioBuffer.toString('base64');
-      for (const candidateModel of nativeCandidateModels) {
+    // Nếu Native thất bại và lỗi có thể thử lại, mới fallback thử phương thức OpenAI compat
+    if (!finalAttempt?.ok && shouldFallbackTranscriptionPath(finalAttempt)) {
+      for (const candidateModel of compatCandidateModels) {
         if (!attemptedModels.includes(candidateModel)) attemptedModels.push(candidateModel);
-        const nativeAttempt = await executeGeminiNativeAudioTranscription({
-          apiKey,
-          modelName: candidateModel,
-          audioBase64,
-          mimeType: compatibleAudioMime,
-        });
-        if (nativeAttempt.ok && String(nativeAttempt.text || '').trim()) {
-          finalAttempt = {
-            ok: true,
-            status: nativeAttempt.status,
-            text: nativeAttempt.text,
-            data: { text: nativeAttempt.text },
-            via: 'gemini_native_generate_content',
-          };
+        const attempt = await executeCompatAttempt(candidateModel);
+        if (attempt.ok && String(attempt.text || '').trim()) {
+          finalAttempt = attempt;
           finalModel = candidateModel;
           break;
         }
-        finalAttempt = nativeAttempt;
-        if (!shouldRetryWithinTranscriptionPath(nativeAttempt)) break;
+        finalAttempt = attempt;
+        if (!shouldRetryWithinTranscriptionPath(attempt)) break;
       }
     }
 
