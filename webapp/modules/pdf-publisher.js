@@ -365,6 +365,11 @@ Thủ tục giao đất đã được rút ngắn thời gian xử lý từ 30 n
 TUYỆT ĐỐI KHÔNG dùng YAML Frontmatter (---) ở đầu file.
 KHÔNG bọc kết quả trong markdown codeblock (\`\`\`markdown). Trả về thuần text.
 
+QUY TẮC TÌM KIẾM VÀ XỬ LÝ DỮ LIỆU (TỐI QUAN TRỌNG):
+1. Tôn trọng tuyệt đối dữ liệu đầu vào:
+   - Nếu người dùng cung cấp đường link (URL), bạn CHỈ ĐƯỢC PHÉP phân tích dựa trên dữ liệu trích xuất từ đúng link đó. Tuyệt đối không lấy thông tin khác ngoài nội dung yêu cầu.
+   - Nếu người dùng cung cấp Số hiệu hoặc Ngày tháng của Luật, Nghị định, Thông tư... bạn PHẢI tìm đúng chính xác văn bản pháp luật đó. Khớp chính xác từng con số, từng ngày tháng. Không được phép lấy văn bản khác đắp vào, không được bịa đặt (hallucinate).
+
 QUY TẮC BÓC TÁCH CĂN CỨ VÀ SỐ HIỆU (RẤT QUAN TRỌNG):
 1. Mục "Căn cứ chính": Tuyệt đối KHÔNG ĐƯỢC ghi là "Hiến pháp nước Cộng hòa xã hội chủ nghĩa Việt Nam" hoặc "Hiến pháp". 
    - Khi đọc nội dung thấy rõ cơ quan phát hành (ví dụ: của Quốc hội, của Chính phủ, của Bộ Tài chính, của Ủy ban nhân dân...), thì **Căn cứ chính phải ghi ĐÚNG LÀ TÊN CƠ QUAN PHÁT HÀNH ĐÓ**.
