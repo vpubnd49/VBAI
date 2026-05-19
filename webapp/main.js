@@ -169,32 +169,14 @@ function init() {
       loginOverlay.style.display = 'none';
       mainApp.style.display = 'flex';
 
-      // Update breadcrumb with user info and Add global refresh button
+      // Update breadcrumb with user info
       document.querySelector('.top-bar-actions').innerHTML = `
-        <button id="btn-global-refresh" style="margin-right:16px; padding:6px 12px; background:#e2e8f0; border:none; border-radius:4px; font-size:13px; font-weight:600; color:#4a5568; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-            <path d="M3 3v5h5"></path>
-          </svg>
-          Làm mới (F5)
-        </button>
         <div style="font-size:0.85rem; font-weight:500; color:var(--text-secondary); margin-right:16px;">
           ${user.email}
         </div>
         <div class="dalat-time" id="dalat-clock"></div>
       `;
       updateClock();
-
-      const btnRefresh = document.getElementById('btn-global-refresh');
-      if (btnRefresh) {
-        btnRefresh.addEventListener('mouseover', () => btnRefresh.style.background = '#cbd5e0');
-        btnRefresh.addEventListener('mouseout', () => btnRefresh.style.background = '#e2e8f0');
-        btnRefresh.addEventListener('click', () => {
-          btnRefresh.innerHTML = '⏳ Đang làm mới...';
-          sessionStorage.removeItem('vbai_chat_cache_v1'); // Xóa cache chat
-          window.location.reload(); // Reload toàn trang để dọn dẹp RAM của tất cả module
-        });
-      }
 
       const adminBtn = document.getElementById('nav-admin-panel');
       if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';

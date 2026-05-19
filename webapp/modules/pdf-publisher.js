@@ -259,7 +259,12 @@ export function renderPdfPublisher(container) {
     <div class="pdf-publisher-container" style="display: flex; height: calc(100vh - 120px); gap: 20px; padding-bottom: 20px;">
         <div class="editor-pane" style="flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden;">
             <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f0f4f3; display: flex; flex-direction: column; gap: 8px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">🪄 Tự động hóa bằng AI</div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">🪄 Tự động hóa bằng AI</div>
+                    <button class="btn btn-secondary" onclick="window.location.reload();" style="display:flex; align-items:center; gap:4px; padding:4px 8px; font-size:12px; height:26px;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> Làm mới
+                    </button>
+                </div>
                 <div style="display: flex; gap: 8px;">
                     <input type="text" id="pdf-ai-input" placeholder="Nhập số hiệu hoặc link VB (VD: 25/2026/NĐ-CP)" style="flex: 1; padding: 6px 12px; border: 1px solid var(--border-subtle); border-radius: 4px; outline: none; font-size: 13px;">
                     <button id="btn-ai-generate" class="btn-primary" style="padding: 6px 12px; font-size: 13px; background: #8b5cf6; border-color: #8b5cf6;">✨ Tự động tạo</button>

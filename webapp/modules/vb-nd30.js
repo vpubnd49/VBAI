@@ -32,7 +32,16 @@ export function renderVBND30(container) {
 
 function doRender(c) {
   c.innerHTML = `
-    <div class="page-header"><div class="page-title">📋 Soạn VB Hành Chính (NĐ30)</div><div class="page-subtitle">Chuẩn Nghị định 30/2020/NĐ-CP</div></div>
+    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div class="page-title">📋 Soạn VB Hành Chính (NĐ30)</div>
+        <div class="page-subtitle">Chuẩn Nghị định 30/2020/NĐ-CP</div>
+      </div>
+      <button class="btn btn-secondary" onclick="window.location.reload();" style="display:flex; align-items:center; gap:6px; padding:6px 12px; font-size:13px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+        Làm mới
+      </button>
+    </div>
     <div class="steps-bar">${[1,2,3,4].map(i=>`<button class="step-indicator ${fs.step===i?'active':fs.step>i?'completed':''}" data-step="${i}"><span class="step-num">${fs.step>i?'✓':i}</span><span>${['Loại VB','Thông tin','Nội dung','Xem & Tải'][i-1]}</span></button>`).join('')}</div>
     <div id="sc" class="section-card"></div>`;
   c.querySelectorAll('.step-indicator').forEach(b=>b.addEventListener('click',()=>{const st=+b.dataset.step;if(st<=fs.step){fs.step=st;doRender(c);}}));
