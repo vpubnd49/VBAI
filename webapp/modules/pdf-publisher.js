@@ -1,6 +1,6 @@
 import { marked } from 'marked';
 import { showToast } from '../main.js';
-import { sendChatRequest } from './ai-proxy.js';
+import { sendChatRequest, sendWebExtractRequest } from './ai-proxy.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
@@ -345,22 +345,46 @@ Thủ tục giao đất đã được rút ngắn thời gian xử lý từ 30 n
     btnAiGenerate.textContent = '⏳ Đang xử lý...';
     
     try {
-      const systemPrompt = `Bạn là Trợ lý phân tích văn bản pháp luật. Nhiệm vụ của bạn là đọc yêu cầu/link văn bản của người dùng, phân tích và trích xuất thành tài liệu highlights định dạng Markdown ĐÚNG CHUẨN như sau.
+      let documentContext = `Yêu cầu/Văn bản cần xử lý: ${query}`;
+      
+      // Nếu người dùng nhập link, tiến hành cào dữ liệu trước để đọc toàn diện
+      if (query.startsWith('http')) {
+        btnAiGenerate.textContent = '⏳ Đang đọc link...';
+        try {
+          const extractRes = await sendWebExtractRequest(query, [], { timeoutMs: 25000 });
+          if (extractRes && (extractRes.content || extractRes.text)) {
+            documentContext = `URL nguồn: ${query}\n\nNỘI DUNG VĂN BẢN TRÍCH XUẤT ĐƯỢC:\n${extractRes.content || extractRes.text}`;
+          }
+        } catch (err) {
+          console.warn("Không thể trích xuất web tự động, fallback sang AI tự đọc", err);
+        }
+        btnAiGenerate.textContent = '⏳ Đang soạn thảo...';
+      }
+
+      const systemPrompt = `Bạn là Trợ lý phân tích văn bản pháp luật. Nhiệm vụ của bạn là ĐỌC TOÀN DIỆN nội dung văn bản, phân tích và trích xuất thành tài liệu highlights định dạng Markdown ĐÚNG CHUẨN như sau.
 TUYỆT ĐỐI KHÔNG dùng YAML Frontmatter (---) ở đầu file.
 KHÔNG bọc kết quả trong markdown codeblock (\`\`\`markdown). Trả về thuần text.
+
+QUY TẮC BÓC TÁCH CĂN CỨ VÀ SỐ HIỆU (RẤT QUAN TRỌNG):
+1. Mục "Căn cứ chính": Tuyệt đối KHÔNG ĐƯỢC ghi là "Hiến pháp nước Cộng hòa xã hội chủ nghĩa Việt Nam" hoặc "Hiến pháp". Nếu văn bản là Luật/Bộ luật, phần căn cứ chính hãy để trống hoặc ghi tên cơ quan ban hành (ví dụ: Quốc hội). Nếu là Nghị định/Thông tư, hãy ghi tên Luật/Nghị định là căn cứ trực tiếp.
+2. Dịch các từ viết tắt trong cơ quan ban hành/số hiệu:
+   - "QH14", "QH15" -> "Quốc hội"
+   - "NĐ", "NĐ-CP" -> "Nghị định"
+   - "TT", "TT-BTC", "TT-BXD"... -> "Thông tư"
+   - "QĐ", "QĐ-UBND"... -> "Quyết định"
 
 CẤU TRÚC BẮT BUỘC:
 # [Tên Ngắn Gọn Của Văn Bản] - Highlights & Lưu Ý
 
 > **Tên đầy đủ:** [Tên chính thức đầy đủ]
 >
-> **Số hiệu:** [Số hiệu]
+> **Số hiệu:** [Số hiệu (VD: 129/2025/QH15)]
 >
 > **Ngày ban hành:** [DD/MM/YYYY]
 >
 > **Hiệu lực:** [DD/MM/YYYY]
 >
-> **Căn cứ chính:** [Tên luật gốc]
+> **Căn cứ chính:** [Tên luật gốc - KHÔNG ghi Hiến pháp]
 >
 > **Nguồn:** [URL hoặc Tên nguồn]
 
@@ -379,11 +403,11 @@ CẤU TRÚC BẮT BUỘC:
 [Nội dung chi tiết — bám sát nguyên văn]
 
 **💡 Đề xuất lưu ý:**
-- [Gợi ý hành động]
+- [Gợi ý hành động cụ thể]
 
 ---
 
-## 3. BẢNG HÀNH ĐỘNG ƯU TIÊN CHO DOANH NGHIỆP
+## 3. BẢNG HÀNH ĐỘNG ƯU TIÊN CHO DOANH NGHIỆP / CƠ QUAN
 
 | Ưu tiên | Hành động | Deadline |
 |---------|----------|----------|
@@ -393,8 +417,8 @@ CẤU TRÚC BẮT BUỘC:
 
       const responseText = await sendChatRequest([
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Hãy tạo highlights cho văn bản sau: ${query}` }
-      ], null, { timeoutMs: 60000 });
+        { role: 'user', content: `Hãy đọc toàn diện nội dung sau và tạo highlights chuẩn xác:\n\n${documentContext}` }
+      ], null, { timeoutMs: 90000 });
 
       // Gán vào textarea
       txtInput.value = responseText.replace(/^```markdown\n/i, '').replace(/```$/i, '').trim();
