@@ -17,7 +17,7 @@ const multer = require('multer');
 const fetch = globalThis.fetch.bind(globalThis);
 const { cleanText: cleanStrictText, extractStrictLegalText } = require('./lib/legal-extract');
 
-const MAX_AUDIO_UPLOAD_MB = Number(process.env.MAX_AUDIO_UPLOAD_MB || '80');
+const MAX_AUDIO_UPLOAD_MB = Number(process.env.MAX_AUDIO_UPLOAD_MB || '500');
 const MAX_AUDIO_UPLOAD_BYTES = MAX_AUDIO_UPLOAD_MB * 1024 * 1024;
 const upload = multer({
   storage: multer.memoryStorage(),

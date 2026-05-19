@@ -271,7 +271,7 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
 
   if (chunkWhenLarge && file?.size > maxBytes) {
     const total = Math.ceil(file.size / maxBytes);
-    const transcripts = [];
+    const chunkPromises = [];
     for (let part = 0; part < total; part += 1) {
       const start = part * maxBytes;
       const end = Math.min(file.size, start + maxBytes);
@@ -279,10 +279,33 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
       const chunkFile = new File([blobChunk], `${file.name || 'audio'}.part${part + 1}`, {
         type: file.type || 'application/octet-stream',
       });
-      if (onProgress) onProgress({ part: part + 1, total });
-      const text = await sendSingleAudioTranscription(chunkFile, model, options, { part: part + 1, total });
-      if (String(text || '').trim()) transcripts.push(String(text).trim());
+      chunkPromises.push({ chunkFile, part: part + 1 });
     }
+
+    // Thực hiện gọi API đồng thời theo từng nhóm (batch) để tránh nghẽn hàng đợi kết nối của trình duyệt (Browser HTTP pool limit)
+    const concurrencyLimit = 5;
+    const results = [];
+    for (let i = 0; i < chunkPromises.length; i += concurrencyLimit) {
+      const batch = chunkPromises.slice(i, i + concurrencyLimit);
+      const batchResults = await Promise.all(
+        batch.map(async ({ chunkFile, part }) => {
+          try {
+            if (onProgress) onProgress({ part, total, type: 'start' });
+            const text = await sendSingleAudioTranscription(chunkFile, model, options, { part, total });
+            if (onProgress) onProgress({ part, total, type: 'complete' });
+            return { part, text: String(text || '').trim() };
+          } catch (err) {
+            console.error(`Lỗi bóc băng phần ${part}/${total}:`, err);
+            throw err;
+          }
+        })
+      );
+      results.push(...batchResults);
+    }
+
+    // Sắp xếp lại kết quả theo thứ tự các phần
+    results.sort((a, b) => a.part - b.part);
+    const transcripts = results.map(r => r.text).filter(Boolean);
     return transcripts.join('\n');
   }
 
