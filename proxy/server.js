@@ -1507,49 +1507,7 @@ app.post('/api/transcribe', (req, res, next) => {
       return res.status(503).json({ error: 'API key missing' });
     }
 
-    const compatCandidateModels = dedupeModelNames([
-      effectiveModel,
-      config.transcribe_model,
-      config.gemini_model,
-      ...GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS,
-    ]);
     const attemptedModels = [];
-
-    const executeCompatAttempt = async (modelName) => {
-      const formData = new FormData();
-      const audioBlob = new Blob([audioBuffer], { type: detectedMimeType });
-      formData.append('file', audioBlob, effectiveFilename);
-      formData.append('model', modelName);
-
-      const providerRes = await fetch(`${endpoint}/audio/transcriptions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'x-goog-api-key': apiKey,
-        },
-        body: formData
-      });
-      if (!providerRes.ok) {
-        const providerError = await readProviderError(providerRes);
-        return {
-          ok: false,
-          status: providerRes.status,
-          message: providerError.message,
-          reason: providerError.reason,
-          via: 'openai_compat',
-        };
-      }
-      const data = await providerRes.json();
-      const text = extractTextFromProviderPayload(data);
-      return {
-        ok: true,
-        status: providerRes.status,
-        data,
-        text,
-        via: 'openai_compat',
-      };
-    };
-
     const compatibleAudioMime = getCompatibleAudioMimeType(detectedMimeType, effectiveFilename);
     const nativeCandidateModels = dedupeModelNames([
       effectiveModel,
@@ -1560,7 +1518,7 @@ app.post('/api/transcribe', (req, res, next) => {
     let finalAttempt = null;
     let finalModel = null;
 
-    // Ưu tiên chạy Native Gemini trước vì Gemini API không hỗ trợ OpenAI-compatibility endpoint cho /audio/transcriptions
+    // Đẩy thẳng cho mô hình Gemini phân tích (Bỏ hoàn toàn OpenAI compat theo yêu cầu)
     const audioBase64 = audioBuffer.toString('base64');
     for (const candidateModel of nativeCandidateModels) {
       if (!attemptedModels.includes(candidateModel)) attemptedModels.push(candidateModel);
@@ -1585,21 +1543,6 @@ app.post('/api/transcribe', (req, res, next) => {
       if (!shouldRetryWithinTranscriptionPath(nativeAttempt)) break;
     }
 
-    // Nếu Native thất bại và lỗi có thể thử lại, mới fallback thử phương thức OpenAI compat
-    if (!finalAttempt?.ok && shouldFallbackTranscriptionPath(finalAttempt)) {
-      for (const candidateModel of compatCandidateModels) {
-        if (!attemptedModels.includes(candidateModel)) attemptedModels.push(candidateModel);
-        const attempt = await executeCompatAttempt(candidateModel);
-        if (attempt.ok && String(attempt.text || '').trim()) {
-          finalAttempt = attempt;
-          finalModel = candidateModel;
-          break;
-        }
-        finalAttempt = attempt;
-        if (!shouldRetryWithinTranscriptionPath(attempt)) break;
-      }
-    }
-
     if (!finalAttempt?.ok) {
       return res.status(finalAttempt?.status || 500).json({
         error: 'Transcription failed',
@@ -1614,33 +1557,17 @@ app.post('/api/transcribe', (req, res, next) => {
       });
     }
 
-    if (finalAttempt.via === 'gemini_native_generate_content') {
-      return res.json({
-        text: String(finalAttempt.text || '').trim(),
-        meta: {
-          provider_status: 200,
-          attempted_models: attemptedModels,
-          final_model: finalModel || attemptedModels[attemptedModels.length - 1] || effectiveModel,
-          provider_error_reason: null,
-          retried: attemptedModels.length > 1,
-          transcription_path: 'gemini_native_generate_content',
-        },
-      });
-    }
-
-    const data = finalAttempt.data || {};
-    if (data && typeof data === 'object' && !Array.isArray(data)) {
-      data.meta = {
-        ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
+    return res.json({
+      text: String(finalAttempt.text || '').trim(),
+      meta: {
         provider_status: 200,
         attempted_models: attemptedModels,
         final_model: finalModel || attemptedModels[attemptedModels.length - 1] || effectiveModel,
         provider_error_reason: null,
         retried: attemptedModels.length > 1,
-        transcription_path: 'openai_compat_audio_transcriptions',
-      };
-    }
-    return res.json(data);
+        transcription_path: 'gemini_native_generate_content',
+      },
+    });
   } catch (err) {
     console.error('POST /api/transcribe error:', err);
     res.status(500).json({ error: 'Internal server error', message: err.message });
