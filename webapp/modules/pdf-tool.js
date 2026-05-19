@@ -30,17 +30,15 @@ function isImageFile(file) {
 
 export function renderPdfTool(container) {
   container.innerHTML = `
-    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <div class="page-title">📄 Xử Lý PDF / OCR Ảnh</div>
-        <div class="page-subtitle">Upload file PDF hoặc ảnh để trích xuất nội dung văn bản bằng AI</div>
-      </div>
-      <button class="btn btn-secondary" onclick="window.location.reload();" style="display:flex; align-items:center; gap:6px; padding:6px 12px; font-size:13px;">
+    <div class="page-header">
+      <div class="page-title">📄 Xử Lý PDF / OCR Ảnh</div>
+      <div class="page-subtitle">Upload file PDF hoặc ảnh để trích xuất nội dung văn bản bằng AI</div>
+    </div>
+    <div class="section-card" style="position:relative;">
+      <button class="btn btn-secondary" onclick="window.location.reload();" style="position:absolute; top:16px; right:16px; display:flex; align-items:center; gap:6px; padding:6px 12px; font-size:12px; border-radius:6px; z-index:10;" title="Làm mới công cụ">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
         Làm mới
       </button>
-    </div>
-    <div class="section-card">
       <div class="upload-zone" id="pdf-drop-zone">
         <div class="upload-icon">📄</div>
         <div class="upload-text">Kéo thả file PDF hoặc ảnh vào đây hoặc click để chọn</div>
