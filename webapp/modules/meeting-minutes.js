@@ -45,8 +45,13 @@ const PROCESSING_TEXT = "Đang xử lý......";
 const MAX_AUDIO_UPLOAD_MB = 80;
 const MAX_AUDIO_UPLOAD_BYTES = MAX_AUDIO_UPLOAD_MB * 1024 * 1024;
 
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimerInterval = null;
+
 let formState = {
   step: 1, audioFile: null, isProcessing: false,
+  isRecording: false, isPaused: false, recordingTime: 0,
   chu_tri: '', thanh_phan: '', dia_diem: '', tom_tat: '',
   noi_dung_cuoc_hop: [],
   transcript: '',
@@ -55,6 +60,12 @@ let formState = {
   nguoi_ky: '', noi_nhan: '',
   dong_chuc_danh_1: '', dong_chuc_danh_2: '', dong_chuc_danh_3: ''
 };
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
 
 export function renderMeetingMinutes(container) {
   const now = new Date();
@@ -100,15 +111,46 @@ function renderStep1(sc, c) {
   const supportedFormats = 'MP3, WAV, M4A, OGG, AAC';
 
   sc.innerHTML = `
-    <div class="section-title">📌 Bước 1: Tải lên file ghi âm cuộc họp (Gemini)</div>
+    <div class="section-title">📌 Bước 1: Tải lên hoặc ghi âm cuộc họp (Gemini)</div>
+    
+    <div class="panel-group" style="margin-bottom: 20px;">
+      <div class="panel-header"><div class="panel-header-icon">🎙️</div>Ghi âm trực tiếp từ trình duyệt</div>
+      <div class="panel-body" style="text-align: center;">
+        <div style="font-size: 32px; font-family: monospace; margin-bottom: 15px; font-weight: bold; color: ${(formState.isRecording && !formState.isPaused) ? 'var(--danger)' : 'var(--text-main)'};" id="recording-timer">
+          ${formatTime(formState.recordingTime)}
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
+          ${!formState.isRecording && !formState.isPaused && formState.recordingTime === 0 ? `
+            <button class="btn btn-primary" id="btn-record-start" style="background-color: var(--danger); border-color: var(--danger);">🔴 Bắt đầu ghi âm</button>
+          ` : ''}
+          ${formState.isRecording && !formState.isPaused ? `
+            <button class="btn btn-secondary" id="btn-record-pause">⏸ Tạm dừng</button>
+          ` : ''}
+          ${formState.isPaused ? `
+            <button class="btn btn-secondary" id="btn-record-resume">▶ Tiếp tục</button>
+          ` : ''}
+          ${(formState.isRecording || formState.isPaused) ? `
+            <button class="btn btn-primary" id="btn-record-stop">⏹ Kết thúc & Lưu</button>
+          ` : ''}
+          ${(!formState.isRecording && !formState.isPaused && formState.recordingTime > 0) ? `
+            <button class="btn btn-secondary" id="btn-record-reset">🔄 Ghi âm lại</button>
+          ` : ''}
+        </div>
+        ${formState.isRecording && !formState.isPaused ? `<div style="color: var(--danger); font-weight: bold; animation: pulse 1.5s infinite;">Đang ghi âm...</div>` : ''}
+        ${formState.isPaused ? `<div style="color: var(--warning); font-weight: bold;">Đã tạm dừng ghi âm</div>` : ''}
+        ${formState.audioFile && formState.audioFile.isRecorded ? `<div style="margin-top: 10px; color: var(--success); font-weight: bold;">✓ Đã lưu bản ghi trực tiếp (${(formState.audioFile.size / 1024 / 1024).toFixed(2)}MB)</div>` : ''}
+      </div>
+    </div>
+
     <div class="panel-group">
+      <div class="panel-header"><div class="panel-header-icon">📁</div>Hoặc tải file có sẵn</div>
       <div class="panel-body" style="text-align: center;">
         <input type="file" id="audio-upload" accept="audio/*" style="display: none;" />
         <div class="upload-zone" id="drop-zone" onclick="document.getElementById('audio-upload').click()">
           <div class="upload-icon">🎤</div>
           <div class="upload-text">Nhấp hoặc kéo thả file ghi âm vào đây</div>
           <div class="upload-hint">Hỗ trợ: <strong>${supportedFormats}</strong> — <strong>Tối đa ${MAX_AUDIO_UPLOAD_MB}MB</strong></div>
-          ${formState.audioFile ? `<div style="margin-top: 15px; color: var(--success); font-weight: bold;">Đã chọn: ${formState.audioFile.name} (${(formState.audioFile.size / 1024 / 1024).toFixed(1)}MB)</div>` : ''}
+          ${formState.audioFile && !formState.audioFile.isRecorded ? `<div style="margin-top: 15px; color: var(--success); font-weight: bold;">Đã chọn: ${formState.audioFile.name} (${(formState.audioFile.size / 1024 / 1024).toFixed(1)}MB)</div>` : ''}
         </div>
       </div>
     </div>
@@ -124,6 +166,93 @@ function renderStep1(sc, c) {
   const dropZone = sc.querySelector('#drop-zone');
   const btnProcess = sc.querySelector('#btn-process');
   const indicator = sc.querySelector('#processing-indicator');
+
+  const btnStart = sc.querySelector('#btn-record-start');
+  const btnPause = sc.querySelector('#btn-record-pause');
+  const btnResume = sc.querySelector('#btn-record-resume');
+  const btnStop = sc.querySelector('#btn-record-stop');
+  const btnReset = sc.querySelector('#btn-record-reset');
+
+  if (btnStart) btnStart.addEventListener('click', startRecording);
+  if (btnPause) btnPause.addEventListener('click', pauseRecording);
+  if (btnResume) btnResume.addEventListener('click', resumeRecording);
+  if (btnStop) btnStop.addEventListener('click', stopRecording);
+  if (btnReset) btnReset.addEventListener('click', resetRecording);
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.start(1000);
+      formState.isRecording = true;
+      formState.isPaused = false;
+      formState.recordingTime = 0;
+      formState.audioFile = null;
+      startTimer();
+      doRender(c);
+    } catch (err) {
+      console.error(err);
+      showToast('Không thể truy cập Microphone. Vui lòng cấp quyền trong trình duyệt.', 'error');
+    }
+  }
+
+  function pauseRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.pause();
+      formState.isPaused = true;
+      stopTimer();
+      doRender(c);
+    }
+  }
+
+  function resumeRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'paused') {
+      mediaRecorder.resume();
+      formState.isPaused = false;
+      startTimer();
+      doRender(c);
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        const file = new File([audioBlob], `ghi_am_truc_tiep_${Date.now()}.webm`, { type: mediaRecorder.mimeType });
+        file.isRecorded = true;
+        formState.audioFile = file;
+        doRender(c);
+      };
+      mediaRecorder.stop();
+      formState.isRecording = false;
+      formState.isPaused = false;
+      stopTimer();
+    }
+  }
+
+  function resetRecording() {
+    formState.isRecording = false;
+    formState.isPaused = false;
+    formState.recordingTime = 0;
+    formState.audioFile = null;
+    doRender(c);
+  }
+
+  function startTimer() {
+    if (recordingTimerInterval) clearInterval(recordingTimerInterval);
+    recordingTimerInterval = setInterval(() => {
+      formState.recordingTime++;
+      const timerEl = document.getElementById('recording-timer');
+      if (timerEl) timerEl.textContent = formatTime(formState.recordingTime);
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (recordingTimerInterval) clearInterval(recordingTimerInterval);
+  }
 
   const selectAudioFile = (file) => {
     if (!file) return;
