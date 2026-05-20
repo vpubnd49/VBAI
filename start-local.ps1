@@ -6,12 +6,18 @@ Write-Host "   Kích Hoạt Trợ Lý Hành Chính - Local Dev   " -ForegroundCo
 Write-Host "=============================================" -ForegroundColor Cyan
 
 # 1. Kiểm tra Service Account ngoài repo
-$saPath = if ($env:GOOGLE_APPLICATION_CREDENTIALS) { $env:GOOGLE_APPLICATION_CREDENTIALS } else { "C:/Users/user/AppData/Local/Temp/vbai-service-account.json" }
+$saPath = if ($env:GOOGLE_APPLICATION_CREDENTIALS) { 
+    $env:GOOGLE_APPLICATION_CREDENTIALS 
+} elseif (Test-Path "$PSScriptRoot/proxy/service-account.json") {
+    "$PSScriptRoot/proxy/service-account.json"
+} else {
+    "$env:TEMP/vbai-service-account.json"
+}
 if (-not (Test-Path $saPath)) {
     Write-Error "Không tìm thấy file Service Account ngoài repo tại: $saPath. Hãy đặt GOOGLE_APPLICATION_CREDENTIALS hoặc chép file vào thư mục tạm."
     Exit
 }
-Write-Host "[OK] Tìm thấy file Service Account ngoài repo." -ForegroundColor Green
+Write-Host "[OK] Tìm thấy file Service Account tại: $saPath" -ForegroundColor Green
 
 # 2. Giải phóng cổng 8080 và 5173
 Write-Host "Đang giải phóng cổng 8080 và 5173..." -ForegroundColor Yellow

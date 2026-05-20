@@ -14,7 +14,12 @@ async function main() {
   console.log('==================================================\n');
 
   // 1. Load Service Account Credentials
-  const saPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || 'C:/Users/user/AppData/Local/Temp/vbai-service-account.json';
+  const os = require('os');
+  const localSaPath = path.join(__dirname, '../proxy/service-account.json');
+  const tempSaPath = path.join(os.tmpdir(), 'vbai-service-account.json');
+  const saPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || 
+                 (fs.existsSync(localSaPath) ? localSaPath : tempSaPath);
+
   if (!fs.existsSync(saPath)) {
     console.error(`[Error] Không tìm thấy file Service Account tại: ${saPath}`);
     process.exit(1);
