@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from '../main.js';
+import { showToast } from './ui-utils.js';
 
 import { firebaseConfig } from '../firebase-config.js';
 
@@ -359,4 +359,5 @@ async function saveUserToDb(db, user) {
     console.error("Lỗi lưu user:", e);
   }
 }
+
 

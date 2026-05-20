@@ -20,7 +20,7 @@ import {
 
 import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig, validateGeminiApiKey } from './system-config.js';
 import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tier-policy.js';
-import { showToast } from '../main.js';
+import { showToast } from './ui-utils.js';
 
 
 const DEFAULT_MODEL = 'gemini-2.5-pro';
@@ -3383,3 +3383,4 @@ export async function renderChatUI(container) {
   if (sendBtn) sendBtn.onclick = handleSend;
   if (input) input.onkeypress = (e) => { if (e.key === 'Enter') handleSend(); };
 }
+

@@ -3,21 +3,7 @@
  * Handles navigation, state, and page rendering
  */
 
-// VBAI Main Entry - Last Update: 2026-05-01 12:38
-import { renderDashboard } from './modules/dashboard.js';
-import { renderVBDang, handleVBDangAction } from './modules/vb-dang.js';
-import { renderVBND30, handleVBND30Action } from './modules/vb-nd30.js';
-import { renderPdfTool } from './modules/pdf-tool.js';
-import { renderDocxTool } from './modules/docx-tool.js';
-import { renderPdfPublisher } from './modules/pdf-publisher.js';
-import { renderSpellCheck } from './modules/spell-check.js';
-import { renderAdminPanel } from './modules/admin-panel.js';
-import { renderLogin } from './modules/login.js';
-import { renderChatUI, runDailyLegalSync } from './modules/chat-assistant.js';
-import { renderMeetingMinutes } from './modules/meeting-minutes.js';
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
+// VBAI Main Entry - Last Update: 2026-05-20 (Performance Optimized)
 import { firebaseConfig } from './firebase-config.js';
 
 const GLOBAL_AI_MODEL = 'gemini-2.5-pro';
@@ -38,7 +24,6 @@ function applyGlobalModelDefaults() {
     localStorage.setItem('vbai_transcribe_model_meeting', GLOBAL_MEETING_MODEL);
   }
 }
-
 
 // ============ STATE ============
 const state = {
@@ -86,6 +71,15 @@ const PAGE_TITLES = {
   'admin-panel': 'Quản Trị Hệ Thống',
 };
 
+function showPageLoading(container) {
+  container.innerHTML = `
+    <div class="page-loading-wrapper">
+      <div class="page-loading-spinner"></div>
+      <div class="page-loading-text">Đang tải mô-đun...</div>
+    </div>
+  `;
+}
+
 function navigateTo(page) {
   if (!page || !PAGE_TITLES[page]) {
     console.warn('Attempted to navigate to invalid page:', page);
@@ -112,109 +106,197 @@ function navigateTo(page) {
   renderPage(page);
 }
 
-function renderPage(page) {
+async function renderPage(page) {
   const container = document.getElementById('page-content');
   if (!container) return;
+  
   container.innerHTML = '';
   container.className = 'page-content page-enter';
+  showPageLoading(container);
 
-  switch (page) {
-    case 'dashboard': renderDashboard(container, navigateTo); break;
-    case 'chat-assistant': renderChatUI(container); break;
-    case 'vb-dang': renderVBDang(container); break;
-    case 'vb-nd30': renderVBND30(container); break;
-    case 'pdf-tool': renderPdfTool(container); break;
-    case 'docx-tool': renderDocxTool(container); break;
-    case 'pdf-publisher': renderPdfPublisher(container); break;
-    case 'spell-check': renderSpellCheck(container); break;
-    case 'meeting-minutes': renderMeetingMinutes(container); break;
-    case 'admin-panel':
-      if (window.isAdmin === true || localStorage.getItem('vbai_is_admin') === 'true') {
-        renderAdminPanel(container);
-      } else {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔒</div><div class="empty-text">Bạn không có quyền truy cập</div></div>';
+  try {
+    switch (page) {
+      case 'dashboard': {
+        const { renderDashboard } = await import('./modules/dashboard.js');
+        container.innerHTML = '';
+        renderDashboard(container, navigateTo);
+        break;
       }
-      break;
-    default: container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏔️</div><div class="empty-text">Trang không tồn tại</div></div>';
+      case 'chat-assistant': {
+        const { renderChatUI } = await import('./modules/chat-assistant.js');
+        container.innerHTML = '';
+        renderChatUI(container);
+        break;
+      }
+      case 'vb-dang': {
+        const { renderVBDang } = await import('./modules/vb-dang.js');
+        container.innerHTML = '';
+        renderVBDang(container);
+        break;
+      }
+      case 'vb-nd30': {
+        const { renderVBND30 } = await import('./modules/vb-nd30.js');
+        container.innerHTML = '';
+        renderVBND30(container);
+        break;
+      }
+      case 'pdf-tool': {
+        const { renderPdfTool } = await import('./modules/pdf-tool.js');
+        container.innerHTML = '';
+        renderPdfTool(container);
+        break;
+      }
+      case 'docx-tool': {
+        const { renderDocxTool } = await import('./modules/docx-tool.js');
+        container.innerHTML = '';
+        renderDocxTool(container);
+        break;
+      }
+      case 'pdf-publisher': {
+        const { renderPdfPublisher } = await import('./modules/pdf-publisher.js');
+        container.innerHTML = '';
+        renderPdfPublisher(container);
+        break;
+      }
+      case 'spell-check': {
+        const { renderSpellCheck } = await import('./modules/spell-check.js');
+        container.innerHTML = '';
+        renderSpellCheck(container);
+        break;
+      }
+      case 'meeting-minutes': {
+        const { renderMeetingMinutes } = await import('./modules/meeting-minutes.js');
+        container.innerHTML = '';
+        renderMeetingMinutes(container);
+        break;
+      }
+      case 'admin-panel': {
+        if (window.isAdmin === true || localStorage.getItem('vbai_is_admin') === 'true') {
+          const { renderAdminPanel } = await import('./modules/admin-panel.js');
+          container.innerHTML = '';
+          renderAdminPanel(container);
+        } else {
+          container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔒</div><div class="empty-text">Bạn không có quyền truy cập</div></div>';
+        }
+        break;
+      }
+      default:
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏔️</div><div class="empty-text">Trang không tồn tại</div></div>';
+    }
+  } catch (err) {
+    console.error(`Lỗi khi tải trang ${page}:`, err);
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <div class="empty-text">Có lỗi khi tải trang. Vui lòng thử lại.</div>
+        <button class="btn btn-primary" onclick="window.location.reload()" style="margin-top: 16px;">Tải lại trang</button>
+      </div>
+    `;
   }
 }
 
+let authInstance = null;
+
 // ============ INIT ============
-function init() {
+async function init() {
   console.log('Main: init() starting...');
   applyGlobalModelDefaults();
+  
   // Chạy đồng bộ văn bản pháp luật nền sau khi ứng dụng đã tải xong và ổn định (tránh nghẽn mạng lúc khởi động)
-  setTimeout(() => {
-    runDailyLegalSync().catch(err => console.warn('Lỗi đồng bộ nền:', err));
+  setTimeout(async () => {
+    try {
+      const { runDailyLegalSync } = await import('./modules/chat-assistant.js');
+      runDailyLegalSync().catch(err => console.warn('Lỗi đồng bộ nền:', err));
+    } catch (err) {
+      console.warn('Lỗi load chat-assistant cho đồng bộ nền:', err);
+    }
   }, 8000);
 
-  console.log('Main: Firebase initializing...');
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  const auth = getAuth(app);
+  console.log('Main: Loading Firebase SDKs...');
+  try {
+    const [firebaseApp, firebaseAuth] = await Promise.all([
+      import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js")
+    ]);
 
-  console.log('Main: Setting up onAuthStateChanged...');
-  onAuthStateChanged(auth, async (user) => {
-    console.log('Main: Auth state changed, user:', user ? user.email : 'null');
-    const loginOverlay = document.getElementById('login-overlay');
-    const mainApp = document.getElementById('app');
-    if (!loginOverlay || !mainApp) return;
+    const { initializeApp, getApps, getApp } = firebaseApp;
+    const { getAuth, onAuthStateChanged, signOut } = firebaseAuth;
 
-    if (user) {
-      window.currentUser = user;
-      try {
-        const tokenResult = await user.getIdTokenResult(true);
-        window.isAdmin = tokenResult?.claims?.admin === true;
-        localStorage.setItem('vbai_is_admin', window.isAdmin ? 'true' : 'false');
-      } catch (e) {
+    console.log('Main: Firebase initializing...');
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    const auth = getAuth(app);
+    authInstance = auth;
+
+    console.log('Main: Setting up onAuthStateChanged...');
+    onAuthStateChanged(auth, async (user) => {
+      console.log('Main: Auth state changed, user:', user ? user.email : 'null');
+      const loginOverlay = document.getElementById('login-overlay');
+      const mainApp = document.getElementById('app');
+      if (!loginOverlay || !mainApp) return;
+
+      if (user) {
+        window.currentUser = user;
+        try {
+          const tokenResult = await user.getIdTokenResult(true);
+          window.isAdmin = tokenResult?.claims?.admin === true;
+          localStorage.setItem('vbai_is_admin', window.isAdmin ? 'true' : 'false');
+        } catch (e) {
+          window.isAdmin = false;
+          localStorage.setItem('vbai_is_admin', 'false');
+        }
+        loginOverlay.style.display = 'none';
+        mainApp.style.display = 'flex';
+
+        // Update breadcrumb with user info
+        document.querySelector('.top-bar-actions').innerHTML = `
+          <div style="font-size:0.85rem; font-weight:500; color:var(--text-secondary); margin-right:16px;">
+            ${user.email}
+          </div>
+          <div class="dalat-time" id="dalat-clock"></div>
+        `;
+        updateClock();
+
+        const adminBtn = document.getElementById('nav-admin-panel');
+        if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
+
+        // Always land on dashboard right after login/auth restore.
+        state.currentPage = 'dashboard';
+        try {
+          await renderPage(state.currentPage);
+          // Update breadcrumb and nav active state for the auto-redirected page
+          document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[state.currentPage]}</span>`;
+          document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.page === state.currentPage);
+          });
+        } catch (err) {
+          console.error('Render page failed after login:', err);
+          const container = document.getElementById('page-content');
+          if (container) {
+            container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Có lỗi khi tải trang chủ. Vui lòng tải lại trang.</div></div>';
+          }
+        }
+      } else {
+        window.currentUser = null;
         window.isAdmin = false;
         localStorage.setItem('vbai_is_admin', 'false');
+        mainApp.style.display = 'none';
+        loginOverlay.style.display = 'block';
+        
+        const { renderLogin } = await import('./modules/login.js');
+        renderLogin(loginOverlay);
       }
-      loginOverlay.style.display = 'none';
-      mainApp.style.display = 'flex';
-
-      // Update breadcrumb with user info
-      document.querySelector('.top-bar-actions').innerHTML = `
-        <div style="font-size:0.85rem; font-weight:500; color:var(--text-secondary); margin-right:16px;">
-          ${user.email}
-        </div>
-        <div class="dalat-time" id="dalat-clock"></div>
-      `;
-      updateClock();
-
-      const adminBtn = document.getElementById('nav-admin-panel');
-      if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
-
-      // Always land on dashboard right after login/auth restore.
-      state.currentPage = 'dashboard';
-      try {
-        renderPage(state.currentPage);
-        // Update breadcrumb and nav active state for the auto-redirected page
-        document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[state.currentPage]}</span>`;
-        document.querySelectorAll('.nav-item').forEach(item => {
-          item.classList.toggle('active', item.dataset.page === state.currentPage);
-        });
-      } catch (err) {
-        console.error('Render page failed after login:', err);
-        const container = document.getElementById('page-content');
-        if (container) {
-          container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Có lỗi khi tải trang chủ. Vui lòng tải lại trang.</div></div>';
-        }
-      }
-    } else {
-      window.currentUser = null;
-      window.isAdmin = false;
-      localStorage.setItem('vbai_is_admin', 'false');
-      mainApp.style.display = 'none';
-      loginOverlay.style.display = 'block';
-      renderLogin(loginOverlay);
-    }
-  });
-
-  document.getElementById('btn-logout').addEventListener('click', () => {
-    signOut(auth).then(() => {
-      showToast('Đã đăng xuất');
     });
-  });
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      signOut(authInstance).then(() => {
+        showToast('Đã đăng xuất');
+      });
+    });
+
+  } catch (err) {
+    console.error('Lỗi khởi động ứng dụng (Firebase SDK):', err);
+    showToast('Lỗi kết nối Firebase SDK', 'error');
+  }
 
   // Sidebar toggle logic
   const sidebar = document.getElementById('sidebar');

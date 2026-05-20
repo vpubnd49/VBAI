@@ -3,7 +3,7 @@
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType, UnderlineType, Header, PageNumber } from 'docx';
 import { saveAs } from 'file-saver';
-import { showToast } from '../main.js';
+import { showToast } from './ui-utils.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -292,3 +292,4 @@ async function generateDangDocx(s) {
 }
 
 export function handleVBDangAction() {}
+

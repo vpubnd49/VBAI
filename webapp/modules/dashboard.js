@@ -1,6 +1,3 @@
-﻿import { renderChatUI } from './chat-assistant.js';
-import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-import { getFirestore, doc, onSnapshot, setDoc, increment } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { firebaseConfig } from '../firebase-config.js';
 
 /**
@@ -95,7 +92,12 @@ export function renderDashboard(container, navigateTo) {
   `;
 
   const chatContainer = container.querySelector('#chat-assistant-container');
-  renderChatUI(chatContainer);
+  import('./chat-assistant.js').then(({ renderChatUI }) => {
+    renderChatUI(chatContainer);
+  }).catch(err => {
+    console.error('Lỗi tải chat-assistant:', err);
+    chatContainer.innerHTML = '<div style="padding:20px;text-align:center;color:var(--danger)">Không thể tải khung tra cứu. Vui lòng tải lại trang.</div>';
+  });
 
   void hydrateSkills(container, navigateTo);
   void hydrateVisitCounter(container);
@@ -153,6 +155,14 @@ async function hydrateVisitCounter(container) {
   const isNewSession = !sessionStorage.getItem(SESSION_KEY);
 
   try {
+    const [firebaseApp, firebaseFirestore] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js')
+    ]);
+
+    const { initializeApp, getApps, getApp } = firebaseApp;
+    const { getFirestore, doc, onSnapshot, setDoc, increment } = firebaseFirestore;
+
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
     const visitDocRef = doc(db, 'stats', 'visits');

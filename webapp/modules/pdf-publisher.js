@@ -1,5 +1,5 @@
 import { marked } from 'marked';
-import { showToast } from '../main.js';
+import { showToast } from './ui-utils.js';
 import { sendChatRequest, sendWebExtractRequest } from './ai-proxy.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -546,3 +546,4 @@ CẤU TRÚC BẮT BUỘC:
   // Initial render
   btnRender.click();
 }
+

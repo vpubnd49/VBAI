@@ -4,7 +4,7 @@
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
-import { showToast } from '../main.js';
+import { showToast } from './ui-utils.js';
 import { sendChatRequest } from './ai-proxy.js';
 import { fetchSystemConfig } from './system-config.js';
 import { SPELLING_ERRORS, CAPITALIZATION_RULES, TITLE_CONTEXT_RULES, OFFICIAL_TITLES, WHITELIST } from './vn-dictionary.js';
@@ -653,3 +653,4 @@ function logToFirestore(fileName, spellCount, formatCount) {
     }).catch(() => {});
   } catch (e) {}
 }
+

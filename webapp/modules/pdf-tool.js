@@ -1,7 +1,7 @@
 /**
  * PDF & Image OCR Tool Module — Upload & extract text from PDF or images
  */
-import { showToast } from '../main.js';
+import { showToast } from './ui-utils.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { sendChatRequest } from './ai-proxy.js';
@@ -276,3 +276,4 @@ function fileToBase64(file) {
     reader.readAsDataURL(file);
   });
 }
+

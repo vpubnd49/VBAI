@@ -5,7 +5,7 @@
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType } from 'docx';
 import { saveAs } from 'file-saver';
-import { showToast } from '../main.js';
+import { showToast } from './ui-utils.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
@@ -1064,3 +1064,4 @@ function extractTopicSummary(fs) {
   if (topics.length <= 3) return topics.join('; ').toLowerCase();
   return topics.slice(0, 2).join('; ').toLowerCase() + ` và ${topics.length - 2} nội dung khác`;
 }
+

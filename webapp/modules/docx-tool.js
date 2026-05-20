@@ -3,7 +3,7 @@
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
-import { showToast } from '../main.js';
+import { showToast } from './ui-utils.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -146,3 +146,4 @@ async function analyzeDocx(file, container) {
 
   } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
 }
+
