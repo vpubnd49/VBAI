@@ -779,20 +779,114 @@ function extractTextFromProviderPayload(data = {}) {
   return '';
 }
 
+async function uploadToGeminiFiles({ apiKey, fileBuffer, mimeType, filename }) {
+  const initUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`;
+  const initRes = await fetch(initUrl, {
+    method: 'POST',
+    headers: {
+      'X-Goog-Upload-Protocol': 'resumable',
+      'X-Goog-Upload-Command': 'start',
+      'X-Goog-Upload-Header-Content-Length': String(fileBuffer.length),
+      'X-Goog-Upload-Header-Content-Type': mimeType,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      file: {
+        displayName: filename || 'audio_file',
+      },
+    }),
+  });
+
+  if (!initRes.ok) {
+    const errText = await initRes.text();
+    throw new Error(`Failed to initialize Gemini File upload: ${initRes.status} - ${errText}`);
+  }
+
+  const uploadUrl = initRes.headers.get('x-goog-upload-url') || initRes.headers.get('Location');
+  if (!uploadUrl) {
+    throw new Error('Gemini File upload response missing x-goog-upload-url or Location header');
+  }
+
+  const uploadRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Length': String(fileBuffer.length),
+      'X-Goog-Upload-Offset': '0',
+      'X-Goog-Upload-Command': 'upload, finalize',
+    },
+    body: fileBuffer,
+  });
+
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text();
+    throw new Error(`Failed to upload bytes to Gemini File API: ${uploadRes.status} - ${errText}`);
+  }
+
+  const data = await uploadRes.json();
+  return data.file;
+}
+
+async function deleteFromGeminiFiles({ apiKey, fileName }) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/${fileName}?key=${encodeURIComponent(apiKey)}`;
+  try {
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) {
+      console.warn(`Failed to delete file ${fileName} from Gemini: ${res.status}`);
+    }
+  } catch (err) {
+    console.warn(`Error deleting file ${fileName} from Gemini:`, err);
+  }
+}
+
 
 async function executeGeminiNativeAudioTranscription({
   apiKey,
   modelName,
   audioBase64,
+  audioBuffer,
   mimeType,
+  filename,
 }) {
+  let fileUri = null;
+  let fileApiName = null;
+  let activeBase64 = audioBase64;
+
+  const bufferLen = audioBuffer ? audioBuffer.length : (activeBase64 ? Buffer.from(activeBase64, 'base64').length : 0);
+  if (bufferLen > 15 * 1024 * 1024) {
+    try {
+      const realBuffer = audioBuffer || Buffer.from(activeBase64, 'base64');
+      console.log(`[Files API] File size ${bufferLen} bytes is > 15MB. Uploading to Gemini Files API...`);
+      const fileInfo = await uploadToGeminiFiles({
+        apiKey,
+        fileBuffer: realBuffer,
+        mimeType,
+        filename,
+      });
+      fileUri = fileInfo.uri;
+      fileApiName = fileInfo.name;
+      console.log(`[Files API] Uploaded successfully: ${fileApiName} - URI: ${fileUri}`);
+    } catch (uploadErr) {
+      console.error('[Files API] Upload failed:', uploadErr);
+      return {
+        ok: false,
+        status: 500,
+        message: `Failed to upload large audio file to Gemini Files API: ${uploadErr.message}`,
+        reason: 'files_api_upload_failed',
+      };
+    }
+  } else if (!activeBase64 && audioBuffer) {
+    activeBase64 = audioBuffer.toString('base64');
+  }
+
   const endpoint = `${GEMINI_API_BASE}/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const payload = {
     contents: [{
       role: 'user',
       parts: [
         { text: 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.' },
-        { inline_data: { mime_type: mimeType, data: audioBase64 } },
+        fileUri 
+          ? { file_data: { file_uri: fileUri, mime_type: mimeType } }
+          : { inline_data: { mime_type: mimeType, data: activeBase64 } },
       ],
     }],
     generationConfig: {
@@ -800,39 +894,47 @@ async function executeGeminiNativeAudioTranscription({
     },
   };
 
-  const providerRes = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+  try {
+    const providerRes = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
-  if (!providerRes.ok) {
-    const providerError = await readProviderError(providerRes);
-    return {
-      ok: false,
-      status: providerRes.status,
-      message: providerError.message,
-      reason: providerError.reason,
-    };
-  }
+    if (!providerRes.ok) {
+      const providerError = await readProviderError(providerRes);
+      return {
+        ok: false,
+        status: providerRes.status,
+        message: providerError.message,
+        reason: providerError.reason,
+      };
+    }
 
-  const data = await providerRes.json();
-  const text = extractTextFromProviderPayload(data);
-  if (!text) {
+    const data = await providerRes.json();
+    const text = extractTextFromProviderPayload(data);
+    if (!text) {
+      return {
+        ok: false,
+        status: 502,
+        message: 'Native transcription returned empty text',
+        reason: 'empty_transcription',
+      };
+    }
+
     return {
-      ok: false,
-      status: 502,
-      message: 'Native transcription returned empty text',
-      reason: 'empty_transcription',
+      ok: true,
+      status: 200,
+      text,
     };
+  } finally {
+    if (fileApiName) {
+      console.log(`[Files API] Cleaning up file from Gemini: ${fileApiName}...`);
+      await deleteFromGeminiFiles({ apiKey, fileName: fileApiName });
+    }
   }
-  return {
-    ok: true,
-    status: providerRes.status,
-    text,
-  };
 }
 
 async function executeGeminiCompatChatRequest({ apiKey, modelName, messages, temperature = 0.1, maxTokens = 32 }) {
@@ -1493,7 +1595,9 @@ app.post('/api/transcribe', (req, res, next) => {
     initFirebase();
     await verifyIdToken(req);
 
-    const { filename, model } = req.body || {};
+    const { filename, model, part, total, uploadId } = req.body || {};
+    const partNum = part ? parseInt(part, 10) : null;
+    const totalNum = total ? parseInt(total, 10) : null;
 
     let audioBuffer = req.file?.buffer || null;
     let detectedMimeType = req.file?.mimetype || 'application/octet-stream';
@@ -1507,6 +1611,59 @@ app.post('/api/transcribe', (req, res, next) => {
     }
     if (!audioBuffer || audioBuffer.length === 0) {
       return res.status(400).json({ error: 'audio file is required (multipart field: audio)' });
+    }
+
+    // Chunked upload handling
+    if (partNum && totalNum && uploadId) {
+      const path = require('path');
+      const fs = require('fs');
+      const os = require('os');
+      const tempDir = os.tmpdir();
+      const chunkPath = path.join(tempDir, `vbai_upload_${uploadId}.part_${partNum}`);
+      
+      // Save chunk to disk
+      await fs.promises.writeFile(chunkPath, audioBuffer);
+      
+      // Check if all chunks are received
+      let allPartsPresent = true;
+      const partPaths = [];
+      for (let i = 1; i <= totalNum; i++) {
+        const pPath = path.join(tempDir, `vbai_upload_${uploadId}.part_${i}`);
+        partPaths.push(pPath);
+        if (!fs.existsSync(pPath)) {
+          allPartsPresent = false;
+        }
+      }
+      
+      if (!allPartsPresent) {
+        // Return 200 with status uploading
+        return res.json({ status: 'uploading', part: partNum, total: totalNum });
+      }
+      
+      // All parts are present, concatenate them
+      console.log(`[Chunks] Concatenating ${totalNum} chunks for upload ID ${uploadId}...`);
+      const fullPath = path.join(tempDir, `vbai_upload_${uploadId}.full`);
+      const writeStream = fs.createWriteStream(fullPath);
+      for (const pPath of partPaths) {
+        const data = await fs.promises.readFile(pPath);
+        writeStream.write(data);
+      }
+      writeStream.end();
+      
+      await new Promise((resolve, reject) => {
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+      });
+      
+      // Clean up part files immediately to free space
+      for (const pPath of partPaths) {
+        fs.unlink(pPath, () => {});
+      }
+      
+      // Read aggregated buffer and delete full file
+      audioBuffer = await fs.promises.readFile(fullPath);
+      fs.unlink(fullPath, () => {});
+      console.log(`[Chunks] Concatenation complete. Full file size is ${audioBuffer.length} bytes.`);
     }
 
     // Fetch system config (từ cache để tăng tốc độ bóc băng)
@@ -1532,14 +1689,15 @@ app.post('/api/transcribe', (req, res, next) => {
     let finalModel = null;
 
     // Đẩy thẳng cho mô hình Gemini phân tích (Bỏ hoàn toàn OpenAI compat theo yêu cầu)
-    const audioBase64 = audioBuffer.toString('base64');
     for (const candidateModel of nativeCandidateModels) {
       if (!attemptedModels.includes(candidateModel)) attemptedModels.push(candidateModel);
       const nativeAttempt = await executeGeminiNativeAudioTranscription({
         apiKey,
         modelName: candidateModel,
-        audioBase64,
+        audioBuffer,
+        audioBase64: null,
         mimeType: compatibleAudioMime,
+        filename: effectiveFilename,
       });
       if (nativeAttempt.ok && String(nativeAttempt.text || '').trim()) {
         finalAttempt = {

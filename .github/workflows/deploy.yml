@@ -123,9 +123,9 @@ jobs:
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
             --port 8080 \
-            --memory 256Mi \
+            --memory 2Gi \
             --max-instances 3 \
-            --set-env-vars MAX_AUDIO_UPLOAD_MB=80 \
+            --set-env-vars MAX_AUDIO_UPLOAD_MB=500 \
             ${BUILD_SA_FLAG} \
             ${RUNTIME_SA_FLAG}
           PROXY_URL=$(gcloud run services describe vbai-proxy --project ${{ env.PROJECT_ID }} --region ${{ env.REGION }} --format='value(status.url)')

@@ -270,6 +270,7 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
   const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
 
   if (chunkWhenLarge && file?.size > maxBytes) {
+    const uploadId = `upload_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     const total = Math.ceil(file.size / maxBytes);
     const chunkPromises = [];
     for (let part = 0; part < total; part += 1) {
@@ -291,7 +292,7 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
         batch.map(async ({ chunkFile, part }) => {
           try {
             if (onProgress) onProgress({ part, total, type: 'start' });
-            const text = await sendSingleAudioTranscription(chunkFile, model, options, { part, total });
+            const text = await sendSingleAudioTranscription(chunkFile, model, options, { part, total, uploadId });
             if (onProgress) onProgress({ part, total, type: 'complete' });
             return { part, text: String(text || '').trim() };
           } catch (err) {
@@ -320,6 +321,7 @@ async function sendSingleAudioTranscription(file, model = DEFAULT_PROXY_MODEL, o
   formData.append('context', options.context || 'meeting');
   if (partMeta?.part) formData.append('part', String(partMeta.part));
   if (partMeta?.total) formData.append('total', String(partMeta.total));
+  if (partMeta?.uploadId) formData.append('uploadId', String(partMeta.uploadId));
 
   const response = await backendFetch('/transcribe', {
     method: 'POST',

@@ -743,8 +743,8 @@ async function processAudioWithProxy(file, progressEl) {
   const transcriptModel = chatModel;
   let transcript = '';
   let usedTranscriptModel = chatModel;
-  const transcribeTimeoutMs = Number(localStorage.getItem('vbai_transcribe_timeout_ms') || '120000');
-  const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : 120000;
+  const transcribeTimeoutMs = Number(localStorage.getItem('vbai_transcribe_timeout_ms') || (activeFile.size > 30 * 1024 * 1024 ? '300000' : '120000'));
+  const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : (activeFile.size > 30 * 1024 * 1024 ? 300000 : 120000);
   const transcribeCandidates = modelCandidates;
 
   // Tạo hàm cập nhật tiến trình bóc băng song song chuyên nghiệp
