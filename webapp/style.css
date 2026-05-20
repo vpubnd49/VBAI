@@ -204,6 +204,21 @@ body {
 .page-content::-webkit-scrollbar-track { background: transparent; }
 .page-content::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
 
+.page-enter {
+  animation: pageFadeIn 0.22s cubic-bezier(0.215, 0.61, 0.355, 1) forwards;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ============ Dashboard ============ */
 .dashboard-hero {
   text-align: center; padding: 40px 20px 32px;

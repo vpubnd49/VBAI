@@ -195,6 +195,28 @@ async function renderPage(page) {
   }
 }
 
+function preloadModules() {
+  const triggerPreloads = () => {
+    console.log('Main: Preloading modules in background...');
+    import('./modules/dashboard.js').catch(() => {});
+    import('./modules/chat-assistant.js').catch(() => {});
+    import('./modules/vb-dang.js').catch(() => {});
+    import('./modules/vb-nd30.js').catch(() => {});
+    import('./modules/pdf-tool.js').catch(() => {});
+    import('./modules/docx-tool.js').catch(() => {});
+    import('./modules/pdf-publisher.js').catch(() => {});
+    import('./modules/spell-check.js').catch(() => {});
+    import('./modules/meeting-minutes.js').catch(() => {});
+    import('./modules/admin-panel.js').catch(() => {});
+  };
+
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(() => triggerPreloads());
+  } else {
+    setTimeout(triggerPreloads, 2000);
+  }
+}
+
 let authInstance = null;
 
 // ============ INIT ============
@@ -263,6 +285,9 @@ async function init() {
         state.currentPage = 'dashboard';
         try {
           await renderPage(state.currentPage);
+          // Trigger preloading of all other modules in background to eliminate latency
+          preloadModules();
+
           // Update breadcrumb and nav active state for the auto-redirected page
           document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[state.currentPage]}</span>`;
           document.querySelectorAll('.nav-item').forEach(item => {
