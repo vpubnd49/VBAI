@@ -42,7 +42,7 @@ function getMeetingModelFallbackOrder() {
 }
 
 const PROCESSING_TEXT = "Đang xử lý......";
-const MAX_AUDIO_UPLOAD_MB = 80;
+const MAX_AUDIO_UPLOAD_MB = 500;
 const MAX_AUDIO_UPLOAD_BYTES = MAX_AUDIO_UPLOAD_MB * 1024 * 1024;
 
 let mediaRecorder = null;
