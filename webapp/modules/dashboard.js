@@ -65,19 +65,6 @@ export function renderDashboard(container, navigateTo) {
         </div>
       </section>
 
-      <section id="disclaimer-section" class="dashboard-disclaimer">
-        <div class="dashboard-disclaimer-mark">!</div>
-        <div>
-          <h3>Lưu ý quan trọng và kiểm soát rủi ro</h3>
-          <p>
-            Trợ lý hành chính là công cụ hỗ trợ, không thay thế trách nhiệm của cán bộ, công chức trong việc kiểm tra, thẩm định nội dung tham mưu.
-            Kết quả do trợ lý AI cung cấp cần được đối chiếu với văn bản pháp luật chính thức.
-          </p>
-          <p>
-            <strong>An toàn thông tin:</strong> Tuyệt đối không đưa lên hệ thống các tài liệu mật, tài liệu nhạy cảm hoặc thông tin chưa được phép xử lý trên môi trường mạng.
-          </p>
-        </div>
-      </section>
 
       <footer class="app-footer dashboard-footer">
         <div class="footer-line">Phiên bản v1.2.6 - Văn phòng UBND tỉnh Lâm Đồng</div>
