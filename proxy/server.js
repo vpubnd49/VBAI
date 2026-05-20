@@ -964,6 +964,30 @@ function getSystemConfigRef() {
   return admin.firestore().doc('config/system');
 }
 
+// Bộ nhớ đệm (cache) cho cấu hình hệ thống để tối ưu tốc độ và giảm truy vấn Firestore liên tục
+let systemConfigCache = null;
+let systemConfigCacheExpiresAt = 0;
+const SYSTEM_CONFIG_CACHE_TTL_MS = 3 * 60 * 1000; // Lưu cache trong 3 phút
+
+async function getCachedSystemConfig() {
+  const now = Date.now();
+  if (systemConfigCache && now < systemConfigCacheExpiresAt) {
+    return systemConfigCache;
+  }
+  const snap = await getSystemConfigRef().get();
+  if (!snap.exists) {
+    throw new Error('System config not found');
+  }
+  systemConfigCache = snap.data() || {};
+  systemConfigCacheExpiresAt = now + SYSTEM_CONFIG_CACHE_TTL_MS;
+  return systemConfigCache;
+}
+
+function invalidateSystemConfigCache() {
+  systemConfigCache = null;
+  systemConfigCacheExpiresAt = 0;
+}
+
 function getWebSearchHotIndexRef() {
   return admin.firestore().doc('config/web_search_hot_index');
 }
@@ -979,11 +1003,7 @@ app.get('/api/system-config-summary', async (req, res) => {
     initFirebase();
     const decoded = await verifyIdToken(req);
     const requesterIsAdmin = isAdmin(decoded);
-    const snap = await getSystemConfigRef().get();
-    if (!snap.exists) {
-      return res.status(404).json({ error: 'System config not found' });
-    }
-    const data = snap.data();
+    const data = await getCachedSystemConfig();
     // Return masked version (do not send full API keys)
     const fallbackSources = sanitizeFallbackSources(data.web_search_fallback_sources);
     const webSearchMode = sanitizeWebSearchMode(data.web_search_mode);
@@ -1241,6 +1261,7 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     await getSystemConfigRef().set(updateData, { merge: true });
+    invalidateSystemConfigCache();
     res.json({ success: true, message: 'System config updated' });
   } catch (err) {
     console.error('POST /api/admin/system-config error:', err);
@@ -1322,12 +1343,8 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'messages or contents array required' });
     }
 
-    // Fetch system config
-    const snap = await getSystemConfigRef().get();
-    if (!snap.exists) {
-      return res.status(503).json({ error: 'System not configured', message: 'Please contact administrator to configure AI provider.' });
-    }
-    const config = snap.data();
+    // Fetch system config (từ cache để giảm độ trễ phản hồi)
+    const config = await getCachedSystemConfig();
 
     const endpoint = GEMINI_API_ENDPOINT;
     const apiKey = config.gemini_api_key;
@@ -1492,12 +1509,8 @@ app.post('/api/transcribe', (req, res, next) => {
       return res.status(400).json({ error: 'audio file is required (multipart field: audio)' });
     }
 
-    // Fetch system config
-    const snap = await getSystemConfigRef().get();
-    if (!snap.exists) {
-      return res.status(503).json({ error: 'System not configured' });
-    }
-    const config = snap.data();
+    // Fetch system config (từ cache để tăng tốc độ bóc băng)
+    const config = await getCachedSystemConfig();
 
     const endpoint = GEMINI_API_ENDPOINT;
     const apiKey = config.gemini_api_key;
@@ -1603,12 +1616,8 @@ app.post('/api/web-search', async (req, res) => {
       return res.status(400).json({ error: 'query required' });
     }
 
-    // Fetch system config for web search credentials
-    const snap = await getSystemConfigRef().get();
-    if (!snap.exists) {
-      return res.status(503).json({ error: 'System not configured' });
-    }
-    const config = snap.data();
+    // Fetch system config for web search credentials (từ cache)
+    const config = await getCachedSystemConfig();
     const webSearchProviderSetting = sanitizeWebSearchProvider(config.web_search_provider);
     const webSearchMode = sanitizeWebSearchMode(config.web_search_mode);
     const fallbackSources = sanitizeFallbackSources(config.web_search_fallback_sources);

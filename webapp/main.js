@@ -143,7 +143,10 @@ function renderPage(page) {
 function init() {
   console.log('Main: init() starting...');
   applyGlobalModelDefaults();
-  runDailyLegalSync();
+  // Chạy đồng bộ văn bản pháp luật nền sau khi ứng dụng đã tải xong và ổn định (tránh nghẽn mạng lúc khởi động)
+  setTimeout(() => {
+    runDailyLegalSync().catch(err => console.warn('Lỗi đồng bộ nền:', err));
+  }, 8000);
 
   console.log('Main: Firebase initializing...');
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
