@@ -20,6 +20,8 @@ import {
 
 import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig, validateGeminiApiKey } from './system-config.js';
 import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tier-policy.js';
+import { showToast } from '../main.js';
+
 
 const DEFAULT_MODEL = 'gemini-2.5-pro';
 const STRICT_MEETING_AUDIO_MODEL = 'gemini-2.5-pro';
@@ -254,6 +256,8 @@ let recentTurns = [];
 let lastUserQuery = "";
 let lastAssistantReply = "";
 let lastResolvedDocNumber = "";
+let attachedFile = null; // Đính kèm tệp tin hiện tại: { name, text, size, type }
+
 if (typeof sessionStorage !== 'undefined') {
   try {
     const storedDocNo = sessionStorage.getItem('vbai_last_resolved_doc');
@@ -270,6 +274,153 @@ async function loadSkills() {
     console.warn("L\u1ed7i t\u1ea3i Skills cho Chat Assistant:", e);
   }
 }
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function processAttachedFile(file, statusCallback) {
+  const ext = '.' + file.name.split('.').pop().toLowerCase();
+  
+  if (ext === '.pdf') {
+    statusCallback('Đang đọc file PDF...');
+    if (!window.pdfjsLib) {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      document.head.appendChild(script);
+      await new Promise((resolve, reject) => { script.onload = resolve; script.onerror = reject; });
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map(item => item.str).join(' ');
+      fullText += `--- Trang ${i} ---\n${pageText}\n\n`;
+    }
+    
+    const textLen = fullText.trim().replace(/--- Trang \d+ ---/g, '').trim().length;
+    if (textLen < 50) {
+      statusCallback('Đang nhận dạng chữ (OCR AI)...');
+      const ocrPrompt = `Bạn là chuyên gia OCR tiếng Việt. Hãy đọc và trích xuất NGUYÊN VĂN TOÀN BỘ nội dung chữ tiếng Việt có trong các hình ảnh tài liệu này. Không bình luận hay giải thích.`;
+      const content = [{ type: "text", text: ocrPrompt }];
+      const limitPages = Math.min(pdf.numPages, 10);
+      
+      for (let i = 1; i <= limitPages; i++) {
+        statusCallback(`Đang quét ảnh trang ${i}/${limitPages}...`);
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: context, viewport }).promise;
+        const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+        content.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64}` } });
+      }
+      
+      statusCallback('Đang nhận diện ký tự bằng AI...');
+      const config = await fetchSystemConfig();
+      const model = config?.gemini_model || 'gemini-2.5-flash';
+      const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr' });
+      if (!ocrText) throw new Error('Không thể nhận diện được nội dung chữ từ file quét scan.');
+      fullText = ocrText;
+    }
+    
+    return fullText;
+  }
+  
+  else if (ext === '.docx') {
+    statusCallback('Đang đọc file Word (.docx)...');
+    const JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
+    const zip = await JSZip.loadAsync(file);
+    const docXml = await zip.file('word/document.xml')?.async('text');
+    if (!docXml) throw new Error('Không tìm thấy nội dung document.xml trong file Word.');
+    
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(docXml, "application/xml");
+    const body = xmlDoc.getElementsByTagName('w:body')[0] || xmlDoc.getElementsByTagName('body')[0];
+    if (!body) throw new Error('Không thể phân tích cấu trúc file Word.');
+    
+    let resultText = "";
+    function traverse(node) {
+      const name = node.nodeName.replace(/^.*:/, '');
+      if (name === 'p') {
+        let pText = "";
+        const tNodes = Array.from(node.querySelectorAll('*')).filter(n => n.nodeName.replace(/^.*:/, '') === 't');
+        for (let t of tNodes) {
+          pText += t.textContent;
+        }
+        resultText += pText + "\n";
+      } else if (name === 'tbl') {
+        const rows = Array.from(node.querySelectorAll('*')).filter(n => n.nodeName.replace(/^.*:/, '') === 'tr');
+        for (let r of rows) {
+          let rowText = [];
+          const cells = Array.from(r.childNodes).filter(n => n.nodeName.replace(/^.*:/, '') === 'tc');
+          for (let c of cells) {
+            const tNodes = Array.from(c.querySelectorAll('*')).filter(n => n.nodeName.replace(/^.*:/, '') === 't');
+            let cellText = tNodes.map(t => t.textContent).join('');
+            rowText.push(cellText.trim());
+          }
+          resultText += "| " + rowText.join(" | ") + " |\n";
+        }
+        resultText += "\n";
+      } else {
+        for (let child of node.childNodes) {
+          traverse(child);
+        }
+      }
+    }
+    
+    for (let child of body.childNodes) {
+      traverse(child);
+    }
+    return resultText.trim();
+  }
+  
+  else if (ext === '.xlsx') {
+    statusCallback('Đang đọc file Excel (.xlsx)...');
+    if (!window.XLSX) {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      document.head.appendChild(script);
+      await new Promise((resolve, reject) => { script.onload = resolve; script.onerror = reject; });
+    }
+    
+    const arrayBuffer = await file.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    const workbook = window.XLSX.read(data, { type: 'array' });
+    let fullText = '';
+    
+    workbook.SheetNames.forEach(sheetName => {
+      const worksheet = workbook.Sheets[sheetName];
+      const csv = window.XLSX.utils.sheet_to_csv(worksheet);
+      if (csv.trim()) {
+        fullText += `--- Sheet: ${sheetName} ---\n${csv}\n\n`;
+      }
+    });
+    
+    if (!fullText.trim()) throw new Error('File Excel trống hoặc không đọc được nội dung.');
+    return fullText.trim();
+  }
+  
+  else {
+    throw new Error('Định dạng file không hỗ trợ. Vui lòng chọn PDF, Word (.docx) hoặc Excel (.xlsx).');
+  }
+}
+
 
 function normalizeVietnamese(text = '') {
   return text
@@ -2167,6 +2318,57 @@ export async function sendMessage(text, onChunk) {
   };
 
   try {
+    if (attachedFile) {
+      const filePrompt = `[DƯỚI ĐÂY LÀ NỘI DUNG TÀI LIỆU ĐƯỢC NGƯỜI DÙNG ĐÍNH KÈM (Tên file: ${attachedFile.name})]\n` +
+                         `========================================\n` +
+                         `${attachedFile.text}\n` +
+                         `========================================\n\n` +
+                         `YÊU CẦU NGƯỜI DÙNG: ${rawUserText || 'Hãy tóm tắt và phân tích tài liệu này.'}`;
+
+      const messages = [
+        { role: "system", content: dynamicInstruction + "\n\nLưu ý quan trọng: Người dùng đang đính kèm tài liệu và hỏi về tài liệu này. Hãy đọc kỹ văn bản được đính kèm ở trên và trả lời câu hỏi dựa trên nội dung đó. Định dạng câu trả lời chuẩn markdown đẹp mắt." },
+        ...getConversationalMemory(),
+        { role: "user", content: filePrompt }
+      ];
+
+      const streamOptions = {
+        context: "chat",
+        stream: true,
+        temperature: drafting ? 0.35 : 0.2,
+        onDelta: (partial) => {
+          if (onChunk) onChunk(partial);
+        }
+      };
+
+      let fileReply = "";
+      try {
+        fileReply = await sendChatRequest(messages, currentModelName, streamOptions);
+        if (!String(fileReply || "").trim()) {
+          throw new Error("AI trả về phản hồi rỗng.");
+        }
+      } catch (proxyError) {
+        throw new Error(`Lỗi AI: ${proxyError?.message || proxyError}. Vui lòng kiểm tra lại API Key hoặc Endpoint.`);
+      }
+
+      fileReply = enforceTwoTierTerminology(
+        ensureFollowUpQuestion(fileReply, rawUserText, {}, null),
+        rawUserText
+      );
+
+      pushTurn("user", rawUserText || `[Tài liệu: ${attachedFile.name}]`);
+      pushTurn("assistant", fileReply);
+      lastUserQuery = rawUserText;
+      lastAssistantReply = stripTrailingFollowUpBlocks(fileReply);
+
+      logSearchEvent(fileReply, {
+        webSearchUsed: false,
+        webSearchMeta: { attached_file: attachedFile.name, attached_file_size: attachedFile.size }
+      });
+
+      if (onChunk) onChunk(fileReply);
+      return fileReply;
+    }
+
     let fullText = "";
     let useWebSearch = !!(
       systemConfigCache?.web_search_configured
@@ -2639,7 +2841,16 @@ export async function renderChatUI(container) {
           </div>
         </div>
 
+        <!-- Preview area for file attachments -->
+        <div id="chat-attachment-preview" class="chat-attachment-preview-area" style="display:none;"></div>
+
         <div class="chat-input-wrapper" style="display:flex; gap:8px; align-items:center;">
+          <input type="file" id="chat-file-input" accept=".pdf,.docx,.xlsx" style="display:none">
+          <button id="chat-attach-btn" class="btn btn-secondary" style="padding: 12px 14px; display:flex; align-items:center; justify-content:center; border-radius: 8px;" title="Đính kèm file (PDF, Word, Excel)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+            </svg>
+          </button>
           <input type="text" id="chat-input" placeholder="Nh\u1eadp n\u1ed9i dung c\u1ea7n tra c\u1ee9u..." class="form-input chat-input-field">
           <button id="chat-send-btn" class="btn btn-primary chat-send-btn">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10l15-7.5L10 10l7.5 7.5L2.5 10z" fill="currentColor"/></svg>
@@ -2745,6 +2956,103 @@ export async function renderChatUI(container) {
   const msgsArea = container.querySelector('#chat-messages');
   const input = container.querySelector('#chat-input');
   const sendBtn = container.querySelector('#chat-send-btn');
+
+  const fileInput = container.querySelector('#chat-file-input');
+  const attachBtn = container.querySelector('#chat-attach-btn');
+  const previewArea = container.querySelector('#chat-attachment-preview');
+
+  attachedFile = null; // Clear previous attachment when rendering new Chat UI
+  
+  // Helper to escape HTML characters
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+  }
+
+  if (attachBtn && fileInput && previewArea) {
+    attachBtn.onclick = () => fileInput.click();
+    fileInput.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // Limit file size to 25MB
+      if (file.size > 25 * 1024 * 1024) {
+        showToast('File quá lớn. Vui lòng chọn file nhỏ hơn 25MB.', 'error');
+        fileInput.value = '';
+        return;
+      }
+      
+      // Show preview area and loading state
+      previewArea.style.display = 'flex';
+      previewArea.innerHTML = `
+        <div class="file-icon">⏳</div>
+        <div class="file-info">
+          <div class="file-name">${escapeHtml(file.name)}</div>
+          <div class="file-status">Đang chuẩn bị...</div>
+        </div>
+      `;
+      
+      try {
+        const text = await processAttachedFile(file, (status) => {
+          const statusEl = previewArea.querySelector('.file-status');
+          if (statusEl) statusEl.textContent = status;
+        });
+        
+        attachedFile = {
+          name: file.name,
+          text: text,
+          size: file.size,
+          type: file.type
+        };
+        
+        // Show completion preview
+        const kbSize = (file.size / 1024).toFixed(1);
+        const fileIcon = file.name.toLowerCase().endsWith('.pdf') ? '📄' : 
+                         (file.name.toLowerCase().endsWith('.docx') ? '📝' : '📊');
+        
+        previewArea.innerHTML = `
+          <div class="file-icon">${fileIcon}</div>
+          <div class="file-info">
+            <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+            <div class="file-status" style="color: #34d399;">Sẵn sàng • ${kbSize} KB (${text.length.toLocaleString()} ký tự)</div>
+          </div>
+          <button class="btn-remove" title="Xóa đính kèm">×</button>
+        `;
+        
+        previewArea.querySelector('.btn-remove').onclick = () => {
+          attachedFile = null;
+          previewArea.style.display = 'none';
+          previewArea.innerHTML = '';
+          fileInput.value = '';
+          showToast('Đã gỡ bỏ file đính kèm');
+        };
+        
+        showToast('Đã đính kèm file thành công!');
+        
+      } catch (err) {
+        console.error(err);
+        attachedFile = null;
+        previewArea.innerHTML = `
+          <div class="file-icon">❌</div>
+          <div class="file-info">
+            <div class="file-name">${escapeHtml(file.name)}</div>
+            <div class="file-status" style="color: var(--danger);">${escapeHtml(err.message)}</div>
+          </div>
+          <button class="btn-remove" title="Đóng">×</button>
+        `;
+        previewArea.querySelector('.btn-remove').onclick = () => {
+          previewArea.style.display = 'none';
+          previewArea.innerHTML = '';
+          fileInput.value = '';
+        };
+        showToast(err.message, 'error');
+      }
+    };
+  }
 
   const settingsBtn = container.querySelector('#chat-settings-ai-btn');
   const keyModalAI = container.querySelector('#key-modal-ai');
@@ -3031,29 +3339,38 @@ export async function renderChatUI(container) {
 
   const handleSend = async () => {
     const text = input.value.trim();
-    if (!text) return;
+    if (!text && !attachedFile) return;
 
     input.value = '';
     sendBtn.disabled = true;
-    addMsg(text, 'user');
 
-    const aiMsgDiv = addMsg('\ud83d\udd0d \u0110ang tra c\u1ee9u...', 'ai');
+    let displayUserText = text;
+    const queryText = text || 'Hãy tóm tắt và phân tích tài liệu đính kèm.';
+    
+    if (attachedFile) {
+      displayUserText = `📄 [Đính kèm: ${attachedFile.name}]\n${text || 'Hãy tóm tắt và phân tích tài liệu đính kèm.'}`;
+    }
+    
+    addMsg(displayUserText, 'user');
+
+    const loaderMsg = attachedFile ? '🔍 Đang phân tích tài liệu...' : '🔍 Đang tra cứu...';
+    const aiMsgDiv = addMsg(loaderMsg, 'ai');
     try {
-      const finalAnswer = await sendMessage(text, (full) => {
+      const finalAnswer = await sendMessage(queryText, (full) => {
         setAiMessageText(aiMsgDiv, full, true);
         msgsArea.scrollTop = msgsArea.scrollHeight;
       });
       setAiMessageText(aiMsgDiv, finalAnswer, false);
-      if (shouldAutoExportDocx(text)) {
+      if (shouldAutoExportDocx(queryText)) {
         try {
-          await exportDraftToDocx(text, finalAnswer);
+          await exportDraftToDocx(queryText, finalAnswer);
           appendInlineStatus(aiMsgDiv, '\u2705 \u0110\u00e3 t\u1ef1 \u0111\u1ed9ng xu\u1ea5t file .docx theo y\u00eau c\u1ea7u.');
         } catch (exportError) {
           console.error(exportError);
           appendInlineStatus(aiMsgDiv, '\u274c Kh\u00f4ng th\u1ec3 t\u1ef1 \u0111\u1ed9ng xu\u1ea5t .docx. B\u1ea1n b\u1ea5m n\u00fat xu\u1ea5t b\u00ean d\u01b0\u1edbi \u0111\u1ec3 th\u1eed l\u1ea1i.', 'error');
         }
       }
-      attachExportButtonIfNeeded(text, finalAnswer, aiMsgDiv);
+      attachExportButtonIfNeeded(queryText, finalAnswer, aiMsgDiv);
       msgsArea.scrollTop = msgsArea.scrollHeight;
     } catch (e) {
       aiMsgDiv.innerText = '\u274c L\u1ed7i: ' + e.message;
