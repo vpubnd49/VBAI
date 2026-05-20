@@ -90,50 +90,77 @@ export function renderDashboard(container, navigateTo) {
   void hydrateVisitCounter(container);
 }
 
-async function hydrateSkills(container, navigateTo) {
+function hydrateSkills(container, navigateTo) {
   const skillsGrid = container.querySelector('#skills-grid');
   if (!skillsGrid) return;
 
-  try {
-    const response = await fetch('./skills-manifest.json');
-    const skills = await response.json();
+  const skills = [
+    {
+      id: "Skill_The_Thuc_VB_Dang_HD36",
+      name: "Soạn VB Đảng (HD36)",
+      description: "Tạo văn bản Đảng (.docx) dùng thể thức theo Hướng dẫn 36-HD/VPTW. Hỗ trợ TẤT CẢ loại VB Đảng: Nghị quyết, Chỉ thị, Kết luận, Quyết định...",
+      icon: "✍️",
+      accent: "daquy",
+      page: "vb-dang"
+    },
+    {
+      id: "Skill_The_Thuc_VB_ND30",
+      name: "Soạn VB Hành chính (NĐ30)",
+      description: "Tạo văn bản hành chính chuẩn Nghị định số 30/2020/NĐ-CP. Hỗ trợ tất cả loại VBHC: công văn, quyết định, thông báo, báo cáo...",
+      icon: "📄",
+      accent: "ocean",
+      page: "vb-nd30"
+    },
+    {
+      id: "Skill_PDF",
+      name: "Xử lý PDF / OCR",
+      description: "Trích xuất nội dung từ file PDF. Hỗ trợ đọc, trích xuất văn bản/bảng biểu, gộp, tách, xoay trang, thêm hình mờ...",
+      icon: "⚙️",
+      accent: "sunset",
+      page: "pdf-tool"
+    },
+    {
+      id: "Skill_DOCX",
+      name: "Tạo & Xuất DOCX",
+      description: "Soạn thảo văn bản Word. Hỗ trợ tạo, đọc, chỉnh sửa tài liệu Word (.docx). Định dạng chuyên nghiệp, chèn bảng biểu...",
+      icon: "📝",
+      accent: "pine",
+      page: "docx-tool"
+    }
+  ];
 
-    const friendlyBadges = {
-      Skill_The_Thuc_VB_Dang_HD36: 'Nghị quyết, Chỉ thị...',
-      Skill_The_Thuc_VB_ND30: 'Quyết định, Báo cáo...',
-      Skill_PDF: 'Merge - OCR - Text',
-      Skill_DOCX: 'Chỉnh sửa - Tạo mới',
-    };
+  const friendlyBadges = {
+    Skill_The_Thuc_VB_Dang_HD36: 'Nghị quyết, Chỉ thị...',
+    Skill_The_Thuc_VB_ND30: 'Quyết định, Báo cáo...',
+    Skill_PDF: 'Merge - OCR - Text',
+    Skill_DOCX: 'Chỉnh sửa - Tạo mới',
+  };
 
-    skillsGrid.innerHTML = skills.map((skill) => `
-      <div class="module-card" data-accent="${skill.accent}" data-page="${skill.page}" id="card-${skill.id}">
-        <div class="module-icon ${skill.accent}">${skill.icon}</div>
-        <div class="module-title">${skill.name}</div>
-        <div class="module-desc">${skill.description.substring(0, 54)}...</div>
-        <div class="module-badge">${friendlyBadges[skill.id] || 'Tiện ích'}</div>
-      </div>
-    `).join('') + `
-      <div class="module-card" data-accent="daquy" data-page="spell-check" id="card-spell-check">
-        <div class="module-icon daquy">🔍</div>
-        <div class="module-title">Kiểm tra chính tả và thể thức</div>
-        <div class="module-desc">Rà soát chính tả và thể thức văn bản...</div>
-        <div class="module-badge">NĐ30 - HD36 - AI</div>
-      </div>
-      <div class="module-card" data-accent="pine" data-page="meeting-minutes" id="card-meeting-minutes">
-        <div class="module-icon pine">🎙️</div>
-        <div class="module-title">Xử lý ghi âm cuộc họp</div>
-        <div class="module-desc">Chuyển ghi âm thành thông báo...</div>
-        <div class="module-badge">STT - NĐ30 - HD36</div>
-      </div>
-    `;
+  skillsGrid.innerHTML = skills.map((skill) => `
+    <div class="module-card" data-accent="${skill.accent}" data-page="${skill.page}" id="card-${skill.id}">
+      <div class="module-icon ${skill.accent}">${skill.icon}</div>
+      <div class="module-title">${skill.name}</div>
+      <div class="module-desc">${skill.description.substring(0, 54)}...</div>
+      <div class="module-badge">${friendlyBadges[skill.id] || 'Tiện ích'}</div>
+    </div>
+  `).join('') + `
+    <div class="module-card" data-accent="daquy" data-page="spell-check" id="card-spell-check">
+      <div class="module-icon daquy">🔍</div>
+      <div class="module-title">Kiểm tra chính tả và thể thức</div>
+      <div class="module-desc">Rà soát chính tả và thể thức văn bản...</div>
+      <div class="module-badge">NĐ30 - HD36 - AI</div>
+    </div>
+    <div class="module-card" data-accent="pine" data-page="meeting-minutes" id="card-meeting-minutes">
+      <div class="module-icon pine">🎙️</div>
+      <div class="module-title">Xử lý ghi âm cuộc họp</div>
+      <div class="module-desc">Chuyển ghi âm thành thông báo...</div>
+      <div class="module-badge">STT - NĐ30 - HD36</div>
+    </div>
+  `;
 
-    skillsGrid.querySelectorAll('.module-card').forEach((card) => {
-      card.addEventListener('click', () => navigateTo(card.dataset.page));
-    });
-  } catch (error) {
-    console.warn('Lỗi tải skills manifest:', error);
-    skillsGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--daquy-500);">Không thể tải danh sách kỹ năng.</p>';
-  }
+  skillsGrid.querySelectorAll('.module-card').forEach((card) => {
+    card.addEventListener('click', () => navigateTo(card.dataset.page));
+  });
 }
 
 async function hydrateVisitCounter(container) {
