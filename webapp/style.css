@@ -367,9 +367,9 @@ body {
 }
 
 .dashboard-chat-primary .chat-assistant-panel {
-  height: calc(100dvh - 280px);
-  min-height: calc(100dvh - 280px);
-  max-height: calc(100dvh - 280px);
+  height: calc(100dvh - 215px);
+  min-height: calc(100dvh - 215px);
+  max-height: calc(100dvh - 215px);
 }
 
 .dashboard-chat-primary .chat-assistant-panel .panel-body {
@@ -1102,9 +1102,9 @@ body {
   -webkit-backdrop-filter: none;
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 180px);
-  max-height: calc(100dvh - 180px);
-  min-height: calc(100dvh - 180px);
+  height: calc(100dvh - 130px);
+  max-height: calc(100dvh - 130px);
+  min-height: calc(100dvh - 130px);
 }
 .chat-assistant-panel .panel-body {
   padding: 16px;
