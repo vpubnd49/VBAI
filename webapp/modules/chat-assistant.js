@@ -2077,14 +2077,14 @@ function inferIssuerFromText(text = '') {
 function getCanonicalLegalSourcePriority(host = '') {
   const h = String(host || '').toLowerCase().replace(/^www\./, '');
   if (!h) return 99;
-  if (h === 'thuvienphapluat.vn') return 0;
+  if (h === 'vbpl.vn') return 0;
   if (h === 'quochoi.vn') return 1;
   if (h === 'vanban.chinhphu.vn') return 2;
   if (h === 'congbao.chinhphu.vn') return 3;
   if (h === 'chinhphu.vn') return 4;
   if (h.endsWith('.gov.vn')) return 5;
-  if (h === 'vbpl.vn') return 6;
-  if (h === 'luatvietnam.vn') return 10;
+  if (h === 'thuvienphapluat.vn') return 12;
+  if (h === 'luatvietnam.vn') return 14;
   return 20;
 }
 
@@ -2098,9 +2098,8 @@ function getSourceTierLabelFromHost(host = '') {
     || h === 'congbao.chinhphu.vn'
     || h === 'chinhphu.vn'
     || h === 'quochoi.vn'
-    || h === 'thuvienphapluat.vn'
   ) return 'Chinh thuc';
-  if (h === 'luatvietnam.vn' || h === 'vanbanphapluat.com') return 'Tham khao';
+  if (h === 'luatvietnam.vn' || h === 'vanbanphapluat.com' || h === 'thuvienphapluat.vn') return 'Tham khao';
   return 'Khac';
 }
 
