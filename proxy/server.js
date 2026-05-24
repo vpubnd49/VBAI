@@ -1987,8 +1987,14 @@ app.post('/api/web-search', async (req, res) => {
     const { current, next } = getCurrentYearContext();
     const hasSpecificYear = /\b(199\d|20[0-3]\d)\b/.test(normQuery);
 
-    if (isLegal && !hasSpecificYear && !normQuery.includes('moi nhat')) {
-      refinedQuery += ` moi nhat ${current} ${next}`;
+    if (isLegal && !hasSpecificYear) {
+      const isTimeSensitive = isTimeSensitiveQuery(query);
+      if (normQuery.includes('moi nhat') || isTimeSensitive) {
+        if (!normQuery.includes('moi nhat')) {
+          refinedQuery += ` moi nhat`;
+        }
+        refinedQuery += ` ${current} ${next}`;
+      }
     }
     const domainSeedQueries = (!normalizedExpectedDocNumber && !knownDocument?.documentNumber)
       ? buildDomainSeedQueries(refinedQuery, domainInference, domainActionKeywords)
@@ -2704,12 +2710,48 @@ function buildTrustedLegalSourceContext({
   };
 }
 
+function extractBalancedDivByClass(html = '', className = '') {
+  const regex = new RegExp(`class=["'][^"']*${className}[^"']*["']`, 'i');
+  const match = html.match(regex);
+  if (!match) return null;
+  const idx = match.index;
+  const openDivIdx = html.lastIndexOf('<div', idx);
+  if (openDivIdx === -1) return null;
+  
+  let depth = 1;
+  let currentIdx = openDivIdx + 4;
+  while (depth > 0 && currentIdx < html.length) {
+    const nextOpen = html.indexOf('<div', currentIdx);
+    const nextClose = html.indexOf('</div>', currentIdx);
+    
+    if (nextClose === -1) break;
+    
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      currentIdx = nextOpen + 4;
+    } else {
+      depth--;
+      currentIdx = nextClose + 6;
+    }
+  }
+  return html.substring(openDivIdx, currentIdx);
+}
+
 function extractHostSpecificLegalPlain(html = '', url = '') {
   const host = toHost(url);
   const raw = String(html || '');
   if (!raw) {
     logLegalCrawlDebug('host-specific-plain:empty-html', { host, url });
     return '';
+  }
+
+  if (host === 'chinhsachonline.chinhphu.vn') {
+    const detailMain = extractBalancedDivByClass(raw, 'detail__main');
+    if (detailMain) {
+      const selected = sanitizeExtractedLegalText(cleanStrictText(decodeHtmlEntities(stripHtml(detailMain))));
+      logLegalCrawlDebug('host-specific-plain:matched', { host, url, returnedLength: selected.length });
+      return selected;
+    }
   }
 
   const extractBlocks = (patterns = []) => {
@@ -4325,7 +4367,11 @@ function sanitizeExtractedLegalText(value = '') {
   let cutIndex = -1;
   for (const marker of boilerplateMarkers) {
     const idx = normalized.indexOf(marker);
-    if (idx > 80 && (cutIndex < 0 || idx < cutIndex)) cutIndex = idx;
+    if (idx > 80 && (idx > normalized.length - 1500 || idx > normalized.length * 0.6)) {
+      if (cutIndex < 0 || idx < cutIndex) {
+        cutIndex = idx;
+      }
+    }
   }
   const cleaned = cutIndex > 0 ? base.slice(0, cutIndex) : base;
   return cleaned.replace(/\s+/g, ' ').trim();
