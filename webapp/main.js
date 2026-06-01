@@ -6,12 +6,13 @@
 // VBAI Main Entry - Last Update: 2026-05-20 (Performance Optimized)
 import { firebaseConfig } from './firebase-config.js';
 
-const GLOBAL_AI_MODEL = 'gemini-2.5-pro';
+const GLOBAL_AI_MODEL = 'gemini-2.0-flash-lite';
 const GLOBAL_MEETING_MODEL = 'gemini-2.5-flash';
 const GLOBAL_TRANSCRIBE_MODEL = 'gemini-2.5-flash';
 
 function applyGlobalModelDefaults() {
-  if (!localStorage.getItem('vbai_gemini_model')) {
+  const currentSaved = localStorage.getItem('vbai_gemini_model');
+  if (!currentSaved || currentSaved === 'gemini-2.5-pro') {
     localStorage.setItem('vbai_gemini_model', GLOBAL_AI_MODEL);
   }
   if (!localStorage.getItem('vbai_gemini_model_meeting')) {

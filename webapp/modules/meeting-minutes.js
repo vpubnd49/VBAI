@@ -31,6 +31,7 @@ async function ensureSystemConfig() {
 }
 
 const GEMINI_MEETING_MODEL_FALLBACK_ORDER = [
+  "gemini-2.5-flash",
   "gemini-2.5-pro",
   "gemini-2.0-flash-exp",
   "gemini-2.0-flash-lite-preview",
@@ -881,7 +882,7 @@ async function reanalyzeTranscript() {
   await ensureSystemConfig();
   const transcribeContext = 'meeting';
   const modelCandidates = await resolveMeetingAudioModelCandidates(transcribeContext);
-  const defaultModel = 'gemini-2.5-pro';
+  const defaultModel = 'gemini-2.5-flash';
   const strictModel = modelCandidates[0] || defaultModel;
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {

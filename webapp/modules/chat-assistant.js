@@ -23,8 +23,8 @@ import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tie
 import { showToast } from './ui-utils.js';
 
 
-const DEFAULT_MODEL = 'gemini-2.5-pro';
-const STRICT_MEETING_AUDIO_MODEL = 'gemini-2.5-pro';
+const DEFAULT_MODEL = 'gemini-2.0-flash-lite';
+const STRICT_MEETING_AUDIO_MODEL = 'gemini-2.5-flash';
 const DEFAULT_FALLBACK_SOURCES = {
   vbpl: true,
   chinhphu: true,
@@ -41,7 +41,7 @@ let systemConfigCache = null;
 function applyRuntimeSystemConfig(nextConfig = null) {
   if (!nextConfig || typeof nextConfig !== 'object') return;
   systemConfigCache = nextConfig;
-  const nextModel = systemConfigCache?.gemini_model || 'gemini-2.5-pro';
+  const nextModel = systemConfigCache?.gemini_model || 'gemini-2.0-flash-lite';
   currentModelName = normalizeModelName(nextModel) || DEFAULT_MODEL;
 }
 
@@ -2812,7 +2812,7 @@ export async function sendMessage(text, onChunk) {
 export async function renderChatUI(container) {
   const fallbackConfig = {
     active_provider: 'gemini',
-        gemini_model: 'gemini-2.5-pro',
+    gemini_model: 'gemini-2.0-flash-lite',
     transcribe_model: 'gemini-2.5-flash',
     has_gemini_key: false,
     web_search_provider: 'vertex_search',
@@ -2822,7 +2822,7 @@ export async function renderChatUI(container) {
 
   const isAdmin = isCurrentUserAdmin();
   const configSnapshot = { ...fallbackConfig, ...(systemConfigCache || {}) };
-  const savedModel = normalizeModelName(configSnapshot.gemini_model || 'gemini-2.5-pro') || 'gemini-2.5-pro';
+  const savedModel = normalizeModelName(configSnapshot.gemini_model || 'gemini-2.0-flash-lite') || 'gemini-2.0-flash-lite';
 
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -3102,7 +3102,7 @@ export async function renderChatUI(container) {
     const geminiKeyStatus = container.querySelector('#modal-gemini-key-status');
     const geminiRuntimeWarning = container.querySelector('#modal-gemini-runtime-warning');
 
-    if (geminiModelInput) geminiModelInput.value = live.gemini_model || 'gemini-2.5-pro';
+    if (geminiModelInput) geminiModelInput.value = live.gemini_model || 'gemini-2.0-flash-lite';
     if (geminiKeyInput) {
       geminiKeyInput.value = live.gemini_api_key || '';
       geminiKeyInput.type = 'password';
@@ -3223,7 +3223,7 @@ export async function renderChatUI(container) {
 
         try {
           const configUpdate = {
-            active_provider: 'gemini',            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-2.5-pro',
+            active_provider: 'gemini',            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-2.0-flash-lite',
             web_search_provider: 'vertex_search',
             web_search_mode: getRadioValue('modal_web_search_mode', 'cse_with_fallback'),
             web_search_fallback_sources: collectFallbackCheckboxes(),
@@ -3245,7 +3245,7 @@ export async function renderChatUI(container) {
           await loadSystemConfig();
           syncModalFromConfig(systemConfigCache);
 
-          currentModelName = normalizeModelName(systemConfigCache?.gemini_model || 'gemini-2.5-pro') || 'gemini-2.5-pro';
+          currentModelName = normalizeModelName(systemConfigCache?.gemini_model || 'gemini-2.0-flash-lite') || 'gemini-2.0-flash-lite';
 
           modalStatus.textContent = '\u2705 \u0110\u00e3 l\u01b0u v\u00e0 \u00e1p d\u1ee5ng ngay!';
           modalStatus.style.color = '#16a34a';

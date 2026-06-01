@@ -58,7 +58,7 @@ const WEB_SEARCH_RESULT_CACHE = new Map();
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
 const GEMINI_API_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
-const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-2.5-flash';
+const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-2.0-flash-lite';
 const GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS = Object.freeze([
   'gemini-2.5-flash',
   'gemini-2.0-flash-exp',
@@ -895,13 +895,25 @@ async function executeGeminiNativeAudioTranscription({
   };
 
   try {
-    const providerRes = await fetch(endpoint, {
+    let providerRes = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     });
+
+    if (providerRes.status === 429) {
+      console.warn(`[429] Received TooManyRequests for native audio transcription. Retrying once after 1500ms...`);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      providerRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+    }
 
     if (!providerRes.ok) {
       const providerError = await readProviderError(providerRes);
@@ -946,7 +958,7 @@ async function executeGeminiCompatChatRequest({ apiKey, modelName, messages, tem
     max_tokens: maxTokens,
   };
 
-  const providerRes = await fetch(`${GEMINI_API_ENDPOINT}/chat/completions`, {
+  let providerRes = await fetch(`${GEMINI_API_ENDPOINT}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -955,6 +967,20 @@ async function executeGeminiCompatChatRequest({ apiKey, modelName, messages, tem
     },
     body: JSON.stringify(payload),
   });
+
+  if (providerRes.status === 429) {
+    console.warn(`[429] Received TooManyRequests in executeGeminiCompatChatRequest. Retrying once after 1500ms...`);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    providerRes = await fetch(`${GEMINI_API_ENDPOINT}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+  }
 
   if (!providerRes.ok) {
     const providerError = await readProviderError(providerRes);
@@ -1061,6 +1087,74 @@ function isAdmin(decodedToken) {
   return decodedToken?.admin === true;
 }
 
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.ip || req.socket?.remoteAddress || '';
+}
+
+// Simple in-memory rate limit storage
+const ipLimits = new Map(); // ip -> { count, date }
+const userLimits = new Map(); // uid -> { count, date }
+
+function getTodayString() {
+  const d = new Date();
+  const localTime = new Date(d.getTime() + 7 * 60 * 60 * 1000); // Indochina time (GMT+7)
+  return `${localTime.getUTCFullYear()}-${localTime.getUTCMonth() + 1}-${localTime.getUTCDate()}`;
+}
+
+function checkRateLimit(req, decoded) {
+  const isAdminUser = decoded ? isAdmin(decoded) : false;
+  const today = getTodayString();
+  
+  // 1. IP Limit Check: 20 per day
+  const clientIp = getClientIp(req);
+  if (clientIp) {
+    let ipData = ipLimits.get(clientIp);
+    if (!ipData || ipData.date !== today) {
+      ipData = { count: 0, date: today };
+    }
+    
+    if (!isAdminUser) {
+      if (ipData.count >= 20) {
+        return {
+          allowed: false,
+          error: 'Too Many Requests',
+          message: 'IP của bạn đã vượt quá giới hạn 20 lượt truy cập hôm nay.',
+          status: 429
+        };
+      }
+      ipData.count += 1;
+      ipLimits.set(clientIp, ipData);
+    }
+  }
+
+  // 2. User Account Limit Check: 50 per day
+  if (decoded && decoded.uid) {
+    if (!isAdminUser) {
+      const uid = decoded.uid;
+      let userData = userLimits.get(uid);
+      if (!userData || userData.date !== today) {
+        userData = { count: 0, date: today };
+      }
+      if (userData.count >= 50) {
+        return {
+          allowed: false,
+          error: 'Too Many Requests',
+          message: 'Tài khoản của bạn đã vượt quá giới hạn 50 lượt truy cập hôm nay.',
+          status: 429
+        };
+      }
+      userData.count += 1;
+      userLimits.set(uid, userData);
+    }
+  }
+
+  return { allowed: true };
+}
+
 // Firestore collection/refs
 function getSystemConfigRef() {
   return admin.firestore().doc('config/system');
@@ -1112,15 +1206,16 @@ app.get('/api/system-config-summary', async (req, res) => {
     const webSearchProvider = sanitizeWebSearchProvider(data.web_search_provider);
     const cseConfigured = !!(data.google_search_key && data.google_search_cx);
     const vertexConfigured = isVertexSearchConfigured(data);
+    const activeGeminiKey = process.env.GEMINI_API_KEY || data.gemini_api_key;
     res.json({
       active_provider: 'gemini',
-      gemini_model: data.gemini_model || 'gemini-2.5-pro',
+      gemini_model: data.gemini_model || 'gemini-2.0-flash-lite',
       gemini_endpoint: GEMINI_API_ENDPOINT,
       google_search_configured: cseConfigured,
       vertex_search_configured: vertexConfigured,
       web_search_configured: cseConfigured || vertexConfigured,
-      has_gemini_key: !!data.gemini_api_key,
-      gemini_api_key: requesterIsAdmin ? (data.gemini_api_key || '') : '',
+      has_gemini_key: !!activeGeminiKey,
+      gemini_api_key: requesterIsAdmin ? (activeGeminiKey || '') : '',
       google_search_key: requesterIsAdmin ? (data.google_search_key || '') : '',
       google_search_cx: requesterIsAdmin ? (data.google_search_cx || '') : '',
       vertex_project_id: requesterIsAdmin ? (data.vertex_project_id || '') : '',
@@ -1162,7 +1257,7 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
       return res.status(404).json({ error: 'System config not found' });
     }
     const config = snap.data() || {};
-    const keyToValidate = rawKey || (useStoredKey ? String(config.gemini_api_key || '').trim() : '');
+    const keyToValidate = rawKey || (useStoredKey ? String(process.env.GEMINI_API_KEY || config.gemini_api_key || '').trim() : '');
     if (!keyToValidate) {
       return res.status(400).json({
         valid: false,
@@ -1298,7 +1393,7 @@ app.post('/api/admin/system-config', async (req, res) => {
 
     const updateData = {
       active_provider: 'gemini',
-      gemini_model: gemini_model || 'gemini-2.5-pro',
+      gemini_model: gemini_model || 'gemini-2.0-flash-lite',
       transcribe_model: transcribe_model || 'gemini-2.5-flash',
       web_search_provider: sanitizeWebSearchProvider(web_search_provider),
       web_search_mode: sanitizeWebSearchMode(web_search_mode),
@@ -1437,6 +1532,12 @@ app.post('/api/chat', async (req, res) => {
     initFirebase();
     const decoded = await verifyIdToken(req);
 
+    // Apply rate limit check
+    const rateCheck = checkRateLimit(req, decoded);
+    if (!rateCheck.allowed) {
+      return res.status(rateCheck.status).json({ error: rateCheck.error, message: rateCheck.message });
+    }
+
     const { messages, contents, model, stream = false, temperature = 0.7, max_tokens } = req.body;
     const normalizedMessages = Array.isArray(messages)
       ? messages
@@ -1445,12 +1546,28 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'messages or contents array required' });
     }
 
+    // Verify input size limit (capped at 150,000 characters)
+    let totalInputLength = 0;
+    if (Array.isArray(normalizedMessages)) {
+      for (const msg of normalizedMessages) {
+        if (msg && typeof msg.content === 'string') {
+          totalInputLength += msg.content.length;
+        }
+      }
+    }
+    if (totalInputLength > 150000) {
+      return res.status(400).json({
+        error: 'Payload Too Large',
+        message: `Yêu cầu quá dài (${totalInputLength} ký tự). Vui lòng giới hạn nội dung câu hỏi dưới 150,000 ký tự.`
+      });
+    }
+
     // Fetch system config (từ cache để giảm độ trễ phản hồi)
     const config = await getCachedSystemConfig();
 
     const endpoint = GEMINI_API_ENDPOINT;
-    const apiKey = config.gemini_api_key;
-    const effectiveModel = model || config.gemini_model;
+    const apiKey = process.env.GEMINI_API_KEY || config.gemini_api_key;
+    const effectiveModel = model || config.gemini_model || 'gemini-2.0-flash-lite';
 
     const userMessage = Array.isArray(normalizedMessages)
       ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
@@ -1471,7 +1588,7 @@ app.post('/api/chat', async (req, res) => {
       return res.status(503).json({ error: 'API key missing', message: 'Please contact administrator to configure AI provider key.' });
     }
 
-    const configuredGeminiModel = normalizeModelInput(config.gemini_model) || GEMINI_SAFE_FALLBACK_MODEL;
+    const configuredGeminiModel = normalizeModelInput(config.gemini_model) || 'gemini-2.0-flash-lite';
     const primaryModel = normalizeModelInput(effectiveModel) || configuredGeminiModel;
     const retryModel = pickGeminiRetryModel(primaryModel, configuredGeminiModel);
     const candidateModels = dedupeModelNames([
@@ -1488,7 +1605,7 @@ app.post('/api/chat', async (req, res) => {
         messages: normalizedMessages,
         stream: false, // TODO: implement streaming if needed
         temperature,
-        ...(max_tokens && { max_tokens })
+        max_tokens: max_tokens ? Math.min(Number(max_tokens), 4096) : 4096
       };
 
       // Some reasoning-like models may reject temperature/max_tokens combo.
@@ -1501,7 +1618,7 @@ app.post('/api/chat', async (req, res) => {
         }
       }
 
-      const providerRes = await fetch(`${endpoint}/chat/completions`, {
+      let providerRes = await fetch(`${endpoint}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1510,6 +1627,21 @@ app.post('/api/chat', async (req, res) => {
         },
         body: JSON.stringify(payload)
       });
+
+      // Retry exactly once on 429 Too Many Requests after 1500ms
+      if (providerRes.status === 429) {
+        console.warn(`[429] Received TooManyRequests for model ${modelName}. Retrying once after 1500ms...`);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        providerRes = await fetch(`${endpoint}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify(payload)
+        });
+      }
 
       if (!providerRes.ok) {
         const providerError = await readProviderError(providerRes);
@@ -1593,7 +1725,13 @@ app.post('/api/transcribe', (req, res, next) => {
 }, async (req, res) => {
   try {
     initFirebase();
-    await verifyIdToken(req);
+    const decoded = await verifyIdToken(req);
+
+    // Apply rate limit check
+    const rateCheck = checkRateLimit(req, decoded);
+    if (!rateCheck.allowed) {
+      return res.status(rateCheck.status).json({ error: rateCheck.error, message: rateCheck.message });
+    }
 
     const { filename, model, part, total, uploadId } = req.body || {};
     const partNum = part ? parseInt(part, 10) : null;
@@ -1670,7 +1808,7 @@ app.post('/api/transcribe', (req, res, next) => {
     const config = await getCachedSystemConfig();
 
     const endpoint = GEMINI_API_ENDPOINT;
-    const apiKey = config.gemini_api_key;
+    const apiKey = process.env.GEMINI_API_KEY || config.gemini_api_key;
     const effectiveModel = normalizeModelInput(model || config.transcribe_model || config.gemini_model || 'gemini-2.5-flash');
 
     if (!apiKey) {
@@ -1757,6 +1895,12 @@ app.post('/api/web-search', async (req, res) => {
     const localTestBypass = String(process.env.VBAI_LOCAL_TEST || '').trim().toLowerCase() === 'true';
     if (!localTestBypass) {
       decoded = await verifyIdToken(req);
+    }
+
+    // Apply rate limit check
+    const rateCheck = checkRateLimit(req, decoded);
+    if (!rateCheck.allowed) {
+      return res.status(rateCheck.status).json({ error: rateCheck.error, message: rateCheck.message });
     }
 
     const requestStartMs = Date.now();

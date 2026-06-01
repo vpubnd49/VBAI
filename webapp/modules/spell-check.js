@@ -143,7 +143,7 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
   progressTextEl.innerText = "Đang kết nối AI...";
   const config = await fetchSystemConfig();
   const modelName = (
-    config?.gemini_model || 'gemini-2.5-pro'
+    config?.gemini_model || 'gemini-2.5-flash'
   );
 
   // 2. Batching paragraphs — batch lớn hơn để tối ưu số lần gọi API

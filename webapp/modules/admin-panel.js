@@ -58,13 +58,13 @@ export function renderAdminPanel(container) {
               </div>
               <div class="form-group">
                 <label class="form-label">Model mặc định (Gemini)</label>
-                <input type="text" id="gemini_model" class="form-input" placeholder="gemini-2.5-pro">
+                <input type="text" id="gemini_model" class="form-input" placeholder="gemini-2.0-flash-lite">
                 <small id="gemini-runtime-warning" class="config-hint" style="display:none; color:#fbbf24;"></small>
               </div>
               <div class="form-group">
                 <label class="form-label">Danh sách Model Gemini</label>
                 <div class="config-inline-row">
-                  <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập model (VD: gemini-2.5-pro)">
+                  <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập model (VD: gemini-2.0-flash-lite)">
                   <button type="button" id="add-gemini-model-btn" class="btn btn-primary btn-sm config-inline-add-btn">+ Thêm</button>
                 </div>
                 <div id="gemini-models-list" class="config-chip-list"></div>
@@ -394,7 +394,7 @@ async function initSystemConfigPanel(container) {
         return;
       }
 
-      geminiModelInput.value = config.gemini_model || 'gemini-2.5-pro';
+      geminiModelInput.value = config.gemini_model || 'gemini-2.0-flash-lite';
       transcribeModelInput.value = config.transcribe_model || 'whisper-1';
 
       vertexProjectIdInput.value = config.vertex_project_id || '';
