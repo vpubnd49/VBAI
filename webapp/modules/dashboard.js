@@ -96,9 +96,9 @@ function hydrateSkills(container, navigateTo) {
 
   const skills = [
     {
-      id: "Skill_The_Thuc_VB_Dang_HD36",
-      name: "Soạn VB Đảng (HD36)",
-      description: "Tạo văn bản Đảng (.docx) dùng thể thức theo Hướng dẫn 36-HD/VPTW. Hỗ trợ TẤT CẢ loại VB Đảng: Nghị quyết, Chỉ thị, Kết luận, Quyết định...",
+      id: "Skill_The_Thuc_VB_Dang_HD05",
+      name: "Soạn VB Đảng (HD05)",
+      description: "Tạo văn bản Đảng (.docx) dùng thể thức theo Hướng dẫn 05-HD/VPTW (thay thế HD36). Hỗ trợ TẤT CẢ loại VB Đảng: Nghị quyết, Chỉ thị, Kết luận, Quyết định...",
       icon: "✍️",
       accent: "daquy",
       page: "vb-dang"
@@ -130,7 +130,7 @@ function hydrateSkills(container, navigateTo) {
   ];
 
   const friendlyBadges = {
-    Skill_The_Thuc_VB_Dang_HD36: 'Nghị quyết, Chỉ thị...',
+    Skill_The_Thuc_VB_Dang_HD05: 'Nghị quyết, Chỉ thị...',
     Skill_The_Thuc_VB_ND30: 'Quyết định, Báo cáo...',
     Skill_PDF: 'Merge - OCR - Text',
     Skill_DOCX: 'Chỉnh sửa - Tạo mới',
@@ -148,13 +148,13 @@ function hydrateSkills(container, navigateTo) {
       <div class="module-icon daquy">🔍</div>
       <div class="module-title">Kiểm tra chính tả và thể thức</div>
       <div class="module-desc">Rà soát chính tả và thể thức văn bản...</div>
-      <div class="module-badge">NĐ30 - HD36 - AI</div>
+      <div class="module-badge">NĐ30 - HD05 - AI</div>
     </div>
     <div class="module-card" data-accent="pine" data-page="meeting-minutes" id="card-meeting-minutes">
       <div class="module-icon pine">🎙️</div>
       <div class="module-title">Xử lý ghi âm cuộc họp</div>
       <div class="module-desc">Chuyển ghi âm thành thông báo...</div>
-      <div class="module-badge">STT - NĐ30 - HD36</div>
+      <div class="module-badge">STT - NĐ30 - HD05</div>
     </div>
   `;
 

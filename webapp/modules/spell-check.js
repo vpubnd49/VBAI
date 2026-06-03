@@ -1,6 +1,6 @@
 /**
  * Spell Check & Format Validation Module
- * Kiểm tra chính tả + thể thức VB theo NĐ30/HD36
+ * Kiểm tra chính tả + thể thức VB theo NĐ30/HD05
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
@@ -19,7 +19,7 @@ export function renderSpellCheck(container) {
   container.innerHTML = `
     <div class="page-header">
       <div class="page-title">🔍 Kiểm Tra Văn Bản</div>
-      <div class="page-subtitle">Kiểm tra chính tả & thể thức theo NĐ30/HD36</div>
+      <div class="page-subtitle">Kiểm tra chính tả & thể thức theo NĐ30/HD05</div>
     </div>
     <div class="section-card" style="position:relative;">
       <button class="btn btn-secondary" onclick="window.location.reload();" style="position:absolute; top:16px; right:16px; display:flex; align-items:center; gap:6px; padding:6px 12px; font-size:12px; border-radius:6px; z-index:10;" title="Làm mới công cụ">
@@ -132,7 +132,7 @@ function extractParagraphs(xmlDoc) {
 
 function detectDocType(state) {
   const allText = state.paragraphs.map(p => p.text).join(' ');
-  if (allText.includes('ĐẢNG CỘNG SẢN VIỆT NAM')) state.docType = 'hd36';
+  if (allText.includes('ĐẢNG CỘNG SẢN VIỆT NAM')) state.docType = 'hd05';
   else if (allText.includes('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM')) state.docType = 'nd30';
   else state.docType = 'unknown';
 }
@@ -452,9 +452,9 @@ function checkFormat(state) {
         if (Math.abs(bottom - 1134) > 100) errors.push({ type: 'format', rule: 'NĐ30', message: `Lề dưới sai: ${Math.round(bottom/56.7)}mm (chuẩn: 20mm)` });
         if (Math.abs(left - 1701) > 100) errors.push({ type: 'format', rule: 'NĐ30', message: `Lề trái sai: ${Math.round(left/56.7)}mm (chuẩn: 30mm)` });
         if (Math.abs(right - 1134) > 100) errors.push({ type: 'format', rule: 'NĐ30', message: `Lề phải sai: ${Math.round(right/56.7)}mm (chuẩn: 20mm)` });
-      } else if (state.docType === 'hd36') {
-        if (Math.abs(left - 1701) > 100) errors.push({ type: 'format', rule: 'HD36', message: `Lề trái sai: ${Math.round(left/56.7)}mm (chuẩn: 30mm)` });
-        if (Math.abs(right - 850) > 100) errors.push({ type: 'format', rule: 'HD36', message: `Lề phải sai: ${Math.round(right/56.7)}mm (chuẩn: 15mm)` });
+      } else if (state.docType === 'hd05') {
+        if (Math.abs(left - 1701) > 100) errors.push({ type: 'format', rule: 'HD05', message: `Lề trái sai: ${Math.round(left/56.7)}mm (chuẩn: 30mm)` });
+        if (Math.abs(right - 850) > 100) errors.push({ type: 'format', rule: 'HD05', message: `Lề phải sai: ${Math.round(right/56.7)}mm (chuẩn: 15mm)` });
       }
     }
   }
@@ -464,7 +464,7 @@ function checkFormat(state) {
     p.runs.forEach(r => {
       if (r.font && r.font !== 'Times New Roman' && r.font !== '' && !r.font.startsWith('Symbol') && r.font !== 'Wingdings') {
         const msg = `Font "${r.font}" không đúng chuẩn (phải dùng Times New Roman)`;
-        if (!errors.find(e => e.message === msg)) errors.push({ type: 'format', rule: state.docType === 'hd36' ? 'HD36' : 'NĐ30', message: msg });
+        if (!errors.find(e => e.message === msg)) errors.push({ type: 'format', rule: state.docType === 'hd05' ? 'HD05' : 'NĐ30', message: msg });
       }
     });
   });
@@ -474,17 +474,46 @@ function checkFormat(state) {
     if (!allText.includes('Độc lập - Tự do - Hạnh phúc') && !allText.includes('Độc lập – Tự do – Hạnh phúc')) errors.push({ type: 'format', rule: 'NĐ30', message: 'Thiếu hoặc sai Tiêu ngữ "Độc lập - Tự do - Hạnh phúc"' });
     if (!allText.includes('Nơi nhận')) errors.push({ type: 'format', rule: 'NĐ30', message: 'Thiếu phần "Nơi nhận"' });
   }
-  // Check HD36 specific
-  if (state.docType === 'hd36') {
-    if (!allText.includes('ĐẢNG CỘNG SẢN VIỆT NAM')) errors.push({ type: 'format', rule: 'HD36', message: 'Thiếu tiêu đề "ĐẢNG CỘNG SẢN VIỆT NAM"' });
-    if (allText.includes('Độc lập - Tự do - Hạnh phúc')) errors.push({ type: 'format', rule: 'HD36', message: 'VB Đảng KHÔNG có tiêu ngữ "Độc lập - Tự do - Hạnh phúc"' });
+  // Check HD05 specific
+  if (state.docType === 'hd05') {
+    if (!allText.includes('ĐẢNG CỘNG SẢN VIỆT NAM')) errors.push({ type: 'format', rule: 'HD05', message: 'Thiếu tiêu đề "ĐẢNG CỘNG SẢN VIỆT NAM"' });
+    if (allText.includes('Độc lập - Tự do - Hạnh phúc')) errors.push({ type: 'format', rule: 'HD05', message: 'VB Đảng KHÔNG có tiêu ngữ "Độc lập - Tự do - Hạnh phúc"' });
     if (allText.includes('TM.') || allText.includes('KT.') || allText.includes('TL.')) {
-      errors.push({ type: 'format', rule: 'HD36', message: 'VB Đảng dùng T/M, K/T, T/L (gạch chéo), KHÔNG dùng TM., KT., TL. (dấu chấm)' });
+      errors.push({ type: 'format', rule: 'HD05', message: 'VB Đảng dùng T/M, K/T, T/L (gạch chéo), KHÔNG dùng TM., KT., TL. (dấu chấm)' });
     }
     if (!allText.includes('*') && state.paragraphs.length > 3) {
       const hasCQ = state.paragraphs.some(p => p.runs.some(r => r.bold) && p.text.length < 60);
-      if (hasCQ) errors.push({ type: 'format', rule: 'HD36', message: 'Có thể thiếu dấu sao (*) dưới tên cơ quan ban hành' });
+      if (hasCQ) errors.push({ type: 'format', rule: 'HD05', message: 'Có thể thiếu dấu sao (*) dưới tên cơ quan ban hành' });
     }
+    
+    // HD05 Tờ trình check: Kính trình instead of Kính gửi
+    const isToTrinh = state.paragraphs.some(p => p.text.toUpperCase().includes('TỜ TRÌNH'));
+    if (isToTrinh) {
+      const hasKinhGui = state.paragraphs.some(p => p.text.includes('Kính gửi'));
+      if (hasKinhGui) {
+        errors.push({ type: 'format', rule: 'HD05', message: 'Tờ trình Đảng theo HD05 phải dùng "Kính trình", không dùng "Kính gửi"' });
+      }
+    }
+
+    // HD05 Recipient punctuation check (semicolon instead of comma)
+    let inNoiNhan = false;
+    state.paragraphs.forEach(p => {
+      if (p.text.trim().startsWith('Nơi nhận:')) {
+        inNoiNhan = true;
+        return;
+      }
+      if (inNoiNhan) {
+        if (p.text.trim() && !p.text.trim().startsWith('-') && p.text.length > 50) {
+          inNoiNhan = false;
+        }
+        if (inNoiNhan && p.text.trim().startsWith('-')) {
+          const txt = p.text.trim();
+          if (txt.endsWith(',')) {
+            errors.push({ type: 'format', rule: 'HD05', message: `Dấu câu nơi nhận: "${txt}" dùng dấu phẩy (,), HD05 yêu cầu dùng dấu chấm phẩy (;)` });
+          }
+        }
+      }
+    });
   }
   
   return errors;
@@ -494,7 +523,7 @@ function renderResults(container) {
   const results = container.querySelector('#sc-results');
   results.style.display = 'block';
   const totalErrors = checkState.errors.length + checkState.formatErrors.length;
-  const docLabel = checkState.docType === 'nd30' ? 'VB Hành Chính (NĐ30)' : checkState.docType === 'hd36' ? 'VB Đảng (HD36)' : 'Không xác định';
+  const docLabel = checkState.docType === 'nd30' ? 'VB Hành Chính (NĐ30)' : checkState.docType === 'hd05' ? 'VB Đảng (HD05)' : 'Không xác định';
   results.innerHTML = `
     <div class="sc-summary-grid">
       <div class="sc-summary-card"><div class="sc-summary-icon">📄</div><div class="sc-summary-info"><div class="sc-summary-value">${checkState.fileName}</div><div class="sc-summary-label">Loại: ${docLabel}</div></div></div>
@@ -612,7 +641,7 @@ async function exportReport() {
     const children = [];
     children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 300 }, children: [new TextRun({ text: 'BÁO CÁO KIỂM TRA VĂN BẢN', font: 'Times New Roman', size: 32, bold: true })] }));
     children.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: `File: ${checkState.fileName}`, font: 'Times New Roman', size: 28 })] }));
-    children.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: `Loại VB: ${checkState.docType === 'nd30' ? 'Hành chính (NĐ30)' : checkState.docType === 'hd36' ? 'Đảng (HD36)' : 'Không xác định'}`, font: 'Times New Roman', size: 28 })] }));
+    children.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: `Loại VB: ${checkState.docType === 'nd30' ? 'Hành chính (NĐ30)' : checkState.docType === 'hd05' ? 'Đảng (HD05)' : 'Không xác định'}`, font: 'Times New Roman', size: 28 })] }));
     children.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: `Ngày kiểm tra: ${new Date().toLocaleDateString('vi-VN')}`, font: 'Times New Roman', size: 28 })] }));
     if (checkState.errors.length > 0) {
       children.push(new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: `I. LỖI CHÍNH TẢ (${checkState.errors.length} lỗi)`, font: 'Times New Roman', size: 28, bold: true })] }));

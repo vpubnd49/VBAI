@@ -1,5 +1,5 @@
 /**
- * VB Đảng Module — Form soạn VB Đảng chuẩn HD36
+ * VB Đảng Module — Form soạn VB Đảng chuẩn HD05
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType, UnderlineType, Header, PageNumber } from 'docx';
 import { saveAs } from 'file-saver';
@@ -39,8 +39,8 @@ function renderStep(container) {
   const s = formState;
   container.innerHTML = `
     <div class="page-header">
-      <div class="page-title">📜 Soạn Văn Bản Đảng (HD36)</div>
-      <div class="page-subtitle">Chuẩn Hướng dẫn 36-HD/VPTW</div>
+      <div class="page-title">📜 Soạn Văn Bản Đảng (HD05)</div>
+      <div class="page-subtitle">Chuẩn Hướng dẫn 05-HD/VPTW (thay thế HD36)</div>
     </div>
     <div class="steps-bar" style="display:flex; align-items:center;">
       ${[1,2,3,4].map(i => `<button class="step-indicator ${s.step===i?'active':s.step>i?'completed':''}" data-step="${i}"><span class="step-num">${s.step>i?'✓':i}</span><span>${['Loại VB','Thông tin','Nội dung','Xem & Tải'][i-1]}</span></button>`).join('')}
@@ -193,13 +193,29 @@ function renderStep4(sc, container) {
         <div class="preview-center preview-bold" style="font-size:14pt">${s.trich_yeu}</div>
         <div class="preview-separator">-----</div>
       `:''}
-      ${s.kinh_gui?`<div class="preview-center" style="margin-top:8pt;margin-bottom:8pt">Kính gửi: ${s.kinh_gui}</div>`:''}
+      ${(() => {
+        if (!s.kinh_gui) return '';
+        const label = s.loai_van_ban === 'to_trinh' ? 'Kính trình' : 'Kính gửi';
+        return `<div class="preview-center" style="margin-top:8pt;margin-bottom:8pt">${label}: ${s.kinh_gui}</div>`;
+      })()}
       ${s.can_cu ? s.can_cu.split('\n').filter(l=>l.trim()).map(l=>`<div class="preview-body">- ${l.trim()}</div>`).join('') : ''}
       ${s.noi_dung.split('\n').filter(l=>l.trim()).map(l=>`<div class="preview-body">${l.trim()}</div>`).join('')}
       <table class="preview-header-table" style="margin-top:24pt"><tr>
         <td style="width:48%;vertical-align:top;font-size:12pt">
           <div class="preview-underline">Nơi nhận:</div>
-          ${(s.noi_nhan||'').split('\n').filter(l=>l.trim()).map(l=>`<div style="font-size:11pt">- ${l.trim()}</div>`).join('')}
+          ${((s.loai_van_ban === 'cong_van' || s.loai_van_ban === 'to_trinh') && s.kinh_gui && s.kinh_gui.trim()) ? `<div style="font-size:11pt">- Như trên;</div>` : ''}
+          ${(() => {
+            const lines = (s.noi_nhan||'').split('\n').filter(l=>l.trim());
+            return lines.map((l, idx) => {
+              const isLast = idx === lines.length - 1;
+              const suffix = isLast ? '.' : ';';
+              let txt = l.trim();
+              if (txt.endsWith(',') || txt.endsWith(';') || txt.endsWith('.')) {
+                txt = txt.slice(0, -1).trim();
+              }
+              return `<div style="font-size:11pt">- ${txt}${suffix}</div>`;
+            }).join('');
+          })()}
         </td>
         <td style="width:52%;text-align:center;vertical-align:top">
           ${s.dong_chuc_danh_1?`<div class="preview-bold">${s.dong_chuc_danh_1}</div>`:''}
@@ -247,7 +263,8 @@ async function generateDangDocx(s) {
     }
     // Kinh gui
     if(s.kinh_gui) {
-      children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:240,after:240},children:[new TextRun({text:'Kính gửi: '+s.kinh_gui,font:LAYOUT.FONT,size:28})]}));
+      const label = s.loai_van_ban === 'to_trinh' ? 'Kính trình' : 'Kính gửi';
+      children.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:240,after:240},children:[new TextRun({text:label + ': '+s.kinh_gui,font:LAYOUT.FONT,size:28})]}));
     }
 
     // Can cu
@@ -260,7 +277,20 @@ async function generateDangDocx(s) {
 
     // Signature block
     const noiNhanCh = [new Paragraph({spacing:{after:0},children:[new TextRun({text:'Nơi nhận:',font:LAYOUT.FONT,size:28,underline:{type:UnderlineType.SINGLE}})]})];
-    (s.noi_nhan||'').split('\n').filter(l=>l.trim()).forEach(n => noiNhanCh.push(new Paragraph({spacing:{after:0},children:[new TextRun({text:'- '+n.trim(),font:LAYOUT.FONT,size:24})]})));
+    // HD05 9.2.5: Dòng đầu "Như trên" cho CV/TTr khi có Kính gửi/Kính trình
+    if ((s.loai_van_ban === 'cong_van' || s.loai_van_ban === 'to_trinh') && s.kinh_gui && s.kinh_gui.trim()) {
+      noiNhanCh.push(new Paragraph({spacing:{after:0},children:[new TextRun({text: '- Như trên;', font: LAYOUT.FONT, size: 24})]}));
+    }
+    const linesNN = (s.noi_nhan||'').split('\n').filter(l=>l.trim());
+    linesNN.forEach((n, idx) => {
+      const isLast = idx === linesNN.length - 1;
+      const suffix = isLast ? '.' : ';';
+      let txt = n.trim();
+      if (txt.endsWith(',') || txt.endsWith(';') || txt.endsWith('.')) {
+        txt = txt.slice(0, -1).trim();
+      }
+      noiNhanCh.push(new Paragraph({spacing:{after:0},children:[new TextRun({text:'- '+txt+suffix,font:LAYOUT.FONT,size:24})]}))
+    });
 
     const sigCh = [];
     if(s.dong_chuc_danh_1) sigCh.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:s.dong_chuc_danh_1,font:LAYOUT.FONT,size:28,bold:true})]}));
@@ -274,7 +304,7 @@ async function generateDangDocx(s) {
 
     const doc = new Document({styles:{default:{document:{run:{font:LAYOUT.FONT,size:28}}}},sections:[{properties:{titlePage:true,page:{size:LAYOUT.PAGE,margin:LAYOUT.MARGIN}},children}]});
     const blob = await Packer.toBlob(doc);
-    saveAs(blob, `${s.loai_van_ban}_dang_hd36.docx`);
+    saveAs(blob, `${s.loai_van_ban}_dang_hd05.docx`);
     showToast('✓ Đã tải file DOCX thành công!');
     
     // Log to Firestore
@@ -282,7 +312,7 @@ async function generateDangDocx(s) {
       const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
       addDoc(collection(db, 'search_logs'), {
-        query: `[Tạo VB Đảng HD36] ${LOAI_VB[s.loai_van_ban]} - ${s.trich_yeu}`,
+        query: `[Tạo VB Đảng HD05] ${LOAI_VB[s.loai_van_ban]} - ${s.trich_yeu}`,
         model: "Local DOCX Generator",
         userEmail: window.currentUser?.email || 'Unknown',
         timestamp: serverTimestamp()

@@ -144,7 +144,7 @@ function doRender(c) {
   c.innerHTML = `
     <div class="page-header">
       <div class="page-title">🎙️ Ghi Âm → Thông Báo Kết Luận</div>
-      <div class="page-subtitle">Sử dụng AI phân tích file ghi âm cuộc họp và tự động tạo Thông báo kết luận (NĐ30/HD36)</div>
+      <div class="page-subtitle">Sử dụng AI phân tích file ghi âm cuộc họp và tự động tạo Thông báo kết luận (NĐ30/HD05)</div>
     </div>
     <div class="steps-bar" style="display:flex; align-items:center;">
       ${[1, 2, 3].map(i => `<button class="step-indicator ${formState.step === i ? 'active' : formState.step > i ? 'completed' : ''}" data-step="${i}"><span class="step-num">${formState.step > i ? '✓' : i}</span><span>${['Upload & Phân tích', 'Chỉnh sửa nội dung', 'Xuất văn bản'][i - 1]}</span></button>`).join('')}
@@ -524,7 +524,7 @@ function renderStep3(sc, c) {
       <div class="panel-body form-grid">
         <div class="form-group span-2" style="display: flex; gap: 20px;">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="the_thuc" value="nd30" ${formState.the_thuc === 'nd30' ? 'checked' : ''}> Hành chính (NĐ30)</label>
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="the_thuc" value="hd36" ${formState.the_thuc === 'hd36' ? 'checked' : ''}> Đảng (HD36)</label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="the_thuc" value="hd05" ${formState.the_thuc === 'hd05' ? 'checked' : ''}> Đảng (HD05)</label>
         </div>
       </div>
     </div>
@@ -1051,7 +1051,7 @@ async function generateNotificationDocx() {
 
     const docObj = new Document({ styles: { default: { document: { run: { font: L.FONT, size: 28 } } } }, sections: [{ properties: { page: { size: L.PAGE, margin: L.MARGIN } }, children: ch }] });
     const blob = await Packer.toBlob(docObj);
-    saveAs(blob, `TBKL_${isND30 ? 'ND30' : 'HD36'}.docx`);
+    saveAs(blob, `TBKL_${isND30 ? 'ND30' : 'HD05'}.docx`);
     showToast('✓ Đã tải file Thông báo kết luận!');
   } catch (e) {
     console.error(e);

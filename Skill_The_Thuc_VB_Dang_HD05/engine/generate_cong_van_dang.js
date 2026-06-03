@@ -2,6 +2,7 @@
  * generate_cong_van_dang.js
  * Template riêng cho Công văn Đảng (không có tên loại)
  * Layout khác: trích yếu dưới số ký hiệu, có Kính gửi giữa trang
+ * Chuẩn: Hướng dẫn 05-HD/VPTW (thay thế HD36)
  *
  * Cách dùng:
  *   node generate_cong_van_dang.js --input data.json --output output.docx

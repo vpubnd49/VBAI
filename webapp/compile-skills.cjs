@@ -33,7 +33,7 @@ function parseFrontmatter(content) {
 
 function getDefaultTriggers(skillId) {
   const triggerMap = {
-    Skill_The_Thuc_VB_Dang_HD36: [
+    Skill_The_Thuc_VB_Dang_HD05: [
       'dang uy',
       'dang bo',
       'chi bo',
@@ -41,7 +41,7 @@ function getDefaultTriggers(skillId) {
       'chi thi',
       'ket luan',
       'van ban dang',
-      'hd36',
+      'hd05',
       't/m',
       'k/t',
       't/l'
@@ -105,7 +105,7 @@ async function compile() {
   }
 
   // Sắp xếp theo thứ tự mong muốn: Đảng -> Hành chính -> PDF -> DOCX
-  const order = ['Skill_The_Thuc_VB_Dang_HD36', 'Skill_The_Thuc_VB_ND30', 'Skill_PDF', 'Skill_DOCX'];
+  const order = ['Skill_The_Thuc_VB_Dang_HD05', 'Skill_The_Thuc_VB_ND30', 'Skill_PDF', 'Skill_DOCX'];
   skills.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
   
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(skills, null, 2), 'utf8');
@@ -141,7 +141,7 @@ function processSkill(skillPath, skillId, skillsList, isExternal = false) {
     if (skillId.includes('ND30')) {
       page = 'vb-nd30';
       accent = 'mist';
-    } else if (skillId.includes('Dang_HD36')) {
+    } else if (skillId.includes('Dang_HD05') || skillId.includes('Dang_HD36')) {
       page = 'vb-dang';
       accent = 'pine';
     } else if (skillId.includes('PDF')) {

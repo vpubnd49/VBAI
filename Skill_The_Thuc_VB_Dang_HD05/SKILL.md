@@ -1,15 +1,17 @@
 ---
-name: Soạn VB Đảng (HD36)
-description: "Tạo văn bản Đảng (.docx) dùng thể thức theo Hướng dẫn 36-HD/VPTW. Hỗ trợ TẤT CẢ loại VB Đảng: Nghị quyết, Chỉ thị, Kết luận, Quyết định, Quy định, Quy chế, Báo cáo, Tờ trình, Thông báo, Hướng dẫn, Chương trình, Thông tri, Công văn, Biên bản. Dùng khi cần tạo VB cho cấp uỷ, cơ quan tham mưu, BCSĐ, ĐĐ, ban chỉ đạo ở mọi cấp từ TW đến chi bộ."
+name: Soạn VB Đảng (HD05)
+description: "Tạo văn bản Đảng (.docx) dùng thể thức theo Hướng dẫn 05-HD/VPTW (thay thế HD36). Hỗ trợ TẤT CẢ loại VB Đảng: Nghị quyết, Chỉ thị, Kết luận, Quyết định, Quy định, Quy chế, Báo cáo, Tờ trình, Thông báo, Hướng dẫn, Chương trình, Thông tri, Công văn, Biên bản. Dùng khi cần tạo VB cho cấp uỷ, cơ quan tham mưu, BCSĐ, ĐĐ, ban chỉ đạo ở mọi cấp từ TW đến chi bộ."
 ---
 
-# Skill: Sinh Văn Bản Đảng (HD 36-HD/VPTW)
+# Skill: Sinh Văn Bản Đảng (HD 05-HD/VPTW)
 
 ## Khi nào dùng skill này?
 
 - Khi người dùng yêu cầu tạo văn bản **của Đảng** (cấp uỷ, ban tham mưu, BCSĐ, ĐĐ...)
 - Khi thấy: "ĐẢNG CỘNG SẢN VIỆT NAM", "T/M", "tỉnh uỷ", "huyện uỷ", "chi bộ"...
 - **KHÔNG dùng** cho VB hành chính nhà nước (NĐ30) → dùng `Skill_The_Thuc_VB_ND30`
+
+> **Lưu ý**: Skill này đã được cập nhật theo **Hướng dẫn 05-HD/VPTW** (thay thế HD36-HD/VPTW từ ngày ký).
 
 ## Workflow
 
@@ -54,11 +56,13 @@ Tạo file JSON theo mẫu trong `assets/examples/`. Xem ví dụ:
 - [ ] **Chức vụ ký**: IN HOA, thường (KHÔNG đậm) — riêng họ tên thì ĐẬM?
 - [ ] **Khoản trong Điều**: Dùng **1. 2. 3.** (KHÔNG dùng a, b, c)?
 - [ ] **Nơi nhận**: "Nơi nhận:" có **gạch chân** (KHÔNG đậm nghiêng)?
+- [ ] **Dấu câu nơi nhận**: Giữa các CQ dùng **dấu chấm phẩy (;)**, cuối cùng dấu chấm (.) (HD05 9.2.5)?
+- [ ] **Kính gửi / Kính trình**: Công văn dùng "Kính gửi", Tờ trình dùng "Kính trình" (HD05 9.2.4)?
 - [ ] **Số ký hiệu**: Format `Số XX-NQ/TU` (dấu gạch nối `-` và gạch chéo `/`)?
 - [ ] **4 dòng trống** cho chữ ký (KHÔNG dùng spacing)
 - [ ] **Căn cứ**: Kết thúc bằng dấu phẩy `,` (căn cứ cuối), chấm phẩy `;` (các căn cứ khác)?
 
-> **TẠI SAO phải làm bước này?** Vì VB Đảng có nhiều điểm khác biệt so với VB NĐ30 (dấu sao, lề phải 15mm, T/M có gạch chéo...). Rà soát TRƯỚC khi chạy script giúp đảm bảo sản phẩm đúng thể thức ngay từ đầu.
+> **TẠI SAO phải làm bước này?** Vì VB Đảng có nhiều điểm khác biệt so với VB NĐ30 (dấu sao, lề phải 15mm, T/M có gạch chéo, Nơi nhận gạch chân, Kính trình cho TTr...). Rà soát TRƯỚC khi chạy script giúp đảm bảo sản phẩm đúng thể thức ngay từ đầu.
 
 ### Bước 4: Chạy script
 
@@ -137,6 +141,8 @@ Mở file DOCX bằng Word, đối chiếu checklist cuối file `quy_tac_the_th
 
 1. **LUÔN đọc `quy_tac_the_thuc_dang.md`** trước khi viết hoặc sửa script
 2. VB Đảng KHÁC VB hành chính: lề phải 15mm, dấu sao (*), T/M có gạch chéo, Nơi nhận có gạch chân
-3. Khoảng trống chữ ký: **4 dòng trống** (TUYỆT ĐỐI KHÔNG dùng `spacing: {before: 600}`)
-4. Line spacing: **≥ 18pt Exactly** (KHÁC NĐ30: 17pt)
-5. **Khoản trong Điều**: VB Đảng dùng **1. 2. 3.** (số in đậm), KHÔNG dùng a), b), c) như NĐ30. Engine tự nhận diện dòng bắt đầu bằng `1. `, `2. `... và in đậm phần số.
+3. **HD05 mới**: Tờ trình dùng "Kính trình" thay vì "Kính gửi"
+4. **HD05 mới**: Dấu câu nơi nhận dùng **chấm phẩy (;)** giữa các CQ (không dùng phẩy như HD36)
+5. Khoảng trống chữ ký: **4 dòng trống** (TUYỆT ĐỐI KHÔNG dùng `spacing: {before: 600}`)
+6. Line spacing: **≥ 18pt Exactly** (KHÁC NĐ30: 17pt)
+7. **Khoản trong Điều**: VB Đảng dùng **1. 2. 3.** (số in đậm), KHÔNG dùng a), b), c) như NĐ30. Engine tự nhận diện dòng bắt đầu bằng `1. `, `2. `... và in đậm phần số.

@@ -1,6 +1,6 @@
 /**
  * docx_core.js — Engine chung sinh văn bản Đảng (.docx)
- * Chuẩn Hướng dẫn 36-HD/VPTW
+ * Chuẩn Hướng dẫn 05-HD/VPTW (thay thế HD36-HD/VPTW từ ngày ký)
  *
  * Export các hàm tạo từng thành phần thể thức:
  *   createHeader, createSoKyHieu, createTenLoai, createBody,
@@ -14,7 +14,7 @@ const {
     Header, PageNumber,
 } = require('docx');
 
-// ====== THÔNG SỐ THỂ THỨC (HD36) ======
+// ====== THÔNG SỐ THỂ THỨC (HD05) ======
 
 const LAYOUT = {
     PAGE: { width: 11906, height: 16838 },   // A4
@@ -22,7 +22,7 @@ const LAYOUT = {
         top: 1134,      // 20mm
         bottom: 1134,   // 20mm
         left: 1701,     // 30mm
-        right: 850,     // 15mm (KHÁC NĐ30: 1134)
+        right: 850,     // 15mm (KHÁC NĐ30: 1134) — HD05 giữ nguyên
     },
     FONT: 'Times New Roman',
     // Chiều rộng vùng trình bày = 11906 - 1701 - 850 = 9355 dxa
@@ -47,7 +47,7 @@ const BORDERS_NONE = {
     insideVertical: { style: BorderStyle.NONE, size: 0, color: 'auto' },
 };
 
-// Body spacing chuẩn HD36: ≥6pt, line ≥18pt exactly
+// Body spacing chuẩn HD05: ≥6pt, line ≥18pt exactly (giữ nguyên từ HD36)
 const BODY_SPACING = {
     before: 120,   // 6pt
     after: 120,    // 6pt
@@ -315,10 +315,13 @@ function createTenLoai(data) {
 // ====== HÀM TẠO KÍNH GỬI ======
 
 /**
- * "Kính gửi:" + danh sách CQ nhận (chỉ cho Công văn và Tờ trình)
- * Kính gửi: nghiêng, cỡ 14
+ * "Kính gửi:" / "Kính trình:" + danh sách CQ nhận
+ * HD05: Công văn dùng "Kính gửi", Tờ trình dùng "Kính trình" (9.2.4)
+ * Nghiêng, cỡ 14
  */
 function createKinhGui(data) {
+    // HD05 9.2.4: Tờ trình dùng "Kính trình", Công văn dùng "Kính gửi"
+    const label = data.loai_van_ban === 'to_trinh' ? 'Kính trình' : 'Kính gửi';
     const elements = [];
     if (!data.kinh_gui || data.kinh_gui.length === 0) return elements;
 
@@ -329,7 +332,7 @@ function createKinhGui(data) {
                 spacing: { before: 240, after: 120 },
                 children: [
                     new TextRun({
-                        text: 'Kính gửi: ',
+                        text: label + ': ',
                         font: LAYOUT.FONT, size: 28, italics: true,
                     }),
                     new TextRun({
@@ -346,7 +349,7 @@ function createKinhGui(data) {
                 spacing: { before: 240, after: 0 },
                 children: [
                     new TextRun({
-                        text: 'Kính gửi:',
+                        text: label + ':',
                         font: LAYOUT.FONT, size: 28, italics: true,
                     }),
                 ],
@@ -526,7 +529,7 @@ function createBody(data) {
                 return;
             }
 
-            // --- Điều: "Điều 1. Phạm vi" → TOÀN BỘ DÒNG ĐẬM (Phụ lục 3 HD36) ---
+            // --- Điều: "Điều 1. Phạm vi" → TOÀN BỘ DÒNG ĐẬM (Phụ lục 3 HD05) ---
             const matchDieu = trimmed.match(/^(Điều\s\d+\..*)$/);
             if (matchDieu) {
                 elements.push(
@@ -691,7 +694,7 @@ function createSignature(data) {
 function createNoiNhan(data) {
     const noiNhanChildren = [];
 
-    // "Nơi nhận:" — gạch chân (KHÁC NĐ30: đậm+nghiêng)
+    // "Nơi nhận:" — gạch chân (KHÁC NĐ30: đậm+nghiêng) — HD05 giữ nguyên
     noiNhanChildren.push(
         new Paragraph({
             spacing: { before: 0, after: 0 },
@@ -705,11 +708,28 @@ function createNoiNhan(data) {
         })
     );
 
+    // HD05 9.2.5: Dòng đầu "Như trên" cho CV/TTr khi có Kính gửi/Kính trình
+    if ((data.loai_van_ban === 'cong_van' || data.loai_van_ban === 'to_trinh') &&
+        data.kinh_gui && data.kinh_gui.length > 0) {
+        noiNhanChildren.push(
+            new Paragraph({
+                spacing: { before: 0, after: 0 },
+                children: [
+                    new TextRun({
+                        text: '- Như trên;',
+                        font: LAYOUT.FONT, size: 24, // cỡ 12
+                    }),
+                ],
+            })
+        );
+    }
+
     // Danh sách nơi nhận (cỡ 12)
+    // HD05 9.2.5: giữa các CQ dùng dấu chấm phẩy (;), cuối cùng dấu chấm (.)
     if (data.noi_nhan && data.noi_nhan.length > 0) {
         data.noi_nhan.forEach((item, idx) => {
             const isLast = idx === data.noi_nhan.length - 1;
-            const suffix = isLast ? '.' : ',';
+            const suffix = isLast ? '.' : ';';
             noiNhanChildren.push(
                 new Paragraph({
                     spacing: { before: 0, after: 0 },
@@ -787,7 +807,7 @@ function createDocument(children) {
         },
         sections: [{
             properties: {
-                titlePage: true, // Trang 1 không đánh số (HD36)
+                titlePage: true, // Trang 1 không đánh số (HD05)
                 page: {
                     size: {
                         width: LAYOUT.PAGE.width,

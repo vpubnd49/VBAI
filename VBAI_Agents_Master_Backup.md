@@ -26,11 +26,11 @@ Skill sinh file `.docx` VB hành chính chuẩn **Nghị định 30/2020/NĐ-CP*
 
 ---
 
-## 2. Văn Bản Đảng (HD36)
-**Path:** `Skill_The_Thuc_VB_Dang_HD36/SKILL.md`
+## 2. Văn Bản Đảng (HD05)
+**Path:** `Skill_The_Thuc_VB_Dang_HD05/SKILL.md`
 
 ```markdown
-# Skill: Sinh Văn Bản Đảng (HD 36-HD/VPTW)
+# Skill: Sinh Văn Bản Đảng (HD 05-HD/VPTW)
 
 Dùng cho các cơ quan Đảng (Cấp uỷ, Ban tham mưu, Chi bộ...).
 
@@ -38,7 +38,8 @@ Dùng cho các cơ quan Đảng (Cấp uỷ, Ban tham mưu, Chi bộ...).
 - Lề phải 15mm.
 - Dùng dấu sao (*) trong Quốc huy/Cơ quan.
 - Quyền hạn dùng dấu gạch chéo (T/M, K/T...).
-- Nơi nhận có gạch chân.
+- Nơi nhận có gạch chân + dùng dấu chấm phẩy (;) phân cách các CQ nhận.
+- Tờ trình dùng "Kính trình" thay vì "Kính gửi".
 ```
 
 ---

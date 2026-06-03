@@ -1,6 +1,7 @@
 /**
  * generate_bien_ban.js
  * Template Biên bản hội nghị Đảng (2 chữ ký trái-phải)
+ * Chuẩn: Hướng dẫn 05-HD/VPTW (thay thế HD36)
  *
  * Cách dùng:
  *   node generate_bien_ban.js --input data.json --output output.docx

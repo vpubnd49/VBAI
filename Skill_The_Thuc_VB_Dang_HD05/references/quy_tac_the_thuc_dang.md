@@ -1,5 +1,5 @@
 # Quy Tắc Thể Thức Văn Bản Của Đảng
-## (Theo Hướng dẫn số 36-HD/VPTW, ngày 03/4/2018 của Văn phòng Trung ương Đảng)
+## (Theo Hướng dẫn số 05-HD/VPTW của Văn phòng Trung ương Đảng — thay thế HD36-HD/VPTW)
 
 ---
 
@@ -14,7 +14,7 @@
 | **Lề phải** | **15 mm** | **850** |
 | Font mặc định | Times New Roman (TCVN 6909:2001) | — |
 
-> **LƯU Ý**: Lề phải VB Đảng là **15 mm**, KHÁC với VB hành chính (NĐ30) là 20 mm.
+> **LƯU Ý**: Lề phải VB Đảng là **15 mm**, KHÁC với VB hành chính (NĐ30) là 20 mm. HD05 giữ nguyên thông số này.
 
 - In 2 mặt: mặt sau lề trái = 15 mm, lề phải = 30 mm (đảo ngược).
 - Số trang: chữ số Ả-rập, giữa trang, cách mép trên 10 mm. Trang 1 không đánh số.
@@ -75,7 +75,7 @@
 
 ### 3.2. Đặc điểm quan trọng (KHÁC NĐ30!)
 
-| Yếu tố | VB Đảng (HD36) | VB Hành chính (NĐ30) |
+| Yếu tố | VB Đảng (HD05) | VB Hành chính (NĐ30) |
 |:---|:---|:---|
 | Góc phải | **ĐẢNG CỘNG SẢN VIỆT NAM** | CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM |
 | Cỡ chữ tiêu đề | **15** | 13 |
@@ -145,7 +145,7 @@
 | Lùi đầu dòng (first line indent) | Khoảng **10 mm** | ~567 |
 | Canh lề | Justified (đều 2 bên) | — |
 
-> **LƯU Ý**: Line spacing VB Đảng là **≥18pt**, KHÁC NĐ30 (17pt). Đây là điểm khác biệt quan trọng!
+> **LƯU Ý**: Line spacing VB Đảng là **≥18pt**, KHÁC NĐ30 (17pt). Đây là điểm khác biệt quan trọng! HD05 giữ nguyên.
 
 ### 5.2. Căn cứ ban hành
 
@@ -154,7 +154,7 @@
 - Căn cứ cuối cùng: dấu **phẩy (,)** (KHÔNG phải chấm phẩy).
 - Lùi đầu dòng ~10mm, canh Justified.
 
-> **KHÁC NĐ30**: VB hành chính NĐ30 thường in nghiêng phần căn cứ. VB Đảng HD36 **KHÔNG nghiêng**.
+> **KHÁC NĐ30**: VB hành chính NĐ30 thường in nghiêng phần căn cứ. VB Đảng HD05 **KHÔNG nghiêng** (giữ nguyên từ HD36).
 
 ### 5.3. Bố cục Phần / Chương / Mục / Điều / Khoản / Điểm
 
@@ -171,7 +171,7 @@
 
 > **QUY TẮC QUAN TRỌNG**:
 > - Chương, tên chương, Mục, tên mục → luôn **căn giữa**
-> - Điều + tên điều → **toàn bộ dòng đậm** (Phụ lục 3 HD36)
+> - Điều + tên điều → **toàn bộ dòng đậm** (Phụ lục HD05)
 > - Khoản, Điểm → chữ thường (không đậm)
 
 ---
@@ -245,7 +245,7 @@ Số <số>-<KH loại VB>/<KH cơ quan>
 | **K/T** | Ký thay | Cấp phó ký thay cấp trưởng (CQ tham mưu) |
 | **T/L** | Thừa lệnh | Được BTV cấp uỷ / thủ trưởng uỷ quyền |
 
-> **KHÁC NĐ30**: VB Đảng dùng dấu gạch chéo: **T/M**, **K/T**, **T/L** (NĐ30 dùng dấu chấm: TM., KT., TL.)
+> **KHÁC NĐ30**: VB Đảng dùng dấu gạch chéo: **T/M**, **K/T**, **T/L** (NĐ30 dùng dấu chấm: TM., KT., TL.). HD05 giữ nguyên.
 
 ### 7.2. Cách trình bày chữ ký
 
@@ -306,18 +306,20 @@ Số <số>-<KH loại VB>/<KH cơ quan>
 - "Nơi nhận": IN THƯỜNG, cỡ 14, **có gạch chân** → <u>Nơi nhận:</u>
 - Danh sách: cỡ **12**, thường.
 
-> **KHÁC NĐ30**: "Nơi nhận" trong VB Đảng có **gạch chân** (NĐ30 dùng in đậm + nghiêng, không gạch chân).
+> **KHÁC NĐ30**: "Nơi nhận" trong VB Đảng có **gạch chân** (NĐ30 dùng in đậm + nghiêng, không gạch chân). HD05 giữ nguyên.
 
-### 8.2. Dấu câu
+### 8.2. Dấu câu (HD05 9.2.5)
 
-- Sau "Nơi nhận", "Kính gửi": dấu **hai chấm (:)**.
-- Sau mỗi CQ nhận: dấu **phẩy (,)**.
+- Sau "Nơi nhận", "Kính gửi", "Kính trình": dấu **hai chấm (:)**.
+- Sau mỗi CQ nhận: dấu **chấm phẩy (;)**.
 - Kết thúc: dấu **chấm (.)**.
 
-### 8.3. Kính gửi (chỉ dùng cho Công văn và Tờ trình)
+> **THAY ĐỔI TỪ HD36**: HD36 dùng dấu **phẩy (,)** giữa các CQ. HD05 chuyển sang dấu **chấm phẩy (;)**.
 
-- Công văn: "Kính gửi:" + tên CQ nằm **giữa trang**, *nghiêng*, cỡ 14.
-- Tờ trình: "Kính gửi:" nằm dưới tên loại + trích yếu.
+### 8.3. Kính gửi / Kính trình (HD05 9.2.4)
+
+- Công văn: **"Kính gửi:"** + tên CQ nằm **giữa trang**, *nghiêng*, cỡ 14.
+- Tờ trình: **"Kính trình:"** nằm dưới tên loại + trích yếu. (**THAY ĐỔI**: HD36 dùng "Kính gửi" cho cả TTr)
 - Dòng đầu Nơi nhận cuối VB: thêm **"Như trên"**.
 
 ---
@@ -348,7 +350,7 @@ Số <số>-<KH loại VB>/<KH cơ quan>
 
 ## 11. Thông Số Kỹ Thuật Cho Code (docx-js)
 
-### 11.1. Page Setup
+### 11.1. Page Setup (HD05 giữ nguyên từ HD36)
 
 ```javascript
 const LAYOUT_DANG = {
@@ -357,19 +359,19 @@ const LAYOUT_DANG = {
         top: 1134,     // 20mm
         bottom: 1134,  // 20mm
         left: 1701,    // 30mm
-        right: 850,    // 15mm (KHÁC NĐ30: 1134)
+        right: 850,    // 15mm (KHÁC NĐ30: 1134) — HD05 giữ nguyên
     },
     FONT: 'Times New Roman',
 };
 ```
 
-### 11.2. Body Spacing
+### 11.2. Body Spacing (HD05 giữ nguyên)
 
 ```javascript
 const bodySpacing = {
     before: 120,   // ≥ 6pt
     after: 120,    // ≥ 6pt
-    line: 360,     // ≥ 18pt (KHÁC NĐ30: 340 = 17pt)
+    line: 360,     // ≥ 18pt (KHÁC NĐ30: 340 = 17pt) — HD05 giữ nguyên
     lineRule: LineRuleType.EXACT,
 };
 ```
@@ -406,7 +408,7 @@ new Paragraph({
 });
 ```
 
-### 11.6. "Nơi nhận" có gạch chân
+### 11.6. "Nơi nhận" có gạch chân + dấu chấm phẩy (HD05 9.2.5)
 
 ```javascript
 // KHÁC NĐ30 (đậm + nghiêng)
@@ -417,6 +419,8 @@ new TextRun({
     size: 28,        // cỡ 14
     underline: { type: UnderlineType.SINGLE },
 });
+// HD05: Dấu chấm phẩy (;) giữa các CQ nhận (thay vì phẩy HD36)
+// Dòng đầu: "- Như trên;" cho CV/TTr có Kính gửi/Kính trình
 ```
 
 ### 11.7. Khoảng trống chữ ký (4 dòng)
@@ -444,7 +448,9 @@ for (let i = 0; i < 4; i++) {
 - [ ] Chức vụ — KHÔNG ghi tên CQ kèm theo?
 - [ ] Họ tên — KHÔNG ghi học hàm, học vị?
 - [ ] "Nơi nhận" — có gạch chân (KHÔNG đậm nghiêng)?
-- [ ] Kính gửi (nếu CV/TTr) — nghiêng, cỡ 14?
+- [ ] Dấu câu nơi nhận — chấm phẩy (;) giữa các CQ (HD05)?
+- [ ] Kính gửi (CV) / Kính trình (TTr) — đúng loại (HD05)?
+- [ ] Nơi nhận có "Như trên" nếu CV/TTr có Kính gửi/Kính trình?
 - [ ] Line spacing — ≥ 18pt?
 - [ ] Spacing between paragraphs — ≥ 6pt?
 - [ ] Lùi đầu dòng — ~10mm?

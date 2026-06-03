@@ -62,7 +62,7 @@ export function showToast(msg, type = 'success') {
 const PAGE_TITLES = {
   dashboard: 'Tổng quan',
   'chat-assistant': 'Tra cứu hành chính & pháp luật',
-  'vb-dang': 'Soạn VB Đảng (HD36)',
+  'vb-dang': 'Soạn VB Đảng (HD05)',
   'vb-nd30': 'Soạn VB Hành chính (NĐ30)',
   'pdf-tool': 'Xử lý PDF / OCR',
   'docx-tool': 'Tạo & Xuất DOCX',

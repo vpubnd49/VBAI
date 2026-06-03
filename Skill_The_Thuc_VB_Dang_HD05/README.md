@@ -1,8 +1,8 @@
-# 📄 Skill Sinh Văn Bản Đảng — HD 36-HD/VPTW
+# 📄 Skill Sinh Văn Bản Đảng — HD 05-HD/VPTW
 
 ## Giới Thiệu
 
-Bộ kỹ năng (skill) giúp Agent AI tự động tạo file **văn bản Đảng (.docx)** đúng thể thức theo **Hướng dẫn số 36-HD/VPTW** ngày 03/4/2018 của Văn phòng Trung ương Đảng.
+Bộ kỹ năng (skill) giúp Agent AI tự động tạo file **văn bản Đảng (.docx)** đúng thể thức theo **Hướng dẫn số 05-HD/VPTW** của Văn phòng Trung ương Đảng (thay thế Hướng dẫn số 36-HD/VPTW ngày 03/4/2018).
 
 ### Phục vụ ai?
 
@@ -41,7 +41,7 @@ Cán bộ, đảng viên cần soạn văn bản Đảng ở **mọi cấp**: t�
 ### Cài đặt
 
 ```bash
-cd Skill_The_Thuc_VB_Dang_HD36
+cd Skill_The_Thuc_VB_Dang_HD05
 npm install
 ```
 
@@ -120,13 +120,15 @@ chuong_trinh, thong_tri, bien_ban, cong_van
 
 ## Điểm Khác Biệt Với VB Hành Chính (NĐ30)
 
-| Yếu tố | VB Đảng (HD36) | VB Hành chính (NĐ30) |
+| Yếu tố | VB Đảng (HD05) | VB Hành chính (NĐ30) |
 |---|---|---|
 | Tiêu đề | **ĐẢNG CỘNG SẢN VIỆT NAM** (cỡ 15) | Quốc hiệu + Tiêu ngữ |
 | Lề phải | **15 mm** | 20 mm |
 | Dưới CQ ban hành | **Dấu sao (*)** | Gạch ngang 1/3 |
 | Quyền hạn ký | **T/M, K/T, T/L** (gạch chéo) | TM., KT., TL. (dấu chấm) |
 | Nơi nhận | **Gạch chân** | Đậm + nghiêng |
+| Dấu câu nơi nhận | **Chấm phẩy (;)** giữa các CQ | Phẩy (,) |
+| Tờ trình | **"Kính trình"** | "Kính gửi" |
 | Căn cứ | Chữ đứng, gạch đầu dòng | Nghiêng |
 | Line spacing | **≥ 18pt** | ~17pt |
 | Số ký hiệu | `Số 15-NQ/TU` (gạch nối + gạch chéo) | `Số:   /BTC-TCCB` |
@@ -136,7 +138,7 @@ chuong_trinh, thong_tri, bien_ban, cong_van
 ## Cấu Trúc Thư Mục
 
 ```
-Skill_The_Thuc_VB_Dang_HD36/
+Skill_The_Thuc_VB_Dang_HD05/
 ├── SKILL.md                           ← Agent đọc file này đầu tiên
 ├── README.md                          ← Bạn đang đọc file này
 ├── package.json
@@ -164,7 +166,7 @@ Skill_The_Thuc_VB_Dang_HD36/
 
 ## Tính Năng Tự Động
 
-Engine tự nhận diện và format đúng theo HD36:
+Engine tự nhận diện và format đúng theo HD05:
 
 - **Chương I, Phần I** → Đậm, căn giữa
 - **QUY ĐỊNH CHUNG** (tên chương, IN HOA) → Đậm, căn giữa
@@ -184,10 +186,12 @@ Engine tự nhận diện và format đúng theo HD36:
 4. Số ký hiệu: dấu gạch nối `-` và gạch chéo `/` (KHÔNG dấu hai chấm)
 5. Quyền hạn ký: gạch chéo T/M, K/T, T/L (KHÔNG dấu chấm)
 6. "Nơi nhận:" có **gạch chân** (KHÔNG đậm nghiêng)
+7. **HD05**: Tờ trình dùng **"Kính trình"** thay vì "Kính gửi"
+8. **HD05**: Dấu câu nơi nhận: **chấm phẩy (;)** giữa các CQ
 
 ---
 
 ## Nguồn Tham Chiếu
 
-- **Hướng dẫn số 36-HD/VPTW** ngày 03/4/2018 của Văn phòng Trung ương Đảng
-- **Phụ lục 3** — Bảng phông chữ, cỡ chữ, kiểu chữ các thành phần thể thức
+- **Hướng dẫn số 05-HD/VPTW** của Văn phòng Trung ương Đảng (thay thế HD36-HD/VPTW ngày 03/4/2018)
+- **Phụ lục 1, 2, 3** — Sơ đồ, bảng phông chữ, cỡ chữ, kiểu chữ các thành phần thể thức

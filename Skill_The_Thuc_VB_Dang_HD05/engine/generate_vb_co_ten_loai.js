@@ -2,6 +2,7 @@
  * generate_vb_co_ten_loai.js
  * Template đa năng cho 11 loại VB Đảng CÓ TÊN LOẠI:
  *   NQ, CT, KL, QĐ, QĐi, QC, BC, TTr, TB, HD, CTr, TT
+ * Chuẩn: Hướng dẫn 05-HD/VPTW (thay thế HD36)
  *
  * Cách dùng:
  *   node generate_vb_co_ten_loai.js --input data.json --output output.docx
