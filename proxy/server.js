@@ -2967,7 +2967,7 @@ app.post('/api/web-search', async (req, res) => {
           displayLink: 'vbpl.vn',
           source: 'local_metadata',
         };
-        finalItems = [localMetaItem, ...finalItems.filter(item => item.source !== 'local_metadata')];
+        finalItems = [localMetaItem, ...finalItems.filter(item => item.source !== 'local_metadata' && !isLegalIndexOrCategoryPage(item.link))];
       }
 
       const responseResults = formatSearchResults(finalItems);
@@ -4685,9 +4685,25 @@ function pickExactDocItems(items = [], expectedDocNumber = '') {
   });
 }
 
+function isLegalIndexOrCategoryPage(link = '') {
+  const l = String(link || '').toLowerCase();
+  return l.includes('ivanban.aspx') 
+    || l.includes('timkiem') 
+    || l.includes('tim-kiem')
+    || l.includes('search') 
+    || l.includes('loaivanban')
+    || l.includes('loai-van-ban')
+    || l.includes('vanbanlienquan.aspx')
+    || l.includes('vbpq-vanbanlienquan.aspx')
+    || l.includes('vbpq-lienquan.aspx')
+    || l.includes('/pages/ivanban.aspx')
+    || l.includes('dvid_old');
+}
+
 function isKnownDocumentOfficialCandidate(item = {}, knownDocument = null, allowReference = false) {
   const docNumber = String(knownDocument?.documentNumber || '').trim().toUpperCase();
   if (!docNumber) return false;
+  if (isLegalIndexOrCategoryPage(item?.link)) return false;
   const titleHint = String(knownDocument?.titleHint || knownDocument?.canonicalQuery || '').trim();
   const hay = `${String(item?.title || '')} ${String(item?.snippet || '')} ${String(item?.link || '')}`;
   const hasDocNumber = hasExpectedDocNumber(hay, docNumber);
