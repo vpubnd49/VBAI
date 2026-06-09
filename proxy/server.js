@@ -91,6 +91,267 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     requestedDocType: 'luat',
     confidence: 'high',
   },
+  {
+    patterns: [/quy\s*dinh\s*ve\s*chinh/, /74\/2025\/qh15/],
+    documentNumber: '74/2025/QH15',
+    titleHint: 'Quy định về chính sách hỗ trợ tạo việc làm, đăng ký lao động...',
+    topicHint: 'quy định về chính sách hỗ trợ tạo việc làm  đăng ký lao động',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/luat\s*quang\s*cao/, /75\/2025\/qh15/],
+    documentNumber: '75/2025/QH15',
+    titleHint: 'Luật sửa đổi, bổ sung một số điều của Luật Quảng cáo...',
+    topicHint: 'luật quảng cáo',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /70\/2025\/qh15/],
+    documentNumber: '70/2025/QH15',
+    titleHint: 'Sửa đổi, bổ sung một số điều của Luật Tiêu chuẩn và quy chuẩ...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật tiêu chuẩn và quy chuẩ',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/hoa\s*chat\s*quy\s*dinh/, /69\/2025\/qh15/],
+    documentNumber: '69/2025/QH15',
+    titleHint: 'Luật Hóa chất quy định về hóa chất, quản lý hoạt động hóa ch...',
+    topicHint: 'hóa chất quy định về hóa chất  quản lý hoạt động hóa chất  p',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/thue\s*tieu\s*thu\s*dac/, /66\/2025\/qh15/],
+    documentNumber: '66/2025/QH15',
+    titleHint: 'Luật Thuế tiêu thụ đặc biệt...',
+    topicHint: 'thuế tiêu thụ đặc biệt',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/cong\s*nghiep\s*cong\s*nghe/, /71\/2025\/qh15/],
+    documentNumber: '71/2025/QH15',
+    titleHint: 'Luật Công nghiệp công nghệ số...',
+    topicHint: 'công nghiệp công nghệ số',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/nay\s*quy\s*dinh\s*ve/, /73\/2025\/qh15/],
+    documentNumber: '73/2025/QH15',
+    titleHint: 'Luật này quy định về hoạt động nghề nghiệp, quyền và nghĩa v...',
+    topicHint: 'này quy định về hoạt động nghề nghiệp  quyền và nghĩa vụ của',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/duong\s*sat\s*quy\s*dinh/, /95\/2025\/qh15/],
+    documentNumber: '95/2025/QH15',
+    titleHint: 'Luật Đường sắt quy định về hoạt động đường sắt; quyền, nghĩa...',
+    topicHint: 'đường sắt quy định về hoạt động đường sắt  quyền  nghĩa vụ v',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/luat\s*chat\s*luong\s*san/, /78\/2025\/qh15/],
+    documentNumber: '78/2025/QH15',
+    titleHint: 'Luật Sửa đổi, bổ sung một số điều của Luật Chất lượng sản ph...',
+    topicHint: 'luật chất lượng sản phẩm  hàng hóa',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/bao\s*ve\s*du\s*lieu/, /91\/2025\/qh15/],
+    documentNumber: '91/2025/QH15',
+    titleHint: 'Bảo vệ dữ liệu cá nhân...',
+    topicHint: 'bảo vệ dữ liệu cá nhân',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /77\/2025\/qh15/],
+    documentNumber: '77/2025/QH15',
+    titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT SỬ DỤNG NĂNG LƯỢNG TIẾ...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật sử dụng năng lượng tiế',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/nang\s*luong\s*nguyen\s*tu/, /94\/2025\/qh15/],
+    documentNumber: '94/2025/QH15',
+    titleHint: 'Luật Năng lượng nguyên tử...',
+    topicHint: 'năng lượng nguyên tử',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/quy\s*dinh\s*ve\s*lap/, /89\/2025\/qh15/],
+    documentNumber: '89/2025/QH15',
+    titleHint: 'Luật quy định về lập, chấp hành, kiểm toán, quyết toán, công...',
+    topicHint: 'quy định về lập  chấp hành  kiểm toán  quyết toán  công khai',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /123\/2025\/qh15/],
+    documentNumber: '123/2025/QH15',
+    titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁO DỤC...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật giáo dục',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/tham\s*gia\s*luc\s*luong/, /92\/2025\/qh15/],
+    documentNumber: '92/2025/QH15',
+    titleHint: 'Luật Tham gia lực lượng gìn giữ hòa bình của Liên hợp quốc...',
+    topicHint: 'tham gia lực lượng gìn giữ hòa bình của liên hợp quốc',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/giao\s*duc\s*dai\s*hoc/, /125\/2025\/qh15/],
+    documentNumber: '125/2025/QH15',
+    titleHint: 'Luật Giáo dục đại học...',
+    topicHint: 'giáo dục đại học',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /146\/2025\/qh15/],
+    documentNumber: '146/2025/QH15',
+    titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA 15 LUẬT TRONG LĨNH VỰC NÔNG...',
+    topicHint: 'sửa đổi  bổ sung một số điều của 15 luật trong lĩnh vực nông',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /144\/2025\/qh15/],
+    documentNumber: '144/2025/QH15',
+    titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT QUY HOẠCH ĐÔ THỊ VÀ NÔ...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật quy hoạch đô thị và nô',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /140\/2025\/qh15/],
+    documentNumber: '140/2025/QH15',
+    titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁ...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật giá',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /147\/2025\/qh15/],
+    documentNumber: '147/2025/QH15',
+    titleHint: 'Sửa đổi, bổ sung một số điều của Luật Địa chất và Khoáng sản...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật địa chất và khoáng sản',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /149\/2025\/qh15/],
+    documentNumber: '149/2025/QH15',
+    titleHint: 'Sửa đổi, bổ sung một số điều của Luật Thuế giá trị gia tăng...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật thuế giá trị gia tăng',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/toa\s*an\s*chuyen\s*biet/, /150\/2025\/qh15/],
+    documentNumber: '150/2025/QH15',
+    titleHint: 'Luật Tòa án chuyên biệt tại Trung tâm tài chính quốc tế...',
+    topicHint: 'tòa án chuyên biệt tại trung tâm tài chính quốc tế',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /119\/2025\/qh15/],
+    documentNumber: '119/2025/QH15',
+    titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT CÔNG NGHIỆP QUỐC PHÒNG...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật công nghiệp quốc phòng',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /138\/2025\/qh15/],
+    documentNumber: '138/2025/QH15',
+    titleHint: 'Sửa đổi, bổ sung một số điều của Luật Thống kê...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật thống kê',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /137\/2025\/qh15/],
+    documentNumber: '137/2025/QH15',
+    titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT ĐIỀU ƯỚC QUỐC TẾ...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật điều ước quốc tế',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /141\/2025\/qh15/],
+    documentNumber: '141/2025/QH15',
+    titleHint: 'Sửa đổi, bổ sung một số điều của Luật Quản lý nợ công...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật quản lý nợ công',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/giao\s*duc\s*nghe\s*nghiep/, /124\/2025\/qh15/],
+    documentNumber: '124/2025/QH15',
+    titleHint: 'Luật Giáo dục nghề nghiệp...',
+    topicHint: 'giáo dục nghề nghiệp',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/sua\s*doi\s*bo\s*sung/, /139\/2025\/qh15/],
+    documentNumber: '139/2025/QH15',
+    titleHint: 'Sửa đổi, bổ sung một số điều của Luật Kinh doanh bảo hiểm...',
+    topicHint: 'sửa đổi  bổ sung một số điều của luật kinh doanh bảo hiểm',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
+    patterns: [/tu\s*phap\s*nguoi\s*chua/, /59\/2024\/qh15/],
+    documentNumber: '59/2024/QH15',
+    titleHint: 'Luật Tư pháp người chưa thành niên...',
+    topicHint: 'tư pháp người chưa thành niên',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  }
 ]);
 
 function normalizeVietnamese(value = '') {
@@ -483,6 +744,442 @@ function resolveKnownLegalDocument(query = '') {
       confidence: consensus.confidence || 'high',
       requestedDocType: consensus.requestedDocType || null,
       canonicalKey: buildLegalCanonicalKey(consensus),
+    };
+  }
+
+  // 29 new laws resolve mappings
+  if (/\bluat\s*74\b/.test(normalized) || /\b74\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 74/2025/QH15',
+      documentNumber: '74/2025/QH15',
+      titleHint: 'Quy định về chính sách hỗ trợ tạo việc làm, đăng ký lao động, hệ thống thông tin',
+      topicHint: 'quy định về chính sách hỗ trợ tạo việc làm  đăng ký lao động  hệ thống thông tin',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '74/2025/QH15',
+        titleHint: 'Quy định về chính sách hỗ trợ tạo việc làm, đăng ký lao động, hệ thống thông tin',
+        topicHint: 'quy định về chính sách hỗ trợ tạo việc làm  đăng ký lao động  hệ thống thông tin',
+      }),
+    };
+  }
+
+  if (/\bluat\s*75\b/.test(normalized) || /\b75\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 75/2025/QH15',
+      documentNumber: '75/2025/QH15',
+      titleHint: 'Luật sửa đổi, bổ sung một số điều của Luật Quảng cáo',
+      topicHint: 'luật quảng cáo',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '75/2025/QH15',
+        titleHint: 'Luật sửa đổi, bổ sung một số điều của Luật Quảng cáo',
+        topicHint: 'luật quảng cáo',
+      }),
+    };
+  }
+
+  if (/\bluat\s*70\b/.test(normalized) || /\b70\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 70/2025/QH15',
+      documentNumber: '70/2025/QH15',
+      titleHint: 'Sửa đổi, bổ sung một số điều của Luật Tiêu chuẩn và quy chuẩn kỹ thuật',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật tiêu chuẩn và quy chuẩn kỹ thuật',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '70/2025/QH15',
+        titleHint: 'Sửa đổi, bổ sung một số điều của Luật Tiêu chuẩn và quy chuẩn kỹ thuật',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật tiêu chuẩn và quy chuẩn kỹ thuật',
+      }),
+    };
+  }
+
+  if (/\bluat\s*69\b/.test(normalized) || /\b69\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 69/2025/QH15',
+      documentNumber: '69/2025/QH15',
+      titleHint: 'Luật Hóa chất quy định về hóa chất, quản lý hoạt động hóa chất; phát triển ngành',
+      topicHint: 'hóa chất quy định về hóa chất  quản lý hoạt động hóa chất  phát triển ngành công',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '69/2025/QH15',
+        titleHint: 'Luật Hóa chất quy định về hóa chất, quản lý hoạt động hóa chất; phát triển ngành',
+        topicHint: 'hóa chất quy định về hóa chất  quản lý hoạt động hóa chất  phát triển ngành công',
+      }),
+    };
+  }
+
+  if (/\bluat\s*66\b/.test(normalized) || /\b66\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 66/2025/QH15',
+      documentNumber: '66/2025/QH15',
+      titleHint: 'Luật Thuế tiêu thụ đặc biệt',
+      topicHint: 'thuế tiêu thụ đặc biệt',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '66/2025/QH15',
+        titleHint: 'Luật Thuế tiêu thụ đặc biệt',
+        topicHint: 'thuế tiêu thụ đặc biệt',
+      }),
+    };
+  }
+
+  if (/\bluat\s*71\b/.test(normalized) || /\b71\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 71/2025/QH15',
+      documentNumber: '71/2025/QH15',
+      titleHint: 'Luật Công nghiệp công nghệ số',
+      topicHint: 'công nghiệp công nghệ số',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '71/2025/QH15',
+        titleHint: 'Luật Công nghiệp công nghệ số',
+        topicHint: 'công nghiệp công nghệ số',
+      }),
+    };
+  }
+
+  if (/\bluat\s*73\b/.test(normalized) || /\b73\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 73/2025/QH15',
+      documentNumber: '73/2025/QH15',
+      titleHint: 'Luật này quy định về hoạt động nghề nghiệp, quyền và nghĩa vụ của nhà giáo; chức',
+      topicHint: 'này quy định về hoạt động nghề nghiệp  quyền và nghĩa vụ của nhà giáo  chức danh',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '73/2025/QH15',
+        titleHint: 'Luật này quy định về hoạt động nghề nghiệp, quyền và nghĩa vụ của nhà giáo; chức',
+        topicHint: 'này quy định về hoạt động nghề nghiệp  quyền và nghĩa vụ của nhà giáo  chức danh',
+      }),
+    };
+  }
+
+  if (/\bluat\s*95\b/.test(normalized) || /\b95\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 95/2025/QH15',
+      documentNumber: '95/2025/QH15',
+      titleHint: 'Luật Đường sắt quy định về hoạt động đường sắt; quyền, nghĩa vụ và trách nhiệm c',
+      topicHint: 'đường sắt quy định về hoạt động đường sắt  quyền  nghĩa vụ và trách nhiệm của tổ',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '95/2025/QH15',
+        titleHint: 'Luật Đường sắt quy định về hoạt động đường sắt; quyền, nghĩa vụ và trách nhiệm c',
+        topicHint: 'đường sắt quy định về hoạt động đường sắt  quyền  nghĩa vụ và trách nhiệm của tổ',
+      }),
+    };
+  }
+
+  if (/\bluat\s*78\b/.test(normalized) || /\b78\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 78/2025/QH15',
+      documentNumber: '78/2025/QH15',
+      titleHint: 'Luật Sửa đổi, bổ sung một số điều của Luật Chất lượng sản phẩm, hàng hóa',
+      topicHint: 'luật chất lượng sản phẩm  hàng hóa',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '78/2025/QH15',
+        titleHint: 'Luật Sửa đổi, bổ sung một số điều của Luật Chất lượng sản phẩm, hàng hóa',
+        topicHint: 'luật chất lượng sản phẩm  hàng hóa',
+      }),
+    };
+  }
+
+  if (/\bluat\s*91\b/.test(normalized) || /\b91\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 91/2025/QH15',
+      documentNumber: '91/2025/QH15',
+      titleHint: 'Bảo vệ dữ liệu cá nhân',
+      topicHint: 'bảo vệ dữ liệu cá nhân',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '91/2025/QH15',
+        titleHint: 'Bảo vệ dữ liệu cá nhân',
+        topicHint: 'bảo vệ dữ liệu cá nhân',
+      }),
+    };
+  }
+
+  if (/\bluat\s*77\b/.test(normalized) || /\b77\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 77/2025/QH15',
+      documentNumber: '77/2025/QH15',
+      titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT SỬ DỤNG NĂNG LƯỢNG TIẾT KIỆM VÀ HIỆU QUẢ',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật sử dụng năng lượng tiết kiệm và hiệu quả',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '77/2025/QH15',
+        titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT SỬ DỤNG NĂNG LƯỢNG TIẾT KIỆM VÀ HIỆU QUẢ',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật sử dụng năng lượng tiết kiệm và hiệu quả',
+      }),
+    };
+  }
+
+  if (/\bluat\s*94\b/.test(normalized) || /\b94\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 94/2025/QH15',
+      documentNumber: '94/2025/QH15',
+      titleHint: 'Luật Năng lượng nguyên tử',
+      topicHint: 'năng lượng nguyên tử',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '94/2025/QH15',
+        titleHint: 'Luật Năng lượng nguyên tử',
+        topicHint: 'năng lượng nguyên tử',
+      }),
+    };
+  }
+
+  if (/\bluat\s*89\b/.test(normalized) || /\b89\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 89/2025/QH15',
+      documentNumber: '89/2025/QH15',
+      titleHint: 'Luật quy định về lập, chấp hành, kiểm toán, quyết toán, công khai, giám sát ngân',
+      topicHint: 'quy định về lập  chấp hành  kiểm toán  quyết toán  công khai  giám sát ngân sách',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '89/2025/QH15',
+        titleHint: 'Luật quy định về lập, chấp hành, kiểm toán, quyết toán, công khai, giám sát ngân',
+        topicHint: 'quy định về lập  chấp hành  kiểm toán  quyết toán  công khai  giám sát ngân sách',
+      }),
+    };
+  }
+
+  if (/\bluat\s*123\b/.test(normalized) || /\b123\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 123/2025/QH15',
+      documentNumber: '123/2025/QH15',
+      titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁO DỤC',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật giáo dục',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '123/2025/QH15',
+        titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁO DỤC',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật giáo dục',
+      }),
+    };
+  }
+
+  if (/\bluat\s*92\b/.test(normalized) || /\b92\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 92/2025/QH15',
+      documentNumber: '92/2025/QH15',
+      titleHint: 'Luật Tham gia lực lượng gìn giữ hòa bình của Liên hợp quốc',
+      topicHint: 'tham gia lực lượng gìn giữ hòa bình của liên hợp quốc',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '92/2025/QH15',
+        titleHint: 'Luật Tham gia lực lượng gìn giữ hòa bình của Liên hợp quốc',
+        topicHint: 'tham gia lực lượng gìn giữ hòa bình của liên hợp quốc',
+      }),
+    };
+  }
+
+  if (/\bluat\s*125\b/.test(normalized) || /\b125\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 125/2025/QH15',
+      documentNumber: '125/2025/QH15',
+      titleHint: 'Luật Giáo dục đại học',
+      topicHint: 'giáo dục đại học',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '125/2025/QH15',
+        titleHint: 'Luật Giáo dục đại học',
+        topicHint: 'giáo dục đại học',
+      }),
+    };
+  }
+
+  if (/\bluat\s*146\b/.test(normalized) || /\b146\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 146/2025/QH15',
+      documentNumber: '146/2025/QH15',
+      titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA 15 LUẬT TRONG LĨNH VỰC NÔNG NGHIỆP VÀ MÔI TRƯỜN',
+      topicHint: 'sửa đổi  bổ sung một số điều của 15 luật trong lĩnh vực nông nghiệp và môi trườn',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '146/2025/QH15',
+        titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA 15 LUẬT TRONG LĨNH VỰC NÔNG NGHIỆP VÀ MÔI TRƯỜN',
+        topicHint: 'sửa đổi  bổ sung một số điều của 15 luật trong lĩnh vực nông nghiệp và môi trườn',
+      }),
+    };
+  }
+
+  if (/\bluat\s*144\b/.test(normalized) || /\b144\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 144/2025/QH15',
+      documentNumber: '144/2025/QH15',
+      titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT QUY HOẠCH ĐÔ THỊ VÀ NÔNG THÔN',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật quy hoạch đô thị và nông thôn',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '144/2025/QH15',
+        titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT QUY HOẠCH ĐÔ THỊ VÀ NÔNG THÔN',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật quy hoạch đô thị và nông thôn',
+      }),
+    };
+  }
+
+  if (/\bluat\s*140\b/.test(normalized) || /\b140\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 140/2025/QH15',
+      documentNumber: '140/2025/QH15',
+      titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁ',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật giá',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '140/2025/QH15',
+        titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁ',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật giá',
+      }),
+    };
+  }
+
+  if (/\bluat\s*147\b/.test(normalized) || /\b147\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 147/2025/QH15',
+      documentNumber: '147/2025/QH15',
+      titleHint: 'Sửa đổi, bổ sung một số điều của Luật Địa chất và Khoáng sản',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật địa chất và khoáng sản',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '147/2025/QH15',
+        titleHint: 'Sửa đổi, bổ sung một số điều của Luật Địa chất và Khoáng sản',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật địa chất và khoáng sản',
+      }),
+    };
+  }
+
+  if (/\bluat\s*149\b/.test(normalized) || /\b149\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 149/2025/QH15',
+      documentNumber: '149/2025/QH15',
+      titleHint: 'Sửa đổi, bổ sung một số điều của Luật Thuế giá trị gia tăng',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật thuế giá trị gia tăng',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '149/2025/QH15',
+        titleHint: 'Sửa đổi, bổ sung một số điều của Luật Thuế giá trị gia tăng',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật thuế giá trị gia tăng',
+      }),
+    };
+  }
+
+  if (/\bluat\s*150\b/.test(normalized) || /\b150\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 150/2025/QH15',
+      documentNumber: '150/2025/QH15',
+      titleHint: 'Luật Tòa án chuyên biệt tại Trung tâm tài chính quốc tế',
+      topicHint: 'tòa án chuyên biệt tại trung tâm tài chính quốc tế',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '150/2025/QH15',
+        titleHint: 'Luật Tòa án chuyên biệt tại Trung tâm tài chính quốc tế',
+        topicHint: 'tòa án chuyên biệt tại trung tâm tài chính quốc tế',
+      }),
+    };
+  }
+
+  if (/\bluat\s*119\b/.test(normalized) || /\b119\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 119/2025/QH15',
+      documentNumber: '119/2025/QH15',
+      titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT CÔNG NGHIỆP QUỐC PHÒNG, AN NINH VÀ ĐỘNG VI',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật công nghiệp quốc phòng  an ninh và động vi',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '119/2025/QH15',
+        titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT CÔNG NGHIỆP QUỐC PHÒNG, AN NINH VÀ ĐỘNG VI',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật công nghiệp quốc phòng  an ninh và động vi',
+      }),
+    };
+  }
+
+  if (/\bluat\s*138\b/.test(normalized) || /\b138\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 138/2025/QH15',
+      documentNumber: '138/2025/QH15',
+      titleHint: 'Sửa đổi, bổ sung một số điều của Luật Thống kê',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật thống kê',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '138/2025/QH15',
+        titleHint: 'Sửa đổi, bổ sung một số điều của Luật Thống kê',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật thống kê',
+      }),
+    };
+  }
+
+  if (/\bluat\s*137\b/.test(normalized) || /\b137\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 137/2025/QH15',
+      documentNumber: '137/2025/QH15',
+      titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT ĐIỀU ƯỚC QUỐC TẾ',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật điều ước quốc tế',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '137/2025/QH15',
+        titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT ĐIỀU ƯỚC QUỐC TẾ',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật điều ước quốc tế',
+      }),
+    };
+  }
+
+  if (/\bluat\s*141\b/.test(normalized) || /\b141\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 141/2025/QH15',
+      documentNumber: '141/2025/QH15',
+      titleHint: 'Sửa đổi, bổ sung một số điều của Luật Quản lý nợ công',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật quản lý nợ công',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '141/2025/QH15',
+        titleHint: 'Sửa đổi, bổ sung một số điều của Luật Quản lý nợ công',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật quản lý nợ công',
+      }),
+    };
+  }
+
+  if (/\bluat\s*124\b/.test(normalized) || /\b124\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 124/2025/QH15',
+      documentNumber: '124/2025/QH15',
+      titleHint: 'Luật Giáo dục nghề nghiệp',
+      topicHint: 'giáo dục nghề nghiệp',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '124/2025/QH15',
+        titleHint: 'Luật Giáo dục nghề nghiệp',
+        topicHint: 'giáo dục nghề nghiệp',
+      }),
+    };
+  }
+
+  if (/\bluat\s*139\b/.test(normalized) || /\b139\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 139/2025/QH15',
+      documentNumber: '139/2025/QH15',
+      titleHint: 'Sửa đổi, bổ sung một số điều của Luật Kinh doanh bảo hiểm',
+      topicHint: 'sửa đổi  bổ sung một số điều của luật kinh doanh bảo hiểm',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '139/2025/QH15',
+        titleHint: 'Sửa đổi, bổ sung một số điều của Luật Kinh doanh bảo hiểm',
+        topicHint: 'sửa đổi  bổ sung một số điều của luật kinh doanh bảo hiểm',
+      }),
+    };
+  }
+
+  if (/\bluat\s*59\b/.test(normalized) || /\b59\/2024\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 59/2024/QH15',
+      documentNumber: '59/2024/QH15',
+      titleHint: 'Luật Tư pháp người chưa thành niên',
+      topicHint: 'tư pháp người chưa thành niên',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '59/2024/QH15',
+        titleHint: 'Luật Tư pháp người chưa thành niên',
+        topicHint: 'tư pháp người chưa thành niên',
+      }),
     };
   }
 

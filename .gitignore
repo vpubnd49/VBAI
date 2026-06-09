@@ -31,3 +31,10 @@ Skill_The_Thuc_VB_ND30/templates/
 # Runtime tokens and transient artifacts
 **/token.txt
 **/*.token
+
+# Scratch and supplemental files
+scratch/
+bosung/
+Skill_The_Thuc_VB_Dang_HD05/test_hd05.js
+Skill_The_Thuc_VB_Dang_HD05/test_qc_output.docx
+
