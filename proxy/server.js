@@ -16,6 +16,42 @@ const admin = require('firebase-admin');
 const multer = require('multer');
 const fetch = globalThis.fetch.bind(globalThis);
 const { cleanText: cleanStrictText, extractStrictLegalText } = require('./lib/legal-extract');
+const path = require('path');
+let bosungMetadata = null;
+try {
+  bosungMetadata = require('./bosung_metadata.json');
+} catch (e) {
+  console.warn('Failed to load bosung_metadata.json:', e.message);
+}
+
+function getBosungMetadataBySoHieu(soHieu = '') {
+  if (!bosungMetadata || !soHieu) return null;
+  const cleanSoHieu = soHieu.trim().toUpperCase();
+  for (const key of Object.keys(bosungMetadata)) {
+    const meta = bosungMetadata[key];
+    if (meta && String(meta.so_hieu || '').trim().toUpperCase() === cleanSoHieu) {
+      return meta;
+    }
+  }
+  return null;
+}
+
+function enrichWithLocalMetadata(doc) {
+  if (!doc || !doc.documentNumber) return doc;
+  const localMeta = getBosungMetadataBySoHieu(doc.documentNumber);
+  if (localMeta) {
+    return {
+      ...doc,
+      ngay_ban_hanh: localMeta.ngay_ban_hanh,
+      ngay_hieu_luc: localMeta.ngay_hieu_luc,
+      tinh_trang_hieu_luc: localMeta.tinh_trang_hieu_luc || 'co_hieu_luc',
+      trich_yeu: localMeta.trich_yeu,
+      tom_tat_chinh_sach: localMeta.tom_tat_chinh_sach,
+      thay_the_cho: localMeta.thay_the_cho,
+    };
+  }
+  return doc;
+}
 
 const MAX_AUDIO_UPLOAD_MB = Number(process.env.MAX_AUDIO_UPLOAD_MB || '500');
 const MAX_AUDIO_UPLOAD_BYTES = MAX_AUDIO_UPLOAD_MB * 1024 * 1024;
@@ -110,7 +146,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /70\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*tieu\s*chuan|tieu\s*chuan\s*va\s*quy\s*chuan/, /70\/2025\/qh15/],
     documentNumber: '70/2025/QH15',
     titleHint: 'Sửa đổi, bổ sung một số điều của Luật Tiêu chuẩn và quy chuẩ...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật tiêu chuẩn và quy chuẩ',
@@ -182,7 +218,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /77\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*nang\s*luong|nang\s*luong\s*tiet\s*kiem/, /77\/2025\/qh15/],
     documentNumber: '77/2025/QH15',
     titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT SỬ DỤNG NĂNG LƯỢNG TIẾ...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật sử dụng năng lượng tiế',
@@ -209,7 +245,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /123\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*giao\s*duc|luat\s*giao\s*duc\s*sua\s*doi/, /123\/2025\/qh15/],
     documentNumber: '123/2025/QH15',
     titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁO DỤC...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật giáo dục',
@@ -236,7 +272,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /146\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*nong\s*nghiep|nong\s*nghiep\s*va\s*moi\s*truong/, /146\/2025\/qh15/],
     documentNumber: '146/2025/QH15',
     titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA 15 LUẬT TRONG LĨNH VỰC NÔNG...',
     topicHint: 'sửa đổi  bổ sung một số điều của 15 luật trong lĩnh vực nông',
@@ -245,7 +281,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /144\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*quy\s*hoach\s*do\s*thi|quy\s*hoach\s*do\s*thi\s*va\s*nong\s*thon/, /144\/2025\/qh15/],
     documentNumber: '144/2025/QH15',
     titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT QUY HOẠCH ĐÔ THỊ VÀ NÔ...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật quy hoạch đô thị và nô',
@@ -254,7 +290,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /140\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*luat\s*gia|luat\s*gia\s*sua\s*doi/, /140\/2025\/qh15/],
     documentNumber: '140/2025/QH15',
     titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁ...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật giá',
@@ -263,7 +299,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /147\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*dia\s*chat|dia\s*chat\s*va\s*khoang\s*san/, /147\/2025\/qh15/],
     documentNumber: '147/2025/QH15',
     titleHint: 'Sửa đổi, bổ sung một số điều của Luật Địa chất và Khoáng sản...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật địa chất và khoáng sản',
@@ -272,7 +308,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /149\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*thue\s*gia\s*tri|thue\s*gia\s*tri\s*gia\s*tang/, /149\/2025\/qh15/],
     documentNumber: '149/2025/QH15',
     titleHint: 'Sửa đổi, bổ sung một số điều của Luật Thuế giá trị gia tăng...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật thuế giá trị gia tăng',
@@ -290,7 +326,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /119\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*cong\s*nghiep\s*quoc\s*phong|cong\s*nghiep\s*quoc\s*phong\s*an\s*ninh/, /119\/2025\/qh15/],
     documentNumber: '119/2025/QH15',
     titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT CÔNG NGHIỆP QUỐC PHÒNG...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật công nghiệp quốc phòng',
@@ -299,7 +335,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /138\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*thong\s*ke|luat\s*thong\s*ke\s*sua\s*doi/, /138\/2025\/qh15/],
     documentNumber: '138/2025/QH15',
     titleHint: 'Sửa đổi, bổ sung một số điều của Luật Thống kê...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật thống kê',
@@ -308,7 +344,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /137\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*dieu\s*uoc|dieu\s*uoc\s*quoc\s*te/, /137\/2025\/qh15/],
     documentNumber: '137/2025/QH15',
     titleHint: 'SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT ĐIỀU ƯỚC QUỐC TẾ...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật điều ước quốc tế',
@@ -317,7 +353,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /141\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*no\s*cong|quan\s*ly\s*no\s*cong/, /141\/2025\/qh15/],
     documentNumber: '141/2025/QH15',
     titleHint: 'Sửa đổi, bổ sung một số điều của Luật Quản lý nợ công...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật quản lý nợ công',
@@ -335,7 +371,7 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
-    patterns: [/sua\s*doi\s*bo\s*sung/, /139\/2025\/qh15/],
+    patterns: [/sua\s*doi\s*.*kinh\s*doanh\s*bao\s*hiem|kinh\s*doanh\s*bao\s*hiem/, /139\/2025\/qh15/],
     documentNumber: '139/2025/QH15',
     titleHint: 'Sửa đổi, bổ sung một số điều của Luật Kinh doanh bảo hiểm...',
     topicHint: 'sửa đổi  bổ sung một số điều của luật kinh doanh bảo hiểm',
@@ -729,6 +765,11 @@ function dedupeStringList(list = []) {
 }
 
 function resolveKnownLegalDocument(query = '') {
+  const baseDoc = baseResolveKnownLegalDocument(query);
+  return enrichWithLocalMetadata(baseDoc);
+}
+
+function baseResolveKnownLegalDocument(query = '') {
   const raw = String(query || '').trim();
   const normalized = normalizeVietnamese(raw);
   if (!raw) return null;
@@ -2917,6 +2958,18 @@ app.post('/api/web-search', async (req, res) => {
         // Best-effort mode: return available items even when strict validation does not pass.
         finalItems = items;
       }
+
+      if (knownDocument && knownDocument.ngay_hieu_luc) {
+        const localMetaItem = {
+          title: `VĂN BẢN CHÍNH THỨC: ${knownDocument.titleHint} (${knownDocument.documentNumber})`,
+          link: `https://vbpl.vn/tim-kiem-van-ban?so_hieu=${encodeURIComponent(knownDocument.documentNumber)}`,
+          snippet: `Số ký hiệu: ${knownDocument.documentNumber}. Cơ quan ban hành: ${knownDocument.issuer || 'Quốc hội'}. Ban hành: ${knownDocument.ngay_ban_hanh || ''} - Hiệu lực: ${knownDocument.ngay_hieu_luc || ''}. Tình trạng hiệu lực: ${knownDocument.tinh_trang_hieu_luc || 'Có hiệu lực'}.${knownDocument.thay_the_cho && knownDocument.thay_the_cho.length > 0 ? ` Thay thế cho: ${knownDocument.thay_the_cho.join(', ')}.` : ''}${knownDocument.tom_tat_chinh_sach ? ` Tóm tắt chính sách: ${knownDocument.tom_tat_chinh_sach}` : ''}`,
+          displayLink: 'vbpl.vn',
+          source: 'local_metadata',
+        };
+        finalItems = [localMetaItem, ...finalItems.filter(item => item.source !== 'local_metadata')];
+      }
+
       const responseResults = formatSearchResults(finalItems);
       diagnostics.fallback_used = fallbackUsed === true;
       const effectiveStrictRejectReason = knownDocumentOfficialCandidateItems.length > 0
@@ -5330,8 +5383,8 @@ function normalizeVertexSearchItems(rawItems = []) {
       const doc = item?.document || {};
       const derived = doc?.derivedStructData || {};
       const struct = doc?.structData || {};
-      const title = String(derived?.title || struct?.title || doc?.id || '').trim();
-      const link = String(derived?.link || struct?.link || '').trim();
+      let title = String(derived?.title || struct?.title || doc?.id || '').trim();
+      let link = String(derived?.link || struct?.link || '').trim();
       
       // THÊM MỚI: Ưu tiên lấy extractiveSegments (đoạn văn bản nguyên vẹn, đủ ngữ cảnh)
       const segments = Array.isArray(derived?.extractiveSegments) ? derived.extractiveSegments : [];
@@ -5349,6 +5402,22 @@ function normalizeVertexSearchItems(rawItems = []) {
           .filter(Boolean)
           .join(' ')
           .trim();
+      }
+
+      // Nếu đây là tài liệu có cấu trúc từ metadata.jsonl (có so_hieu)
+      if (struct && struct.so_hieu) {
+        const loaiLabel = String(struct.loai_van_ban || 'Văn bản').toUpperCase();
+        title = `${loaiLabel} ${struct.so_hieu}: ${struct.trich_yeu || title}`.trim();
+        if (!link) {
+          link = `https://vbpl.vn/tim-kiem-van-ban?so_hieu=${encodeURIComponent(struct.so_hieu)}`;
+        }
+        
+        const policySummary = struct.tom_tat_chinh_sach ? ` Tóm tắt chính sách: ${struct.tom_tat_chinh_sach}` : '';
+        const replacements = Array.isArray(struct.thay_the_cho) && struct.thay_the_cho.length > 0
+          ? ` Thay thế cho: ${struct.thay_the_cho.join(', ')}.`
+          : '';
+        
+        snippet = `Số ký hiệu: ${struct.so_hieu}. Cơ quan ban hành: ${struct.co_quan_ban_hanh || 'Quốc hội'}. Ban hành: ${struct.ngay_ban_hanh || ''} - Hiệu lực: ${struct.ngay_hieu_luc || ''}.${replacements}${policySummary} ${snippet}`.trim();
       }
 
       return {
