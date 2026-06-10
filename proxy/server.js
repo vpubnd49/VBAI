@@ -2284,7 +2284,7 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'messages or contents array required' });
     }
 
-    // Verify input size limit (capped at 150,000 characters)
+    // Verify input size limit (capped at 2,000,000 characters)
     let totalInputLength = 0;
     if (Array.isArray(normalizedMessages)) {
       for (const msg of normalizedMessages) {
@@ -2293,10 +2293,10 @@ app.post('/api/chat', async (req, res) => {
         }
       }
     }
-    if (totalInputLength > 150000) {
+    if (totalInputLength > 2000000) {
       return res.status(400).json({
         error: 'Payload Too Large',
-        message: `Yêu cầu quá dài (${totalInputLength} ký tự). Vui lòng giới hạn nội dung câu hỏi dưới 150,000 ký tự.`
+        message: `Yêu cầu quá dài (${totalInputLength} ký tự). Vui lòng giới hạn nội dung câu hỏi dưới 2,000,000 ký tự.`
       });
     }
 

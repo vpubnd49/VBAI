@@ -564,6 +564,7 @@ function renderModelChips(listEl, models, type, onChange = null) {
 }
 
 async function loadLogs(container) {
+  const tbody = container.querySelector('#logs-table-body');
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
@@ -574,6 +575,9 @@ async function loadLogs(container) {
     renderPage(container);
   } catch (error) {
     console.error('Error loading logs:', error);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:#f87171">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+    }
   }
 }
 
@@ -584,7 +588,7 @@ function renderPage(container) {
   const pageLogs = allLogs.slice(start, start + ITEMS_PER_PAGE);
   tbody.innerHTML = pageLogs.length > 0 ? pageLogs.map((item) => `
     <tr style="border-bottom:1px solid var(--border-color)">
-      <td style="padding:12px;">${item.data.timestamp?.toDate().toLocaleString('vi-VN') || ''}</td>
+      <td style="padding:12px;">${formatDate(item.data.timestamp)}</td>
       <td style="padding:12px;">${escapeHtml(item.data.userEmail || '')}</td>
       <td style="padding:12px;">${escapeHtml(item.data.query || '')}</td>
       <td style="padding:12px;">${escapeHtml(item.data.model || '')}</td>
@@ -608,6 +612,7 @@ function renderPage(container) {
 }
 
 async function loadUsers(container) {
+  const tbody = container.querySelector('#users-table-body');
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
@@ -618,6 +623,9 @@ async function loadUsers(container) {
     renderUsersPage(container);
   } catch (error) {
     console.error('Error loading users:', error);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="4" style="padding:20px; text-align:center; color:#f87171">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+    }
   }
 }
 
@@ -628,10 +636,10 @@ function renderUsersPage(container) {
   const pageUsers = allUsers.slice(start, start + ITEMS_PER_PAGE);
   tbody.innerHTML = pageUsers.length > 0 ? pageUsers.map((item) => `
     <tr style="border-bottom:1px solid var(--border-color)">
-      <td style="padding:12px;">${escapeHtml(item.data.email || '')}</td>
-      <td style="padding:12px;">${escapeHtml(item.data.displayName || '')}</td>
-      <td style="padding:12px;">${item.data.createdAt?.toDate().toLocaleString('vi-VN') || ''}</td>
-      <td style="padding:12px;">${item.data.lastLogin?.toDate().toLocaleString('vi-VN') || ''}</td>
+      <td style="padding:12px;">${escapeHtml(item.data.email || item.data.username || '')}</td>
+      <td style="padding:12px;">${escapeHtml(item.data.displayName || item.data.fullName || item.data.name || '')}</td>
+      <td style="padding:12px;">${formatDate(item.data.createdAt)}</td>
+      <td style="padding:12px;">${formatDate(item.data.lastLogin)}</td>
     </tr>
   `).join('') : '<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
 
@@ -648,6 +656,27 @@ function renderUsersPage(container) {
       paginationControls.style.display = 'none';
     }
   }
+}
+
+function formatDate(val) {
+  if (!val) return '';
+  if (typeof val.toDate === 'function') {
+    try {
+      return val.toDate().toLocaleString('vi-VN');
+    } catch (e) {
+      console.warn('Error calling toDate():', e);
+    }
+  }
+  if (val.seconds !== undefined) {
+    return new Date(val.seconds * 1000).toLocaleString('vi-VN');
+  }
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString('vi-VN');
+    }
+  } catch (e) {}
+  return String(val);
 }
 
 function escapeHtml(unsafe) {
