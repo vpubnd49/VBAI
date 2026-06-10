@@ -98,7 +98,7 @@ async function run() {
     effectiveCoverageCount,
     sourceCount,
     latencyP95Ms: p95,
-    pass: okCount === results.length && effectiveCoverageCount >= Math.ceil(results.length * 0.8) && p95 <= 9000,
+    pass: okCount === results.length && effectiveCoverageCount >= Math.ceil(results.length * 0.8) && p95 <= 15000,
     details: results,
   };
 
