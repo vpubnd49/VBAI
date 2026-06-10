@@ -1,9 +1,11 @@
 import { marked } from 'marked';
 import { showToast } from './ui-utils.js';
-import { sendChatRequest, sendWebExtractRequest } from './ai-proxy.js';
+import { sendChatRequest, sendWebExtractRequest, sendWebSearchRequest } from './ai-proxy.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { firebaseConfig } from '../firebase-config.js';
+import { saveAs } from 'file-saver';
+import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 
 const TEMPLATE_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -254,6 +256,406 @@ function logToFirestore(meta) {
   }
 }
 
+// Helper for parsing inline markdown formatted text (**bold**, *italic*)
+function parseInline(text, font, size, baseOptions = {}) {
+  const runs = [];
+  let remaining = text;
+  
+  const tokens = [];
+  let i = 0;
+  while (i < remaining.length) {
+    if (remaining.substring(i, i + 2) === '**') {
+      tokens.push({ type: 'bold_marker' });
+      i += 2;
+    } else if (remaining.charAt(i) === '*') {
+      tokens.push({ type: 'italic_marker' });
+      i += 1;
+    } else {
+      let nextMarker = remaining.indexOf('*', i);
+      if (nextMarker === -1) {
+        tokens.push({ type: 'text', value: remaining.substring(i) });
+        break;
+      } else {
+        tokens.push({ type: 'text', value: remaining.substring(i, nextMarker) });
+        i = nextMarker;
+      }
+    }
+  }
+  
+  let boldActive = false;
+  let italicActive = false;
+  
+  for (const token of tokens) {
+    if (token.type === 'bold_marker') {
+      boldActive = !boldActive;
+    } else if (token.type === 'italic_marker') {
+      italicActive = !italicActive;
+    } else if (token.type === 'text') {
+      if (token.value) {
+        runs.push(new TextRun({
+          text: token.value,
+          font: font,
+          size: size,
+          bold: boldActive || baseOptions.bold || false,
+          italic: italicActive || baseOptions.italic || false,
+          color: baseOptions.color || undefined,
+        }));
+      }
+    }
+  }
+  
+  if (runs.length === 0 && text) {
+    runs.push(new TextRun({ text, font, size, ...baseOptions }));
+  }
+  return runs;
+}
+
+// Helper for parsing Markdown tables to docx Table structure
+function parseMarkdownTable(tableLines, font, size) {
+  const parsedRows = [];
+  
+  for (const line of tableLines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    
+    const cells = trimmed.split('|').map(c => c.trim());
+    if (cells.length > 0 && !cells[0]) cells.shift();
+    if (cells.length > 0 && !cells[cells.length - 1]) cells.pop();
+    
+    const isSeparator = cells.every(c => /^[:\s-]*$/.test(c));
+    if (isSeparator) continue;
+    
+    parsedRows.push(cells);
+  }
+  
+  if (parsedRows.length === 0) return null;
+  
+  const rows = [];
+  
+  for (let r = 0; r < parsedRows.length; r++) {
+    const rowCells = parsedRows[r];
+    const isHeader = r === 0;
+    
+    const docxCells = rowCells.map(cellText => {
+      return new TableCell({
+        shading: {
+          fill: isHeader ? 'EDF2F7' : (r % 2 === 0 ? 'F7FAFC' : 'FFFFFF')
+        },
+        margins: {
+          top: 100,
+          bottom: 100,
+          left: 150,
+          right: 150
+        },
+        borders: {
+          top: { color: 'E2E8F0', size: 4, val: BorderStyle.SINGLE },
+          bottom: { color: 'E2E8F0', size: 4, val: BorderStyle.SINGLE },
+          left: { color: 'E2E8F0', size: 4, val: BorderStyle.SINGLE },
+          right: { color: 'E2E8F0', size: 4, val: BorderStyle.SINGLE }
+        },
+        children: [
+          new Paragraph({
+            children: parseInline(cellText, font, size - (isHeader ? 0 : 2), { bold: isHeader }),
+            alignment: AlignmentType.LEFT
+          })
+        ]
+      });
+    });
+    
+    rows.push(new TableRow({
+      children: docxCells
+    }));
+  }
+  
+  return new Table({
+    width: {
+      size: 100,
+      type: WidthType.PERCENTAGE
+    },
+    rows: rows
+  });
+}
+
+// Main function to convert the Markdown summary into a stylized DOCX document
+async function exportDocx(mdContent, meta) {
+  const font = "Times New Roman";
+  const bodySize = 26; // 13pt
+  const h1Size = 32; // 16pt
+  const h2Size = 28; // 14pt
+  const h3Size = 24; // 12pt
+  
+  const children = [];
+
+  // 1. Header block: Borderless table mimicking the PDF Publisher header
+  const headerTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { val: BorderStyle.NONE },
+      bottom: { val: BorderStyle.NONE },
+      left: { val: BorderStyle.NONE },
+      right: { val: BorderStyle.NONE },
+      insideHorizontal: { val: BorderStyle.NONE },
+      insideVertical: { val: BorderStyle.NONE },
+    },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: "HỆ THỐNG TRỢ LÝ HÀNH CHÍNH", font, size: 20, bold: true, color: "1A365D" }),
+                ],
+                spacing: { after: 40 },
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({ text: "Trợ lý hành chính số chuyên nghiệp", font, size: 18, italic: true, color: "718096" }),
+                ],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({ text: String(meta.soHieuVanBan || '').toUpperCase(), font, size: 20, bold: true, color: "1A365D" }),
+                ],
+                spacing: { after: 40 },
+              }),
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({ text: `Hiệu lực: ${meta.hieuLuc || 'Đang cập nhật'}`, font, size: 18, bold: true, color: "E53E3E" }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+  
+  children.push(headerTable);
+  
+  // Blue accent line
+  children.push(new Paragraph({
+    border: {
+      bottom: { color: "3182CE", size: 12, space: 1, val: BorderStyle.SINGLE }
+    },
+    spacing: { before: 100, after: 200 }
+  }));
+
+  // 2. Main Title
+  children.push(new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 200, after: 200 },
+    keepWithNext: true,
+    children: [
+      new TextRun({ text: meta.tieuDeChinh || 'TÀI LIỆU TÓM TẮT VĂN BẢN', font, size: h1Size, bold: true, color: "1A365D" }),
+    ],
+  }));
+
+  // 3. Metadata box: Callout style with shaded background and thick blue left border
+  const metaTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            shading: { fill: "F0F4F8" },
+            margins: { top: 140, bottom: 140, left: 160, right: 160 },
+            borders: {
+              left: { color: "3182CE", size: 24, val: BorderStyle.SINGLE },
+              top: { val: BorderStyle.NONE },
+              right: { val: BorderStyle.NONE },
+              bottom: { val: BorderStyle.NONE },
+            },
+            children: [
+              new Paragraph({
+                spacing: { after: 60 },
+                children: [
+                  new TextRun({ text: "Tên đầy đủ: ", font, size: 22, bold: true }),
+                  new TextRun({ text: meta.tenDayDu || '...', font, size: 22 }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 60 },
+                children: [
+                  new TextRun({ text: "Số hiệu: ", font, size: 22, bold: true }),
+                  new TextRun({ text: meta.soHieu || '...', font, size: 22 }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 60 },
+                children: [
+                  new TextRun({ text: "Ngày ban hành: ", font, size: 22, bold: true }),
+                  new TextRun({ text: meta.ngayBanHanh || '...', font, size: 22 }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { after: 60 },
+                children: [
+                  new TextRun({ text: "Hiệu lực: ", font, size: 22, bold: true }),
+                  new TextRun({ text: meta.hieuLuc || '...', font, size: 22 }),
+                ],
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({ text: "Căn cứ chính: ", font, size: 22, bold: true }),
+                  new TextRun({ text: meta.canCu || '...', font, size: 22 }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  children.push(metaTable);
+  children.push(new Paragraph({ spacing: { after: 200 } }));
+
+  // 4. Markdown body parsing & formatting
+  let mdBody = mdContent.replace(/^---\n[\s\S]*?\n---\n/, '');
+  mdBody = mdBody.replace(/^# .*?\n\n(?:> .*?\n)+\n---\n/, '');
+  if (mdBody === mdContent) {
+     mdBody = mdBody.replace(/^(>.*?\n)+/m, '');
+  }
+
+  const lines = mdBody.split('\n');
+  let inTable = false;
+  let tableLines = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    if (line.startsWith('|')) {
+      inTable = true;
+      tableLines.push(line);
+      continue;
+    } else if (inTable) {
+      inTable = false;
+      if (tableLines.length > 0) {
+        const tableNode = parseMarkdownTable(tableLines, font, bodySize);
+        if (tableNode) {
+          children.push(tableNode);
+          children.push(new Paragraph({ spacing: { after: 120 } }));
+        }
+        tableLines = [];
+      }
+    }
+    
+    if (!line) continue;
+    
+    if (line.startsWith('# ')) {
+      children.push(new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        spacing: { before: 240, after: 120 },
+        keepWithNext: true,
+        children: parseInline(line.substring(2).trim(), font, h1Size, { bold: true, color: '1A365D' }),
+      }));
+    } else if (line.startsWith('## ')) {
+      children.push(new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 200, after: 100 },
+        keepWithNext: true,
+        children: parseInline(line.substring(3).trim(), font, h2Size, { bold: true, color: '276749' }),
+      }));
+    } else if (line.startsWith('### ')) {
+      children.push(new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        spacing: { before: 160, after: 80 },
+        keepWithNext: true,
+        children: parseInline(line.substring(4).trim(), font, h3Size, { bold: true, color: '2D3748' }),
+      }));
+    } else if (line.startsWith('---')) {
+      children.push(new Paragraph({
+        border: {
+          bottom: { color: 'CBD5E0', size: 6, space: 1, val: BorderStyle.SINGLE }
+        },
+        spacing: { before: 120, after: 120 }
+      }));
+    } else if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('+ ')) {
+      children.push(new Paragraph({
+        bullet: { level: 0 },
+        spacing: { after: 60 },
+        children: parseInline(line.substring(2).trim(), font, bodySize),
+      }));
+    } else if (/^\d+\.\s/.test(line)) {
+      const match = line.match(/^(\d+)\.\s(.*)/);
+      const num = match[1];
+      const content = match[2];
+      children.push(new Paragraph({
+        spacing: { after: 60 },
+        indent: { left: 360, hanging: 360 },
+        children: [
+          new TextRun({ text: `${num}. `, font, size: bodySize, bold: true }),
+          ...parseInline(content.trim(), font, bodySize)
+        ],
+      }));
+    } else {
+      children.push(new Paragraph({
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { after: 100 },
+        children: parseInline(line, font, bodySize),
+      }));
+    }
+  }
+
+  if (inTable && tableLines.length > 0) {
+    const tableNode = parseMarkdownTable(tableLines, font, bodySize);
+    if (tableNode) {
+      children.push(tableNode);
+    }
+  }
+
+  // 5. Footer notice
+  children.push(new Paragraph({
+    border: {
+      top: { color: "CBD5E0", size: 6, space: 1, val: BorderStyle.SINGLE }
+    },
+    spacing: { before: 300, after: 100 }
+  }));
+  
+  children.push(new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 60 },
+    children: [
+      new TextRun({ text: "📋 Đây là tài liệu do Hệ thống Trợ lý Hành chính tổng hợp và xuất bản. Nội dung chỉ mang tính chất tham khảo.", font, size: 18, italic: true, color: "718096" })
+    ]
+  }));
+
+  const doc = new Document({
+    styles: {
+      default: {
+        document: {
+          run: { font, size: bodySize },
+        },
+      },
+    },
+    sections: [{
+      properties: {
+        page: {
+          margin: {
+            top: 1440, // 1 inch = 1440 twip
+            bottom: 1440,
+            left: 1440,
+            right: 1440,
+          }
+        }
+      },
+      children
+    }]
+  });
+
+  const blob = await Packer.toBlob(doc);
+  return blob;
+}
+
 export function renderPdfPublisher(container) {
   container.innerHTML = `
     <div class="pdf-publisher-container" style="display: flex; height: calc(100vh - 120px); gap: 20px; padding-bottom: 20px;">
@@ -279,7 +681,10 @@ export function renderPdfPublisher(container) {
         <div class="preview-pane" style="flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden;">
             <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 600; font-size: 14px; color: var(--text-primary);">Live Preview</span>
-                <button id="btn-export-pdf" class="btn-primary" style="padding: 6px 12px; font-size: 13px; background-color: var(--pine-500); border-color: var(--pine-500);">Xuất PDF</button>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-export-docx" class="btn-primary" style="padding: 6px 12px; font-size: 13px; background-color: #2b579a; border-color: #2b579a;">Xuất Word</button>
+                    <button id="btn-export-pdf" class="btn-primary" style="padding: 6px 12px; font-size: 13px; background-color: var(--pine-500); border-color: var(--pine-500);">Xuất PDF</button>
+                </div>
             </div>
             <div id="pdf-html-preview" style="flex: 1; padding: 16px; background: #f0f4f3; overflow-y: auto;">
                 <div style="text-align: center; color: var(--text-tertiary); margin-top: 40px; font-style: italic;">Nhấn Render Preview để xem trước</div>
@@ -289,6 +694,7 @@ export function renderPdfPublisher(container) {
   `;
 
   const btnRender = document.getElementById('btn-render-pdf');
+  const btnExportDocx = document.getElementById('btn-export-docx');
   const btnExport = document.getElementById('btn-export-pdf');
   const txtInput = document.getElementById('pdf-markdown-input');
   const previewDiv = document.getElementById('pdf-html-preview');
@@ -352,8 +758,8 @@ Thủ tục giao đất đã được rút ngắn thời gian xử lý từ 30 n
     try {
       let documentContext = `Yêu cầu/Văn bản cần xử lý: ${query}`;
       
-      // Nếu người dùng nhập link, tiến hành cào dữ liệu trước để đọc toàn diện
       if (query.startsWith('http')) {
+        // Nếu người dùng nhập link, tiến hành cào dữ liệu trước để đọc toàn diện
         btnAiGenerate.textContent = '⏳ Đang đọc link...';
         try {
           const extractRes = await sendWebExtractRequest(query, [], { timeoutMs: 25000 });
@@ -362,6 +768,18 @@ Thủ tục giao đất đã được rút ngắn thời gian xử lý từ 30 n
           }
         } catch (err) {
           console.warn("Không thể trích xuất web tự động, fallback sang AI tự đọc", err);
+        }
+        btnAiGenerate.textContent = '⏳ Đang soạn thảo...';
+      } else {
+        // Nếu người dùng nhập số hiệu văn bản, tiến hành tra cứu trước
+        btnAiGenerate.textContent = '⏳ Đang tra cứu văn bản...';
+        try {
+          const searchResults = await sendWebSearchRequest(query, null, { forceFresh: true });
+          if (searchResults && String(searchResults).trim()) {
+            documentContext = `Kết quả tra cứu cho văn bản "${query}":\n\n${searchResults}`;
+          }
+        } catch (searchErr) {
+          console.warn("Tra cứu văn bản tự động thất bại:", searchErr);
         }
         btnAiGenerate.textContent = '⏳ Đang soạn thảo...';
       }
@@ -374,9 +792,10 @@ QUY TẮC TÌM KIẾM VÀ XỬ LÝ DỮ LIỆU (TỐI QUAN TRỌNG):
 1. Tôn trọng tuyệt đối dữ liệu đầu vào:
    - Nếu người dùng cung cấp đường link (URL), bạn CHỈ ĐƯỢC PHÉP phân tích dựa trên dữ liệu trích xuất từ đúng link đó. Tuyệt đối không lấy thông tin khác ngoài nội dung yêu cầu.
    - Nếu người dùng cung cấp Số hiệu hoặc Ngày tháng của Luật, Nghị định, Thông tư... bạn PHẢI tìm đúng chính xác văn bản pháp luật đó. Khớp chính xác từng con số, từng ngày tháng. Không được phép lấy văn bản khác đắp vào, không được bịa đặt (hallucinate).
+2. Hãy phân tích cực kỳ CHI TIẾT, ĐẦY ĐỦ và TOÀN DIỆN. Tránh tóm tắt sơ sài hoặc quá ngắn gọn. Tài liệu highlights phải phản ánh được toàn bộ các điểm thay đổi cốt lõi, quyền lợi, nghĩa vụ hoặc quy định mới.
 
 QUY TẮC BÓC TÁCH CĂN CỨ VÀ SỐ HIỆU (RẤT QUAN TRỌNG):
-1. Mục "Căn cứ chính": Tuyệt đối KHÔNG ĐƯỢC ghi là "Hiến pháp nước Cộng hòa xã hội chủ nghĩa Việt Nam" hoặc "Hiến pháp". 
+1. Mục "Căn cứ chính": Tuyệt đối KHÔNG ĐƯỢC ghi là "Hiến pháp nước Cộng hòa xã hội chủ nghĩa Việt Nam" or "Hiến pháp". 
    - Khi đọc nội dung thấy rõ cơ quan phát hành (ví dụ: của Quốc hội, của Chính phủ, của Bộ Tài chính, của Ủy ban nhân dân...), thì **Căn cứ chính phải ghi ĐÚNG LÀ TÊN CƠ QUAN PHÁT HÀNH ĐÓ**.
    - Ví dụ: "Luật Viên chức số 129/2025/QH15 của Quốc hội" -> Căn cứ chính: Quốc hội.
    - Ví dụ: "Nghị định số... của Chính phủ" -> Căn cứ chính: Chính phủ.
@@ -405,18 +824,28 @@ CẤU TRÚC BẮT BUỘC:
 
 ## 1. PHẠM VI ĐIỀU CHỈNH (Điều X)
 
-[Tóm tắt ngắn gọn phạm vi]
+[Tóm tắt chi tiết phạm vi điều chỉnh và đối tượng áp dụng của văn bản]
 
 ---
 
 ## 2. CÁC ĐIỂM HIGHLIGHT QUAN TRỌNG
+(Yêu cầu phân tích chi tiết từ 4 đến 8 điểm nhấn quan trọng nhất của văn bản pháp luật, mỗi điểm nhấn trình bày riêng biệt theo cấu trúc sau)
 
-### 🔴 2.1 [Tên điểm nhấn] (Điều XX)
+### 🔴 2.1 [Tên điểm nhấn thứ nhất] (Điều XX)
 
-[Nội dung chi tiết — bám sát nguyên văn]
+[Phân tích nội dung chi tiết, cụ thể và diễn giải đầy đủ các quy định mới hoặc thay đổi quan trọng của điều khoản này]
 
 **💡 Đề xuất lưu ý:**
-- [Gợi ý hành động cụ thể]
+- [Gợi ý hành động thực tế hoặc đề xuất giải pháp cụ thể cho cơ quan/đơn vị/doanh nghiệp]
+
+### 🔴 2.2 [Tên điểm nhấn thứ hai] (Điều YY)
+
+[Phân tích nội dung chi tiết...]
+
+**💡 Đề xuất lưu ý:**
+- [Gợi ý hành động...]
+
+(Và tiếp tục tạo các điểm 2.3, 2.4, 2.5... tương ứng cho đến hết các điểm quan trọng được trích xuất)
 
 ---
 
@@ -426,6 +855,7 @@ CẤU TRÚC BẮT BUỘC:
 |---------|----------|----------|
 | 🔴 Cao | [Hành động] | [Thời hạn] |
 | 🟡 TB  | [Hành động] | [Thời hạn] |
+| 🟢 Thấp | [Hành động] | [Thời hạn] |
 `;
 
       const responseText = await sendChatRequest([
@@ -505,6 +935,37 @@ CẤU TRÚC BẮT BUỘC:
     renderTimeout = setTimeout(() => {
       btnRender.click();
     }, 500);
+  });
+
+  btnExportDocx.addEventListener('click', async () => {
+    btnExportDocx.disabled = true;
+    btnExportDocx.textContent = '⏳ Đang tạo...';
+    try {
+      const mdContent = txtInput.value;
+      const meta = processMarkdown(mdContent);
+      const blob = await exportDocx(mdContent, meta);
+      const filename = `${meta.soHieu ? meta.soHieu.replace(/[^a-zA-Z0-9À-ỹ]/g, '_') : 'tai_lieu'}.docx`;
+      saveAs(blob, filename);
+      showToast('✓ Đã xuất file Word thành công!', 'success');
+      
+      // Ghi log hoạt động xuất Word vào Firestore
+      try {
+        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        const db = getFirestore(app);
+        addDoc(collection(db, 'search_logs'), {
+          query: `[Xuất Word] ${meta.soHieuVanBan} — ${meta.tieuDeChinh}`,
+          model: "PDF Publisher", 
+          userEmail: window.currentUser?.email || 'Unknown', 
+          timestamp: serverTimestamp()
+        }).catch(() => {});
+      } catch(e) {}
+    } catch (e) {
+      console.error(e);
+      showToast('Lỗi xuất Word: ' + e.message, 'error');
+    } finally {
+      btnExportDocx.disabled = false;
+      btnExportDocx.textContent = 'Xuất Word';
+    }
   });
 
   btnExport.addEventListener('click', () => {
