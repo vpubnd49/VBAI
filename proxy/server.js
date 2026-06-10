@@ -465,6 +465,7 @@ const LEGAL_DOC_TYPE_PATTERNS = Object.freeze({
   thong_tu: /\bthong\s*tu\b|\bthongtu\b|\btt(?:-[a-z0-9]+)?\b/,
   nghi_quyet: /\bnghi\s*quyet\b|\bnghiquyet\b|\bnq\b/,
   quyet_dinh: /\bquyet\s*dinh\b|\bquyetdinh\b|\bqd\b/,
+  giay_moi: /\bgiay\s*moi\b|\bgiaymoi\b|\bgm\b|\bmoi\s*hop\b|\bmoihop\b/,
 });
 
 const LEGAL_DOMAIN_TAXONOMY = Object.freeze({
@@ -614,6 +615,7 @@ function inferRequestedDocTypeFromQuery(query = '') {
   if (LEGAL_DOC_TYPE_PATTERNS.thong_tu.test(n)) return 'thong_tu';
   if (LEGAL_DOC_TYPE_PATTERNS.quyet_dinh.test(n)) return 'quyet_dinh';
   if (LEGAL_DOC_TYPE_PATTERNS.luat.test(n)) return 'luat';
+  if (LEGAL_DOC_TYPE_PATTERNS.giay_moi.test(n)) return 'giay_moi';
   return null;
 }
 
@@ -627,6 +629,7 @@ function inferDocTypeFromText(text = '') {
   if (LEGAL_DOC_TYPE_PATTERNS.thong_tu.test(n)) return 'thong_tu';
   if (LEGAL_DOC_TYPE_PATTERNS.quyet_dinh.test(n)) return 'quyet_dinh';
   if (LEGAL_DOC_TYPE_PATTERNS.luat.test(n)) return 'luat';
+  if (LEGAL_DOC_TYPE_PATTERNS.giay_moi.test(n)) return 'giay_moi';
   return null;
 }
 
@@ -1593,6 +1596,7 @@ async function executeGeminiNativeAudioTranscription({
   audioBuffer,
   mimeType,
   filename,
+  prompt,
 }) {
   let fileUri = null;
   let fileApiName = null;
@@ -1625,12 +1629,13 @@ async function executeGeminiNativeAudioTranscription({
     activeBase64 = audioBuffer.toString('base64');
   }
 
+  const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
   const endpoint = `${GEMINI_API_BASE}/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const payload = {
     contents: [{
       role: 'user',
       parts: [
-        { text: 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.' },
+        { text: customPrompt },
         fileUri 
           ? { file_data: { file_uri: fileUri, mime_type: mimeType } }
           : { inline_data: { mime_type: mimeType, data: activeBase64 } },
@@ -2689,6 +2694,7 @@ app.post('/api/transcribe', (req, res, next) => {
         audioBase64: null,
         mimeType: compatibleAudioMime,
         filename: effectiveFilename,
+        prompt: req.body.prompt,
       });
       if (nativeAttempt.ok && String(nativeAttempt.text || '').trim()) {
         finalAttempt = {

@@ -454,6 +454,7 @@ const LEGAL_DOC_TYPE_PATTERNS = Object.freeze({
   quyet_dinh: /\bquyet\s*dinh\b|\bquyetdinh\b|\bqd\b/,
   chi_thi: /\bchi\s*thi\b|\bchithi\b|\bct\b/,
   luat: /\bluat\b|\bbo\s*luat\b/,
+  giay_moi: /\bgiay\s*moi\b|\bgiaymoi\b|\bgm\b|\bmoi\s*hop\b|\bmoihop\b/,
 });
 
 const LEGAL_DOMAIN_TAXONOMY = Object.freeze({
@@ -1340,6 +1341,7 @@ function inferRequestedDocType(text = '') {
   if (LEGAL_DOC_TYPE_PATTERNS.quyet_dinh.test(n)) return 'quyet_dinh';
   if (LEGAL_DOC_TYPE_PATTERNS.chi_thi.test(n)) return 'chi_thi';
   if (LEGAL_DOC_TYPE_PATTERNS.luat.test(n)) return 'luat';
+  if (LEGAL_DOC_TYPE_PATTERNS.giay_moi.test(n)) return 'giay_moi';
   return null;
 }
 
@@ -1354,6 +1356,7 @@ function buildNeedFullDocNumberMessage(rawUserText = '', requestedDocType = '', 
     phap_lenh: 'pháp lệnh',
     quyet_dinh: 'quyết định',
     chi_thi: 'chỉ thị',
+    giay_moi: 'giấy mời',
   }[requestedDocType] || 'văn bản');
   const shortNo = String(partialDocNumber || '').trim();
   const hint = shortNo ? ` "${shortNo}"` : '';
@@ -1371,6 +1374,7 @@ function buildDocTypeMismatchMessage(rawUserText = '', requestedDocType = '', fu
     nghi_quyet: 'Nghi quyet',
     chi_thi: 'Chi thi',
     quyet_dinh: 'Quyet dinh',
+    giay_moi: 'Giay moi',
   }[requestedDocType] || 'van ban');
   const docLabel = fullDocNumber ? ` co so hieu ${fullDocNumber}` : '';
   return `Không tìm thấy kết quả khớp đúng loại ${docTypeLabel}${docLabel} cho yêu cầu "${topic}" trong dữ liệu tra cứu hiện tại. Tôi không thể kết luận bằng văn bản khác loại.`;
@@ -2138,6 +2142,7 @@ function inferDocTypeFromText(text = '') {
   if (/\bthong\s*tu\b/.test(n)) return 'thong_tu';
   if (/\bquyet\s*dinh\b/.test(n)) return 'quyet_dinh';
   if (/\bluat\b/.test(n)) return 'luat';
+  if (/\bgiay\s*moi\b|\bgiaymoi\b|\bgm\b|\bmoi\s*hop\b|\bmoihop\b/.test(n)) return 'giay_moi';
   return null;
 }
 
@@ -2253,6 +2258,7 @@ function buildGroundedAnswer(rawUserText = '', searchResults = '', webSearchMeta
     phap_lenh: 'Phap lenh',
     quyet_dinh: 'Quyet dinh',
     chi_thi: 'Chi thi',
+    giay_moi: 'Giay moi',
   }[docTypeRaw] || 'Van ban');
   const docNo = dominantDoc || extractFirstDocNumberFromText(`${best.title} ${best.snippet} ${best.link}`);
   const issuer = inferIssuerFromText(`${best.title} ${best.snippet}`);

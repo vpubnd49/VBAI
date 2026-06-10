@@ -692,9 +692,8 @@ Hãy nghe KỸ file ghi âm cuộc họp này và trích xuất theo cấu trúc
    - tieu_de: Tiêu đề vấn đề (VD: "1. Về xây dựng hệ thống phần mềm chuyên ngành" hoặc "I. ĐÁNH GIÁ CHUNG")
    - danh_gia: Đánh giá, nhận định tình hình hoặc bối cảnh (nếu có).
    - ket_luan: Mảng các kết luận/chỉ đạo CỤ THỂ. Mỗi kết luận nên bắt đầu bằng động từ mạnh (Giao, Yêu cầu, Đề nghị...) và xác định rõ đơn vị chủ trì, đơn vị phối hợp, thời hạn hoàn thành.
-6. TRANSCRIPT toàn văn (bóc băng).
 
-LƯU Ý: Dùng đúng thuật ngữ hành chính VN (ví dụ: "Sở, ban, ngành", "địa phương", "quy định hiện hành").
+LƯU Ý: Dùng đúng thuật ngữ hành chính VN (ví dụ: "Sở, ban, ngành", "địa phương", "quy định hiện hành"). Không cần xuất Transcript toàn văn để tiết kiệm thời gian.
 
 Trả về JSON:
 {
@@ -716,8 +715,7 @@ Trả về JSON:
         "Yêu cầu các sở, ngành chủ động đề xuất nhu cầu xây dựng cơ sở dữ liệu dùng chung của ngành mình."
       ]
     }
-  ],
-  "transcript": "[Người nói 1]: ...\\n[Người nói 2]: ..."
+  ]
 }
 CHỈ trả về JSON.`;
 
@@ -766,20 +764,25 @@ async function processAudioWithProxy(file, progressEl) {
 
   try {
     let lastErr = null;
+    let jsonText = '';
+    
     for (const modelCandidate of transcribeCandidates) {
       try {
         progressEl.textContent = PROCESSING_TEXT;
-        const progressTracker = createProgressBar("Đang bóc băng");
+        const progressTracker = createProgressBar("Đang phân tích trực tiếp");
+        // Gọi thẳng vào API phân tích với prompt JSON
         const text = await sendAudioTranscription(activeFile, modelCandidate, {
-          temperature: 0,
+          temperature: 0.1,
           context: transcribeContext,
           timeoutMs: safeTranscribeTimeoutMs,
           chunkWhenLarge: true,
-          maxBytes: 10 * 1024 * 1024, // 10MB (đảm bảo base64 dưới 20MB giới hạn của Gemini)
-          onProgress: progressTracker
+          maxBytes: 10 * 1024 * 1024,
+          onProgress: progressTracker,
+          prompt: MEETING_PROMPT
         });
+        
         if (String(text || "").trim()) {
-          transcript = text.trim();
+          jsonText = text.trim();
           usedTranscriptModel = modelCandidate;
           chatModel = modelCandidate;
           break;
@@ -788,82 +791,39 @@ async function processAudioWithProxy(file, progressEl) {
         lastErr = err;
       }
     }
-    if (!String(transcript || '').trim()) {
-      throw (lastErr || new Error('Khong nhan duoc /audio/transcriptions'));
+
+    if (!String(jsonText || '').trim()) {
+      throw (lastErr || new Error(`Khong nhan duoc ket qua tu ${transcribeRouteLabel}.`));
     }
-  } catch (e) {
+
     progressEl.textContent = PROCESSING_TEXT;
+    
+    // Clean JSON response
+    jsonText = (jsonText || '').replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+
     try {
-      const defaultChunkMb = 10;
-      const minChunkMb = 4;
-      const maxChunkMb = Number(localStorage.getItem('vbai_transcribe_chunk_mb') || String(defaultChunkMb));
-      const safeChunkMb = Number.isFinite(maxChunkMb) && maxChunkMb >= minChunkMb ? maxChunkMb : defaultChunkMb;
-      let lastFallbackErr = null;
-      const chatCandidates = modelCandidates;
-      for (const modelCandidate of chatCandidates) {
-        try {
-          progressEl.textContent = PROCESSING_TEXT;
-          const progressTracker = createProgressBar("Đang bóc băng (fallback)");
-          const text = await sendAudioTranscription(activeFile, modelCandidate, {
-            temperature: 0,
-            maxBytes: safeChunkMb * 1024 * 1024,
-            chunkWhenLarge: true,
-            context: transcribeContext,
-            timeoutMs: safeTranscribeTimeoutMs,
-            onProgress: progressTracker
-          });
-          if (String(text || "").trim()) {
-            transcript = text.trim();
-            usedTranscriptModel = modelCandidate;
-            chatModel = modelCandidate;
-            break;
-          }
-        } catch (fallbackErr) {
-          lastFallbackErr = fallbackErr;
-        }
+      const data = JSON.parse(jsonText);
+      formState.chu_tri = data.chu_tri || "";
+      formState.thanh_phan = data.thanh_phan || "";
+      formState.dia_diem = data.dia_diem || "";
+      formState.tom_tat = data.tom_tat || data.tom_tat_noi_dung || "";
+      formState.noi_dung_cuoc_hop = (data.noi_dung_cuoc_hop || []).map(nd => ({
+        tieu_de: nd.tieu_de || '',
+        danh_gia: nd.danh_gia || '',
+        ket_luan: nd.ket_luan || []
+      }));
+      if (formState.noi_dung_cuoc_hop.length === 0 && data.ket_luan) {
+        formState.noi_dung_cuoc_hop = [{ tieu_de: 'Kết luận chung', danh_gia: '', ket_luan: data.ket_luan }];
       }
-      if (!String(transcript || "").trim()) {
-        throw (lastFallbackErr || new Error("Khong nhan duoc transcript tu fallback chat."));
-      }
-    } catch (fallbackErr) {
-      const endpoint = getTranscribeEndpointForError(transcribeContext);
-      const msg = String(fallbackErr?.message || fallbackErr || "");
-      if (/khong the dung model/i.test(msg)) {
-        const fallbackModel = getMeetingModelFallbackOrder()[0];
-        throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): Model bat buoc ${fallbackModel} chua duoc cap quyen tren proxy/API hien tai.`);
-      }
-      throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): ${fallbackErr.message}`);
+      formState.transcript = data.transcript || "Đã phân tích trực tiếp (Không có transcript chi tiết)";
+    } catch (e) {
+      console.error("Lỗi parse JSON:", e, jsonText);
+      formState.transcript = jsonText;
+      formState.tom_tat = "Không thể trích xuất cấu trúc JSON. Vui lòng xem kết quả bên dưới.";
     }
-  }
-
-  if (!transcript || !transcript.trim()) {
-    throw new Error(`Khong nhan duoc transcript tu ${transcribeRouteLabel}.`);
-  }
-
-  progressEl.textContent = PROCESSING_TEXT;
-  const prompt = `${MEETING_PROMPT}\n\nTRANSCRIPT:\n${transcript}`;
-  let text = await sendChatRequest([{ role: "user", content: prompt }], chatModel, { temperature: 0.1, context: analysisContext });
-  text = (text || '').replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-
-  try {
-    const data = JSON.parse(text);
-    formState.chu_tri = data.chu_tri || "";
-    formState.thanh_phan = data.thanh_phan || "";
-    formState.dia_diem = data.dia_diem || "";
-    formState.tom_tat = data.tom_tat || data.tom_tat_noi_dung || "";
-    formState.noi_dung_cuoc_hop = (data.noi_dung_cuoc_hop || []).map(nd => ({
-      tieu_de: nd.tieu_de || '',
-      danh_gia: nd.danh_gia || '',
-      ket_luan: nd.ket_luan || []
-    }));
-    if (formState.noi_dung_cuoc_hop.length === 0 && data.ket_luan) {
-      formState.noi_dung_cuoc_hop = [{ tieu_de: 'Kết luận chung', danh_gia: '', ket_luan: data.ket_luan }];
-    }
-    formState.transcript = data.transcript || transcript;
   } catch (e) {
-    console.error("Lỗi parse JSON:", e, text);
-    formState.transcript = transcript;
-    formState.tom_tat = "Không thể trích xuất cấu trúc JSON. Vui lòng xem transcript bên dưới.";
+    const endpoint = getTranscribeEndpointForError(transcribeContext);
+    throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): ${e.message}`);
   }
 
   try {

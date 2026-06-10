@@ -318,6 +318,9 @@ async function sendSingleAudioTranscription(file, model = DEFAULT_PROXY_MODEL, o
   formData.append('audio', file, file?.name || 'audio');
   formData.append('filename', file?.name || 'audio');
   formData.append('model', normalizeModelName(model || DEFAULT_PROXY_MODEL));
+  if (options.prompt) {
+    formData.append('prompt', options.prompt);
+  }
   formData.append('context', options.context || 'meeting');
   if (partMeta?.part) formData.append('part', String(partMeta.part));
   if (partMeta?.total) formData.append('total', String(partMeta.total));
