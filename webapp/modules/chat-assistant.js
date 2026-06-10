@@ -1178,7 +1178,10 @@ function renderComparisonTable(blockLines = []) {
   const thead = `<thead><tr>${headerCells.map((c) => `<th>${applyInlineMarkdown(escapeHtml(c))}</th>`).join("")}</tr></thead>`;
   const tbody = `<tbody>${normalizedBody.map((row) => `<tr>${row.map((c) => `<td>${applyInlineMarkdown(escapeHtml(c))}</td>`).join("")}</tr>`).join("")}</tbody>`;
 
-  return `<div class="chat-compare-card"><div class="chat-compare-title">So sanh</div><div class="chat-table-wrap"><table class="chat-compare-table">${thead}${tbody}</table></div></div>`;
+  const isDocInfo = headerCells.some(c => /thông tin|thuộc tính|văn bản|số hiệu/i.test(c));
+  const cardTitle = isDocInfo ? "Thông tin văn bản" : "So sánh";
+
+  return `<div class="chat-compare-card"><div class="chat-compare-title">${cardTitle}</div><div class="chat-table-wrap"><table class="chat-compare-table">${thead}${tbody}</table></div></div>`;
 }
 
 function renderAssistantRichText(rawText = "") {
@@ -1415,12 +1418,67 @@ function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
       effectiveDocNumber: null,
     };
   }
-
   return {
     ...baseContext,
     effectiveQuery: `${rawUserText} ${contextDocNumber}`,
     effectiveDocNumber: contextDocNumber,
   };
+}
+
+function buildKnownDocumentHeader(knownDoc) {
+  if (!knownDoc || !knownDoc.documentNumber) return '';
+
+  const docNo = knownDoc.documentNumber;
+  const title = knownDoc.titleHint || knownDoc.trich_yeu || 'Thông tin văn bản';
+  const issuer = knownDoc.issuer || knownDoc.co_quan_ban_hanh || 'Đang cập nhật';
+  const ngayBanHanh = knownDoc.ngay_ban_hanh || 'Đang cập nhật';
+  const ngayHieuLuc = knownDoc.ngay_hieu_luc || 'Đang cập nhật';
+
+  let tinhTrang = knownDoc.tinh_trang_hieu_luc || 'Đang cập nhật';
+  if (tinhTrang === 'co_hieu_luc' || tinhTrang === 'Có hiệu lực') {
+    tinhTrang = '🟢 Có hiệu lực';
+  } else if (tinhTrang === 'het_hieu_luc' || tinhTrang === 'Hết hiệu lực') {
+    tinhTrang = '🔴 Hết hiệu lực';
+  } else if (tinhTrang === 'ngung_hieu_luc' || tinhTrang === 'Ngưng hiệu lực') {
+    tinhTrang = '🟡 Ngưng hiệu lực/Tạm hoãn';
+  }
+
+  const thayThe = Array.isArray(knownDoc.thay_the_cho)
+    ? knownDoc.thay_the_cho.join(', ')
+    : (knownDoc.thay_the_cho || '');
+
+  const lines = [
+    `| Thuộc tính | Chi tiết văn bản |`,
+    `|---|---|`,
+    `| **Số hiệu** | ${docNo} |`,
+    `| **Tên văn bản / Trích yếu** | ${title} |`,
+    `| **Cơ quan ban hành** | ${issuer} |`,
+    `| **Ngày ban hành** | ${ngayBanHanh} |`,
+    `| **Ngày có hiệu lực** | ${ngayHieuLuc} |`,
+    `| **Tình trạng hiệu lực** | ${tinhTrang} |`
+  ];
+
+  if (thayThe) {
+    lines.push(`| **Thay thế cho** | ${thayThe} |`);
+  }
+  if (knownDoc.tom_tat_chinh_sach) {
+    lines.push(`| **Tóm tắt chính sách** | ${knownDoc.tom_tat_chinh_sach} |`);
+  }
+
+  return lines.join('\n') + '\n\n';
+}
+
+function prependHeaderIfAvailable(answer, meta) {
+  if (!meta || !meta.known_document) return answer;
+  const docNo = meta.known_document.documentNumber;
+  if (!docNo) return answer;
+  
+  // Prevent duplicate prepending
+  if (answer.includes(docNo) && answer.includes('Thuộc tính') && answer.includes('Chi tiết văn bản')) {
+    return answer;
+  }
+  const header = buildKnownDocumentHeader(meta.known_document);
+  return header + answer;
 }
 
 function shouldForceContextualWebSearch(rawUserText = '', searchContext = {}) {
@@ -2642,10 +2700,11 @@ export async function sendMessage(text, onChunk) {
   const detailedAnswerRaw = await buildDetailedLegalAgentAnswer(rawUserText, searchContext, webSearchResultsText, webSearchMeta);
   if (String(detailedAnswerRaw || '').trim()) {
     const detailedMeta = { ...(webSearchMeta || {}), rawIntent: 'full' };
-    const detailedAnswer = enforceTwoTierTerminology(
+    let detailedAnswer = enforceTwoTierTerminology(
       ensureFollowUpQuestion(detailedAnswerRaw, rawUserText, {}, detailedMeta),
       rawUserText,
     );
+    detailedAnswer = prependHeaderIfAvailable(detailedAnswer, detailedMeta);
     pushTurn("user", rawUserText);
     pushTurn("assistant", detailedAnswer);
     lastUserQuery = rawUserText;
@@ -2661,10 +2720,11 @@ export async function sendMessage(text, onChunk) {
 
     const comparisonAnswerRaw = await buildComparisonTableResponse(rawUserText, searchContext, webSearchResultsText);
     if (String(comparisonAnswerRaw || '').trim()) {
-      const comparisonAnswer = enforceTwoTierTerminology(
+      let comparisonAnswer = enforceTwoTierTerminology(
         ensureFollowUpQuestion(comparisonAnswerRaw, rawUserText, {}, webSearchMeta),
         rawUserText,
       );
+      comparisonAnswer = prependHeaderIfAvailable(comparisonAnswer, webSearchMeta);
       pushTurn("user", rawUserText);
       pushTurn("assistant", comparisonAnswer);
       lastUserQuery = rawUserText;
@@ -2680,10 +2740,11 @@ export async function sendMessage(text, onChunk) {
 
     const strictCitationAnswerRaw = await buildStrictCitationResponse(rawUserText, searchContext, webSearchResultsText);
     if (String(strictCitationAnswerRaw || '').trim()) {
-      const strictCitationAnswer = enforceTwoTierTerminology(
+      let strictCitationAnswer = enforceTwoTierTerminology(
         ensureFollowUpQuestion(strictCitationAnswerRaw, rawUserText, {}, webSearchMeta),
         rawUserText,
       );
+      strictCitationAnswer = prependHeaderIfAvailable(strictCitationAnswer, webSearchMeta);
       pushTurn("user", rawUserText);
       pushTurn("assistant", strictCitationAnswer);
       lastUserQuery = rawUserText;
@@ -2698,12 +2759,13 @@ export async function sendMessage(text, onChunk) {
     }
 
     if (shouldUseEvidenceResponse(rawUserText, searchContext, webSearchResultsText, webSearchMeta)) {
-      const evidenceAnswer = enforceTwoTierTerminology(ensureFollowUpQuestion(
+      let evidenceAnswer = enforceTwoTierTerminology(ensureFollowUpQuestion(
         await buildDelegationFocusedEvidenceResponse(rawUserText, searchContext, webSearchResultsText),
         rawUserText,
         {},
         webSearchMeta,
       ), rawUserText);
+      evidenceAnswer = prependHeaderIfAvailable(evidenceAnswer, webSearchMeta);
       pushTurn("user", rawUserText);
       pushTurn("assistant", evidenceAnswer);
       lastUserQuery = rawUserText;
@@ -2718,10 +2780,11 @@ export async function sendMessage(text, onChunk) {
     }
     const substantiveUpdateAnswerRaw = await buildSubstantiveUpdateAnswer(rawUserText, searchContext, webSearchResultsText, webSearchMeta);
     if (String(substantiveUpdateAnswerRaw || '').trim()) {
-      const substantiveUpdateAnswer = enforceTwoTierTerminology(
+      let substantiveUpdateAnswer = enforceTwoTierTerminology(
         ensureFollowUpQuestion(substantiveUpdateAnswerRaw, rawUserText, {}, webSearchMeta),
         rawUserText,
       );
+      substantiveUpdateAnswer = prependHeaderIfAvailable(substantiveUpdateAnswer, webSearchMeta);
       pushTurn("user", rawUserText);
       pushTurn("assistant", substantiveUpdateAnswer);
       lastUserQuery = rawUserText;
@@ -2736,12 +2799,13 @@ export async function sendMessage(text, onChunk) {
     }
 
     if (shouldUseGroundedAnswer(rawUserText, webSearchResultsText, webSearchMeta)) {
-      const groundedAnswer = enforceTwoTierTerminology(ensureFollowUpQuestion(
+      let groundedAnswer = enforceTwoTierTerminology(ensureFollowUpQuestion(
         buildGroundedAnswer(rawUserText, webSearchResultsText, webSearchMeta),
         rawUserText,
         {},
         webSearchMeta,
       ), rawUserText);
+      groundedAnswer = prependHeaderIfAvailable(groundedAnswer, webSearchMeta);
       pushTurn("user", rawUserText);
       pushTurn("assistant", groundedAnswer);
       lastUserQuery = rawUserText;
@@ -2785,6 +2849,7 @@ export async function sendMessage(text, onChunk) {
       ensureFollowUpQuestion(fullText, rawUserText, {}, webSearchMeta),
       rawUserText,
     );
+    fullText = prependHeaderIfAvailable(fullText, webSearchMeta);
 
     // Cache only when query is not freshness-sensitive and web search is not required.
     if (!shouldBypassCache) {

@@ -387,6 +387,15 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     issuer: 'Quoc hoi',
     requestedDocType: 'luat',
     confidence: 'high',
+  },
+  {
+    patterns: [/chinh\s*quyen\s*dia\s*phuong/, /72\/2025\/qh15/],
+    documentNumber: '72/2025/QH15',
+    titleHint: 'Luật Tổ chức chính quyền địa phương',
+    topicHint: 'tổ chức chính quyền địa phương',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
   }
 ]);
 
