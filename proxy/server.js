@@ -2293,7 +2293,18 @@ app.post('/api/admin/delete-user', async (req, res) => {
 
     const db = admin.firestore();
     await db.collection('users').doc(uid).delete();
-    await admin.auth().deleteUser(uid);
+    
+    try {
+      await admin.auth().deleteUser(uid);
+    } catch (authErr) {
+      if (authErr.code === 'auth/user-not-found' || 
+          String(authErr.message || '').includes('no user record') || 
+          String(authErr.code || '').includes('user-not-found')) {
+        console.warn(`User ${uid} not found in Firebase Auth, but successfully deleted from Firestore.`);
+      } else {
+        throw authErr;
+      }
+    }
 
     console.log(`Admin ${decoded.email || decoded.uid} deleted user uid ${uid}`);
     return res.json({ success: true, message: 'User deleted successfully' });
@@ -2335,19 +2346,29 @@ app.post('/api/admin/update-user', async (req, res) => {
 
     if (role !== undefined) {
       const isNewAdmin = String(role).trim().toUpperCase() === 'ADMIN';
-      const user = await admin.auth().getUser(uid);
-      const existingClaims = user.customClaims || {};
-      
-      let updatedClaims;
-      if (isNewAdmin) {
-        updatedClaims = { ...existingClaims, admin: true };
-      } else {
-        updatedClaims = { ...existingClaims };
-        delete updatedClaims.admin;
+      try {
+        const user = await admin.auth().getUser(uid);
+        const existingClaims = user.customClaims || {};
+        
+        let updatedClaims;
+        if (isNewAdmin) {
+          updatedClaims = { ...existingClaims, admin: true };
+        } else {
+          updatedClaims = { ...existingClaims };
+          delete updatedClaims.admin;
+        }
+        
+        await admin.auth().setCustomUserClaims(uid, updatedClaims);
+        console.log(`Admin ${decoded.email || decoded.uid} updated user ${uid} custom claims to:`, updatedClaims);
+      } catch (authErr) {
+        if (authErr.code === 'auth/user-not-found' || 
+            String(authErr.message || '').includes('no user record') || 
+            String(authErr.code || '').includes('user-not-found')) {
+          console.warn(`User ${uid} not found in Firebase Auth, skipping custom claims update.`);
+        } else {
+          throw authErr;
+        }
       }
-      
-      await admin.auth().setCustomUserClaims(uid, updatedClaims);
-      console.log(`Admin ${decoded.email || decoded.uid} updated user ${uid} custom claims to:`, updatedClaims);
     }
 
     console.log(`Admin ${decoded.email || decoded.uid} updated user uid ${uid}`);

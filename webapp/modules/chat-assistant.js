@@ -1124,6 +1124,7 @@ function decodeNumericHtmlEntities(raw = '') {
 
 function applyInlineMarkdown(text = "") {
   let html = String(text || "");
+  html = html.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
 
   // 1. Matches citation cards starting at the beginning of a line (e.g. [1] [Title](url) or [1] (url))
   html = html.replace(/^\[(\d+)\]\s+\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (match, num, title, url) => {
@@ -1462,7 +1463,14 @@ function buildKnownDocumentHeader(knownDoc) {
     lines.push(`| **Thay thế cho** | ${thayThe} |`);
   }
   if (knownDoc.tom_tat_chinh_sach) {
-    lines.push(`| **Tóm tắt chính sách** | ${knownDoc.tom_tat_chinh_sach} |`);
+    let tomTat = '';
+    if (Array.isArray(knownDoc.tom_tat_chinh_sach)) {
+      tomTat = knownDoc.tom_tat_chinh_sach.map((item, idx) => `${idx + 1}. ${item}`).join('<br>');
+    } else {
+      const rawTomTat = String(knownDoc.tom_tat_chinh_sach || '');
+      tomTat = rawTomTat.replace(/\s+(\d+\.\s+)/g, '<br>$1');
+    }
+    lines.push(`| **Tóm tắt chính sách** | ${tomTat} |`);
   }
 
   return lines.join('\n') + '\n\n';
