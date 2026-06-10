@@ -6,8 +6,8 @@ import { saveAs } from 'file-saver';
 import { showToast } from './ui-utils.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
 import { firebaseConfig } from '../firebase-config.js';
+import { sendChatRequest } from './ai-proxy.js';
 
 
 const LOAI_VB = {
@@ -107,8 +107,23 @@ function renderS3(sc,c) {
       </div>
       <div class="panel-body form-grid full">
         ${isKG?`<div class="form-group"><label class="form-label">Kính gửi</label><input class="form-input" id="fkg" value="${fs.kinh_gui}" placeholder="Các đơn vị/cá nhân nhận (cách nhau dấu ;)"></div>`:''}
-        <div class="form-group"><label class="form-label">Căn cứ</label><textarea class="form-textarea" id="fcc" rows="3">${fs.can_cu}</textarea></div>
-        <div class="form-group"><label class="form-label">Nội dung <span class="required">*</span></label><textarea class="form-textarea" id="fnd" rows="8">${fs.noi_dung}</textarea></div>
+        
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" style="margin-bottom: 0;">Căn cứ</label>
+            <button id="btn-ai-draft-basis" class="btn-primary" style="padding: 4px 10px; font-size: 11px; background: #8b5cf6; border-color: #8b5cf6; border-radius: 4px; display: flex; align-items: center; gap: 4px;">✨ AI Tìm căn cứ</button>
+          </div>
+          <textarea class="form-textarea" id="fcc" rows="3">${fs.can_cu}</textarea>
+        </div>
+        
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" style="margin-bottom: 0;">Nội dung <span class="required">*</span></label>
+            <button id="btn-ai-draft-content" class="btn-primary" style="padding: 4px 10px; font-size: 11px; background: #8b5cf6; border-color: #8b5cf6; border-radius: 4px; display: flex; align-items: center; gap: 4px;">✨ AI Soạn thảo</button>
+          </div>
+          <textarea class="form-textarea" id="fnd" rows="8">${fs.noi_dung}</textarea>
+        </div>
+        
         <div class="form-group"><label class="form-label">Nơi nhận</label><textarea class="form-textarea" id="fnn" rows="3">${fs.noi_nhan}</textarea></div>
       </div>
     </div>
@@ -141,6 +156,90 @@ function renderS3(sc,c) {
   const sv=()=>{const el=sc.querySelector('#fkg');if(el)fs.kinh_gui=el.value;fs.can_cu=sc.querySelector('#fcc').value;fs.noi_dung=sc.querySelector('#fnd').value;fs.quyen_han_ky=sc.querySelector('#fqh').value;fs.chuc_vu_ky=sc.querySelector('#fcv').value;fs.nguoi_ky=sc.querySelector('#fnk').value;fs.noi_nhan=sc.querySelector('#fnn').value;fs.dong_chuc_danh_1=sc.querySelector('#fdcd1').value;fs.dong_chuc_danh_2=sc.querySelector('#fdcd2').value;fs.dong_chuc_danh_3=sc.querySelector('#fdcd3').value;};
   sc.querySelector('#bb').onclick=()=>{sv();fs.step=2;doRender(c)};
   sc.querySelector('#bn').onclick=()=>{sv();if(!fs.noi_dung){showToast('Nhập nội dung','error');return}fs.step=4;doRender(c)};
+
+  const btnAiDraft = sc.querySelector('#btn-ai-draft-content');
+  if (btnAiDraft) {
+    btnAiDraft.onclick = async () => {
+      if (!fs.trich_yeu) {
+        showToast('Vui lòng quay lại Bước 2 nhập Trích yếu trước khi soạn thảo bằng AI', 'error');
+        return;
+      }
+      btnAiDraft.disabled = true;
+      btnAiDraft.textContent = '⏳ Đang soạn...';
+      try {
+        const typeText = LOAI_VB[fs.loai_van_ban] || 'văn bản';
+        const systemPrompt = `Bạn là Trợ lý soạn thảo văn bản hành chính chuyên nghiệp theo chuẩn Việt Nam.
+Nhiệm vụ của bạn là soạn thảo PHẦN NỘI DUNG CHÍNH (thân văn bản) cho một văn bản hành chính.
+Thông tin văn bản:
+- Loại văn bản: ${typeText}
+- Cơ quan ban hành: ${fs.co_quan_ban_hanh || 'Cơ quan hành chính'}
+- Trích yếu nội dung: ${fs.trich_yeu}
+
+QUY TẮC SOẠN THẢO (BẤT BUỘC):
+1. Bạn CHỈ tạo ra phần nội dung chính để điền vào thân văn bản (không viết Tiêu ngữ, Quốc hiệu, Tiêu đề lớn, chữ ký hay nơi nhận).
+2. Nội dung phải viết CỰC KỲ CHI TIẾT, ĐẦY ĐỦ, mạch lạc và chuyên nghiệp. Tránh viết chung chung, sơ sài hoặc dùng các ký hiệu giữ chỗ trống kiểu "[nhập vào đây]".
+3. Chia nội dung thành các mục rõ ràng (ví dụ: 1., 2., 3. hoặc I, II, III) phù hợp với loại văn bản ${typeText}.
+4. Trả về thuần văn bản (text), không bọc trong khối code block (\`\`\`markdown).`;
+
+        const responseText = await sendChatRequest([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Hãy soạn thảo nội dung chi tiết cho văn bản hành chính với trích yếu: ${fs.trich_yeu}` }
+        ], null, { timeoutMs: 60000 });
+
+        const cleanedText = responseText.replace(/^```markdown\n/i, '').replace(/```$/i, '').trim();
+        sc.querySelector('#fnd').value = cleanedText;
+        fs.noi_dung = cleanedText;
+        showToast('Đã soạn thảo nội dung thành công!', 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Lỗi AI: ' + err.message, 'error');
+      } finally {
+        btnAiDraft.disabled = false;
+        btnAiDraft.textContent = '✨ AI Soạn thảo';
+      }
+    };
+  }
+
+  const btnAiBasis = sc.querySelector('#btn-ai-draft-basis');
+  if (btnAiBasis) {
+    btnAiBasis.onclick = async () => {
+      if (!fs.trich_yeu) {
+        showToast('Vui lòng quay lại Bước 2 nhập Trích yếu trước khi soạn thảo bằng AI', 'error');
+        return;
+      }
+      btnAiBasis.disabled = true;
+      btnAiBasis.textContent = '⏳ Đang tìm...';
+      try {
+        const typeText = LOAI_VB[fs.loai_van_ban] || 'văn bản';
+        const systemPrompt = `Bạn là Trợ lý pháp luật chuyên nghiệp.
+Nhiệm vụ của bạn là liệt kê các CĂN CỨ PHÁP LÝ (ví dụ: Luật, Nghị định, Thông tư...) phù hợp để ban hành văn bản hành chính sau:
+- Loại văn bản: ${typeText}
+- Trích yếu nội dung: ${fs.trich_yeu}
+- Năm hiện tại: 2026
+
+QUY TẮC LIỆT KÊ (BẤT BUỘC):
+1. Mỗi căn cứ viết trên một dòng riêng biệt, bắt đầu bằng "Căn cứ...".
+2. Chỉ sử dụng các văn bản pháp luật thực tế, chính xác và có hiệu lực tại Việt Nam (đặc biệt ưu tiên các luật ban hành năm 2024, 2025, 2026 nếu có). Không bịa đặt số hiệu hay tên luật.
+3. Không trả về tiêu đề hay lời dẫn khác. Trả về thuần văn bản (text), không bọc trong khối code block.`;
+
+        const responseText = await sendChatRequest([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Hãy liệt kê các căn cứ pháp lý phù hợp cho văn bản hành chính với trích yếu: ${fs.trich_yeu}` }
+        ], null, { timeoutMs: 60000 });
+
+        const cleanedText = responseText.replace(/^```markdown\n/i, '').replace(/```$/i, '').trim();
+        sc.querySelector('#fcc').value = cleanedText;
+        fs.can_cu = cleanedText;
+        showToast('Đã tìm căn cứ thành công!', 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Lỗi AI: ' + err.message, 'error');
+      } finally {
+        btnAiBasis.disabled = false;
+        btnAiBasis.textContent = '✨ AI Tìm căn cứ';
+      }
+    };
+  }
 }
 
 function renderS4(sc,c) {
