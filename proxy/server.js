@@ -2264,6 +2264,91 @@ app.post('/api/admin/web-search-ingest', async (req, res) => {
   }
 });
 
+// POST: Admin delete user
+app.post('/api/admin/delete-user', async (req, res) => {
+  try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!isAdmin(decoded)) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
+    }
+
+    const { uid } = req.body;
+    if (!uid) {
+      return res.status(400).json({ error: 'Bad Request', message: 'Missing uid' });
+    }
+
+    if (uid === decoded.uid) {
+      return res.status(400).json({ error: 'Bad Request', message: 'Cannot delete your own account' });
+    }
+
+    const db = admin.firestore();
+    await db.collection('users').doc(uid).delete();
+    await admin.auth().deleteUser(uid);
+
+    console.log(`Admin ${decoded.email || decoded.uid} deleted user uid ${uid}`);
+    return res.json({ success: true, message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('POST /api/admin/delete-user error:', err);
+    return res.status(500).json({ error: 'Internal server error', message: err.message });
+  }
+});
+
+// POST: Admin update user
+app.post('/api/admin/update-user', async (req, res) => {
+  try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!isAdmin(decoded)) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
+    }
+
+    const { uid, displayName, position, role } = req.body;
+    if (!uid) {
+      return res.status(400).json({ error: 'Bad Request', message: 'Missing uid' });
+    }
+
+    const db = admin.firestore();
+    const userRef = db.collection('users').doc(uid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      return res.status(404).json({ error: 'Not Found', message: 'User document not found' });
+    }
+
+    const updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    if (displayName !== undefined) updateData.displayName = String(displayName).trim();
+    if (position !== undefined) updateData.position = String(position).trim();
+    if (role !== undefined) updateData.role = String(role).trim();
+
+    await userRef.update(updateData);
+
+    if (role !== undefined) {
+      const isNewAdmin = String(role).trim().toUpperCase() === 'ADMIN';
+      const user = await admin.auth().getUser(uid);
+      const existingClaims = user.customClaims || {};
+      
+      let updatedClaims;
+      if (isNewAdmin) {
+        updatedClaims = { ...existingClaims, admin: true };
+      } else {
+        updatedClaims = { ...existingClaims };
+        delete updatedClaims.admin;
+      }
+      
+      await admin.auth().setCustomUserClaims(uid, updatedClaims);
+      console.log(`Admin ${decoded.email || decoded.uid} updated user ${uid} custom claims to:`, updatedClaims);
+    }
+
+    console.log(`Admin ${decoded.email || decoded.uid} updated user uid ${uid}`);
+    return res.json({ success: true, message: 'User updated successfully' });
+  } catch (err) {
+    console.error('POST /api/admin/update-user error:', err);
+    return res.status(500).json({ error: 'Internal server error', message: err.message });
+  }
+});
+
 // POST: Chat completion proxy
 app.post('/api/chat', async (req, res) => {
   try {

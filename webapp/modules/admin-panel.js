@@ -185,10 +185,11 @@ export function renderAdminPanel(container) {
               <th style="padding:12px">Tên hiển thị</th>
               <th style="padding:12px; width:180px">Ngày tham gia</th>
               <th style="padding:12px; width:180px">Đăng nhập cuối</th>
+              <th style="padding:12px; width:120px; text-align:right">Hành động</th>
             </tr>
           </thead>
           <tbody id="users-table-body">
-            <tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Đang tải dữ liệu...</td></tr>
+            <tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Đang tải dữ liệu...</td></tr>
           </tbody>
         </table>
         <div id="users-pagination-controls" style="display:none; justify-content:center; align-items:center; padding:12px; gap:16px; background:var(--bg-secondary); border-top:1px solid var(--border-color)">
@@ -196,6 +197,41 @@ export function renderAdminPanel(container) {
           <span id="users-page-indicator" style="font-size:0.85rem; font-weight:500">Trang 1 / 1</span>
           <button id="users-next-page-btn" class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:0.8rem">Tiếp ➡️</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="edit-user-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center">
+      <div style="background:#0f1f38; border:1px solid rgba(96,165,250,0.3); border-radius:12px; width:100%; max-width:450px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5)">
+        <h3 style="margin-top:0; margin-bottom:20px; color:#e6f1ff; border-bottom:1px solid rgba(96,165,250,0.2); padding-bottom:10px">✏️ Sửa thông tin thành viên</h3>
+        <form id="edit-user-form">
+          <input type="hidden" id="edit-user-uid">
+          <div style="margin-bottom:16px; text-align:left">
+            <label style="display:block; font-size:0.8rem; color:#cfe4ff; margin-bottom:6px">Email</label>
+            <input type="text" id="edit-user-email" class="form-input" style="width:100%; background:rgba(8,17,32,0.5); color:#8899af; cursor:not-allowed; border:1px solid rgba(96,165,250,0.1); border-radius:6px; padding:8px; box-sizing:border-box" readonly>
+          </div>
+          <div style="margin-bottom:16px; text-align:left">
+            <label style="display:block; font-size:0.8rem; color:#cfe4ff; margin-bottom:6px">Tên hiển thị</label>
+            <input type="text" id="edit-user-name" class="form-input" style="width:100%; background:rgba(8,17,32,0.5); color:#e6f1ff; border:1px solid rgba(96,165,250,0.2); border-radius:6px; padding:8px; box-sizing:border-box" required>
+          </div>
+          <div style="margin-bottom:16px; text-align:left">
+            <label style="display:block; font-size:0.8rem; color:#cfe4ff; margin-bottom:6px">Chức vụ</label>
+            <input type="text" id="edit-user-position" class="form-input" style="width:100%; background:rgba(8,17,32,0.5); color:#e6f1ff; border:1px solid rgba(96,165,250,0.2); border-radius:6px; padding:8px; box-sizing:border-box">
+          </div>
+          <div style="margin-bottom:24px; text-align:left">
+            <label style="display:block; font-size:0.8rem; color:#cfe4ff; margin-bottom:6px">Vai trò hệ thống</label>
+            <select id="edit-user-role" style="width:100%; background:#081120; color:#e6f1ff; border:1px solid rgba(96,165,250,0.2); border-radius:6px; padding:8px; outline:none; box-sizing:border-box">
+              <option value="DEPARTMENT">DEPARTMENT (Chuyên viên)</option>
+              <option value="OFFICE">OFFICE (Trưởng/Phó phòng)</option>
+              <option value="LEADER">LEADER (Lãnh đạo)</option>
+              <option value="ADMIN">ADMIN (Quản trị viên)</option>
+            </select>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:12px">
+            <button type="button" id="edit-user-cancel" class="btn btn-secondary" style="padding:8px 16px; border-radius:6px">Hủy</button>
+            <button type="submit" class="btn btn-primary" style="padding:8px 16px; border-radius:6px">Lưu thay đổi</button>
+          </div>
+        </form>
       </div>
     </div>
   `;
@@ -260,6 +296,114 @@ export function renderAdminPanel(container) {
       alert('Lỗi xóa: ' + err.message);
       e.target.disabled = false;
       e.target.textContent = 'Xóa';
+    }
+  });
+
+  // Handle user table clicks (Delete / Edit)
+  const usersTableBody = container.querySelector('#users-table-body');
+  
+  // Delete action
+  usersTableBody.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-user-delete')) {
+      const uid = e.target.dataset.id;
+      const email = e.target.dataset.email;
+      
+      if (window.currentUser && window.currentUser.uid === uid) {
+        alert('Bạn không thể tự xóa tài khoản của chính mình!');
+        return;
+      }
+      
+      if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn thành viên [${email}] không?\nHành động này sẽ xóa ở cả Firestore và Auth login.`)) {
+        return;
+      }
+      
+      e.target.disabled = true;
+      e.target.textContent = '...';
+      
+      try {
+        const idToken = await window.currentUser.getIdToken();
+        const res = await fetch('/api/admin/delete-user', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ uid })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Xóa thành viên thất bại.');
+        alert('Đã xóa thành viên thành công!');
+        loadUsers(container);
+      } catch (err) {
+        alert('Lỗi: ' + err.message);
+        e.target.disabled = false;
+        e.target.textContent = 'Xóa';
+      }
+    }
+  });
+
+  // Edit modal elements
+  const editModal = container.querySelector('#edit-user-modal');
+  const editForm = container.querySelector('#edit-user-form');
+  const cancelBtn = container.querySelector('#edit-user-cancel');
+  
+  // Open Edit Modal
+  usersTableBody.addEventListener('click', (e) => {
+    if (e.target.classList.contains('btn-user-edit')) {
+      const uid = e.target.dataset.id;
+      const email = e.target.dataset.email;
+      const name = e.target.dataset.name;
+      const position = e.target.dataset.position;
+      const role = e.target.dataset.role || 'DEPARTMENT';
+      
+      container.querySelector('#edit-user-uid').value = uid;
+      container.querySelector('#edit-user-email').value = email;
+      container.querySelector('#edit-user-name').value = name;
+      container.querySelector('#edit-user-position').value = position;
+      container.querySelector('#edit-user-role').value = role.toUpperCase();
+      
+      editModal.style.display = 'flex';
+    }
+  });
+
+  // Close Edit Modal
+  cancelBtn.addEventListener('click', () => {
+    editModal.style.display = 'none';
+  });
+
+  // Submit Edit Form
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const uid = container.querySelector('#edit-user-uid').value;
+    const displayName = container.querySelector('#edit-user-name').value.trim();
+    const position = container.querySelector('#edit-user-position').value.trim();
+    const role = container.querySelector('#edit-user-role').value;
+    
+    const submitBtn = editForm.querySelector('button[type="submit"]');
+    const oldText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Đang lưu...';
+    
+    try {
+      const idToken = await window.currentUser.getIdToken();
+      const res = await fetch('/api/admin/update-user', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ uid, displayName, position, role })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Cập nhật thất bại.');
+      alert('Đã cập nhật thông tin thành viên thành công!');
+      editModal.style.display = 'none';
+      loadUsers(container);
+    } catch (err) {
+      alert('Lỗi: ' + err.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = oldText;
     }
   });
 }
@@ -629,7 +773,7 @@ async function loadUsers(container) {
   } catch (error) {
     console.error('Error loading users:', error);
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="4" style="padding:20px; text-align:center; color:#f87171">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:#f87171">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
     }
   }
 }
@@ -639,14 +783,24 @@ function renderUsersPage(container) {
   if (!tbody) return;
   const start = (currentUsersPage - 1) * ITEMS_PER_PAGE;
   const pageUsers = allUsers.slice(start, start + ITEMS_PER_PAGE);
-  tbody.innerHTML = pageUsers.length > 0 ? pageUsers.map((item) => `
-    <tr style="border-bottom:1px solid var(--border-color)">
-      <td style="padding:12px;">${escapeHtml(item.data.email || item.data.username || '')}</td>
-      <td style="padding:12px;">${escapeHtml(item.data.displayName || item.data.fullName || item.data.name || '')}</td>
-      <td style="padding:12px;">${formatDate(item.data.createdAt)}</td>
-      <td style="padding:12px;">${formatDate(item.data.lastLogin)}</td>
-    </tr>
-  `).join('') : '<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
+  tbody.innerHTML = pageUsers.length > 0 ? pageUsers.map((item) => {
+    const email = item.data.email || item.data.username || '';
+    const name = item.data.displayName || item.data.fullName || item.data.name || '';
+    const position = item.data.position || '';
+    const role = item.data.role || '';
+    return `
+      <tr style="border-bottom:1px solid var(--border-color)">
+        <td style="padding:12px;">${escapeHtml(email)}</td>
+        <td style="padding:12px;">${escapeHtml(name)}</td>
+        <td style="padding:12px;">${formatDate(item.data.createdAt)}</td>
+        <td style="padding:12px;">${formatDate(item.data.lastLogin)}</td>
+        <td style="padding:12px; text-align:right">
+          <button class="btn-user-edit" data-id="${item.id}" data-email="${escapeHtml(email)}" data-name="${escapeHtml(name)}" data-position="${escapeHtml(position)}" data-role="${escapeHtml(role)}" style="padding:4px 8px; font-size:0.8rem; background:#3b82f6; color:white; border:none; border-radius:4px; margin-right:4px; cursor:pointer">Sửa</button>
+          <button class="btn-user-delete" data-id="${item.id}" data-email="${escapeHtml(email)}" style="padding:4px 8px; font-size:0.8rem; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer">Xóa</button>
+        </td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
 
   const totalPages = Math.ceil(allUsers.length / ITEMS_PER_PAGE) || 1;
   const paginationControls = container.querySelector('#users-pagination-controls');
