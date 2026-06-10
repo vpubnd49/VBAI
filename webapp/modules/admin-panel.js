@@ -26,6 +26,11 @@ export function renderAdminPanel(container) {
   }
 
   container.innerHTML = `
+    <div class="admin-user-status-banner" style="padding:12px 16px; margin-bottom:20px; border-radius:8px; background:rgba(30, 41, 59, 0.7); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; font-size:0.9rem">
+      <div>👤 Tài khoản: <strong style="color:#60a5fa">${escapeHtml(window.currentUser?.email || 'Chưa đăng nhập')}</strong></div>
+      <div>🔑 Quyền Quản trị: <strong style="color:${window.isAdmin ? '#34d399' : '#f87171'}">${window.isAdmin ? 'Hợp lệ (Admin)' : 'Không khả dụng (Yêu cầu đăng xuất & đăng nhập lại)'}</strong></div>
+    </div>
+
     <div class="panel-group admin-config-panel">
       <div class="panel-header">
         <div class="panel-header-icon">⚙️</div>
