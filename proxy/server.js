@@ -2463,7 +2463,7 @@ app.post('/api/chat', async (req, res) => {
         messages: normalizedMessages,
         stream: false, // TODO: implement streaming if needed
         temperature,
-        max_tokens: max_tokens ? Math.min(Number(max_tokens), 4096) : 4096
+        max_tokens: max_tokens ? Math.min(Number(max_tokens), 8192) : 8192
       };
 
       // Some reasoning-like models may reject temperature/max_tokens combo.
