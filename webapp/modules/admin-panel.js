@@ -717,9 +717,18 @@ async function loadLogs(container) {
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
-    const q = query(collection(db, 'search_logs'), orderBy('timestamp', 'desc'), limit(500));
+    const q = query(collection(db, 'search_logs'), limit(500));
     const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu (Snapshot trả về 0 bản ghi)</td></tr>`;
+      return;
+    }
     allLogs = snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() }));
+    allLogs.sort((a, b) => {
+      const tA = a.data.timestamp?.toMillis ? a.data.timestamp.toMillis() : 0;
+      const tB = b.data.timestamp?.toMillis ? b.data.timestamp.toMillis() : 0;
+      return tB - tA;
+    });
     currentPage = 1;
     renderPage(container);
   } catch (error) {
@@ -765,9 +774,18 @@ async function loadUsers(container) {
   try {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     const db = getFirestore(app);
-    const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(500));
+    const q = query(collection(db, 'users'), limit(500));
     const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu (Snapshot trả về 0 bản ghi)</td></tr>`;
+      return;
+    }
     allUsers = snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() }));
+    allUsers.sort((a, b) => {
+      const tA = a.data.createdAt?.toMillis ? a.data.createdAt.toMillis() : 0;
+      const tB = b.data.createdAt?.toMillis ? b.data.createdAt.toMillis() : 0;
+      return tB - tA;
+    });
     currentUsersPage = 1;
     renderUsersPage(container);
   } catch (error) {
