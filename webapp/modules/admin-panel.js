@@ -264,18 +264,33 @@ export function renderAdminPanel(container) {
   container.querySelector('#delete-all-logs-btn').addEventListener('click', async () => {
     if (!confirm('Bạn có chắc chắn muốn xóa TOÀN BỘ lịch sử tra cứu không?')) return;
     const btn = container.querySelector('#delete-all-logs-btn');
+    btn.disabled = true;
     btn.textContent = 'Đang xóa...';
     try {
       const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
       const db = getFirestore(app);
-      const q = query(collection(db, 'search_logs'), limit(500));
-      const snapshot = await getDocs(q);
-      const deletePromises = snapshot.docs.map((document) => deleteDoc(doc(db, 'search_logs', document.id)));
-      await Promise.all(deletePromises);
+      let totalDeleted = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const q = query(collection(db, 'search_logs'), limit(500));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+          hasMore = false;
+          break;
+        }
+        const deletePromises = snapshot.docs.map((document) => deleteDoc(doc(db, 'search_logs', document.id)));
+        await Promise.all(deletePromises);
+        totalDeleted += snapshot.docs.length;
+        btn.textContent = `Đang xóa... (${totalDeleted})`;
+        if (snapshot.docs.length < 500) {
+          hasMore = false;
+        }
+      }
       loadLogs(container);
     } catch (e) {
       alert('Lỗi xóa tất cả: ' + e.message);
     } finally {
+      btn.disabled = false;
       btn.textContent = 'Xóa tất cả';
     }
   });
