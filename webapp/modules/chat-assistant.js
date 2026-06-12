@@ -2535,6 +2535,45 @@ export async function sendMessage(text, onChunk) {
         return guardText;
       }
       // Has full doc number: fall through to AI synthesis with best-effort data
+      // Resolve document metadata from proxy even without web search
+      if (hasFullDocNumber) {
+        try {
+          const token = window.currentUser ? await window.currentUser.getIdToken() : null;
+          if (token) {
+            const metaRes = await fetch(`/api/document-metadata?q=${encodeURIComponent(rawUserText)}`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (metaRes.ok) {
+              const metaData = await metaRes.json();
+              if (metaData?.found && metaData?.known_document) {
+                webSearchMeta = { known_document: metaData.known_document };
+                // Inject verified metadata into the prompt
+                const kd = metaData.known_document;
+                const metaLines = ['\n\n[THONG TIN DA XAC MINH TU HE THONG - BAT BUOC SU DUNG THONG TIN NAY]:'];
+                if (kd.documentNumber) metaLines.push(`- So hieu van ban: ${kd.documentNumber}`);
+                if (kd.titleHint || kd.trich_yeu) metaLines.push(`- Ten van ban: ${kd.titleHint || kd.trich_yeu}`);
+                if (kd.issuer) metaLines.push(`- Co quan ban hanh: ${kd.issuer}`);
+                if (kd.ngay_ban_hanh) metaLines.push(`- Ngay ban hanh: ${kd.ngay_ban_hanh}`);
+                if (kd.ngay_hieu_luc) metaLines.push(`- Ngay co hieu luc: ${kd.ngay_hieu_luc}`);
+                if (kd.tinh_trang_hieu_luc) {
+                  const statusMap = { co_hieu_luc: 'Co hieu luc', het_hieu_luc: 'Het hieu luc', ngung_hieu_luc: 'Ngung hieu luc' };
+                  metaLines.push(`- Tinh trang hieu luc: ${statusMap[kd.tinh_trang_hieu_luc] || kd.tinh_trang_hieu_luc}`);
+                }
+                if (Array.isArray(kd.thay_the_cho) && kd.thay_the_cho.length > 0) {
+                  metaLines.push(`- Thay the cho cac van ban: ${kd.thay_the_cho.join(', ')}`);
+                }
+                if (kd.tom_tat_chinh_sach) {
+                  const summary = Array.isArray(kd.tom_tat_chinh_sach) ? kd.tom_tat_chinh_sach.join(' ') : String(kd.tom_tat_chinh_sach);
+                  metaLines.push(`- Tom tat chinh sach: ${summary.slice(0, 500)}`);
+                }
+                finalUserText += metaLines.join('\n');
+              }
+            }
+          }
+        } catch (metaErr) {
+          console.warn('Document metadata resolution skipped:', metaErr?.message || metaErr);
+        }
+      }
     }
 
     if (useWebSearch && shouldSearchWebForFreshness) {

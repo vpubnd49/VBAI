@@ -2052,6 +2052,36 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
   }
 });
 
+// GET: Resolve known document metadata from local bosung_metadata.json
+// Lightweight endpoint - no admin required, just auth
+app.get('/api/document-metadata', async (req, res) => {
+  try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!decoded) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const query = String(req.query?.q || '').trim();
+    if (!query) {
+      return res.json({ found: false, message: 'Missing query parameter q' });
+    }
+
+    const knownDoc = resolveKnownLegalDocument(query);
+    if (!knownDoc || !knownDoc.documentNumber) {
+      return res.json({ found: false, message: 'No known document found for this query' });
+    }
+
+    return res.json({
+      found: true,
+      known_document: knownDoc,
+    });
+  } catch (err) {
+    console.error('GET /api/document-metadata error:', err);
+    return res.status(500).json({ found: false, error: 'Internal server error', message: err.message });
+  }
+});
+
 // POST: Admin trigger Vertex AI Search document ingestion (Sync)
 app.post('/api/admin/ingest-vertex', async (req, res) => {
   try {
