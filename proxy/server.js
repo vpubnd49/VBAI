@@ -50,6 +50,7 @@ function enrichWithLocalMetadata(doc) {
   if (localMeta) {
     return {
       ...doc,
+      issuer: doc.issuer || localMeta.co_quan_ban_hanh,
       ngay_ban_hanh: localMeta.ngay_ban_hanh,
       ngay_hieu_luc: localMeta.ngay_hieu_luc,
       tinh_trang_hieu_luc: localMeta.tinh_trang_hieu_luc || 'co_hieu_luc',
