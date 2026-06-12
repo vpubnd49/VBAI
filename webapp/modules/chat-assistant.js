@@ -2513,22 +2513,28 @@ export async function sendMessage(text, onChunk) {
 
     let finalUserText = `${contextualUserText}\n\n[Thong tin chuan hoa tu he thong]\n${JSON.stringify(normalizedLegalQuery, null, 2)}\n\nYeu cau:\n- Dung thong tin chuan hoa nay nhu tin hieu goi y ban dau.\n- Khong duoc coi do la ket luan cuoi cung.\n- Phai doi chieu lai voi nguon tra cuu thuc te truoc khi ket luan.\n- Neu nguon khong du chac chan hoac khong khop hoan toan, phai noi ro chua du can cu.`;
     if (shouldSearchWebForFreshness && !useWebSearch) {
-      const guardText = ensureFollowUpQuestion(
-        buildFreshnessGuardMessage(rawUserText, 'He thong chua cau hinh Web Search nen khong the dam bao thong tin moi nhat theo thoi diem hien tai.'),
-        rawUserText,
-        { forceAsk: true },
-      );
-      pushTurn("user", rawUserText);
-      pushTurn("assistant", guardText);
-      lastUserQuery = rawUserText;
-      lastAssistantReply = guardText;
-      rememberResolvedDocNumber(searchContext, guardText);
-      logSearchEvent(guardText, {
-        webSearchUsed: false,
-        webSearchMeta: null,
-      });
-      if (onChunk) onChunk(guardText);
-      return guardText;
+      // Skip the blocking guard if the query contains a full document number (e.g., 74/2025/QH15)
+      // because the AI can answer specific document lookups from its training data
+      const hasFullDocNumber = /\b\d+\/\d{4}\/[A-Z0-9-]+\b/i.test(rawUserText);
+      if (!hasFullDocNumber) {
+        const guardText = ensureFollowUpQuestion(
+          buildFreshnessGuardMessage(rawUserText, 'He thong chua cau hinh Web Search nen khong the dam bao thong tin moi nhat theo thoi diem hien tai.'),
+          rawUserText,
+          { forceAsk: true },
+        );
+        pushTurn("user", rawUserText);
+        pushTurn("assistant", guardText);
+        lastUserQuery = rawUserText;
+        lastAssistantReply = guardText;
+        rememberResolvedDocNumber(searchContext, guardText);
+        logSearchEvent(guardText, {
+          webSearchUsed: false,
+          webSearchMeta: null,
+        });
+        if (onChunk) onChunk(guardText);
+        return guardText;
+      }
+      // Has full doc number: fall through to AI synthesis with best-effort data
     }
 
     if (useWebSearch && shouldSearchWebForFreshness) {
