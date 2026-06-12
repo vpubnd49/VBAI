@@ -2730,6 +2730,10 @@ export async function sendMessage(text, onChunk) {
           if (Array.isArray(knownDoc.thay_the_cho) && knownDoc.thay_the_cho.length > 0) {
             metaLines.push(`- Thay the cho cac van ban: ${knownDoc.thay_the_cho.join(', ')}`);
           }
+          if (knownDoc.tom_tat_chinh_sach) {
+            const summary = Array.isArray(knownDoc.tom_tat_chinh_sach) ? knownDoc.tom_tat_chinh_sach.join(' ') : String(knownDoc.tom_tat_chinh_sach);
+            metaLines.push(`- Tom tat chinh sach: ${summary.slice(0, 500)}`);
+          }
           finalUserText += metaLines.join('\n');
         }
       } else {

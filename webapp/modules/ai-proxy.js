@@ -374,6 +374,11 @@ export async function sendWebSearchRequest(query, expectedDocNumber = null, opti
 
   const data = await response.json();
   lastWebSearchMeta = data?.meta && typeof data.meta === 'object' ? data.meta : null;
+  if (lastWebSearchMeta && data?.known_document) {
+    lastWebSearchMeta.known_document = data.known_document;
+  } else if (!lastWebSearchMeta && data?.known_document) {
+    lastWebSearchMeta = { known_document: data.known_document };
+  }
   return typeof data?.results === 'string' ? data.results : '';
 }
 
