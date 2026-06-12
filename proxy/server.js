@@ -25,13 +25,21 @@ try {
 }
 
 function getBosungMetadataBySoHieu(soHieu = '') {
-  if (!bosungMetadata || !soHieu) return null;
-  const cleanSoHieu = soHieu.trim().toUpperCase();
-  for (const key of Object.keys(bosungMetadata)) {
-    const meta = bosungMetadata[key];
-    if (meta && String(meta.so_hieu || '').trim().toUpperCase() === cleanSoHieu) {
-      return meta;
+  if (!soHieu) return null;
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const rawData = fs.readFileSync(path.join(__dirname, 'bosung_metadata.json'), 'utf8');
+    const dynamicMetadata = JSON.parse(rawData);
+    const cleanSoHieu = soHieu.trim().toUpperCase();
+    for (const key of Object.keys(dynamicMetadata)) {
+      const meta = dynamicMetadata[key];
+      if (meta && String(meta.so_hieu || '').trim().toUpperCase() === cleanSoHieu) {
+        return meta;
+      }
     }
+  } catch (e) {
+    console.warn('Failed to dynamically load bosung_metadata.json:', e.message);
   }
   return null;
 }
