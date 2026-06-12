@@ -2661,6 +2661,24 @@ export async function sendMessage(text, onChunk) {
           }
         }
         finalUserText = `${contextualUserText}\n\n[Du lieu truc tuyen cap nhat, tra cuu luc ${new Date().toLocaleTimeString('vi-VN')}]:\n${webSearchResultsText}`;
+        // Inject known_document metadata so AI has verified effective dates
+        const knownDoc = webSearchMeta?.known_document;
+        if (knownDoc && (knownDoc.ngay_hieu_luc || knownDoc.ngay_ban_hanh || knownDoc.tinh_trang_hieu_luc)) {
+          const metaLines = ['\n\n[THONG TIN DA XAC MINH TU HE THONG - BAT BUOC SU DUNG THONG TIN NAY THAY VI TRA LOI "chua xac dinh"]:'];
+          if (knownDoc.documentNumber) metaLines.push(`- So hieu van ban: ${knownDoc.documentNumber}`);
+          if (knownDoc.titleHint || knownDoc.trich_yeu) metaLines.push(`- Ten van ban: ${knownDoc.titleHint || knownDoc.trich_yeu}`);
+          if (knownDoc.issuer) metaLines.push(`- Co quan ban hanh: ${knownDoc.issuer}`);
+          if (knownDoc.ngay_ban_hanh) metaLines.push(`- Ngay ban hanh: ${knownDoc.ngay_ban_hanh}`);
+          if (knownDoc.ngay_hieu_luc) metaLines.push(`- Ngay co hieu luc: ${knownDoc.ngay_hieu_luc}`);
+          if (knownDoc.tinh_trang_hieu_luc) {
+            const statusMap = { co_hieu_luc: 'Co hieu luc', het_hieu_luc: 'Het hieu luc', ngung_hieu_luc: 'Ngung hieu luc' };
+            metaLines.push(`- Tinh trang hieu luc: ${statusMap[knownDoc.tinh_trang_hieu_luc] || knownDoc.tinh_trang_hieu_luc}`);
+          }
+          if (Array.isArray(knownDoc.thay_the_cho) && knownDoc.thay_the_cho.length > 0) {
+            metaLines.push(`- Thay the cho cac van ban: ${knownDoc.thay_the_cho.join(', ')}`);
+          }
+          finalUserText += metaLines.join('\n');
+        }
       } else {
         if (webSearchFailure) {
           finalUserText = `${contextualUserText}\n\n[Luu y he thong]: Kenh tra cuu Internet tam thoi gian doan. Hay tiep tuc tra loi theo che do du phong, uu tien noi ro muc do chac chan va khuyen nghi doi chieu nguon chinh thuc.`;
