@@ -56,6 +56,7 @@ function enrichWithLocalMetadata(doc) {
       tinh_trang_hieu_luc: localMeta.tinh_trang_hieu_luc || 'co_hieu_luc',
       trich_yeu: localMeta.trich_yeu,
       tom_tat_chinh_sach: localMeta.tom_tat_chinh_sach,
+      tom_tat_chuong_dieu: localMeta.tom_tat_chuong_dieu,
       thay_the_cho: localMeta.thay_the_cho,
     };
   }

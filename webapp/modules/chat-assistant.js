@@ -2574,6 +2574,9 @@ export async function sendMessage(text, onChunk) {
                   const summary = Array.isArray(kd.tom_tat_chinh_sach) ? kd.tom_tat_chinh_sach.join(' ') : String(kd.tom_tat_chinh_sach);
                   metaLines.push(`- Tom tat chinh sach: ${summary.slice(0, 500)}`);
                 }
+                if (kd.tom_tat_chuong_dieu) {
+                  metaLines.push(`- Cau truc chuong dieu: ${kd.tom_tat_chuong_dieu}`);
+                }
                 finalUserText += metaLines.join('\n');
               }
             }
