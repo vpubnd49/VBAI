@@ -167,7 +167,15 @@ Tóm lại:
 * Số hiệu: [Số hiệu đầy đủ]
 * Ngày ban hành: [Ngày/Tháng/Năm ban hành]
 * Ngày có hiệu lực: [Ngày/Tháng/Năm có hiệu lực]
+* Tình trạng hiệu lực: [Có hiệu lực / Hết hiệu lực / Ngưng hiệu lực]
+* Thay thế cho: [Liệt kê số hiệu các văn bản bị thay thế, nếu có]
 * Nội dung chính: [Tóm tắt ngắn gọn về nội dung chính của văn bản]
+2b. [Khung Tóm tắt các điểm chính] (BAT BUOC khi he thong cung cap "Tom tat chinh sach" hoac khi nguoi dung hoi don gian ve mot van ban cu the):
+Các điểm chính của văn bản:
+1. [Điểm chính 1 - mô tả ngắn gọn]
+2. [Điểm chính 2 - mô tả ngắn gọn]
+3. [Điểm chính 3 - mô tả ngắn gọn]
+... (liet ke tu 3-6 diem chinh quan trong nhat)
 3. [Đoạn giải thích bổ sung]: 1-3 đoạn văn ngắn phân tích lộ trình áp dụng, sự thay đổi hoặc điều khoản cần lưu ý.
 4. [Đoạn khuyến nghị]: 1 câu khuyến nghị tư vấn pháp lý (Ví dụ: "Thông tin trên chỉ mang tính tham khảo, bạn nên liên hệ với chuyên gia pháp lý...").
 5. [Khung Căn cứ pháp lý]:
