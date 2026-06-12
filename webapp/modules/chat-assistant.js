@@ -2353,6 +2353,10 @@ export function initChat(apiKey, modelName = DEFAULT_MODEL) {
 export async function sendMessage(text, onChunk) {
   if (!aiClient) throw new Error("Chua cau hinh API Key");
 
+  // Capture attachedFile into local variable to prevent race condition
+  // (user may click remove button while AI is processing)
+  const currentAttachedFile = attachedFile;
+
   const rawUserText = String(text || "").trim();
   const drafting = isDraftRequest(rawUserText);
   const contextualUserText = buildContextAwareUserPrompt(rawUserText);
@@ -2404,10 +2408,10 @@ export async function sendMessage(text, onChunk) {
   };
 
   try {
-    if (attachedFile) {
-      const filePrompt = `[DƯỚI ĐÂY LÀ NỘI DUNG TÀI LIỆU ĐƯỢC NGƯỜI DÙNG ĐÍNH KÈM (Tên file: ${attachedFile.name})]\n` +
+    if (currentAttachedFile) {
+      const filePrompt = `[DƯỚI ĐÂY LÀ NỘI DUNG TÀI LIỆU ĐƯỢC NGƯỜI DÙNG ĐÍNH KÈM (Tên file: ${currentAttachedFile.name})]\n` +
                          `========================================\n` +
-                         `${attachedFile.text}\n` +
+                         `${currentAttachedFile.text}\n` +
                          `========================================\n\n` +
                          `YÊU CẦU NGƯỜI DÙNG: ${rawUserText || 'Hãy tóm tắt và phân tích tài liệu này.'}`;
 
@@ -2441,14 +2445,14 @@ export async function sendMessage(text, onChunk) {
         rawUserText
       );
 
-      pushTurn("user", rawUserText || `[Tài liệu: ${attachedFile.name}]`);
+      pushTurn("user", rawUserText || `[Tài liệu: ${currentAttachedFile.name}]`);
       pushTurn("assistant", fileReply);
       lastUserQuery = rawUserText;
       lastAssistantReply = stripTrailingFollowUpBlocks(fileReply);
 
       logSearchEvent(fileReply, {
         webSearchUsed: false,
-        webSearchMeta: { attached_file: attachedFile.name, attached_file_size: attachedFile.size }
+        webSearchMeta: { attached_file: currentAttachedFile.name, attached_file_size: currentAttachedFile.size }
       });
 
       if (onChunk) onChunk(fileReply);
@@ -3439,6 +3443,7 @@ export async function renderChatUI(container) {
 
     let displayUserText = text;
     const queryText = text || 'Hãy tóm tắt và phân tích tài liệu đính kèm.';
+    const hadAttachment = !!attachedFile;
     
     if (attachedFile) {
       displayUserText = `📄 [Đính kèm: ${attachedFile.name}]\n${text || 'Hãy tóm tắt và phân tích tài liệu đính kèm.'}`;
@@ -3446,8 +3451,19 @@ export async function renderChatUI(container) {
     
     addMsg(displayUserText, 'user');
 
-    const loaderMsg = attachedFile ? '🔍 Đang phân tích tài liệu...' : '🔍 Đang tra cứu...';
+    const loaderMsg = hadAttachment ? '🔍 Đang phân tích tài liệu...' : '🔍 Đang tra cứu...';
     const aiMsgDiv = addMsg(loaderMsg, 'ai');
+
+    // Clear attachment after capturing info (prevent re-sending stale file)
+    if (hadAttachment) {
+      attachedFile = null;
+      if (previewArea) {
+        previewArea.style.display = 'none';
+        previewArea.innerHTML = '';
+      }
+      if (fileInput) fileInput.value = '';
+    }
+
     try {
       const finalAnswer = await sendMessage(queryText, (full) => {
         setAiMessageText(aiMsgDiv, full, true);

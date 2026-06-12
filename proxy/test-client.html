@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <div id="output">Running...</div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    
+    const firebaseConfig = {
+      apiKey: "AIzaSyC_abC-4uR72rFd8SXnaHFYY_kJ2R0CFcA",
+      authDomain: "vbai.tracuu.lamdong.vn",
+      projectId: "gen-lang-client-0462350485",
+      storageBucket: "gen-lang-client-0462350485.firebasestorage.app",
+      messagingSenderId: "419728335518",
+      appId: "1:419728335518:web:d62ad8064acf7df8fa118f"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const out = document.getElementById('output');
+    
+    async function test() {
+      try {
+        const q = query(collection(db, 'search_logs'), orderBy('timestamp', 'desc'), limit(5));
+        const snapshot = await getDocs(q);
+        out.innerText = 'Success! Count: ' + snapshot.docs.length;
+      } catch (err) {
+        out.innerText = 'Error: ' + err.message;
+      }
+    }
+    test();
+  </script>
+</body>
+</html>
