@@ -1525,15 +1525,17 @@ function sanitizeMessagesForOpenAI(messages = []) {
   
   const mapped = messages
     .map((msg) => {
-      let text = '';
+      let content = '';
       if (typeof msg.content === 'string') {
-        text = msg.content;
+        content = msg.content.trim();
+      } else if (Array.isArray(msg.content)) {
+        content = msg.content;
       } else if (Array.isArray(msg.parts)) {
-        text = msg.parts.map((part) => String(part?.text || '').trim()).filter(Boolean).join('\n');
+        content = msg.parts.map((part) => String(part?.text || '').trim()).filter(Boolean).join('\n').trim();
       } else if (msg.content && Array.isArray(msg.content.parts)) {
-        text = msg.content.parts.map((part) => String(part?.text || '').trim()).filter(Boolean).join('\n');
+        content = msg.content.parts.map((part) => String(part?.text || '').trim()).filter(Boolean).join('\n').trim();
       } else if (typeof msg.text === 'string') {
-        text = msg.text;
+        content = msg.text.trim();
       }
       
       const rawRole = String(msg.role || '').toLowerCase();
@@ -1541,16 +1543,29 @@ function sanitizeMessagesForOpenAI(messages = []) {
       
       return {
         role,
-        content: text.trim()
+        content
       };
     })
-    .filter((msg) => msg.content !== '');
+    .filter((msg) => {
+      if (Array.isArray(msg.content)) {
+        return msg.content.length > 0;
+      }
+      return msg.content !== '';
+    });
 
   // Merge consecutive messages with the same role (required by strict APIs like DeepSeek/9Router)
   const merged = [];
   for (const msg of mapped) {
     if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
-      merged[merged.length - 1].content = (merged[merged.length - 1].content + '\n\n' + msg.content).trim();
+      const prevContent = merged[merged.length - 1].content;
+      const currContent = msg.content;
+      if (typeof prevContent === 'string' && typeof currContent === 'string') {
+        merged[merged.length - 1].content = (prevContent + '\n\n' + currContent).trim();
+      } else {
+        const prevParts = Array.isArray(prevContent) ? prevContent : [{ type: 'text', text: prevContent }];
+        const currParts = Array.isArray(currContent) ? currContent : [{ type: 'text', text: currContent }];
+        merged[merged.length - 1].content = [...prevParts, ...currParts];
+      }
     } else {
       merged.push(msg);
     }
