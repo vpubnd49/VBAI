@@ -6,7 +6,7 @@
 // VBAI Main Entry - Last Update: 2026-05-20 (Performance Optimized)
 import { firebaseConfig } from './firebase-config.js';
 
-const GLOBAL_AI_MODEL = 'gemini-2.0-flash-lite';
+const GLOBAL_AI_MODEL = 'gemini-2.5-flash';
 const GLOBAL_MEETING_MODEL = 'gemini-2.5-flash';
 const GLOBAL_TRANSCRIBE_MODEL = 'gemini-2.5-flash';
 

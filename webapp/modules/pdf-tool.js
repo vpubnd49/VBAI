@@ -98,7 +98,7 @@ async function handleImage(file, container) {
       config?.gemini_model || 'gemini-2.5-flash'
     );
 
-    const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr' });
+    const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr', provider: 'gemini' });
 
     zone.innerHTML = `<div class="upload-icon">✅</div><div class="upload-text">${file.name} — OCR hoàn tất</div><div class="upload-hint">Click để chọn file khác</div><input type="file" id="pdf-file-input" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.bmp" style="display:none">`;
     container.querySelector('#pdf-file-input').addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0], container); });
@@ -239,7 +239,7 @@ async function runPdfOcr(pdf, file, textContentArea, ocrBtn, container) {
     const model = (
       config?.gemini_model || 'gemini-2.5-flash'
     );
-    const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr' });
+    const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr', provider: 'gemini' });
     const finalText = ocrText || "Không quét được nội dung.";
     textContentArea.textContent = finalText;
     showToast('✓ Đã quét OCR thành công!');

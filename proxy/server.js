@@ -106,7 +106,7 @@ const WEB_SEARCH_RESULT_CACHE = new Map();
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
 const GEMINI_API_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
-const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-2.0-flash-lite';
+const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-2.5-flash';
 const GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS = Object.freeze([
   'gemini-2.5-flash',
   'gemini-2.0-flash-exp',
@@ -1574,6 +1574,141 @@ function sanitizeMessagesForOpenAI(messages = []) {
   return merged;
 }
 
+function convertOpenAiMessagesToVertexContents(messages = []) {
+  if (!Array.isArray(messages)) return { contents: [], systemInstruction: undefined };
+  const contents = [];
+  let systemInstructionText = '';
+
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      if (typeof msg.content === 'string') {
+        systemInstructionText += (systemInstructionText ? '\n' : '') + msg.content;
+      } else if (Array.isArray(msg.content)) {
+        const textParts = msg.content.filter(p => p && p.type === 'text').map(p => p.text).join('\n');
+        systemInstructionText += (systemInstructionText ? '\n' : '') + textParts;
+      }
+      continue;
+    }
+
+    const role = msg.role === 'assistant' ? 'model' : msg.role;
+    const parts = [];
+    if (typeof msg.content === 'string') {
+      parts.push({ text: msg.content });
+    } else if (Array.isArray(msg.content)) {
+      for (const part of msg.content) {
+        if (part && part.type === 'text') {
+          parts.push({ text: part.text });
+        } else if (part && (part.type === 'image_url' || part.image_url)) {
+          const url = part.image_url?.url || part.url || '';
+          if (url.startsWith('data:')) {
+            const match = url.match(/^data:([^;]+);base64,(.+)$/);
+            if (match) {
+              parts.push({
+                inline_data: {
+                  mime_type: match[1],
+                  data: match[2]
+                }
+              });
+            }
+          }
+        }
+      }
+    }
+    contents.push({ role, parts });
+  }
+
+  const systemInstruction = systemInstructionText 
+    ? { parts: [{ text: systemInstructionText }] } 
+    : undefined;
+
+  return { contents, systemInstruction };
+}
+
+function convertVertexResponseToOpenAi(vertexData, modelName) {
+  const text = vertexData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const finishReason = vertexData?.candidates?.[0]?.finishReason || 'stop';
+  const openAiFinishReason = finishReason === 'STOP' ? 'stop' : finishReason.toLowerCase();
+  return {
+    id: `chatcmpl-${Date.now()}`,
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: modelName,
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: text
+        },
+        finish_reason: openAiFinishReason
+      }
+    ],
+    usage: {
+      prompt_tokens: vertexData?.usageMetadata?.promptTokenCount || 0,
+      completion_tokens: vertexData?.usageMetadata?.candidatesTokenCount || 0,
+      total_tokens: vertexData?.usageMetadata?.totalTokenCount || 0
+    }
+  };
+}
+
+async function executeVertexGeminiChat({ modelName, normalizedMessages, temperature, max_tokens }) {
+  const token = await getGoogleAccessToken();
+  const projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0462350485';
+  const location = 'asia-southeast1';
+  
+  let vertexModel = modelName;
+  if (modelName.startsWith('models/')) {
+    vertexModel = modelName.replace('models/', '');
+  }
+  if (vertexModel === 'gemini-2.0-flash-lite') {
+    vertexModel = 'gemini-2.5-flash';
+  }
+  
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${encodeURIComponent(vertexModel)}:generateContent`;
+  
+  const { contents, systemInstruction } = convertOpenAiMessagesToVertexContents(normalizedMessages);
+  
+  const payload = {
+    contents,
+    generationConfig: {
+      temperature: temperature !== undefined ? temperature : 0.7,
+      maxOutputTokens: max_tokens ? Math.min(Number(max_tokens), 8192) : 8192,
+    }
+  };
+  if (systemInstruction) {
+    payload.systemInstruction = systemInstruction;
+  }
+  
+  console.log(`[Vertex AI Chat] Calling ${vertexModel} on project ${projectId}...`);
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+  
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error(`[Vertex AI Chat] Failed with status ${res.status}:`, errorText);
+    return {
+      ok: false,
+      status: res.status,
+      message: errorText,
+      reason: 'VERTEX_ERROR'
+    };
+  }
+  
+  const data = await res.json();
+  return {
+    ok: true,
+    status: 200,
+    data: convertVertexResponseToOpenAi(data, modelName)
+  };
+}
+
 function extractTextFromProviderPayload(data = {}) {
   if (!data || typeof data !== 'object') return '';
   if (typeof data.text === 'string' && data.text.trim()) return data.text.trim();
@@ -1670,6 +1805,9 @@ async function executeVertexNativeAudioTranscription({
     let vertexModel = modelName;
     if (modelName.startsWith('models/')) {
       vertexModel = modelName.replace('models/', '');
+    }
+    if (vertexModel === 'gemini-2.0-flash-lite') {
+      vertexModel = 'gemini-2.5-flash';
     }
     
     const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${encodeURIComponent(vertexModel)}:generateContent`;
@@ -2177,7 +2315,7 @@ app.get('/api/system-config-summary', async (req, res) => {
     res.json({
       active_provider: data.active_chat_provider || 'gemini',
       active_chat_provider: data.active_chat_provider || 'gemini',
-      gemini_model: data.gemini_model || 'gemini-2.0-flash-lite',
+      gemini_model: data.gemini_model || 'gemini-2.5-flash',
       gemini_endpoint: data.gemini_endpoint || GEMINI_API_ENDPOINT,
       google_search_configured: cseConfigured,
       vertex_search_configured: vertexConfigured,
@@ -2450,7 +2588,7 @@ app.post('/api/admin/system-config', async (req, res) => {
     const updateData = {
       active_provider: active_chat_provider || 'gemini',
       active_chat_provider: active_chat_provider || 'gemini',
-      gemini_model: gemini_model || 'gemini-2.0-flash-lite',
+      gemini_model: gemini_model || 'gemini-2.5-flash',
       nine_router_model: nine_router_model || 'DevGOVietnam-Elite',
       transcribe_model: transcribe_model || 'gemini-2.5-flash',
       web_search_provider: sanitizeWebSearchProvider(web_search_provider),
@@ -2723,7 +2861,7 @@ app.post('/api/chat', async (req, res) => {
       return res.status(rateCheck.status).json({ error: rateCheck.error, message: rateCheck.message });
     }
 
-    const { messages, contents, model, stream = false, temperature = 0.7, max_tokens } = req.body;
+    const { messages, contents, model, stream = false, temperature = 0.7, max_tokens, provider } = req.body;
     const normalizedMessages = Array.isArray(messages)
       ? sanitizeMessagesForOpenAI(messages)
       : (Array.isArray(contents) ? convertContentsToMessages(contents) : null);
@@ -2733,10 +2871,20 @@ app.post('/api/chat', async (req, res) => {
 
     // Verify input size limit (capped at 2,000,000 characters)
     let totalInputLength = 0;
+    let hasImage = false;
     if (Array.isArray(normalizedMessages)) {
       for (const msg of normalizedMessages) {
         if (msg && typeof msg.content === 'string') {
           totalInputLength += msg.content.length;
+        } else if (msg && Array.isArray(msg.content)) {
+          for (const part of msg.content) {
+            if (part && (part.type === 'image_url' || part.image_url)) {
+              hasImage = true;
+            }
+            if (part && typeof part.text === 'string') {
+              totalInputLength += part.text.length;
+            }
+          }
         }
       }
     }
@@ -2750,7 +2898,8 @@ app.post('/api/chat', async (req, res) => {
     // Fetch system config (từ cache để giảm độ trễ phản hồi)
     const config = await getCachedSystemConfig();
 
-    const activeProvider = config.active_chat_provider || 'gemini';
+    // Auto-force Gemini for multimodal requests to ensure reliable image/PDF OCR processing.
+    const activeProvider = provider || (hasImage ? 'gemini' : (config.active_chat_provider || 'gemini'));
     const isNineRouter = activeProvider === '9router';
 
     const endpoint = isNineRouter
@@ -2761,7 +2910,7 @@ app.post('/api/chat', async (req, res) => {
       ? config.nine_router_api_key
       : (process.env.GEMINI_API_KEY || config.gemini_api_key);
 
-    const effectiveModel = model || (isNineRouter ? (config.nine_router_model || 'DevGOVietnam-Elite') : (config.gemini_model || 'gemini-2.0-flash-lite'));
+    const effectiveModel = model || (isNineRouter ? (config.nine_router_model || 'DevGOVietnam-Elite') : (config.gemini_model || 'gemini-2.5-flash'));
 
     const userMessage = Array.isArray(normalizedMessages)
       ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
@@ -2785,7 +2934,7 @@ app.post('/api/chat', async (req, res) => {
 
     const defaultModel = isNineRouter
       ? (config.nine_router_model || 'DevGOVietnam-Elite')
-      : (config.gemini_model || 'gemini-2.0-flash-lite');
+      : (config.gemini_model || 'gemini-2.5-flash');
 
     const primaryModel = normalizeModelInput(effectiveModel) || defaultModel;
     
@@ -2811,6 +2960,9 @@ app.post('/api/chat', async (req, res) => {
     const attemptedModels = [];
 
     const executeProviderAttempt = async (modelName) => {
+      let providerRes = null;
+      let attemptErr = null;
+      
       try {
         const payload = {
           model: modelName,
@@ -2830,32 +2982,68 @@ app.post('/api/chat', async (req, res) => {
           }
         }
 
-        let providerRes = await fetch(`${endpoint}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'x-goog-api-key': apiKey,
-          },
-          body: JSON.stringify(payload)
-        });
+        // Try standard endpoint if key is present
+        if (apiKey) {
+          try {
+            providerRes = await fetch(`${endpoint}/chat/completions`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+                'x-goog-api-key': apiKey,
+              },
+              body: JSON.stringify(payload)
+            });
 
-        // Retry exactly once on 429 Too Many Requests after 1500ms
-        if (providerRes.status === 429) {
-          console.warn(`[429] Received TooManyRequests for model ${modelName}. Retrying once after 1500ms...`);
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          providerRes = await fetch(`${endpoint}/chat/completions`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-              'x-goog-api-key': apiKey,
-            },
-            body: JSON.stringify(payload)
-          });
+            // Retry exactly once on 429 Too Many Requests after 1500ms
+            if (providerRes.status === 429) {
+              console.warn(`[429] Received TooManyRequests for model ${modelName}. Retrying once after 1500ms...`);
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              providerRes = await fetch(`${endpoint}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${apiKey}`,
+                  'x-goog-api-key': apiKey,
+                },
+                body: JSON.stringify(payload)
+              });
+            }
+          } catch (fetchErr) {
+            console.error(`[executeProviderAttempt] Fetch error on standard API endpoint for model ${modelName}:`, fetchErr.message);
+            attemptErr = fetchErr;
+          }
         }
 
-        if (!providerRes.ok) {
+        if (providerRes && providerRes.ok) {
+          return {
+            ok: true,
+            status: providerRes.status,
+            data: await providerRes.json(),
+          };
+        }
+
+        // Fall back to Vertex AI if standard API key call failed, and the provider is gemini
+        if (!isNineRouter) {
+          console.log(`[executeProviderAttempt] API key call failed or skipped (status: ${providerRes?.status || 'no_response'}). Falling back to Vertex AI for model ${modelName}...`);
+          try {
+            const vertexAttempt = await executeVertexGeminiChat({
+              modelName,
+              normalizedMessages,
+              temperature,
+              max_tokens
+            });
+            if (vertexAttempt.ok) {
+              return vertexAttempt;
+            }
+            console.error(`[executeProviderAttempt] Vertex AI fallback failed with status ${vertexAttempt.status}:`, vertexAttempt.message);
+          } catch (vertexErr) {
+            console.error(`[executeProviderAttempt] Vertex AI fallback error:`, vertexErr.message);
+          }
+        }
+
+        // Return error details
+        if (providerRes) {
           const providerError = await readProviderError(providerRes);
           return {
             ok: false,
@@ -2866,12 +3054,13 @@ app.post('/api/chat', async (req, res) => {
         }
 
         return {
-          ok: true,
-          status: providerRes.status,
-          data: await providerRes.json(),
+          ok: false,
+          status: 502,
+          message: attemptErr?.message || 'Both Gemini API key and Vertex AI calls failed.',
+          reason: 'PROVIDER_ERROR',
         };
       } catch (err) {
-        console.error(`[executeProviderAttempt] Network or fetch error for model ${modelName}:`, err);
+        console.error(`[executeProviderAttempt] General error for model ${modelName}:`, err);
         return {
           ok: false,
           status: 502,
@@ -5538,19 +5727,23 @@ async function fetchDirectOfficialSources({
 
   await Promise.all(sources.map(async (sourceConfig) => {
     const urls = sourceConfig.searchUrls(query).slice(0, Math.max(1, DIRECT_SOURCE_URLS_PER_SOURCE));
-    const localCandidates = [];
-
-    for (const url of urls) {
+    
+    // Fetch all search URLs in parallel
+    const htmlResults = await Promise.all(urls.map(async (url) => {
       const remainingMs = deadlineAt - Date.now();
-      if (remainingMs <= 0) break;
+      if (remainingMs <= 0) return null;
       const html = await fetchDirectSourcePage(url, Math.min(DIRECT_SOURCE_TIMEOUT_MS, remainingMs));
-      if (!html) continue;
-      const links = parseLinksFromHtml(html, url, sourceConfig.allowedHosts);
+      return html ? { url, html } : null;
+    }));
+
+    const localCandidates = [];
+    for (const res of htmlResults) {
+      if (!res) continue;
+      const links = parseLinksFromHtml(res.html, res.url, sourceConfig.allowedHosts);
       logLegalCrawlDebug('direct-source:links-parsed', {
         source: sourceConfig.id,
-        searchUrl: url,
+        searchUrl: res.url,
         linkCount: links.length,
-        remainingMs,
       });
       for (const link of links) {
         localCandidates.push({
@@ -5559,7 +5752,6 @@ async function fetchDirectOfficialSources({
           sourceKind: sourceConfig.sourceKind,
         });
       }
-      if (localCandidates.length >= DIRECT_SOURCE_MAX_PER_SOURCE) break;
     }
 
     const uniqueMap = new Map();
@@ -5583,17 +5775,14 @@ async function fetchDirectOfficialSources({
       })),
     });
 
-    const enriched = [];
-    for (const candidate of scored) {
+    // Crawl and enrich all scored candidates in parallel
+    const enriched = await Promise.all(scored.map(async (candidate) => {
       const remainingMs = deadlineAt - Date.now();
-      if (remainingMs <= 0) break;
+      if (remainingMs <= 0) return candidate;
       const html = await fetchDirectSourcePage(candidate.link, Math.min(DIRECT_SOURCE_TIMEOUT_MS, remainingMs));
-      if (!html) {
-        enriched.push(candidate);
-        continue;
-      }
+      if (!html) return candidate;
       const metadata = parseHostSpecificLegalMetadata(html, candidate.link) || parseLegalDocumentMetadata(html, candidate.link);
-      enriched.push(metadata ? {
+      return metadata ? {
         ...candidate,
         metadata: {
           ...metadata,
@@ -5601,8 +5790,8 @@ async function fetchDirectOfficialSources({
         },
         snippet: metadata.trich_yeu_hoac_ten_van_ban || candidate.snippet,
         title: metadata.trich_yeu_hoac_ten_van_ban || candidate.title,
-      } : candidate);
-    }
+      } : candidate;
+    }));
 
     allCandidates.push(...enriched);
   }));

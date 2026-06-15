@@ -23,7 +23,7 @@ import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tie
 import { showToast } from './ui-utils.js';
 
 
-const DEFAULT_MODEL = 'gemini-2.0-flash-lite';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const STRICT_MEETING_AUDIO_MODEL = 'gemini-2.5-flash';
 const DEFAULT_FALLBACK_SOURCES = {
   vbpl: true,
@@ -44,7 +44,7 @@ function applyRuntimeSystemConfig(nextConfig = null) {
   const isNineRouter = systemConfigCache?.active_chat_provider === '9router' || systemConfigCache?.active_provider === '9router';
   const nextModel = isNineRouter
     ? (systemConfigCache?.nine_router_model || 'gpt-4o-mini')
-    : (systemConfigCache?.gemini_model || 'gemini-2.0-flash-lite');
+    : (systemConfigCache?.gemini_model || 'gemini-2.5-flash');
   currentModelName = normalizeModelName(nextModel) || DEFAULT_MODEL;
 }
 
@@ -154,8 +154,8 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU VBPL" - tro ly phap luat chuye
 
 [Objective]
 - Cung cap cau tra loi phap luat Viet Nam co do chinh xac cao.
-- Uu tien tra loi truc tiep, ngan gon, de doc, giong van phong tu van nhanh.
-- Khi nguoi dung hoi tong quat nhu "co gi moi", "co moi nhat chua", "la gi", hay "khac gi", hay tra loi bang van xuoi hoac danh sach ngan; khong ep markdown nhieu muc neu khong can.
+- Uu tien tra loi truc tiep, ro rang, de doc, lap luan chat che va chuyen nghiep.
+- Khi nguoi dung hoi tong quat ve noi dung hoac chinh sach (vi du: "co gi", "co gi moi", "noi dung chinh", "tom tat"), ban phai BAT BUOC liet ke day du, chi tiet, do dai phong phu tuong tu nhu van ban luot goc. Su dung danh sach co thu tu va nhieu gach dau dong con chi tiet de nguoi dung nam duoc toan bo noi dung lon cua van ban.
 - Trich dan dung Luat/Nghi dinh/Thong tu theo so hieu, ngay ban hanh, dieu/khoan/diem khi cau hoi can doi chieu cu the.
 - Luon neu tinh trang hieu luc tai thoi diem nguoi dung hoi neu co du lieu.
 - Neu het hieu luc: neu van ban thay the va ngay hieu luc moi.
@@ -169,16 +169,26 @@ Tóm lại:
 * Tên luật: [Tên chính thức của văn bản]
 * Số hiệu: [Số hiệu đầy đủ]
 * Ngày ban hành: [Ngày/Tháng/Năm ban hành]
-* Ngày có hiệu lực: [Ngày/Tháng/Năm có hiệu lực]
+* Ngày có hiệu lực: [BẮT BUỘC ghi chính xác ngày/tháng/năm luật có hiệu lực thi hành]
 * Tình trạng hiệu lực: [Có hiệu lực / Hết hiệu lực / Ngưng hiệu lực]
 * Thay thế cho: [Liệt kê số hiệu các văn bản bị thay thế, nếu có]
 * Nội dung chính: [Tóm tắt ngắn gọn về nội dung chính của văn bản]
-2b. [Khung Tóm tắt các điểm chính] (BAT BUOC khi he thong cung cap "Tom tat chinh sach" hoac khi nguoi dung hoi don gian ve mot van ban cu the):
-Các điểm chính của văn bản:
-1. [Điểm chính 1 - mô tả ngắn gọn]
-2. [Điểm chính 2 - mô tả ngắn gọn]
-3. [Điểm chính 3 - mô tả ngắn gọn]
-... (liet ke tu 3-6 diem chinh quan trong nhat)
+2b. [Khung Tóm tắt các điểm chính] (BẮT BUỘC khi hệ thống cung cấp "Tóm tắt chính sách" hoặc khi người dùng hỏi về nội dung văn bản cụ thể):
+Các điểm chính của văn bản (YÊU CẦU liệt kê đầy đủ, chi tiết, độ dài phong phú, chia theo từng nhóm nội dung/chính sách lớn, dưới mỗi nhóm lớn phải có nhiều gạch đầu dòng liệt kê cụ thể chi tiết):
+1. [Nhóm nội dung/Chính sách lớn 1]:
+   - [Chi tiết ý 1.1]
+   - [Chi tiết ý 1.2]
+   - [Chi tiết ý 1.3]
+   ...
+2. [Nhóm nội dung/Chính sách lớn 2]:
+   - [Chi tiết ý 2.1]
+   - [Chi tiết ý 2.2]
+   - [Chi tiết ý 2.3]
+   ...
+3. [Nhóm nội dung/Chính sách lớn 3]:
+   - [Chi tiết ý 3.1]
+   - [Chi tiết ý 3.2]
+   ...
 3. [Đoạn giải thích bổ sung]: 1-3 đoạn văn ngắn phân tích lộ trình áp dụng, sự thay đổi hoặc điều khoản cần lưu ý.
 4. [Đoạn khuyến nghị]: 1 câu khuyến nghị tư vấn pháp lý (Ví dụ: "Thông tin trên chỉ mang tính tham khảo, bạn nên liên hệ với chuyên gia pháp lý...").
 5. [Khung Căn cứ pháp lý]:
@@ -192,7 +202,7 @@ Trích dẫn:
 1. Tôn trọng tuyệt đối dữ liệu đầu vào và thực tế hiện hành:
    - Khi người dùng cung cấp đường link, CHỈ ĐƯỢC PHÉP phân tích dữ liệu từ đúng link đó.
    - Khi người dùng hỏi về Luật, Nghị định, Thông tư có số hiệu hoặc ngày tháng cụ thể, KHÔNG ĐƯỢC tự ý sử dụng dữ liệu cũ trong bộ nhớ để trả lời. BẮT BUỘC phải phân tích và tìm đúng chính xác link/nguồn dữ liệu gốc mới nhất để liệt kê ra.
-   - Tuyệt đối không lấy thông tin từ văn bản khác đắp vào, không được bịa đặt (hallucinate).
+   - Tuyệt đối không lấy thông tin từ văn bản khác đắp vào, không được bịa đặt (hallucinate) mối liên hệ pháp lý, sửa đổi, hoặc bổ sung giữa các văn bản khi không có căn cứ (ví dụ: Nghị định 53/2022/NĐ-CP là văn bản quy định chi tiết Luật An ninh mạng, chứ KHÔNG phải văn bản sửa đổi Nghị định 15/2020/NĐ-CP). BẮT BUỘC phải viết đúng chính tả tiếng Việt (luôn dùng "thi hành" chứ không viết là "thi hàng").
 
 [QUY TẮC XỬ LÝ HIỆU LỰC & CẬP NHẬT MỚI NHẤT (CRITICAL)]
 1. ĐỒNG BỘ HIỆU LỰC & VĂN BẢN THAY THẾ: 
@@ -204,6 +214,7 @@ Trích dẫn:
    - Trình bày rõ ràng lộ trình chuyển tiếp: ngày ban hành luật mới, ngày có hiệu lực thi hành của luật mới, và thời điểm luật cũ chính thức hết hiệu lực thi hành.
 3. CẢNH BÁO HIỆU LỰC CHO NGƯỜI DÙNG:
    - Nếu bạn bắt buộc phải trích dẫn một văn bản đã hết hiệu lực (hoặc sắp hết hiệu lực) để so sánh, bạn phải gắn kèm nhãn cảnh báo rõ ràng: "[HẾT HIỆU LỰC]" hoặc "[SẮP HẾT HIỆU LỰC]".
+4. BẮT BUỘC PHẢI LIỆT KÊ CHÍNH XÁC NGÀY HIỆU LỰC: Khi tóm tắt hoặc trả lời về bất kỳ văn bản pháp luật nào, bạn BẮT BUỘC phải liệt kê đầy đủ thông tin, đặc biệt là CHÍNH XÁC NGÀY LUẬT/VĂN BẢN CÓ HIỆU LỰC THI HÀNH (ghi cụ thể ngày/tháng/năm, không được viết chung chung, không được bỏ qua hoặc để trống).
 
 [Constraints/Guardrails]
 1. Ngon ngu: Tieng Viet.
@@ -223,7 +234,7 @@ Trích dẫn:
 
 [Default Answer Style]
 - Mac dinh: Dung dung bo khung [Premium Legal Answer Layout Specification] khi tra cuu van ban.
-- Neu nguoi dung hoi tong quat, tra loi ngan gon truoc, sau do moi goi y dao sau neu can.
+- Neu nguoi dung hoi tong quat ve mot van ban (vd: "co gi", "noi dung", "la gi", "tom tat", "diem moi"), ban phai liet ke day du va chi tiet cac noi dung chinh, chinh sach lon trong van ban do voi do dai va do chi tiet cao, phan muc ro rang duoi dang danh sach nhieu cap (nhom chinh -> cac gạch dau dong chi tiet).
 - Neu nguoi dung hoi so sanh/doi chieu, phai liet ke day du theo tung diem khac nhau; co the dung gach dau dong theo tung nhom noi dung.
 - Neu nguoi dung yeu cau trich dieu/khoan/diem, noi dung nguyen van, hoac danh sach day du, moi chuyen sang dang trinh bay chi tiet hon va giu du noi dung.
 
@@ -360,7 +371,7 @@ async function processAttachedFile(file, statusCallback) {
       statusCallback('Đang nhận diện ký tự bằng AI...');
       const config = await fetchSystemConfig();
       const model = config?.gemini_model || 'gemini-2.5-flash';
-      const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr' });
+      const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr', provider: 'gemini' });
       if (!ocrText) throw new Error('Không thể nhận diện được nội dung chữ từ file quét scan.');
       fullText = ocrText;
     }
@@ -597,20 +608,20 @@ function buildFreshWebSearchOptions(rawText = '') {
   const isTimeSensitive = isTimeSensitiveQuery(rawText);
 
   if (!isTimeSensitive) {
-    return { forceFresh: false, freshnessLevel: 'month', recencyDays: 365, timeoutMs: 30000 };
+    return { forceFresh: false, freshnessLevel: 'month', recencyDays: 365, timeoutMs: 10000 };
   }
 
   if (/(hom nay|hien tai|ngay nay)/.test(t)) {
-    return { forceFresh: true, freshnessLevel: 'day', recencyDays: 7, timeoutMs: 40000 };
+    return { forceFresh: true, freshnessLevel: 'day', recencyDays: 7, timeoutMs: 15000 };
   }
   if (/(tuan nay|7 ngay|7ngay)/.test(t)) {
-    return { forceFresh: true, freshnessLevel: 'week', recencyDays: 30, timeoutMs: 40000 };
+    return { forceFresh: true, freshnessLevel: 'week', recencyDays: 30, timeoutMs: 15000 };
   }
   if (/(thang nay|30 ngay|30ngay)/.test(t)) {
-    return { forceFresh: true, freshnessLevel: 'month', recencyDays: 90, timeoutMs: 40000 };
+    return { forceFresh: true, freshnessLevel: 'month', recencyDays: 90, timeoutMs: 15000 };
   }
   // Default time-sensitive legal query
-  return { forceFresh: true, freshnessLevel: 'month', recencyDays: 365, timeoutMs: 45000 };
+  return { forceFresh: true, freshnessLevel: 'month', recencyDays: 365, timeoutMs: 20000 };
 }
 
 function getChatCacheStore() {
@@ -2361,6 +2372,15 @@ export function initChat(apiKey, modelName = DEFAULT_MODEL) {
   }
 }
 
+function fixChatCommonTypos(text = "") {
+  if (!text) return "";
+  return text
+    .replace(/\bthi hàng\b/gi, "thi hành")
+    .replace(/\bthì hành\b/gi, "thi hành")
+    .replace(/\bthi hàng\./gi, "thi hành.")
+    .replace(/\bthi hàng,/gi, "thi hành,");
+}
+
 export async function sendMessage(text, onChunk) {
   if (!aiClient) throw new Error("Chua cau hinh API Key");
 
@@ -2510,7 +2530,7 @@ export async function sendMessage(text, onChunk) {
       return guardText;
     }
     const shouldSearchWebForFreshness = shouldPreferWebSearch(rawUserText) || shouldForceContextualWebSearch(rawUserText, searchContext);
-    const shouldBypassCache = isTimeSensitive || useWebSearch;
+    const shouldBypassCache = isTimeSensitive;
     const cached = shouldBypassCache ? '' : getCachedChatAnswer(rawUserText, currentModelName, useWebSearch);
     if (cached) {
       pushTurn("user", rawUserText);
@@ -2700,7 +2720,7 @@ export async function sendMessage(text, onChunk) {
               searchContext.effectiveDocNumber,
               {
                 ...buildFreshWebSearchOptions(rawUserText),
-                timeoutMs: 30000,
+                timeoutMs: 15000,
                 requestedDocType: searchContext.requestedDocType || undefined,
                 partialDocNumber: searchContext.partialDocNumber || undefined,
               },
@@ -2963,6 +2983,7 @@ export async function sendMessage(text, onChunk) {
       ensureFollowUpQuestion(fullText, rawUserText, {}, webSearchMeta),
       rawUserText,
     );
+    fullText = fixChatCommonTypos(fullText);
     fullText = prependHeaderIfAvailable(fullText, webSearchMeta);
 
     // Cache only when query is not freshness-sensitive and web search is not required.
@@ -2991,7 +3012,7 @@ export async function sendMessage(text, onChunk) {
 export async function renderChatUI(container) {
   const fallbackConfig = {
     active_provider: 'gemini',
-    gemini_model: 'gemini-2.0-flash-lite',
+    gemini_model: 'gemini-2.5-flash',
     transcribe_model: 'gemini-2.5-flash',
     has_gemini_key: false,
     web_search_provider: 'vertex_search',
@@ -3001,7 +3022,7 @@ export async function renderChatUI(container) {
 
   const isAdmin = isCurrentUserAdmin();
   const configSnapshot = { ...fallbackConfig, ...(systemConfigCache || {}) };
-  const savedModel = normalizeModelName(configSnapshot.gemini_model || 'gemini-2.0-flash-lite') || 'gemini-2.0-flash-lite';
+  const savedModel = normalizeModelName(configSnapshot.gemini_model || 'gemini-2.5-flash') || 'gemini-2.5-flash';
 
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -3281,7 +3302,7 @@ export async function renderChatUI(container) {
     const geminiKeyStatus = container.querySelector('#modal-gemini-key-status');
     const geminiRuntimeWarning = container.querySelector('#modal-gemini-runtime-warning');
 
-    if (geminiModelInput) geminiModelInput.value = live.gemini_model || 'gemini-2.0-flash-lite';
+    if (geminiModelInput) geminiModelInput.value = live.gemini_model || 'gemini-2.5-flash';
     if (geminiKeyInput) {
       geminiKeyInput.value = live.gemini_api_key || '';
       geminiKeyInput.type = 'password';
@@ -3402,7 +3423,7 @@ export async function renderChatUI(container) {
 
         try {
           const configUpdate = {
-            active_provider: 'gemini',            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-2.0-flash-lite',
+            active_provider: 'gemini',            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-2.5-flash',
             web_search_provider: 'vertex_search',
             web_search_mode: getRadioValue('modal_web_search_mode', 'cse_with_fallback'),
             web_search_fallback_sources: collectFallbackCheckboxes(),
@@ -3428,8 +3449,8 @@ export async function renderChatUI(container) {
           currentModelName = normalizeModelName(
             isNineRouter
               ? (systemConfigCache?.nine_router_model || 'gpt-4o-mini')
-              : (systemConfigCache?.gemini_model || 'gemini-2.0-flash-lite')
-          ) || 'gemini-2.0-flash-lite';
+              : (systemConfigCache?.gemini_model || 'gemini-2.5-flash')
+          ) || 'gemini-2.5-flash';
 
           modalStatus.textContent = '\u2705 \u0110\u00e3 l\u01b0u v\u00e0 \u00e1p d\u1ee5ng ngay!';
           modalStatus.style.color = '#16a34a';
