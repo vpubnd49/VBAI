@@ -3063,7 +3063,7 @@ app.post('/api/transcribe', (req, res, next) => {
     const effectiveModel = normalizeModelInput(model || config.transcribe_model || config.gemini_model || 'gemini-2.5-flash');
 
     if (!apiKey) {
-      return res.status(503).json({ error: 'API key missing' });
+      console.warn('[Transcribe] API key is missing. Proceeding via Vertex AI fallback path.');
     }
 
     const attemptedModels = [];
@@ -5895,7 +5895,14 @@ function resolveEffectiveWebSearchProvider({ requestedProvider, cseConfigured, v
 
 async function getGoogleAccessToken() {
   initFirebase();
-  const credential = admin.app().options?.credential;
+  let credential = admin.app().options?.credential;
+  if (!credential || typeof credential.getAccessToken !== 'function') {
+    try {
+      credential = admin.credential.applicationDefault();
+    } catch (err) {
+      console.warn('Failed to load applicationDefault credential on-the-fly:', err.message);
+    }
+  }
   if (!credential || typeof credential.getAccessToken !== 'function') {
     throw new Error('vertex_auth_not_available');
   }
