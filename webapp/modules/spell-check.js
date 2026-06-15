@@ -149,7 +149,7 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
 
   // 2. Batching paragraphs — batch lớn hơn để tối ưu số lần gọi API
   const validParas = paragraphs.filter(p => p.text.trim().length > 10);
-  const BATCH_SIZE = 5;
+  const BATCH_SIZE = 30;
   const batches = [];
   for (let i = 0; i < validParas.length; i += BATCH_SIZE) {
     batches.push(validParas.slice(i, i + BATCH_SIZE));
@@ -183,7 +183,7 @@ Nếu không có lỗi, trả []. CHỈ JSON, KHÔNG markdown, KHÔNG giải th�
 
   // 3. Process batches concurrently
   let completedBatches = 0;
-  const MAX_CONCURRENT = 4;
+  const MAX_CONCURRENT = 6;
   
   for (let i = 0; i < batches.length; i += MAX_CONCURRENT) {
     const currentChunk = batches.slice(i, i + MAX_CONCURRENT);
