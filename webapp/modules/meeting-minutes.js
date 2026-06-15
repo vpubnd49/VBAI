@@ -776,7 +776,7 @@ async function processAudioWithProxy(file, progressEl) {
           context: transcribeContext,
           timeoutMs: safeTranscribeTimeoutMs,
           chunkWhenLarge: true,
-          maxBytes: 45 * 1024 * 1024,
+          maxBytes: 28 * 1024 * 1024,
           onProgress: progressTracker,
           prompt: MEETING_PROMPT
         });

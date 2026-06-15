@@ -1640,6 +1640,88 @@ async function deleteFromGeminiFiles({ apiKey, fileName }) {
 }
 
 
+async function executeVertexNativeAudioTranscription({
+  modelName,
+  audioBase64,
+  audioBuffer,
+  mimeType,
+  prompt,
+}) {
+  try {
+    const token = await getGoogleAccessToken();
+    const projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0462350485';
+    const location = 'asia-southeast1';
+    
+    let vertexModel = modelName;
+    if (modelName.startsWith('models/')) {
+      vertexModel = modelName.replace('models/', '');
+    }
+    
+    const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${encodeURIComponent(vertexModel)}:generateContent`;
+    
+    const activeBase64 = audioBase64 || (audioBuffer ? audioBuffer.toString('base64') : '');
+    const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
+    
+    console.log(`[Vertex AI Fallback] Transcribing via model ${vertexModel} on project ${projectId}...`);
+    
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: customPrompt },
+            { inline_data: { mime_type: mimeType, data: activeBase64 } }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0,
+        }
+      })
+    });
+    
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`[Vertex AI Fallback] Failed with status ${res.status}: ${errText}`);
+      return {
+        ok: false,
+        status: res.status,
+        message: `Vertex AI error: ${errText}`,
+        reason: 'vertex_api_error'
+      };
+    }
+    
+    const data = await res.json();
+    const text = extractTextFromProviderPayload(data);
+    if (!text) {
+      return {
+        ok: false,
+        status: 502,
+        message: 'Vertex AI transcription returned empty text',
+        reason: 'empty_transcription'
+      };
+    }
+    
+    return {
+      ok: true,
+      status: 200,
+      text
+    };
+  } catch (err) {
+    console.error(`[Vertex AI Fallback] Connection error:`, err);
+    return {
+      ok: false,
+      status: 502,
+      message: `Vertex AI connection error: ${err.message}`,
+      reason: 'vertex_connection_error'
+    };
+  }
+}
+
 async function executeGeminiNativeAudioTranscription({
   apiKey,
   modelName,
@@ -1649,6 +1731,18 @@ async function executeGeminiNativeAudioTranscription({
   filename,
   prompt,
 }) {
+  const isKeyInvalid = !apiKey || String(apiKey).startsWith('sk-') || String(apiKey).trim() === '';
+  if (isKeyInvalid) {
+    console.warn(`[Gemini Transcribe] API key is empty or looks like a 9Router sk- key. Routing immediately to Vertex AI...`);
+    return await executeVertexNativeAudioTranscription({
+      modelName,
+      audioBase64,
+      audioBuffer,
+      mimeType,
+      prompt,
+    });
+  }
+
   let fileUri = null;
   let fileApiName = null;
   let activeBase64 = audioBase64;
@@ -1668,13 +1762,14 @@ async function executeGeminiNativeAudioTranscription({
       fileApiName = fileInfo.name;
       console.log(`[Files API] Uploaded successfully: ${fileApiName} - URI: ${fileUri}`);
     } catch (uploadErr) {
-      console.error('[Files API] Upload failed:', uploadErr);
-      return {
-        ok: false,
-        status: 500,
-        message: `Failed to upload large audio file to Gemini Files API: ${uploadErr.message}`,
-        reason: 'files_api_upload_failed',
-      };
+      console.error('[Files API] Upload failed, trying Vertex AI fallback...', uploadErr);
+      return await executeVertexNativeAudioTranscription({
+        modelName,
+        audioBase64,
+        audioBuffer,
+        mimeType,
+        prompt,
+      });
     }
   } else if (!activeBase64 && audioBuffer) {
     activeBase64 = audioBuffer.toString('base64');
@@ -1720,23 +1815,27 @@ async function executeGeminiNativeAudioTranscription({
 
     if (!providerRes.ok) {
       const providerError = await readProviderError(providerRes);
-      return {
-        ok: false,
-        status: providerRes.status,
-        message: providerError.message,
-        reason: providerError.reason,
-      };
+      console.warn(`[Gemini Transcribe] Provider failed with status ${providerRes.status}: ${providerError.message}. Triggering Vertex AI fallback...`);
+      return await executeVertexNativeAudioTranscription({
+        modelName,
+        audioBase64,
+        audioBuffer,
+        mimeType,
+        prompt,
+      });
     }
 
     const data = await providerRes.json();
     const text = extractTextFromProviderPayload(data);
     if (!text) {
-      return {
-        ok: false,
-        status: 502,
-        message: 'Native transcription returned empty text',
-        reason: 'empty_transcription',
-      };
+      console.warn('[Gemini Transcribe] Native transcription returned empty text. Triggering Vertex AI fallback...');
+      return await executeVertexNativeAudioTranscription({
+        modelName,
+        audioBase64,
+        audioBuffer,
+        mimeType,
+        prompt,
+      });
     }
 
     return {
@@ -1744,10 +1843,23 @@ async function executeGeminiNativeAudioTranscription({
       status: 200,
       text,
     };
+  } catch (err) {
+    console.error(`[Gemini Transcribe] Unexpected error, trying Vertex AI fallback...`, err);
+    return await executeVertexNativeAudioTranscription({
+      modelName,
+      audioBase64,
+      audioBuffer,
+      mimeType,
+      prompt,
+    });
   } finally {
     if (fileApiName) {
       console.log(`[Files API] Cleaning up file from Gemini: ${fileApiName}...`);
-      await deleteFromGeminiFiles({ apiKey, fileName: fileApiName });
+      try {
+        await deleteFromGeminiFiles({ apiKey, fileName: fileApiName });
+      } catch (delErr) {
+        console.warn('Delete file cleanup failed:', delErr);
+      }
     }
   }
 }
