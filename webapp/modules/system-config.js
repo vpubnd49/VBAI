@@ -218,7 +218,9 @@ export async function validateGeminiApiKey(options = {}) {
   }
 
   const payload = {
+    provider: String(options?.provider || 'gemini').trim(),
     gemini_api_key: String(options?.apiKey || '').trim(),
+    gemini_endpoint: String(options?.gemini_endpoint || '').trim() || undefined,
     use_stored_key: options?.useStoredKey !== false,
     model: String(options?.model || '').trim() || undefined,
   };

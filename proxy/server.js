@@ -8,6 +8,8 @@
  *
  * Deployed to Google Cloud Run.
  */
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
 
 const express = require('express');
 const cors = require('cors');
@@ -1518,6 +1520,45 @@ function convertContentsToMessages(contents = []) {
     .filter(Boolean);
 }
 
+function sanitizeMessagesForOpenAI(messages = []) {
+  if (!Array.isArray(messages)) return [];
+  
+  const mapped = messages
+    .map((msg) => {
+      let text = '';
+      if (typeof msg.content === 'string') {
+        text = msg.content;
+      } else if (Array.isArray(msg.parts)) {
+        text = msg.parts.map((part) => String(part?.text || '').trim()).filter(Boolean).join('\n');
+      } else if (msg.content && Array.isArray(msg.content.parts)) {
+        text = msg.content.parts.map((part) => String(part?.text || '').trim()).filter(Boolean).join('\n');
+      } else if (typeof msg.text === 'string') {
+        text = msg.text;
+      }
+      
+      const rawRole = String(msg.role || '').toLowerCase();
+      const role = rawRole === 'model' ? 'assistant' : rawRole;
+      
+      return {
+        role,
+        content: text.trim()
+      };
+    })
+    .filter((msg) => msg.content !== '');
+
+  // Merge consecutive messages with the same role (required by strict APIs like DeepSeek/9Router)
+  const merged = [];
+  for (const msg of mapped) {
+    if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
+      merged[merged.length - 1].content = (merged[merged.length - 1].content + '\n\n' + msg.content).trim();
+    } else {
+      merged.push(msg);
+    }
+  }
+
+  return merged;
+}
+
 function extractTextFromProviderPayload(data = {}) {
   if (!data || typeof data !== 'object') return '';
   if (typeof data.text === 'string' && data.text.trim()) return data.text.trim();
@@ -1711,7 +1752,7 @@ async function executeGeminiNativeAudioTranscription({
   }
 }
 
-async function executeGeminiCompatChatRequest({ apiKey, modelName, messages, temperature = 0.1, maxTokens = 32 }) {
+async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, messages, temperature = 0.1, maxTokens = 32 }) {
   const payload = {
     model: modelName,
     messages,
@@ -1720,20 +1761,24 @@ async function executeGeminiCompatChatRequest({ apiKey, modelName, messages, tem
     max_tokens: maxTokens,
   };
 
-  let providerRes = await fetch(`${GEMINI_API_ENDPOINT}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify(payload),
-  });
+  const apiEndpoint = endpoint || GEMINI_API_ENDPOINT;
+  
+  const fetchWithTimeout = async (url, options, timeoutMs = 12000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(id);
+      return response;
+    } catch (err) {
+      clearTimeout(id);
+      throw err;
+    }
+  };
 
-  if (providerRes.status === 429) {
-    console.warn(`[429] Received TooManyRequests in executeGeminiCompatChatRequest. Retrying once after 1500ms...`);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    providerRes = await fetch(`${GEMINI_API_ENDPOINT}/chat/completions`, {
+  let providerRes;
+  try {
+    providerRes = await fetchWithTimeout(`${apiEndpoint}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1741,7 +1786,39 @@ async function executeGeminiCompatChatRequest({ apiKey, modelName, messages, tem
         'x-goog-api-key': apiKey,
       },
       body: JSON.stringify(payload),
-    });
+    }, 12000);
+  } catch (err) {
+    const isAbort = err.name === 'AbortError';
+    return {
+      ok: false,
+      status: isAbort ? 408 : 502,
+      message: isAbort ? 'Yêu cầu kết nối nhà cung cấp AI bị quá hạn (Timeout 12s)' : `Lỗi kết nối nhà cung cấp AI: ${err.message}`,
+      reason: isAbort ? 'TIMEOUT' : 'CONNECTION_ERROR',
+    };
+  }
+
+  if (providerRes.status === 429) {
+    console.warn(`[429] Received TooManyRequests in executeGeminiCompatChatRequest. Retrying once after 1500ms...`);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      providerRes = await fetchWithTimeout(`${apiEndpoint}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify(payload),
+      }, 12000);
+    } catch (err) {
+      const isAbort = err.name === 'AbortError';
+      return {
+        ok: false,
+        status: isAbort ? 408 : 502,
+        message: isAbort ? 'Yêu cầu kết nối lại nhà cung cấp AI bị quá hạn (Timeout 12s)' : `Lỗi kết nối lại nhà cung cấp AI: ${err.message}`,
+        reason: isAbort ? 'TIMEOUT' : 'CONNECTION_ERROR',
+      };
+    }
   }
 
   if (!providerRes.ok) {
@@ -1969,10 +2046,12 @@ app.get('/api/system-config-summary', async (req, res) => {
     const cseConfigured = !!(data.google_search_key && data.google_search_cx);
     const vertexConfigured = isVertexSearchConfigured(data);
     const activeGeminiKey = process.env.GEMINI_API_KEY || data.gemini_api_key;
+    const activeNineRouterKey = data.nine_router_api_key;
     res.json({
-      active_provider: 'gemini',
+      active_provider: data.active_chat_provider || 'gemini',
+      active_chat_provider: data.active_chat_provider || 'gemini',
       gemini_model: data.gemini_model || 'gemini-2.0-flash-lite',
-      gemini_endpoint: GEMINI_API_ENDPOINT,
+      gemini_endpoint: data.gemini_endpoint || GEMINI_API_ENDPOINT,
       google_search_configured: cseConfigured,
       vertex_search_configured: vertexConfigured,
       web_search_configured: cseConfigured || vertexConfigured,
@@ -1986,6 +2065,14 @@ app.get('/api/system-config-summary', async (req, res) => {
       vertex_serving_config: requesterIsAdmin ? (data.vertex_serving_config || '') : '',
       transcribe_model: data.transcribe_model || data.gemini_model || 'gemini-2.5-flash',
       gemini_models: Array.isArray(data.gemini_models) ? data.gemini_models : [],
+      
+      // 9Router fields
+      nine_router_model: data.nine_router_model || 'DevGOVietnam-Elite',
+      nine_router_endpoint: data.nine_router_endpoint || 'https://9router.tools.devgovietnam.io.vn/v1',
+      nine_router_models: Array.isArray(data.nine_router_models) ? data.nine_router_models : ['DevGOVietnam-Core', 'DevGOVietnam-Elite', 'DevGOVietnam-Frontier'],
+      has_nine_router_key: !!activeNineRouterKey,
+      nine_router_api_key: requesterIsAdmin ? (activeNineRouterKey || '') : '',
+      
       web_search_provider: webSearchProvider,
       web_search_mode: webSearchMode,
       web_search_fallback_sources: fallbackSources,
@@ -2001,7 +2088,7 @@ app.get('/api/system-config-summary', async (req, res) => {
   }
 });
 
-// POST: Admin validate Gemini API key (live check)
+// POST: Admin validate Gemini / 9Router API key (live check)
 app.post('/api/admin/validate-gemini-key', async (req, res) => {
   try {
     initFirebase();
@@ -2010,30 +2097,74 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
     }
 
+    const provider = String(req.body?.provider || 'gemini').trim().toLowerCase();
     const rawKey = String(req.body?.gemini_api_key || '').trim();
+    const rawEndpoint = String(req.body?.gemini_endpoint || '').trim();
     const useStoredKey = req.body?.use_stored_key !== false;
-    const model = String(req.body?.model || 'gemini-2.5-flash').trim() || 'gemini-2.5-flash';
-
+    
     const snap = await getSystemConfigRef().get();
     if (!snap.exists) {
       return res.status(404).json({ error: 'System config not found' });
     }
     const config = snap.data() || {};
-    const keyToValidate = rawKey || (useStoredKey ? String(process.env.GEMINI_API_KEY || config.gemini_api_key || '').trim() : '');
+    
+    let keyToValidate = '';
+    let endpointToValidate = '';
+    let model = '';
+
+    if (provider === '9router') {
+      model = String(req.body?.model || config.nine_router_model || 'DevGOVietnam-Elite').trim();
+      keyToValidate = rawKey || (useStoredKey ? String(config.nine_router_api_key || '').trim() : '');
+      endpointToValidate = rawEndpoint || (useStoredKey ? String(config.nine_router_endpoint || '').trim() : '');
+      if (!endpointToValidate) {
+        endpointToValidate = 'https://9router.tools.devgovietnam.io.vn/v1';
+      }
+    } else {
+      model = String(req.body?.model || config.gemini_model || 'gemini-2.5-flash').trim();
+      keyToValidate = rawKey || (useStoredKey ? String(process.env.GEMINI_API_KEY || config.gemini_api_key || '').trim() : '');
+      endpointToValidate = rawEndpoint || (useStoredKey ? String(process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || '').trim() : '');
+      if (!endpointToValidate) {
+        endpointToValidate = GEMINI_API_ENDPOINT;
+      }
+    }
+
     if (!keyToValidate) {
       return res.status(400).json({
         valid: false,
-        message: 'Chua co Gemini API key de xac nhan.',
+        message: `Chưa có API key của ${provider === '9router' ? '9Router' : 'Gemini'} để xác nhận.`,
       });
     }
 
-    const probe = await executeGeminiCompatChatRequest({
+    let probe = await executeGeminiCompatChatRequest({
       apiKey: keyToValidate,
+      endpoint: endpointToValidate,
       modelName: model,
       messages: [{ role: 'user', content: 'ping' }],
       temperature: 0.1,
       maxTokens: 8,
     });
+
+    let finalValidatedModel = model;
+    if (!probe.ok && provider === '9router') {
+      const fallbackModels = ['DevGOVietnam-Core', 'DevGOVietnam-Elite', 'DevGOVietnam-Frontier'];
+      for (const fallbackModel of fallbackModels) {
+        if (model === fallbackModel) continue;
+        console.info(`[9Router] Key validation for model ${model} failed (${probe.message || probe.status}), retrying with ${fallbackModel}...`);
+        const fallbackProbe = await executeGeminiCompatChatRequest({
+          apiKey: keyToValidate,
+          endpoint: endpointToValidate,
+          modelName: fallbackModel,
+          messages: [{ role: 'user', content: 'ping' }],
+          temperature: 0.1,
+          maxTokens: 8,
+        });
+        if (fallbackProbe.ok) {
+          probe = fallbackProbe;
+          finalValidatedModel = fallbackModel;
+          break;
+        }
+      }
+    }
 
     if (!probe.ok) {
       return res.status(probe.status || 502).json({
@@ -2042,18 +2173,18 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
         meta: {
           provider_status: probe.status || null,
           provider_error_reason: probe.reason || null,
-          model,
+          model: finalValidatedModel,
         }
       });
     }
 
-    console.info(`[AUDIT] Gemini key validated by admin: ${decoded.email || decoded.uid}`);
+    console.info(`[AUDIT] ${provider === '9router' ? '9Router' : 'Gemini'} key validated by admin: ${decoded.email || decoded.uid}`);
     return res.json({
       valid: true,
-      message: 'Gemini API key hop le.',
+      message: `${provider === '9router' ? '9Router' : 'Gemini'} API key hợp lệ.`,
       meta: {
         provider_status: 200,
-        model,
+        model: finalValidatedModel,
       }
     });
   } catch (err) {
@@ -2161,8 +2292,14 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     const {
+      active_chat_provider,
       gemini_api_key,
+      gemini_endpoint,
       gemini_model,
+      nine_router_api_key,
+      nine_router_endpoint,
+      nine_router_model,
+      nine_router_models,
       web_search_provider,
       google_search_key,
       google_search_cx,
@@ -2184,8 +2321,10 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     const updateData = {
-      active_provider: 'gemini',
+      active_provider: active_chat_provider || 'gemini',
+      active_chat_provider: active_chat_provider || 'gemini',
       gemini_model: gemini_model || 'gemini-2.0-flash-lite',
+      nine_router_model: nine_router_model || 'DevGOVietnam-Elite',
       transcribe_model: transcribe_model || 'gemini-2.5-flash',
       web_search_provider: sanitizeWebSearchProvider(web_search_provider),
       web_search_mode: sanitizeWebSearchMode(web_search_mode),
@@ -2197,10 +2336,28 @@ app.post('/api/admin/system-config', async (req, res) => {
       router_model: admin.firestore.FieldValue.delete(),
     };
 
+    if (gemini_endpoint !== undefined) {
+      const val = String(gemini_endpoint || '').trim();
+      updateData.gemini_endpoint = val
+        ? val
+        : admin.firestore.FieldValue.delete();
+    }
+
+    if (nine_router_endpoint !== undefined) {
+      const val = String(nine_router_endpoint || '').trim();
+      updateData.nine_router_endpoint = val
+        ? val
+        : admin.firestore.FieldValue.delete();
+    }
+
     // Only update keys if provided (non-empty)
     if (gemini_api_key && gemini_api_key.trim()) {
       updateData.gemini_api_key = gemini_api_key.trim();
     }
+    if (nine_router_api_key && nine_router_api_key.trim()) {
+      updateData.nine_router_api_key = nine_router_api_key.trim();
+    }
+
     if (google_search_key !== undefined) {
       const keyVal = String(google_search_key || '').trim();
       updateData.google_search_key = keyVal
@@ -2238,6 +2395,9 @@ app.post('/api/admin/system-config', async (req, res) => {
     // Update model lists (always overwrite)
     if (Array.isArray(gemini_models)) {
       updateData.gemini_models = gemini_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim());
+    }
+    if (Array.isArray(nine_router_models)) {
+      updateData.nine_router_models = nine_router_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim());
     }
     if (web_search_fallback_sources && typeof web_search_fallback_sources === 'object' && !Array.isArray(web_search_fallback_sources)) {
       updateData.web_search_fallback_sources = sanitizeFallbackSources(web_search_fallback_sources);
@@ -2438,7 +2598,7 @@ app.post('/api/chat', async (req, res) => {
 
     const { messages, contents, model, stream = false, temperature = 0.7, max_tokens } = req.body;
     const normalizedMessages = Array.isArray(messages)
-      ? messages
+      ? sanitizeMessagesForOpenAI(messages)
       : (Array.isArray(contents) ? convertContentsToMessages(contents) : null);
     if (!normalizedMessages || !Array.isArray(normalizedMessages)) {
       return res.status(400).json({ error: 'messages or contents array required' });
@@ -2463,9 +2623,18 @@ app.post('/api/chat', async (req, res) => {
     // Fetch system config (từ cache để giảm độ trễ phản hồi)
     const config = await getCachedSystemConfig();
 
-    const endpoint = GEMINI_API_ENDPOINT;
-    const apiKey = process.env.GEMINI_API_KEY || config.gemini_api_key;
-    const effectiveModel = model || config.gemini_model || 'gemini-2.0-flash-lite';
+    const activeProvider = config.active_chat_provider || 'gemini';
+    const isNineRouter = activeProvider === '9router';
+
+    const endpoint = isNineRouter
+      ? (config.nine_router_endpoint || 'https://9router.tools.devgovietnam.io.vn/v1')
+      : (process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || GEMINI_API_ENDPOINT);
+
+    const apiKey = isNineRouter
+      ? config.nine_router_api_key
+      : (process.env.GEMINI_API_KEY || config.gemini_api_key);
+
+    const effectiveModel = model || (isNineRouter ? (config.nine_router_model || 'DevGOVietnam-Elite') : (config.gemini_model || 'gemini-2.0-flash-lite'));
 
     const userMessage = Array.isArray(normalizedMessages)
       ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
@@ -2473,6 +2642,7 @@ app.post('/api/chat', async (req, res) => {
     console.log('USER QUERY:', userMessage);
     console.log('NORMALIZED:', {
       route: '/api/chat',
+      provider: activeProvider,
       model: effectiveModel,
       message_count: Array.isArray(normalizedMessages) ? normalizedMessages.length : 0,
       stream: stream === true,
@@ -2486,51 +2656,54 @@ app.post('/api/chat', async (req, res) => {
       return res.status(503).json({ error: 'API key missing', message: 'Please contact administrator to configure AI provider key.' });
     }
 
-    const configuredGeminiModel = normalizeModelInput(config.gemini_model) || 'gemini-2.0-flash-lite';
-    const primaryModel = normalizeModelInput(effectiveModel) || configuredGeminiModel;
-    const retryModel = pickGeminiRetryModel(primaryModel, configuredGeminiModel);
-    const candidateModels = dedupeModelNames([
-      primaryModel,
-      retryModel,
-      configuredGeminiModel,
-      GEMINI_SAFE_FALLBACK_MODEL,
-    ]);
+    const defaultModel = isNineRouter
+      ? (config.nine_router_model || 'DevGOVietnam-Elite')
+      : (config.gemini_model || 'gemini-2.0-flash-lite');
+
+    const primaryModel = normalizeModelInput(effectiveModel) || defaultModel;
+    
+    let candidateModels = [];
+    if (isNineRouter) {
+      candidateModels = dedupeModelNames([
+        primaryModel,
+        defaultModel,
+        'DevGOVietnam-Core',
+        'DevGOVietnam-Elite',
+        'DevGOVietnam-Frontier',
+        'om/oc/deepseek-v4-flash-free'
+      ]);
+    } else {
+      const retryModel = pickGeminiRetryModel(primaryModel, defaultModel);
+      candidateModels = dedupeModelNames([
+        primaryModel,
+        retryModel,
+        defaultModel,
+        GEMINI_SAFE_FALLBACK_MODEL,
+      ]);
+    }
     const attemptedModels = [];
 
     const executeProviderAttempt = async (modelName) => {
-      const payload = {
-        model: modelName,
-        messages: normalizedMessages,
-        stream: false, // TODO: implement streaming if needed
-        temperature,
-        max_tokens: max_tokens ? Math.min(Number(max_tokens), 8192) : 8192
-      };
+      try {
+        const payload = {
+          model: modelName,
+          messages: normalizedMessages,
+          stream: false, // TODO: implement streaming if needed
+          temperature,
+          max_tokens: max_tokens ? Math.min(Number(max_tokens), 8192) : 8192
+        };
 
-      // Some reasoning-like models may reject temperature/max_tokens combo.
-      const m = String(modelName || '').toLowerCase();
-      if (m.includes('o1') || m.includes('o3')) {
-        delete payload.temperature;
-        if (payload.max_tokens) {
-          payload.max_completion_tokens = payload.max_tokens;
-          delete payload.max_tokens;
+        // Some reasoning-like models may reject temperature/max_tokens combo.
+        const m = String(modelName || '').toLowerCase();
+        if (m.includes('o1') || m.includes('o3')) {
+          delete payload.temperature;
+          if (payload.max_tokens) {
+            payload.max_completion_tokens = payload.max_tokens;
+            delete payload.max_tokens;
+          }
         }
-      }
 
-      let providerRes = await fetch(`${endpoint}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify(payload)
-      });
-
-      // Retry exactly once on 429 Too Many Requests after 1500ms
-      if (providerRes.status === 429) {
-        console.warn(`[429] Received TooManyRequests for model ${modelName}. Retrying once after 1500ms...`);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        providerRes = await fetch(`${endpoint}/chat/completions`, {
+        let providerRes = await fetch(`${endpoint}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2539,23 +2712,46 @@ app.post('/api/chat', async (req, res) => {
           },
           body: JSON.stringify(payload)
         });
-      }
 
-      if (!providerRes.ok) {
-        const providerError = await readProviderError(providerRes);
+        // Retry exactly once on 429 Too Many Requests after 1500ms
+        if (providerRes.status === 429) {
+          console.warn(`[429] Received TooManyRequests for model ${modelName}. Retrying once after 1500ms...`);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          providerRes = await fetch(`${endpoint}/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+              'x-goog-api-key': apiKey,
+            },
+            body: JSON.stringify(payload)
+          });
+        }
+
+        if (!providerRes.ok) {
+          const providerError = await readProviderError(providerRes);
+          return {
+            ok: false,
+            status: providerRes.status,
+            message: providerError.message,
+            reason: providerError.reason,
+          };
+        }
+
+        return {
+          ok: true,
+          status: providerRes.status,
+          data: await providerRes.json(),
+        };
+      } catch (err) {
+        console.error(`[executeProviderAttempt] Network or fetch error for model ${modelName}:`, err);
         return {
           ok: false,
-          status: providerRes.status,
-          message: providerError.message,
-          reason: providerError.reason,
+          status: 502,
+          message: err.message || 'Fetch failed',
+          reason: 'FETCH_ERROR',
         };
       }
-
-      return {
-        ok: true,
-        status: providerRes.status,
-        data: await providerRes.json(),
-      };
     };
 
     let attempt = null;
@@ -2569,10 +2765,55 @@ app.post('/api/chat', async (req, res) => {
         break;
       }
       attempt = currentAttempt;
-      const canRetryByModel =
+      const canRetryByModel = isNineRouter ||
         (currentAttempt.status === 404 && isGeminiModelNotFoundError(currentAttempt.message))
         || (currentAttempt.status === 400 && isGeminiModelCompatibilityError(currentAttempt.message));
       if (!canRetryByModel) break;
+    }
+
+    // Fallback to Google Gemini if 9Router failed completely
+    if (!attempt?.ok && isNineRouter) {
+      const geminiApiKey = process.env.GEMINI_API_KEY || config.gemini_api_key;
+      if (geminiApiKey) {
+        console.warn(`[9Router] All attempts failed. Automatically falling back to Google Gemini...`);
+        const geminiEndpoint = process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || GEMINI_API_ENDPOINT;
+        const geminiModel = config.gemini_model || GEMINI_SAFE_FALLBACK_MODEL;
+        
+        const payload = {
+          model: geminiModel,
+          messages: normalizedMessages,
+          stream: false,
+          temperature,
+          max_tokens: max_tokens ? Math.min(Number(max_tokens), 8192) : 8192
+        };
+        
+        try {
+          const geminiRes = await fetch(`${geminiEndpoint}/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${geminiApiKey}`,
+              'x-goog-api-key': geminiApiKey,
+            },
+            body: JSON.stringify(payload)
+          });
+          
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            attempt = {
+              ok: true,
+              status: 200,
+              data: geminiData
+            };
+            finalModel = `${geminiModel} (Gemini Fallback)`;
+            attemptedModels.push(finalModel);
+          } else {
+            console.error(`[Gemini Fallback] Failed with status ${geminiRes.status}`);
+          }
+        } catch (geminiErr) {
+          console.error(`[Gemini Fallback] Connection failed: ${geminiErr.message}`);
+        }
+      }
     }
 
     if (!attempt?.ok) {
