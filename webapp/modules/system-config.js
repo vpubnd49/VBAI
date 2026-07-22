@@ -9,6 +9,7 @@ const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const DEFAULT_BACKEND_BASE = '/api';
 const ALLOWED_BACKEND_HOSTS = new Set([
   'vbai.tracuu.lamdong.vn',
+  'vbai.tracuu.lamdong.gov.vn',
   'localhost',
   '127.0.0.1',
 ]);

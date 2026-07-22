@@ -38,3 +38,10 @@ bosung/
 Skill_The_Thuc_VB_Dang_HD05/test_hd05.js
 Skill_The_Thuc_VB_Dang_HD05/test_qc_output.docx
 
+# Temp deployment files
+temp_deploy/
+vbai_deploy.zip
+*.zip
+*.rar
+*.tar.gz
+

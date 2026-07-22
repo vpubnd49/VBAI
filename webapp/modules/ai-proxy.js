@@ -9,6 +9,7 @@ const DEFAULT_TRANSCRIBE_CHUNK_BYTES = 10 * 1024 * 1024; // 10MB (an toàn với
 let lastWebSearchMeta = null;
 const ALLOWED_BACKEND_HOSTS = new Set([
   'vbai.tracuu.lamdong.vn',
+  'vbai.tracuu.lamdong.gov.vn',
   'localhost',
   '127.0.0.1',
 ]);
