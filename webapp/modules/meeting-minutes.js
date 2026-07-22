@@ -31,6 +31,7 @@ async function ensureSystemConfig() {
 }
 
 const GEMINI_MEETING_MODEL_FALLBACK_ORDER = [
+  "gemini-3.5-flash-lite",
   "gemini-2.5-flash",
   "gemini-2.5-pro",
   "gemini-2.0-flash-exp",
@@ -843,7 +844,7 @@ async function reanalyzeTranscript() {
   const isNineRouter = config?.active_chat_provider === '9router' || config?.active_provider === '9router';
   const strictModel = isNineRouter
     ? (config?.nine_router_model || 'DevGOVietnam-Frontier')
-    : (config?.gemini_model || 'gemini-2.5-flash');
+    : (config?.gemini_model || 'gemini-3.5-flash-lite');
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {
   "chu_tri": "...",

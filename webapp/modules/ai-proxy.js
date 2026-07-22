@@ -1,6 +1,6 @@
 import { fetchSystemConfig, getCachedSystemConfig } from './system-config.js';
 
-const DEFAULT_PROXY_MODEL = 'gemini-2.5-flash';
+const DEFAULT_PROXY_MODEL = 'gemini-3.5-flash-lite';
 const DEFAULT_BACKEND_BASE = '/api';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
@@ -186,9 +186,9 @@ async function backendFetch(path, { method = 'GET', headers = {}, body, timeoutM
 async function getSystemConfigSafe() {
   const config = await fetchSystemConfig() || getCachedSystemConfig() || {
     active_provider: 'gemini',
-    gemini_model: 'gemini-2.5-flash',
+    gemini_model: 'gemini-3.5-flash-lite',
     gemini_endpoint: DEFAULT_GEMINI_ENDPOINT,
-    transcribe_model: 'gemini-2.5-flash',
+    transcribe_model: 'gemini-3.5-flash-lite',
     has_gemini_key: false,
   };
   
@@ -479,7 +479,7 @@ export async function getProxyModelIds(context = 'default') {
     config.gemini_model,
     config.transcribe_model,
     DEFAULT_PROXY_MODEL,
-    'gemini-2.5-flash',
+    'gemini-3.5-flash-lite',
   ].filter(Boolean);
   return Array.from(new Set(models.map((x) => String(x).trim()).filter(Boolean)));
 }

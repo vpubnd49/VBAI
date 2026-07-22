@@ -41,8 +41,8 @@ async function main() {
   const vertexDataStoreId = getEnv('VERTEX_DATA_STORE_ID');
   const vertexServingConfig = getEnv('VERTEX_SERVING_CONFIG');
 
-  const geminiModel = getEnv('GEMINI_MODEL', 'gemini-2.5-flash');
-  const transcribeModel = getEnv('TRANSCRIBE_MODEL', 'gemini-2.5-flash');
+  const geminiModel = getEnv('GEMINI_MODEL', 'gemini-3.5-flash-lite');
+  const transcribeModel = getEnv('TRANSCRIBE_MODEL', 'gemini-3.5-flash-lite');
   const webSearchMode = getEnv('WEB_SEARCH_MODE', 'cse_fast');
 
   if (webSearchProvider === 'vertex_search') {

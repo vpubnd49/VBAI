@@ -66,13 +66,13 @@ export function renderAdminPanel(container) {
               </div>
               <div class="form-group">
                 <label class="form-label">Model mặc định (Gemini)</label>
-                <input type="text" id="gemini_model" class="form-input" placeholder="gemini-2.0-flash-lite">
+                <input type="text" id="gemini_model" class="form-input" placeholder="gemini-3.5-flash-lite">
                 <small id="gemini-runtime-warning" class="config-hint" style="display:none; color:#fbbf24;"></small>
               </div>
               <div class="form-group">
                 <label class="form-label">Danh sách Model Gemini</label>
                 <div class="config-inline-row">
-                  <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập model (VD: gemini-2.0-flash-lite)">
+                  <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập model (VD: gemini-3.5-flash-lite)">
                   <button type="button" id="add-gemini-model-btn" class="btn btn-primary btn-sm config-inline-add-btn">+ Thêm</button>
                 </div>
                 <div id="gemini-models-list" class="config-chip-list"></div>
@@ -570,7 +570,7 @@ async function initSystemConfigPanel(container) {
     const useProLikeModel = normalized.includes('pro');
     if (hasGeminiKey && useProLikeModel) {
       geminiRuntimeWarning.style.display = 'block';
-      geminiRuntimeWarning.textContent = 'Lưu ý: model Pro có thể bị 404 theo quyền dự án. Runtime sẽ tự fallback 1 lần sang gemini-2.5-flash để tránh gián đoạn.';
+      geminiRuntimeWarning.textContent = 'Lưu ý: model Pro có thể bị 404 theo quyền dự án. Runtime sẽ tự fallback 1 lần sang gemini-3.5-flash-lite để tránh gián đoạn.';
       return;
     }
     geminiRuntimeWarning.style.display = 'none';
@@ -617,7 +617,7 @@ async function initSystemConfigPanel(container) {
         apiKey: keyInput?.value?.trim() || '',
         gemini_endpoint: endpointInput?.value?.trim() || '',
         useStoredKey,
-        model: modelInput?.value?.trim() || (isGemini ? 'gemini-2.5-flash' : 'DevGOVietnam-Elite'),
+        model: modelInput?.value?.trim() || (isGemini ? 'gemini-3.5-flash-lite' : 'DevGOVietnam-Elite'),
       };
       const result = await validateGeminiApiKey(payload);
       if (result?.valid !== true) {
@@ -655,7 +655,7 @@ async function initSystemConfigPanel(container) {
       setSelectedRadio('active_chat_provider', activeChatProvider);
 
       // Load Gemini
-      geminiModelInput.value = config.gemini_model || 'gemini-2.0-flash-lite';
+      geminiModelInput.value = config.gemini_model || 'gemini-3.5-flash-lite';
       geminiEndpointInput.value = config.gemini_endpoint || '';
       geminiKeyInput.value = config.gemini_api_key || '';
       geminiKeyInput.type = 'password';

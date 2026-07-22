@@ -6,22 +6,22 @@
 // VBAI Main Entry - Last Update: 2026-05-20 (Performance Optimized)
 import { firebaseConfig } from './firebase-config.js';
 
-const GLOBAL_AI_MODEL = 'gemini-2.5-flash';
-const GLOBAL_MEETING_MODEL = 'gemini-2.5-flash';
-const GLOBAL_TRANSCRIBE_MODEL = 'gemini-2.5-flash';
+const GLOBAL_AI_MODEL = 'gemini-3.5-flash-lite';
+const GLOBAL_MEETING_MODEL = 'gemini-3.5-flash-lite';
+const GLOBAL_TRANSCRIBE_MODEL = 'gemini-3.5-flash-lite';
 
 function applyGlobalModelDefaults() {
   const currentSaved = localStorage.getItem('vbai_gemini_model');
-  if (!currentSaved || currentSaved === 'gemini-2.5-pro') {
+  if (!currentSaved || currentSaved === 'gemini-2.5-pro' || currentSaved === 'gemini-2.5-flash') {
     localStorage.setItem('vbai_gemini_model', GLOBAL_AI_MODEL);
   }
-  if (!localStorage.getItem('vbai_gemini_model_meeting')) {
+  if (!localStorage.getItem('vbai_gemini_model_meeting') || localStorage.getItem('vbai_gemini_model_meeting') === 'gemini-2.5-flash') {
     localStorage.setItem('vbai_gemini_model_meeting', GLOBAL_MEETING_MODEL);
   }
-  if (!localStorage.getItem('vbai_transcribe_model')) {
+  if (!localStorage.getItem('vbai_transcribe_model') || localStorage.getItem('vbai_transcribe_model') === 'gemini-2.5-flash') {
     localStorage.setItem('vbai_transcribe_model', GLOBAL_TRANSCRIBE_MODEL);
   }
-  if (!localStorage.getItem('vbai_transcribe_model_meeting')) {
+  if (!localStorage.getItem('vbai_transcribe_model_meeting') || localStorage.getItem('vbai_transcribe_model_meeting') === 'gemini-2.5-flash') {
     localStorage.setItem('vbai_transcribe_model_meeting', GLOBAL_MEETING_MODEL);
   }
 }

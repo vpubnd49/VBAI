@@ -95,7 +95,7 @@ async function handleImage(file, container) {
 
     const config = await fetchSystemConfig();
     const model = (
-      config?.gemini_model || 'gemini-2.5-flash'
+      config?.gemini_model || 'gemini-3.5-flash-lite'
     );
 
     const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr', provider: 'gemini' });
@@ -237,7 +237,7 @@ async function runPdfOcr(pdf, file, textContentArea, ocrBtn, container) {
 
     const config = await fetchSystemConfig();
     const model = (
-      config?.gemini_model || 'gemini-2.5-flash'
+      config?.gemini_model || 'gemini-3.5-flash-lite'
     );
     const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr', provider: 'gemini' });
     const finalText = ocrText || "Không quét được nội dung.";

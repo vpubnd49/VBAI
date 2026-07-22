@@ -106,8 +106,9 @@ const WEB_SEARCH_RESULT_CACHE = new Map();
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
 const GEMINI_API_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
-const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-2.5-flash';
+const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 const GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS = Object.freeze([
+  'gemini-3.5-flash-lite',
   'gemini-2.5-flash',
   'gemini-2.0-flash-exp',
   'gemini-2.0-flash',
@@ -1660,7 +1661,7 @@ async function executeVertexGeminiChat({ modelName, normalizedMessages, temperat
   if (modelName.startsWith('models/')) {
     vertexModel = modelName.replace('models/', '');
   }
-  if (vertexModel === 'gemini-2.0-flash-lite') {
+  if (vertexModel === 'gemini-2.0-flash-lite' || vertexModel === 'gemini-3.5-flash-lite') {
     vertexModel = 'gemini-2.5-flash';
   }
   
@@ -1806,7 +1807,7 @@ async function executeVertexNativeAudioTranscription({
     if (modelName.startsWith('models/')) {
       vertexModel = modelName.replace('models/', '');
     }
-    if (vertexModel === 'gemini-2.0-flash-lite') {
+    if (vertexModel === 'gemini-2.0-flash-lite' || vertexModel === 'gemini-3.5-flash-lite') {
       vertexModel = 'gemini-2.5-flash';
     }
     
@@ -2315,7 +2316,7 @@ app.get('/api/system-config-summary', async (req, res) => {
     res.json({
       active_provider: data.active_chat_provider || 'gemini',
       active_chat_provider: data.active_chat_provider || 'gemini',
-      gemini_model: data.gemini_model || 'gemini-2.5-flash',
+      gemini_model: data.gemini_model || 'gemini-3.5-flash-lite',
       gemini_endpoint: data.gemini_endpoint || GEMINI_API_ENDPOINT,
       google_search_configured: cseConfigured,
       vertex_search_configured: vertexConfigured,
@@ -2328,7 +2329,7 @@ app.get('/api/system-config-summary', async (req, res) => {
       vertex_location: requesterIsAdmin ? (data.vertex_location || DEFAULT_VERTEX_LOCATION) : '',
       vertex_data_store_id: requesterIsAdmin ? (data.vertex_data_store_id || '') : '',
       vertex_serving_config: requesterIsAdmin ? (data.vertex_serving_config || '') : '',
-      transcribe_model: data.transcribe_model || data.gemini_model || 'gemini-2.5-flash',
+      transcribe_model: data.transcribe_model || data.gemini_model || 'gemini-3.5-flash-lite',
       gemini_models: Array.isArray(data.gemini_models) ? data.gemini_models : [],
       
       // 9Router fields
@@ -2385,7 +2386,7 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
         endpointToValidate = 'https://9router.tools.devgovietnam.io.vn/v1';
       }
     } else {
-      model = String(req.body?.model || config.gemini_model || 'gemini-2.5-flash').trim();
+      model = String(req.body?.model || config.gemini_model || 'gemini-3.5-flash-lite').trim();
       keyToValidate = rawKey || (useStoredKey ? String(process.env.GEMINI_API_KEY || config.gemini_api_key || '').trim() : '');
       endpointToValidate = rawEndpoint || (useStoredKey ? String(process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || '').trim() : '');
       if (!endpointToValidate) {
@@ -2588,9 +2589,9 @@ app.post('/api/admin/system-config', async (req, res) => {
     const updateData = {
       active_provider: active_chat_provider || 'gemini',
       active_chat_provider: active_chat_provider || 'gemini',
-      gemini_model: gemini_model || 'gemini-2.5-flash',
+      gemini_model: gemini_model || 'gemini-3.5-flash-lite',
       nine_router_model: nine_router_model || 'DevGOVietnam-Elite',
-      transcribe_model: transcribe_model || 'gemini-2.5-flash',
+      transcribe_model: transcribe_model || 'gemini-3.5-flash-lite',
       web_search_provider: sanitizeWebSearchProvider(web_search_provider),
       web_search_mode: sanitizeWebSearchMode(web_search_mode),
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
@@ -2910,7 +2911,7 @@ app.post('/api/chat', async (req, res) => {
       ? config.nine_router_api_key
       : (process.env.GEMINI_API_KEY || config.gemini_api_key);
 
-    const effectiveModel = model || (isNineRouter ? (config.nine_router_model || 'DevGOVietnam-Elite') : (config.gemini_model || 'gemini-2.5-flash'));
+    const effectiveModel = model || (isNineRouter ? (config.nine_router_model || 'DevGOVietnam-Elite') : (config.gemini_model || 'gemini-3.5-flash-lite'));
 
     const userMessage = Array.isArray(normalizedMessages)
       ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
@@ -2934,7 +2935,7 @@ app.post('/api/chat', async (req, res) => {
 
     const defaultModel = isNineRouter
       ? (config.nine_router_model || 'DevGOVietnam-Elite')
-      : (config.gemini_model || 'gemini-2.5-flash');
+      : (config.gemini_model || 'gemini-3.5-flash-lite');
 
     const primaryModel = normalizeModelInput(effectiveModel) || defaultModel;
     
@@ -3264,7 +3265,7 @@ app.post('/api/transcribe', (req, res, next) => {
 
     const endpoint = GEMINI_API_ENDPOINT;
     const apiKey = process.env.GEMINI_API_KEY || config.gemini_api_key;
-    const effectiveModel = normalizeModelInput(model || config.transcribe_model || config.gemini_model || 'gemini-2.5-flash');
+    const effectiveModel = normalizeModelInput(model || config.transcribe_model || config.gemini_model || 'gemini-3.5-flash-lite');
 
     if (!apiKey) {
       console.warn('[Transcribe] API key is missing. Proceeding via Vertex AI fallback path.');

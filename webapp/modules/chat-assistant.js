@@ -23,8 +23,8 @@ import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tie
 import { showToast } from './ui-utils.js';
 
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
-const STRICT_MEETING_AUDIO_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
+const STRICT_MEETING_AUDIO_MODEL = 'gemini-3.5-flash-lite';
 const DEFAULT_FALLBACK_SOURCES = {
   vbpl: true,
   chinhphu: true,
@@ -44,7 +44,7 @@ function applyRuntimeSystemConfig(nextConfig = null) {
   const isNineRouter = systemConfigCache?.active_chat_provider === '9router' || systemConfigCache?.active_provider === '9router';
   const nextModel = isNineRouter
     ? (systemConfigCache?.nine_router_model || 'gpt-4o-mini')
-    : (systemConfigCache?.gemini_model || 'gemini-2.5-flash');
+    : (systemConfigCache?.gemini_model || 'gemini-3.5-flash-lite');
   currentModelName = normalizeModelName(nextModel) || DEFAULT_MODEL;
 }
 
@@ -325,7 +325,7 @@ async function processAttachedFile(file, statusCallback) {
       
       statusCallback('Đang nhận diện ký tự bằng AI...');
       const config = await fetchSystemConfig();
-      const model = config?.gemini_model || 'gemini-2.5-flash';
+      const model = config?.gemini_model || 'gemini-3.5-flash-lite';
       const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr', provider: 'gemini' });
       if (!ocrText) throw new Error('Không thể nhận diện được nội dung chữ từ file quét scan.');
       fullText = ocrText;
@@ -2967,8 +2967,8 @@ export async function sendMessage(text, onChunk) {
 export async function renderChatUI(container) {
   const fallbackConfig = {
     active_provider: 'gemini',
-    gemini_model: 'gemini-2.5-flash',
-    transcribe_model: 'gemini-2.5-flash',
+    gemini_model: 'gemini-3.5-flash-lite',
+    transcribe_model: 'gemini-3.5-flash-lite',
     has_gemini_key: false,
     web_search_provider: 'vertex_search',
     web_search_mode: 'cse_with_fallback',
@@ -2977,7 +2977,7 @@ export async function renderChatUI(container) {
 
   const isAdmin = isCurrentUserAdmin();
   const configSnapshot = { ...fallbackConfig, ...(systemConfigCache || {}) };
-  const savedModel = normalizeModelName(configSnapshot.gemini_model || 'gemini-2.5-flash') || 'gemini-2.5-flash';
+  const savedModel = normalizeModelName(configSnapshot.gemini_model || 'gemini-3.5-flash-lite') || 'gemini-3.5-flash-lite';
 
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -3257,7 +3257,7 @@ export async function renderChatUI(container) {
     const geminiKeyStatus = container.querySelector('#modal-gemini-key-status');
     const geminiRuntimeWarning = container.querySelector('#modal-gemini-runtime-warning');
 
-    if (geminiModelInput) geminiModelInput.value = live.gemini_model || 'gemini-2.5-flash';
+    if (geminiModelInput) geminiModelInput.value = live.gemini_model || 'gemini-3.5-flash-lite';
     if (geminiKeyInput) {
       geminiKeyInput.value = live.gemini_api_key || '';
       geminiKeyInput.type = 'password';
@@ -3274,7 +3274,7 @@ export async function renderChatUI(container) {
       const useProLikeModel = normalizedModel.includes('pro');
       if (live.has_gemini_key && useProLikeModel) {
         geminiRuntimeWarning.style.display = 'block';
-        geminiRuntimeWarning.textContent = "Model Pro c\u00f3 th\u1ec3 b\u1ecb 404 theo quy\u1ec1n d\u1ef1 \u00e1n. H\u1ec7 th\u1ed1ng s\u1ebd t\u1ef1 fallback 1 l\u1ea7n sang gemini-2.5-flash khi c\u1ea7n.";
+        geminiRuntimeWarning.textContent = "Model Pro c\u00f3 th\u1ec3 b\u1ecb 404 theo quy\u1ec1n d\u1ef1 \u00e1n. H\u1ec7 th\u1ed1ng s\u1ebd t\u1ef1 fallback 1 l\u1ea7n sang gemini-3.5-flash-lite khi c\u1ea7n.";
       } else {
         geminiRuntimeWarning.style.display = 'none';
         geminiRuntimeWarning.textContent = '';
@@ -3340,7 +3340,7 @@ export async function renderChatUI(container) {
         const result = await validateGeminiApiKey({
           apiKey: modalGeminiKey?.value?.trim() || '',
           useStoredKey,
-          model: modalGeminiModelInput?.value?.trim() || 'gemini-2.5-flash',
+          model: modalGeminiModelInput?.value?.trim() || 'gemini-3.5-flash-lite',
         });
         if (result?.valid !== true) {
           throw new Error(result?.message || 'Xác nhận key thất bại.');
@@ -3378,7 +3378,7 @@ export async function renderChatUI(container) {
 
         try {
           const configUpdate = {
-            active_provider: 'gemini',            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-2.5-flash',
+            active_provider: 'gemini',            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-3.5-flash-lite',
             web_search_provider: 'vertex_search',
             web_search_mode: getRadioValue('modal_web_search_mode', 'cse_with_fallback'),
             web_search_fallback_sources: collectFallbackCheckboxes(),
@@ -3404,8 +3404,8 @@ export async function renderChatUI(container) {
           currentModelName = normalizeModelName(
             isNineRouter
               ? (systemConfigCache?.nine_router_model || 'gpt-4o-mini')
-              : (systemConfigCache?.gemini_model || 'gemini-2.5-flash')
-          ) || 'gemini-2.5-flash';
+              : (systemConfigCache?.gemini_model || 'gemini-3.5-flash-lite')
+          ) || 'gemini-3.5-flash-lite';
 
           modalStatus.textContent = '\u2705 \u0110\u00e3 l\u01b0u v\u00e0 \u00e1p d\u1ee5ng ngay!';
           modalStatus.style.color = '#16a34a';

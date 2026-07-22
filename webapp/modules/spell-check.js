@@ -145,7 +145,7 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
   const isNineRouter = config?.active_chat_provider === '9router' || config?.active_provider === '9router';
   const modelName = isNineRouter
     ? (config?.nine_router_model || 'DevGOVietnam-Frontier')
-    : (config?.gemini_model || 'gemini-2.5-flash');
+    : (config?.gemini_model || 'gemini-3.5-flash-lite');
 
   // 2. Batching paragraphs — batch lớn hơn để tối ưu số lần gọi API
   const validParas = paragraphs.filter(p => p.text.trim().length > 10);
