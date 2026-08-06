@@ -2474,7 +2474,7 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
       message: 'Gemini API key hợp lệ.',
       meta: {
         provider_status: 200,
-        model: finalValidatedModel,
+        model,
       }
     });
   } catch (err) {
@@ -2972,25 +2972,30 @@ app.post('/api/chat', async (req, res) => {
           }
         }
 
+        // If Gemini API call succeeded, return immediately — no Vertex fallback needed
         if (providerRes && providerRes.ok) {
-          console.log(`[executeProviderAttempt] API key call failed or skipped (status: ${providerRes?.status || 'no_response'}). Falling back to Vertex AI for model ${modelName}...`);
-          try {
-            const vertexAttempt = await executeVertexGeminiChat({
-              modelName,
-              normalizedMessages,
-              temperature,
-              max_tokens
-            });
-            if (vertexAttempt.ok) {
-              return vertexAttempt;
-            }
-            console.error(`[executeProviderAttempt] Vertex AI fallback failed with status ${vertexAttempt.status}:`, vertexAttempt.message);
-          } catch (vertexErr) {
-            console.error(`[executeProviderAttempt] Vertex AI fallback error:`, vertexErr.message);
-          }
+          const data = await providerRes.json();
+          return { ok: true, status: 200, data };
         }
 
-        // Return error details
+        // Gemini API failed or was skipped — try Vertex AI fallback
+        console.log(`[executeProviderAttempt] API key call failed or skipped (status: ${providerRes?.status || 'no_response'}). Falling back to Vertex AI for model ${modelName}...`);
+        try {
+          const vertexAttempt = await executeVertexGeminiChat({
+            modelName,
+            normalizedMessages,
+            temperature,
+            max_tokens
+          });
+          if (vertexAttempt.ok) {
+            return vertexAttempt;
+          }
+          console.error(`[executeProviderAttempt] Vertex AI fallback failed with status ${vertexAttempt.status}:`, vertexAttempt.message);
+        } catch (vertexErr) {
+          console.error(`[executeProviderAttempt] Vertex AI fallback error:`, vertexErr.message);
+        }
+
+        // Both Gemini API and Vertex failed — return error details
         if (providerRes) {
           const providerError = await readProviderError(providerRes);
           return {

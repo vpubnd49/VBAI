@@ -186,7 +186,7 @@ async function backendFetch(path, { method = 'GET', headers = {}, body, timeoutM
 
 async function getSystemConfigSafe() {
   const config = await fetchSystemConfig() || getCachedSystemConfig() || {
-    active_provider: 'gemini',
+    provider: 'gemini',
     gemini_model: 'gemini-3.5-flash-lite',
     gemini_endpoint: DEFAULT_GEMINI_ENDPOINT,
     transcribe_model: 'gemini-3.5-flash-lite',

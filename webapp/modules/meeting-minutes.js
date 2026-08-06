@@ -724,7 +724,7 @@ async function processAudioWithProxy(file, progressEl) {
   await ensureSystemConfig();
   const transcribeContext = 'meeting'; // always use proxy context
   const transcribeRouteLabel = 'Proxy';
-  const provider = systemConfigCache?.active_provider || 'gemini';
+  const provider = 'gemini'; // Gemini-only architecture
 
   // Không chuyển đổi âm thanh sang WAV nữa, giữ định dạng nén nhỏ gọn (m4a, aac, ogg, mp3, webm...)
   // Gemini API chính thức hỗ trợ trực tiếp các định dạng này một cách tối ưu nhất.

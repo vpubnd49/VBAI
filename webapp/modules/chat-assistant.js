@@ -2963,7 +2963,7 @@ export async function sendMessage(text, onChunk) {
 
 export async function renderChatUI(container) {
   const fallbackConfig = {
-    active_provider: 'gemini',
+    provider: 'gemini',
     gemini_model: 'gemini-3.5-flash-lite',
     transcribe_model: 'gemini-3.5-flash-lite',
     has_gemini_key: false,
@@ -3375,7 +3375,7 @@ export async function renderChatUI(container) {
 
         try {
           const configUpdate = {
-            active_provider: 'gemini',            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-3.5-flash-lite',
+            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-3.5-flash-lite',
             web_search_provider: 'vertex_search',
             web_search_mode: getRadioValue('modal_web_search_mode', 'cse_with_fallback'),
             web_search_fallback_sources: collectFallbackCheckboxes(),
