@@ -4,17 +4,19 @@
  * API keys, private keys, service account JSONs, and tokens.
  *
  * Excludes: node_modules, dist, docs/archive, .git, binary files.
- * Allowed Client Config: Firebase Web API Key in webapp/firebase-config.js, proxy/test-client.html, MIGRATION_GUIDE.md.
+ * Allowed Client Config: Firebase Web API Key in webapp/firebase-config.js
+ * and proxy/test-client.html only.
  */
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
-// Approved client-side Firebase Web API Key for browser SDK
-const ALLOWED_CLIENT_FIREBASE_KEY = 'AIzaSyC_abC-4uR72rFd8SXnaHFYY_kJ2R0CFcA';
+// Approved client-side Firebase Web API Key SHA-256 Fingerprint
+const ALLOWED_CLIENT_FIREBASE_KEY_SHA256 = '0eda5850ee4ce249456e7374d0459b2f33ab49fe3d80d9f2502f468cdabaef26';
 const ALLOWED_CLIENT_KEY_FILES = [
   'webapp/firebase-config.js',
   'proxy/test-client.html',
@@ -27,14 +29,18 @@ const EXCLUDED_DIRS = [
   '.git',
 ];
 
+function sha256(value) {
+  return crypto.createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
 const SECRET_PATTERNS = [
   {
     name: 'Google Server API Key (AIzaSy...)',
     regex: /AIzaSy[A-Za-z0-9_\-]{33}/g,
     isAllowed: (filepath, match) => {
       const normPath = filepath.replace(/\\/g, '/');
-      const isAllowedFile = ALLOWED_CLIENT_KEY_FILES.some((f) => normPath.endsWith(f));
-      return isAllowedFile && match === ALLOWED_CLIENT_FIREBASE_KEY;
+      const isAllowedFile = ALLOWED_CLIENT_KEY_FILES.some((allowedPath) => normPath === allowedPath);
+      return isAllowedFile && sha256(match) === ALLOWED_CLIENT_FIREBASE_KEY_SHA256;
     },
   },
   {
