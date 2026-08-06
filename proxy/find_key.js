@@ -10,15 +10,9 @@ async function findKeys() {
 
   for await (const line of rl) {
     if (line.includes('gemini_api_key') || line.includes('google_search_key')) {
-      // Find all matches for keys like AIzaSy... or sk-...
       const match = line.match(/(AIzaSy[A-Za-z0-9\-_]+)/g);
       if (match) {
         console.log('Found potential Google API Keys:', match);
-      }
-      
-      const m9 = line.match(/(sk-[A-Za-z0-9\-]+)/g);
-      if (m9) {
-        console.log('Found potential OpenAI/9Router API Keys:', m9);
       }
     }
   }

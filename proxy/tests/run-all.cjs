@@ -10,6 +10,7 @@ function runStep(name, command, args = []) {
   }
 }
 
+runStep('Unit tests', 'node', ['tests/run-unit-tests.cjs']);
 runStep('Golden legal extract tests', 'node', ['tests/golden-legal-extract.test.cjs']);
 
 if (process.env.VBAI_PROXY_BASE_URL && process.env.VBAI_TEST_ID_TOKEN) {

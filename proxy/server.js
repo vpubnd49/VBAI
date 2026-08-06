@@ -107,12 +107,69 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
 const GEMINI_API_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
 const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
-const GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS = Object.freeze([
+const GEMINI_SAFE_FALLBACK_MODELS = Object.freeze([
   'gemini-3.5-flash-lite',
+  'gemini-3.5-flash',
   'gemini-2.5-flash',
-  'gemini-2.0-flash-exp',
   'gemini-2.0-flash',
+  'gemini-1.5-flash',
 ]);
+const ALLOWED_GEMINI_MODELS = Object.freeze([
+  'gemini-3.5-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-3.5-pro',
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-exp',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+]);
+
+function getAllowedGeminiModels(config = {}) {
+  const customList = Array.isArray(config.gemini_models) ? config.gemini_models : [];
+  const merged = [
+    ...customList,
+    config.gemini_model,
+    config.transcribe_model,
+    ...GEMINI_SAFE_FALLBACK_MODELS,
+    ...ALLOWED_GEMINI_MODELS,
+  ].filter(Boolean).map((m) => String(m).trim());
+
+  const cleanList = merged.filter((m) => {
+    const norm = m.toLowerCase();
+    return !norm.includes('devgovietnam') && !norm.includes('9router') && (norm.includes('gemini') || norm.includes('whisper'));
+  });
+
+  return Array.from(new Set(cleanList));
+}
+
+function isAllowedGeminiModel(model = '', config = {}) {
+  const norm = String(model || '').trim().toLowerCase();
+  if (!norm || norm.includes('devgovietnam') || norm.includes('9router')) return false;
+  const allowlist = getAllowedGeminiModels(config);
+  return allowlist.some((m) => m.toLowerCase() === norm);
+}
+
+function resolveGeminiModel(requestedModel, config = {}, context = 'chat') {
+  const normReq = String(requestedModel || '').trim();
+  if (normReq && isAllowedGeminiModel(normReq, config)) {
+    return normReq;
+  }
+
+  if (context === 'transcription') {
+    const defaultTranscribe = config.transcribe_model || config.gemini_model;
+    if (defaultTranscribe && isAllowedGeminiModel(defaultTranscribe, config)) {
+      return String(defaultTranscribe).trim();
+    }
+  }
+
+  if (config.gemini_model && isAllowedGeminiModel(config.gemini_model, config)) {
+    return String(config.gemini_model).trim();
+  }
+
+  return 'gemini-3.5-flash-lite';
+}
 const LEGAL_MATCH_PASS_SCORE = 70;
 const OFFICIAL_SOURCE_HOSTS = Object.freeze([
   'vbpl.vn',
@@ -1554,7 +1611,7 @@ function sanitizeMessagesForOpenAI(messages = []) {
       return msg.content !== '';
     });
 
-  // Merge consecutive messages with the same role (required by strict APIs like DeepSeek/9Router)
+  // Merge consecutive messages with the same role
   const merged = [];
   for (const msg of mapped) {
     if (merged.length > 0 && merged[merged.length - 1].role === msg.role) {
@@ -1885,9 +1942,9 @@ async function executeGeminiNativeAudioTranscription({
   filename,
   prompt,
 }) {
-  const isKeyInvalid = !apiKey || String(apiKey).startsWith('sk-') || String(apiKey).trim() === '';
+  const isKeyInvalid = !apiKey || String(apiKey).trim() === '';
   if (isKeyInvalid) {
-    console.warn(`[Gemini Transcribe] API key is empty or looks like a 9Router sk- key. Routing immediately to Vertex AI...`);
+    console.warn(`[Gemini Transcribe] API key is empty. Routing immediately to Vertex AI...`);
     return await executeVertexNativeAudioTranscription({
       modelName,
       audioBase64,
@@ -2166,6 +2223,9 @@ const initFirebase = () => {
 
 const app = express();
 
+const webSearchRouter = require('./routes/web-search.routes');
+const webExtractRouter = require('./routes/web-extract.routes');
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
@@ -2174,6 +2234,9 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+app.use('/api', webSearchRouter);
+app.use('/api', webExtractRouter);
 
 // Helper: Verify Firebase ID token from Authorization header
 async function verifyIdToken(req) {
@@ -2312,17 +2375,13 @@ app.get('/api/system-config-summary', async (req, res) => {
     const cseConfigured = !!(data.google_search_key && data.google_search_cx);
     const vertexConfigured = isVertexSearchConfigured(data);
     const activeGeminiKey = process.env.GEMINI_API_KEY || data.gemini_api_key;
-    const activeNineRouterKey = data.nine_router_api_key;
     res.json({
-      active_provider: data.active_chat_provider || 'gemini',
-      active_chat_provider: data.active_chat_provider || 'gemini',
       gemini_model: data.gemini_model || 'gemini-3.5-flash-lite',
       gemini_endpoint: data.gemini_endpoint || GEMINI_API_ENDPOINT,
       google_search_configured: cseConfigured,
       vertex_search_configured: vertexConfigured,
       web_search_configured: cseConfigured || vertexConfigured,
-      has_gemini_key: !!activeGeminiKey,
-      gemini_api_key: requesterIsAdmin ? (activeGeminiKey || '') : '',
+      has_gemini_key: requesterIsAdmin ? !!activeGeminiKey : false,
       google_search_key: requesterIsAdmin ? (data.google_search_key || '') : '',
       google_search_cx: requesterIsAdmin ? (data.google_search_cx || '') : '',
       vertex_project_id: requesterIsAdmin ? (data.vertex_project_id || '') : '',
@@ -2331,13 +2390,6 @@ app.get('/api/system-config-summary', async (req, res) => {
       vertex_serving_config: requesterIsAdmin ? (data.vertex_serving_config || '') : '',
       transcribe_model: data.transcribe_model || data.gemini_model || 'gemini-3.5-flash-lite',
       gemini_models: Array.isArray(data.gemini_models) ? data.gemini_models : [],
-      
-      // 9Router fields
-      nine_router_model: data.nine_router_model || 'DevGOVietnam-Elite',
-      nine_router_endpoint: data.nine_router_endpoint || 'https://9router.tools.devgovietnam.io.vn/v1',
-      nine_router_models: Array.isArray(data.nine_router_models) ? data.nine_router_models : ['DevGOVietnam-Core', 'DevGOVietnam-Elite', 'DevGOVietnam-Frontier'],
-      has_nine_router_key: !!activeNineRouterKey,
-      nine_router_api_key: requesterIsAdmin ? (activeNineRouterKey || '') : '',
       
       web_search_provider: webSearchProvider,
       web_search_mode: webSearchMode,
@@ -2354,7 +2406,7 @@ app.get('/api/system-config-summary', async (req, res) => {
   }
 });
 
-// POST: Admin validate Gemini / 9Router API key (live check)
+// POST: Admin validate Gemini API key (live check)
 app.post('/api/admin/validate-gemini-key', async (req, res) => {
   try {
     initFirebase();
@@ -2364,6 +2416,13 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
     }
 
     const provider = String(req.body?.provider || 'gemini').trim().toLowerCase();
+    if (provider === '9router') {
+      return res.status(400).json({
+        error: 'UNSUPPORTED_AI_PROVIDER',
+        message: 'Hệ thống chỉ hỗ trợ Google Gemini.',
+      });
+    }
+
     const rawKey = String(req.body?.gemini_api_key || '').trim();
     const rawEndpoint = String(req.body?.gemini_endpoint || '').trim();
     const useStoredKey = req.body?.use_stored_key !== false;
@@ -2374,34 +2433,21 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
     }
     const config = snap.data() || {};
     
-    let keyToValidate = '';
-    let endpointToValidate = '';
-    let model = '';
-
-    if (provider === '9router') {
-      model = String(req.body?.model || config.nine_router_model || 'DevGOVietnam-Elite').trim();
-      keyToValidate = rawKey || (useStoredKey ? String(config.nine_router_api_key || '').trim() : '');
-      endpointToValidate = rawEndpoint || (useStoredKey ? String(config.nine_router_endpoint || '').trim() : '');
-      if (!endpointToValidate) {
-        endpointToValidate = 'https://9router.tools.devgovietnam.io.vn/v1';
-      }
-    } else {
-      model = String(req.body?.model || config.gemini_model || 'gemini-3.5-flash-lite').trim();
-      keyToValidate = rawKey || (useStoredKey ? String(process.env.GEMINI_API_KEY || config.gemini_api_key || '').trim() : '');
-      endpointToValidate = rawEndpoint || (useStoredKey ? String(process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || '').trim() : '');
-      if (!endpointToValidate) {
-        endpointToValidate = GEMINI_API_ENDPOINT;
-      }
+    const model = resolveGeminiModel(req.body?.model, config);
+    const keyToValidate = rawKey || (useStoredKey ? String(process.env.GEMINI_API_KEY || config.gemini_api_key || '').trim() : '');
+    let endpointToValidate = rawEndpoint || (useStoredKey ? String(process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || '').trim() : '');
+    if (!endpointToValidate) {
+      endpointToValidate = GEMINI_API_ENDPOINT;
     }
 
     if (!keyToValidate) {
       return res.status(400).json({
         valid: false,
-        message: `Chưa có API key của ${provider === '9router' ? '9Router' : 'Gemini'} để xác nhận.`,
+        message: 'Chưa có Gemini API key để xác nhận.',
       });
     }
 
-    let probe = await executeGeminiCompatChatRequest({
+    const probe = await executeGeminiCompatChatRequest({
       apiKey: keyToValidate,
       endpoint: endpointToValidate,
       modelName: model,
@@ -2410,28 +2456,6 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
       maxTokens: 8,
     });
 
-    let finalValidatedModel = model;
-    if (!probe.ok && provider === '9router') {
-      const fallbackModels = ['DevGOVietnam-Core', 'DevGOVietnam-Elite', 'DevGOVietnam-Frontier'];
-      for (const fallbackModel of fallbackModels) {
-        if (model === fallbackModel) continue;
-        console.info(`[9Router] Key validation for model ${model} failed (${probe.message || probe.status}), retrying with ${fallbackModel}...`);
-        const fallbackProbe = await executeGeminiCompatChatRequest({
-          apiKey: keyToValidate,
-          endpoint: endpointToValidate,
-          modelName: fallbackModel,
-          messages: [{ role: 'user', content: 'ping' }],
-          temperature: 0.1,
-          maxTokens: 8,
-        });
-        if (fallbackProbe.ok) {
-          probe = fallbackProbe;
-          finalValidatedModel = fallbackModel;
-          break;
-        }
-      }
-    }
-
     if (!probe.ok) {
       return res.status(probe.status || 502).json({
         valid: false,
@@ -2439,15 +2463,15 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
         meta: {
           provider_status: probe.status || null,
           provider_error_reason: probe.reason || null,
-          model: finalValidatedModel,
+          model,
         }
       });
     }
 
-    console.info(`[AUDIT] ${provider === '9router' ? '9Router' : 'Gemini'} key validated by admin: ${decoded.email || decoded.uid}`);
+    console.info(`[AUDIT] Gemini key validated by admin: ${decoded.email || decoded.uid}`);
     return res.json({
       valid: true,
-      message: `${provider === '9router' ? '9Router' : 'Gemini'} API key hợp lệ.`,
+      message: 'Gemini API key hợp lệ.',
       meta: {
         provider_status: 200,
         model: finalValidatedModel,
@@ -2557,15 +2581,17 @@ app.post('/api/admin/system-config', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
     }
 
+    if (req.body.active_chat_provider === '9router' || req.body.active_provider === '9router' || req.body.nine_router_api_key || req.body.nine_router_endpoint || req.body.nine_router_model) {
+      return res.status(400).json({
+        error: 'LEGACY_AI_CONFIG_NOT_SUPPORTED',
+        message: 'Cấu hình nhà cung cấp AI cũ không còn được hỗ trợ.',
+      });
+    }
+
     const {
-      active_chat_provider,
       gemini_api_key,
       gemini_endpoint,
       gemini_model,
-      nine_router_api_key,
-      nine_router_endpoint,
-      nine_router_model,
-      nine_router_models,
       web_search_provider,
       google_search_key,
       google_search_cx,
@@ -2587,15 +2613,18 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     const updateData = {
-      active_provider: active_chat_provider || 'gemini',
-      active_chat_provider: active_chat_provider || 'gemini',
-      gemini_model: gemini_model || 'gemini-3.5-flash-lite',
-      nine_router_model: nine_router_model || 'DevGOVietnam-Elite',
-      transcribe_model: transcribe_model || 'gemini-3.5-flash-lite',
+      gemini_model: resolveGeminiModel(gemini_model),
+      transcribe_model: transcribe_model || gemini_model || 'gemini-3.5-flash-lite',
       web_search_provider: sanitizeWebSearchProvider(web_search_provider),
       web_search_mode: sanitizeWebSearchMode(web_search_mode),
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
       updated_by: decoded.email || decoded.uid,
+      active_provider: admin.firestore.FieldValue.delete(),
+      active_chat_provider: admin.firestore.FieldValue.delete(),
+      nine_router_api_key: admin.firestore.FieldValue.delete(),
+      nine_router_endpoint: admin.firestore.FieldValue.delete(),
+      nine_router_model: admin.firestore.FieldValue.delete(),
+      nine_router_models: admin.firestore.FieldValue.delete(),
       openai_api_key: admin.firestore.FieldValue.delete(),
       openai_endpoint: admin.firestore.FieldValue.delete(),
       openai_models: admin.firestore.FieldValue.delete(),
@@ -2609,19 +2638,9 @@ app.post('/api/admin/system-config', async (req, res) => {
         : admin.firestore.FieldValue.delete();
     }
 
-    if (nine_router_endpoint !== undefined) {
-      const val = String(nine_router_endpoint || '').trim();
-      updateData.nine_router_endpoint = val
-        ? val
-        : admin.firestore.FieldValue.delete();
-    }
-
     // Only update keys if provided (non-empty)
     if (gemini_api_key && gemini_api_key.trim()) {
       updateData.gemini_api_key = gemini_api_key.trim();
-    }
-    if (nine_router_api_key && nine_router_api_key.trim()) {
-      updateData.nine_router_api_key = nine_router_api_key.trim();
     }
 
     if (google_search_key !== undefined) {
@@ -2661,9 +2680,6 @@ app.post('/api/admin/system-config', async (req, res) => {
     // Update model lists (always overwrite)
     if (Array.isArray(gemini_models)) {
       updateData.gemini_models = gemini_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim());
-    }
-    if (Array.isArray(nine_router_models)) {
-      updateData.nine_router_models = nine_router_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim());
     }
     if (web_search_fallback_sources && typeof web_search_fallback_sources === 'object' && !Array.isArray(web_search_fallback_sources)) {
       updateData.web_search_fallback_sources = sanitizeFallbackSources(web_search_fallback_sources);
@@ -2846,7 +2862,7 @@ app.post('/api/admin/update-user', async (req, res) => {
     return res.json({ success: true, message: 'User updated successfully' });
   } catch (err) {
     console.error('POST /api/admin/update-user error:', err);
-    return res.status(500).json({ error: 'Internal server error', message: err.message });
+    res.status(500).json({ error: 'Internal server error', message: err.message });
   }
 });
 
@@ -2870,48 +2886,19 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'messages or contents array required' });
     }
 
-    // Verify input size limit (capped at 2,000,000 characters)
-    let totalInputLength = 0;
-    let hasImage = false;
-    if (Array.isArray(normalizedMessages)) {
-      for (const msg of normalizedMessages) {
-        if (msg && typeof msg.content === 'string') {
-          totalInputLength += msg.content.length;
-        } else if (msg && Array.isArray(msg.content)) {
-          for (const part of msg.content) {
-            if (part && (part.type === 'image_url' || part.image_url)) {
-              hasImage = true;
-            }
-            if (part && typeof part.text === 'string') {
-              totalInputLength += part.text.length;
-            }
-          }
-        }
-      }
-    }
-    if (totalInputLength > 2000000) {
+    if (provider === '9router') {
       return res.status(400).json({
-        error: 'Payload Too Large',
-        message: `Yêu cầu quá dài (${totalInputLength} ký tự). Vui lòng giới hạn nội dung câu hỏi dưới 2,000,000 ký tự.`
+        error: 'UNSUPPORTED_AI_PROVIDER',
+        message: 'Hệ thống chỉ hỗ trợ Google Gemini.',
       });
     }
 
     // Fetch system config (từ cache để giảm độ trễ phản hồi)
     const config = await getCachedSystemConfig();
 
-    // Auto-force Gemini for multimodal requests to ensure reliable image/PDF OCR processing.
-    const activeProvider = provider || (hasImage ? 'gemini' : (config.active_chat_provider || 'gemini'));
-    const isNineRouter = activeProvider === '9router';
-
-    const endpoint = isNineRouter
-      ? (config.nine_router_endpoint || 'https://9router.tools.devgovietnam.io.vn/v1')
-      : (process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || GEMINI_API_ENDPOINT);
-
-    const apiKey = isNineRouter
-      ? config.nine_router_api_key
-      : (process.env.GEMINI_API_KEY || config.gemini_api_key);
-
-    const effectiveModel = model || (isNineRouter ? (config.nine_router_model || 'DevGOVietnam-Elite') : (config.gemini_model || 'gemini-3.5-flash-lite'));
+    const endpoint = process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || GEMINI_API_ENDPOINT;
+    const apiKey = process.env.GEMINI_API_KEY || config.gemini_api_key;
+    const effectiveModel = resolveGeminiModel(model, config);
 
     const userMessage = Array.isArray(normalizedMessages)
       ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
@@ -2919,45 +2906,26 @@ app.post('/api/chat', async (req, res) => {
     console.log('USER QUERY:', userMessage);
     console.log('NORMALIZED:', {
       route: '/api/chat',
-      provider: activeProvider,
+      provider: 'gemini',
       model: effectiveModel,
       message_count: Array.isArray(normalizedMessages) ? normalizedMessages.length : 0,
       stream: stream === true,
-      note: 'No backend tool loop in /api/chat; web search runs via /api/web-search before chat synthesis.',
+      note: 'Gemini-only architecture. Web search runs via /api/web-search before chat synthesis.',
     });
-    console.log('TOOL CALLED:', null);
-    console.log('TOOL INPUT:', null);
-    console.log('TOOL RESULT:', null);
 
     if (!apiKey) {
-      return res.status(503).json({ error: 'API key missing', message: 'Please contact administrator to configure AI provider key.' });
+      return res.status(503).json({ error: 'API key missing', message: 'Please contact administrator to configure Gemini API key.' });
     }
 
-    const defaultModel = isNineRouter
-      ? (config.nine_router_model || 'DevGOVietnam-Elite')
-      : (config.gemini_model || 'gemini-3.5-flash-lite');
-
-    const primaryModel = normalizeModelInput(effectiveModel) || defaultModel;
-    
-    let candidateModels = [];
-    if (isNineRouter) {
-      candidateModels = dedupeModelNames([
-        primaryModel,
-        defaultModel,
-        'DevGOVietnam-Core',
-        'DevGOVietnam-Elite',
-        'DevGOVietnam-Frontier',
-        'om/oc/deepseek-v4-flash-free'
-      ]);
-    } else {
-      const retryModel = pickGeminiRetryModel(primaryModel, defaultModel);
-      candidateModels = dedupeModelNames([
-        primaryModel,
-        retryModel,
-        defaultModel,
-        GEMINI_SAFE_FALLBACK_MODEL,
-      ]);
-    }
+    const defaultModel = config.gemini_model || 'gemini-3.5-flash-lite';
+    const primaryModel = resolveGeminiModel(effectiveModel, config);
+    const retryModel = pickGeminiRetryModel(primaryModel, defaultModel);
+    const candidateModels = dedupeModelNames([
+      primaryModel,
+      retryModel,
+      defaultModel,
+      GEMINI_SAFE_FALLBACK_MODEL,
+    ]);
     const attemptedModels = [];
 
     const executeProviderAttempt = async (modelName) => {
@@ -2968,22 +2936,12 @@ app.post('/api/chat', async (req, res) => {
         const payload = {
           model: modelName,
           messages: normalizedMessages,
-          stream: false, // TODO: implement streaming if needed
+          stream: false,
           temperature,
           max_tokens: max_tokens ? Math.min(Number(max_tokens), 8192) : 8192
         };
 
-        // Some reasoning-like models may reject temperature/max_tokens combo.
-        const m = String(modelName || '').toLowerCase();
-        if (m.includes('o1') || m.includes('o3')) {
-          delete payload.temperature;
-          if (payload.max_tokens) {
-            payload.max_completion_tokens = payload.max_tokens;
-            delete payload.max_tokens;
-          }
-        }
-
-        // Try standard endpoint if key is present
+        // Standard Gemini API call
         if (apiKey) {
           try {
             providerRes = await fetch(`${endpoint}/chat/completions`, {
@@ -2996,7 +2954,6 @@ app.post('/api/chat', async (req, res) => {
               body: JSON.stringify(payload)
             });
 
-            // Retry exactly once on 429 Too Many Requests after 1500ms
             if (providerRes.status === 429) {
               console.warn(`[429] Received TooManyRequests for model ${modelName}. Retrying once after 1500ms...`);
               await new Promise(resolve => setTimeout(resolve, 1500));
@@ -3010,22 +2967,12 @@ app.post('/api/chat', async (req, res) => {
                 body: JSON.stringify(payload)
               });
             }
-          } catch (fetchErr) {
-            console.error(`[executeProviderAttempt] Fetch error on standard API endpoint for model ${modelName}:`, fetchErr.message);
-            attemptErr = fetchErr;
+          } catch (err) {
+            attemptErr = err;
           }
         }
 
         if (providerRes && providerRes.ok) {
-          return {
-            ok: true,
-            status: providerRes.status,
-            data: await providerRes.json(),
-          };
-        }
-
-        // Fall back to Vertex AI if standard API key call failed, and the provider is gemini
-        if (!isNineRouter) {
           console.log(`[executeProviderAttempt] API key call failed or skipped (status: ${providerRes?.status || 'no_response'}). Falling back to Vertex AI for model ${modelName}...`);
           try {
             const vertexAttempt = await executeVertexGeminiChat({
@@ -3082,55 +3029,9 @@ app.post('/api/chat', async (req, res) => {
         break;
       }
       attempt = currentAttempt;
-      const canRetryByModel = isNineRouter ||
-        (currentAttempt.status === 404 && isGeminiModelNotFoundError(currentAttempt.message))
+      const canRetryByModel = (currentAttempt.status === 404 && isGeminiModelNotFoundError(currentAttempt.message))
         || (currentAttempt.status === 400 && isGeminiModelCompatibilityError(currentAttempt.message));
       if (!canRetryByModel) break;
-    }
-
-    // Fallback to Google Gemini if 9Router failed completely
-    if (!attempt?.ok && isNineRouter) {
-      const geminiApiKey = process.env.GEMINI_API_KEY || config.gemini_api_key;
-      if (geminiApiKey) {
-        console.warn(`[9Router] All attempts failed. Automatically falling back to Google Gemini...`);
-        const geminiEndpoint = process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || GEMINI_API_ENDPOINT;
-        const geminiModel = config.gemini_model || GEMINI_SAFE_FALLBACK_MODEL;
-        
-        const payload = {
-          model: geminiModel,
-          messages: normalizedMessages,
-          stream: false,
-          temperature,
-          max_tokens: max_tokens ? Math.min(Number(max_tokens), 8192) : 8192
-        };
-        
-        try {
-          const geminiRes = await fetch(`${geminiEndpoint}/chat/completions`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${geminiApiKey}`,
-              'x-goog-api-key': geminiApiKey,
-            },
-            body: JSON.stringify(payload)
-          });
-          
-          if (geminiRes.ok) {
-            const geminiData = await geminiRes.json();
-            attempt = {
-              ok: true,
-              status: 200,
-              data: geminiData
-            };
-            finalModel = `${geminiModel} (Gemini Fallback)`;
-            attemptedModels.push(finalModel);
-          } else {
-            console.error(`[Gemini Fallback] Failed with status ${geminiRes.status}`);
-          }
-        } catch (geminiErr) {
-          console.error(`[Gemini Fallback] Connection failed: ${geminiErr.message}`);
-        }
-      }
     }
 
     if (!attempt?.ok) {

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "test:unit": "node tests/run-unit-tests.cjs",
     "test:golden": "node tests/golden-legal-extract.test.cjs",
     "test:integration": "node tests/runtime-web-search.integration.cjs",
     "test:canary": "node tests/runtime-web-search.canary.cjs",

@@ -1,11 +1,9 @@
 const fetch = globalThis.fetch.bind(globalThis);
 
 async function testDirect() {
-  const apiKey = 'sk-3b33cfc262a93b47-zcgoy4-31172ff9';
-  
-  // Replace hostname with Cloudflare IPv4 address, set Host header
-  const endpoint = 'https://172.67.181.158/v1';
-  const modelName = 'DevGOVietnam-Elite';
+  const apiKey = process.env.GEMINI_API_KEY || '';
+  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/openai';
+  const modelName = 'gemini-3.5-flash-lite';
   
   const payload = {
     model: modelName,
@@ -16,11 +14,10 @@ async function testDirect() {
   };
 
   try {
-    console.log('Sending direct request to 172.67.181.158...');
+    console.log('Sending direct request to Gemini...');
     const res = await fetch(`${endpoint}/chat/completions`, {
       method: 'POST',
       headers: {
-        'Host': '9router.tools.devgovietnam.io.vn',
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },

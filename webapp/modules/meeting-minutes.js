@@ -841,10 +841,7 @@ async function processAudioWithProxy(file, progressEl) {
 
 async function reanalyzeTranscript() {
   const config = await ensureSystemConfig();
-  const isNineRouter = config?.active_chat_provider === '9router' || config?.active_provider === '9router';
-  const strictModel = isNineRouter
-    ? (config?.nine_router_model || 'DevGOVietnam-Frontier')
-    : (config?.gemini_model || 'gemini-3.5-flash-lite');
+  const strictModel = config?.gemini_model || 'gemini-3.5-flash-lite';
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {
   "chu_tri": "...",

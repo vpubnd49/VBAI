@@ -41,10 +41,7 @@ let systemConfigCache = null;
 function applyRuntimeSystemConfig(nextConfig = null) {
   if (!nextConfig || typeof nextConfig !== 'object') return;
   systemConfigCache = nextConfig;
-  const isNineRouter = systemConfigCache?.active_chat_provider === '9router' || systemConfigCache?.active_provider === '9router';
-  const nextModel = isNineRouter
-    ? (systemConfigCache?.nine_router_model || 'gpt-4o-mini')
-    : (systemConfigCache?.gemini_model || 'gemini-3.5-flash-lite');
+  const nextModel = systemConfigCache?.gemini_model || 'gemini-3.5-flash-lite';
   currentModelName = normalizeModelName(nextModel) || DEFAULT_MODEL;
 }
 
@@ -3400,11 +3397,8 @@ export async function renderChatUI(container) {
           await loadSystemConfig();
           syncModalFromConfig(systemConfigCache);
 
-          const isNineRouter = systemConfigCache?.active_chat_provider === '9router' || systemConfigCache?.active_provider === '9router';
           currentModelName = normalizeModelName(
-            isNineRouter
-              ? (systemConfigCache?.nine_router_model || 'gpt-4o-mini')
-              : (systemConfigCache?.gemini_model || 'gemini-3.5-flash-lite')
+            systemConfigCache?.gemini_model || 'gemini-3.5-flash-lite'
           ) || 'gemini-3.5-flash-lite';
 
           modalStatus.textContent = '\u2705 \u0110\u00e3 l\u01b0u v\u00e0 \u00e1p d\u1ee5ng ngay!';
@@ -3426,11 +3420,8 @@ export async function renderChatUI(container) {
   initChat('', savedModel);
 
   void loadSystemConfig().then(() => {
-    const isNineRouter = systemConfigCache?.active_chat_provider === '9router' || systemConfigCache?.active_provider === '9router';
     const nextModel = normalizeModelName(
-      isNineRouter
-        ? (systemConfigCache?.nine_router_model || savedModel)
-        : (systemConfigCache?.gemini_model || savedModel)
+      systemConfigCache?.gemini_model || savedModel
     ) || savedModel;
     if (nextModel !== currentModelName) {
       currentModelName = nextModel;

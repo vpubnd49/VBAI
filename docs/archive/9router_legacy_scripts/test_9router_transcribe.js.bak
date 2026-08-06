@@ -1,0 +1,5 @@
+/**
+ * ARCHIVED LEGACY FILE: test_9router_transcribe.js
+ * Retained for historical record only in docs/archive/. Not used in runtime.
+ */
+console.log('Archived 9Router transcribe test script.');

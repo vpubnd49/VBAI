@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LegalMetadataSchema",
+  "type": "object",
+  "required": ["documentNumber", "effectiveStatus", "verificationStatus"],
+  "properties": {
+    "documentNumber": { "type": "string" },
+    "title": { "type": ["string", "null"] },
+    "documentType": { "type": ["string", "null"] },
+    "issuer": { "type": ["string", "null"] },
+    "issueDate": { "type": ["string", "null"] },
+    "effectiveDate": { "type": ["string", "null"] },
+    "effectiveStatus": { "type": "string" },
+    "statusAsOf": { "type": ["string", "null"] },
+    "replaces": { "type": "array", "items": { "type": "string" } },
+    "amends": { "type": "array", "items": { "type": "string" } },
+    "supersededBy": { "type": "array", "items": { "type": "string" } },
+    "sourceUrl": { "type": ["string", "null"] },
+    "sourceTier": { "type": "string" },
+    "retrievedAt": { "type": ["string", "null"] },
+    "contentSha256": { "type": ["string", "null"] },
+    "verificationStatus": { "type": "string" },
+    "reviewState": { "type": "string" },
+    "provenance": { "type": "object" }
+  }
+}

@@ -79,44 +79,8 @@ export function renderAdminPanel(container) {
               </div>
             </section>
 
-            <!-- Card 2: 9Router (Gateway) -->
-            <section class="config-section-card config-col-panel">
-              <div class="config-section-title" style="color: #34d399;"><span class="config-section-icon">●</span> Cấu hình 9Router (Gateway)</div>
-              
-              <div class="form-group">
-                <label class="form-label">9Router API Key</label>
-                <div class="config-inline-row">
-                  <input type="password" id="nine_router_api_key" class="form-input config-inline-grow" placeholder="sk-...">
-                  <button type="button" id="toggle-nine-router-key-btn" class="btn btn-secondary btn-sm config-inline-add-btn">Hiện key</button>
-                  <button type="button" id="verify-nine-router-key-btn" class="btn btn-primary btn-sm config-inline-add-btn">Xác nhận key</button>
-                </div>
-                <label class="config-radio-option" style="margin-top:8px">
-                  <input type="checkbox" id="verify-nine-router-on-save" checked> Xác nhận key khi lưu cấu hình
-                </label>
-                <small class="config-hint">Để trống nếu không muốn thay đổi khóa hiện tại</small>
-                <small id="nine-router-key-verify-status" class="config-hint"></small>
-              </div>
-              <div class="form-group">
-                <label class="form-label">9Router API Endpoint (Base URL)</label>
-                <input type="text" id="nine_router_endpoint" class="form-input" placeholder="https://9router.tools.devgovietnam.io.vn/v1">
-                <small class="config-hint">Mặc định: https://9router.tools.devgovietnam.io.vn/v1</small>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Model mặc định (9Router)</label>
-                <input type="text" id="nine_router_model" class="form-input" placeholder="DevGOVietnam-Elite">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Danh sách Model 9Router</label>
-                <div class="config-inline-row">
-                  <input type="text" id="nine_router_model_input" class="form-input config-inline-grow" placeholder="Nhập model (VD: DevGOVietnam-Elite)">
-                  <button type="button" id="add-nine-router-model-btn" class="btn btn-primary btn-sm config-inline-add-btn">+ Thêm</button>
-                </div>
-                <div id="nine-router-models-list" class="config-chip-list"></div>
-              </div>
-            </section>
-
-            <!-- Card 3: Vertex AI Search -->
-            <section class="config-section-card config-col-panel">
+            <!-- Card 2: Vertex AI Search -->
+            <section class="config-section-card config-col-panel config-section-vertex">
               <div class="config-section-title"><span class="config-section-icon">●</span> Vertex AI Search</div>
               <div class="form-group">
                 <label class="form-label">Project ID</label>
@@ -134,30 +98,26 @@ export function renderAdminPanel(container) {
                 <label class="form-label">Serving Config</label>
                 <input type="text" id="vertex_serving_config" class="form-input" placeholder="projects/.../servingConfigs/default_search">
               </div>
-              <div class="form-group" style="margin-top: 15px;">
+              <div class="form-group config-ingest-group">
                 <label class="form-label">Đồng bộ Dữ liệu từ Storage</label>
-                <button type="button" id="trigger-vertex-ingest-btn" class="btn btn-secondary btn-sm" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                <button type="button" id="trigger-vertex-ingest-btn" class="btn btn-secondary btn-sm config-ingest-btn">
                   🔄 Đồng bộ dữ liệu (Ingest)
                 </button>
-                <small id="vertex-ingest-status" class="config-hint" style="margin-top: 4px; display: block;"></small>
+                <small id="vertex-ingest-status" class="config-hint config-block-hint"></small>
               </div>
             </section>
 
-            <!-- Card 4: Cấu hình Chung & Tra cứu Web -->
-            <section class="config-section-card config-col-panel">
-              <div class="config-section-title" style="color: #fbbf24;"><span class="config-section-icon">●</span> Cấu hình Chung & Tra cứu Web</div>
+            <!-- Card 3: Cấu hình Chung & Tra cứu Web -->
+            <section class="config-section-card config-col-panel config-section-search">
+              <div class="config-section-title config-title-gold"><span class="config-section-icon">●</span> Tra cứu Web & Vận hành</div>
               
               <div class="form-group">
-                <label class="form-label">Nhà cung cấp Chat hoạt động</label>
-                <div class="config-radio-row">
-                  <label class="config-radio-option"><input type="radio" name="active_chat_provider" value="gemini"> Google Gemini (Chính thức)</label>
-                  <label class="config-radio-option"><input type="radio" name="active_chat_provider" value="9router"> 9Router (Gateway)</label>
-                </div>
+                <div class="admin-ai-badge">Nền tảng AI: <strong>Google Gemini (Chính thức)</strong></div>
               </div>
               
               <div class="form-group">
                 <label class="form-label">Model transcription</label>
-                <input type="text" id="transcribe_model" class="form-input" placeholder="whisper-1">
+                <input type="text" id="transcribe_model" class="form-input" placeholder="gemini-3.5-flash-lite">
               </div>
 
               <div class="form-group" style="margin-top: 10px;">
@@ -496,15 +456,6 @@ async function initSystemConfigPanel(container) {
   const geminiModelInput = formEl.querySelector('#gemini_model');
   const geminiRuntimeWarning = formEl.querySelector('#gemini-runtime-warning');
   
-  // 9Router elements
-  const nineRouterKeyInput = formEl.querySelector('#nine_router_api_key');
-  const toggleNineRouterKeyBtn = formEl.querySelector('#toggle-nine-router-key-btn');
-  const verifyNineRouterKeyBtn = formEl.querySelector('#verify-nine-router-key-btn');
-  const verifyNineRouterOnSaveInput = formEl.querySelector('#verify-nine-router-on-save');
-  const nineRouterKeyVerifyStatus = formEl.querySelector('#nine-router-key-verify-status');
-  const nineRouterEndpointInput = formEl.querySelector('#nine_router_endpoint');
-  const nineRouterModelInput = formEl.querySelector('#nine_router_model');
-
   const transcribeModelInput = formEl.querySelector('#transcribe_model');
   const vertexProjectIdInput = formEl.querySelector('#vertex_project_id');
   const vertexLocationInput = formEl.querySelector('#vertex_location');
@@ -522,14 +473,9 @@ async function initSystemConfigPanel(container) {
   };
 
   let geminiModels = [];
-  let nineRouterModels = [];
 
   const geminiListEl = setupModelInput(container, 'gemini_model_input', 'add-gemini-model-btn', 'gemini-models-list', () => geminiModels, (next) => {
     geminiModels = next;
-  });
-
-  const nineRouterListEl = setupModelInput(container, 'nine_router_model_input', 'add-nine-router-model-btn', 'nine-router-models-list', () => nineRouterModels, (next) => {
-    nineRouterModels = next;
   });
 
   function setConfigStatus(message, kind = 'info') {
@@ -581,54 +527,54 @@ async function initSystemConfigPanel(container) {
     if (!geminiKeyVerifyStatus) return;
     geminiKeyVerifyStatus.textContent = message;
     if (kind === 'error') {
-      geminiKeyVerifyStatus.style.color = '#f87171';
+      geminiKeyVerifyStatus.style.color = '#b91c1c';
       return;
     }
     if (kind === 'success') {
-      geminiKeyVerifyStatus.style.color = '#34d399';
+      geminiKeyVerifyStatus.style.color = '#15803d';
       return;
     }
     geminiKeyVerifyStatus.style.color = 'var(--text-muted)';
   }
 
-  async function runKeyValidation(provider, { useStoredKey = true } = {}) {
-    const isGemini = provider === 'gemini';
-    const keyInput = isGemini ? geminiKeyInput : nineRouterKeyInput;
-    const endpointInput = isGemini ? geminiEndpointInput : nineRouterEndpointInput;
-    const modelInput = isGemini ? geminiModelInput : nineRouterModelInput;
-    const verifyBtn = isGemini ? verifyGeminiKeyBtn : verifyNineRouterKeyBtn;
-    const verifyStatusEl = isGemini ? geminiKeyVerifyStatus : nineRouterKeyVerifyStatus;
+  async function runKeyValidation(provider = 'gemini', { useStoredKey = true } = {}) {
+    const keyInput = geminiKeyInput;
+    const endpointInput = geminiEndpointInput;
+    const modelInput = geminiModelInput;
+    const verifyBtn = verifyGeminiKeyBtn;
+    const verifyStatusEl = geminiKeyVerifyStatus;
 
     if (verifyBtn) {
       verifyBtn.disabled = true;
       verifyBtn.textContent = 'Đang kiểm tra...';
     }
     
-    verifyStatusEl.textContent = `Đang xác nhận ${isGemini ? 'Gemini' : '9Router'} API key...`;
-    if (isGemini) {
-      verifyStatusEl.style.color = 'var(--text-muted)';
-    } else {
+    if (verifyStatusEl) {
+      verifyStatusEl.textContent = 'Đang xác nhận Gemini API key...';
       verifyStatusEl.style.color = 'var(--text-muted)';
     }
 
     try {
       const payload = {
-        provider,
         apiKey: keyInput?.value?.trim() || '',
         gemini_endpoint: endpointInput?.value?.trim() || '',
         useStoredKey,
-        model: modelInput?.value?.trim() || (isGemini ? 'gemini-3.5-flash-lite' : 'DevGOVietnam-Elite'),
+        model: modelInput?.value?.trim() || 'gemini-3.5-flash-lite',
       };
       const result = await validateGeminiApiKey(payload);
       if (result?.valid !== true) {
         throw new Error(result?.message || 'Xác nhận key thất bại.');
       }
-      verifyStatusEl.textContent = `✅ ${isGemini ? 'Gemini' : '9Router'} API key hợp lệ.`;
-      verifyStatusEl.style.color = '#34d399';
+      if (verifyStatusEl) {
+        verifyStatusEl.textContent = '✅ Gemini API key hợp lệ.';
+        verifyStatusEl.style.color = '#15803d';
+      }
       return true;
     } catch (error) {
-      verifyStatusEl.textContent = `❌ ${error.message}`;
-      verifyStatusEl.style.color = '#f87171';
+      if (verifyStatusEl) {
+        verifyStatusEl.textContent = `❌ ${error.message}`;
+        verifyStatusEl.style.color = '#b91c1c';
+      }
       return false;
     } finally {
       if (verifyBtn) {
@@ -646,13 +592,8 @@ async function initSystemConfigPanel(container) {
         setConfigStatus('Chưa có cấu hình hệ thống. Vui lòng nhập thông tin và lưu.', 'info');
         formEl.classList.remove('is-hidden');
         renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
-        renderModelChips(nineRouterListEl, nineRouterModels, 'nine_router', (next) => { nineRouterModels = next; });
         return;
       }
-
-      // Load Active Provider
-      const activeChatProvider = config.active_chat_provider || 'gemini';
-      setSelectedRadio('active_chat_provider', activeChatProvider);
 
       // Load Gemini
       geminiModelInput.value = config.gemini_model || 'gemini-3.5-flash-lite';
@@ -665,19 +606,8 @@ async function initSystemConfigPanel(container) {
       geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
       renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
 
-      // Load 9Router
-      nineRouterModelInput.value = config.nine_router_model || 'DevGOVietnam-Elite';
-      nineRouterEndpointInput.value = config.nine_router_endpoint || '';
-      nineRouterKeyInput.value = config.nine_router_api_key || '';
-      nineRouterKeyInput.type = 'password';
-      if (toggleNineRouterKeyBtn) toggleNineRouterKeyBtn.textContent = 'Hiện key';
-      nineRouterKeyVerifyStatus.textContent = config.has_nine_router_key ? 'Đã lưu 9Router API key. Bạn có thể xác nhận lại bất cứ lúc nào.' : 'Chưa có 9Router API key.';
-      nineRouterKeyVerifyStatus.style.color = 'var(--text-muted)';
-      nineRouterModels = Array.isArray(config.nine_router_models) ? [...config.nine_router_models] : [];
-      renderModelChips(nineRouterListEl, nineRouterModels, 'nine_router', (next) => { nineRouterModels = next; });
-
       // Load other configs
-      transcribeModelInput.value = config.transcribe_model || 'whisper-1';
+      transcribeModelInput.value = config.transcribe_model || 'gemini-3.5-flash-lite';
       vertexProjectIdInput.value = config.vertex_project_id || '';
       vertexLocationInput.value = config.vertex_location || 'global';
       vertexDataStoreIdInput.value = config.vertex_data_store_id || '';
@@ -698,22 +628,14 @@ async function initSystemConfigPanel(container) {
 
   async function saveConfig() {
     const payload = {
-      active_chat_provider: getSelectedRadio('active_chat_provider', 'gemini'),
-
       // Gemini
       gemini_model: geminiModelInput.value.trim(),
       gemini_endpoint: geminiEndpointInput.value.trim(),
       gemini_models: geminiModels,
       gemini_api_key: geminiKeyInput.value.trim(),
 
-      // 9Router
-      nine_router_model: nineRouterModelInput.value.trim(),
-      nine_router_endpoint: nineRouterEndpointInput.value.trim(),
-      nine_router_models: nineRouterModels,
-      nine_router_api_key: nineRouterKeyInput.value.trim(),
-
       // Other Settings
-      transcribe_model: transcribeModelInput.value.trim() || 'whisper-1',
+      transcribe_model: transcribeModelInput.value.trim() || 'gemini-3.5-flash-lite',
       web_search_provider: getSelectedRadio('web_search_provider', 'vertex_search'),
       web_search_mode: getSelectedRadio('web_search_mode', 'cse_with_fallback'),
       web_search_fallback_sources: getFallbackSources(),
@@ -734,15 +656,6 @@ async function initSystemConfigPanel(container) {
         if (!keyOk) {
           saveStatusEl.className = 'config-save-status error';
           saveStatusEl.textContent = '❌ Key Gemini chưa hợp lệ nên chưa lưu cấu hình.';
-          return;
-        }
-      }
-      if (verifyNineRouterOnSaveInput?.checked) {
-        const useStoredKey = !payload.nine_router_api_key;
-        const keyOk = await runKeyValidation('9router', { useStoredKey });
-        if (!keyOk) {
-          saveStatusEl.className = 'config-save-status error';
-          saveStatusEl.textContent = '❌ Key 9Router chưa hợp lệ nên chưa lưu cấu hình.';
           return;
         }
       }
@@ -771,16 +684,6 @@ async function initSystemConfigPanel(container) {
   verifyGeminiKeyBtn?.addEventListener('click', () => {
     const useStoredKey = !geminiKeyInput.value.trim();
     void runKeyValidation('gemini', { useStoredKey });
-  });
-
-  toggleNineRouterKeyBtn?.addEventListener('click', () => {
-    const showing = nineRouterKeyInput.type === 'text';
-    nineRouterKeyInput.type = showing ? 'password' : 'text';
-    toggleNineRouterKeyBtn.textContent = showing ? 'Hiện key' : 'Ẩn key';
-  });
-  verifyNineRouterKeyBtn?.addEventListener('click', () => {
-    const useStoredKey = !nineRouterKeyInput.value.trim();
-    void runKeyValidation('9router', { useStoredKey });
   });
 
   refreshBtn.addEventListener('click', loadConfig);

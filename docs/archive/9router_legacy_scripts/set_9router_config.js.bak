@@ -1,0 +1,5 @@
+/**
+ * ARCHIVED LEGACY FILE: set_9router_config.js
+ * Retained for historical record only in docs/archive/. Not used in runtime.
+ */
+console.log('Archived 9Router config script.');

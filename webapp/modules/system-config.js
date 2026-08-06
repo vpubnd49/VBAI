@@ -84,6 +84,19 @@ async function getIdToken() {
   }
 }
 
+export function normalizeGeminiOnlyConfig(raw = {}) {
+  if (!raw || typeof raw !== 'object') return {};
+  const cleaned = { ...raw };
+  delete cleaned.active_provider;
+  delete cleaned.active_chat_provider;
+  delete cleaned.nine_router_api_key;
+  delete cleaned.nine_router_endpoint;
+  delete cleaned.nine_router_model;
+  delete cleaned.nine_router_models;
+  delete cleaned.has_nine_router_key;
+  return cleaned;
+}
+
 /**
  * Fetch system config from the backend proxy.
  * Falls back to localStorage defaults if backend is unavailable and we have a cache.
@@ -120,12 +133,11 @@ export async function fetchSystemConfig(options = {}) {
     }
 
     const data = await res.json();
-    cachedConfig = data;
+    cachedConfig = normalizeGeminiOnlyConfig(data);
     cacheExpiresAt = Date.now() + CONFIG_CACHE_TTL;
-    return data;
+    return cachedConfig;
   } catch (err) {
     console.warn('Failed to fetch system config from backend:', err);
-    // If we have a cached config, return it; else return null
     if (cachedConfig && Date.now() < cacheExpiresAt) {
       return cachedConfig;
     }
@@ -146,6 +158,9 @@ export function getCachedSystemConfig() {
 export function clearSystemConfigCache() {
   cachedConfig = null;
   cacheExpiresAt = 0;
+  try {
+    localStorage.removeItem(CONFIG_CACHE_KEY);
+  } catch (e) {}
 }
 
 /**
@@ -162,13 +177,15 @@ export async function updateSystemConfig(configData) {
     throw new Error(e?.message || 'Backend URL khong hop le');
   }
 
+  const cleanData = normalizeGeminiOnlyConfig(configData);
+
   const response = await fetch(`${backendUrl}/admin/system-config`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify(configData)
+    body: JSON.stringify(cleanData)
   });
 
   if (!response.ok) {
@@ -196,7 +213,7 @@ export async function updateSystemConfig(configData) {
     window.dispatchEvent(new CustomEvent('vbai:system-config-updated', {
       detail: {
         config: latestConfig || null,
-        submitted: configData || null,
+        submitted: cleanData || null,
       }
     }));
   }
@@ -219,7 +236,6 @@ export async function validateGeminiApiKey(options = {}) {
   }
 
   const payload = {
-    provider: String(options?.provider || 'gemini').trim(),
     gemini_api_key: String(options?.apiKey || '').trim(),
     gemini_endpoint: String(options?.gemini_endpoint || '').trim() || undefined,
     use_stored_key: options?.useStoredKey !== false,

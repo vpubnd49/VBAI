@@ -63,17 +63,17 @@ jobs:
           console.log('Mojibake check passed.');
           NODE
 
-      - name: Run proxy golden legal tests
+      - name: Run proxy all offline tests (unit + golden)
         working-directory: proxy
         run: |
           npm ci
-          npm run test:golden
+          npm run test:all
 
-      - name: Run webapp legal policy tests
+      - name: Run webapp all tests (policy + legal)
         working-directory: webapp
         run: |
           npm ci
-          npm run test:policy
+          npm run test:all
 
       # IMPORTANT:
       # secrets.GCP_SA_KEY must contain credentials for a service account
