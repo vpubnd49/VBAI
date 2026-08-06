@@ -10,8 +10,8 @@ console.log('[TEST] Running Firebase environment isolation tests...');
 
 assert.equal(
   appEnvironment,
-  'production',
-  'Node test imports must use the controlled production fallback'
+  'test',
+  'Node imports must use the controlled test environment'
 );
 
 assert.doesNotThrow(() => {

@@ -16,6 +16,11 @@ const runtimeConfig =
     ? window.__VBAI_CONFIG__
     : {};
 
+const IS_BROWSER = typeof window !== 'undefined';
+const DEFAULT_ENVIRONMENT = IS_BROWSER
+  ? 'development'
+  : 'test';
+
 const PRODUCTION_CONFIG = Object.freeze({
   apiKey: "AIzaSyC_abC-4uR72rFd8SXnaHFYY_kJ2R0CFcA",
   authDomain: "vbai.tracuu.lamdong.vn",
@@ -70,7 +75,7 @@ export const appEnvironment = normalizeEnvironment(
     runtimeConfig.ENV ||
     viteEnv.VITE_APP_ENV ||
     viteEnv.VITE_ENV ||
-    'production'
+    DEFAULT_ENVIRONMENT
 );
 
 function resolveConfigValue(runtimeKey, viteKey, productionDefault) {
@@ -86,9 +91,9 @@ function resolveConfigValue(runtimeKey, viteKey, productionDefault) {
     return viteValue;
   }
 
-  return appEnvironment === 'production'
-    ? productionDefault
-    : '';
+  // Browser deployments must provide runtime/Vite values.
+  // Production defaults are retained only for non-browser tests.
+  return IS_BROWSER ? '' : productionDefault;
 }
 
 export const firebaseConfig = Object.freeze({
@@ -223,7 +228,10 @@ export function validateEnvironmentConfig(
   return true;
 }
 
-// Execute before main.js initializes the Firebase SDK.
-validateEnvironmentConfig(firebaseConfig, {
-  appEnvironment,
-});
+// Execute before main.js initializes Firebase in the browser.
+// Missing runtime configuration therefore stops startup.
+if (IS_BROWSER) {
+  validateEnvironmentConfig(firebaseConfig, {
+    appEnvironment,
+  });
+}

@@ -75,14 +75,32 @@ console.log('  PASS: runtime template renders isolated staging values');
 
 const publicRuntimeConfig = read('public/runtime-config.js');
 
-assert.match(publicRuntimeConfig, /APP_ENV:\s*'production'/);
+assert.match(publicRuntimeConfig, /APP_ENV:\s*'development'/);
 assert.doesNotMatch(
   publicRuntimeConfig,
   /FIREBASE_API_KEY|gen-lang-client-0462350485/,
-  'Static fallback must not duplicate Firebase identifiers'
+  'Development fallback must not duplicate Firebase identifiers'
 );
 
 console.log('  PASS: static fallback contains no Firebase identifiers');
+const firebaseSource = read('firebase-config.js');
+
+assert.match(
+  firebaseSource,
+  /DEFAULT_ENVIRONMENT = IS_BROWSER[\s\S]*'development'[\s\S]*'test'/
+);
+
+assert.match(
+  firebaseSource,
+  /return IS_BROWSER \? '' : productionDefault;/
+);
+
+assert.match(
+  firebaseSource,
+  /if \(IS_BROWSER\) \{[\s\S]*validateEnvironmentConfig/
+);
+
+console.log('  PASS: missing browser runtime config fails closed');
 
 const dockerfile = read('Dockerfile');
 const entrypoint = read('docker-entrypoint.sh');
