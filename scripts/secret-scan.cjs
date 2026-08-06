@@ -35,8 +35,8 @@ function sha256(value) {
 
 const SECRET_PATTERNS = [
   {
-    name: 'Google Server API Key (AIzaSy...)',
-    regex: /AIzaSy[A-Za-z0-9_\-]{33}/g,
+    name: 'Google Server API Key (' + 'AIza' + 'Sy...)',
+    regex: new RegExp('AIza' + 'Sy[A-Za-z0-9_\\-]{33}', 'g'),
     isAllowed: (filepath, match) => {
       const normPath = filepath.replace(/\\/g, '/');
       const isAllowedFile = ALLOWED_CLIENT_KEY_FILES.some((allowedPath) => normPath === allowedPath);
