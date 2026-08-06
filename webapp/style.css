@@ -564,7 +564,6 @@ body {
   color: var(--accent-strong); font-weight: 600;
   border: 1px solid var(--border-subtle);
 }
-}
 .step-indicator.completed { color: var(--pine-300); }
 .step-num {
   width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;

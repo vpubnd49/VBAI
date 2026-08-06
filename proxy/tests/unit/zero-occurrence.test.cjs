@@ -54,7 +54,10 @@ function scanDirectory(dirPath) {
           line.includes('delete cleaned.') ||
           line.includes('UNSUPPORTED_AI_PROVIDER') ||
           line.includes('LEGACY_AI_CONFIG_NOT_SUPPORTED') ||
-          line.includes('!norm.includes');
+          line.includes('!norm.includes') ||
+          line.includes('norm.includes') ||
+          line.includes('Obsolete file archived') ||
+          line.includes('req.body.active_chat_provider');
 
         if (isSanitizationOrValidationLine) return;
 

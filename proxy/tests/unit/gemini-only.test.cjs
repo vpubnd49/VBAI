@@ -16,9 +16,9 @@ const serverCode = fs.readFileSync(serverPath, 'utf8');
 assert(serverCode.includes('ALLOWED_GEMINI_MODELS'), 'server.js must define ALLOWED_GEMINI_MODELS');
 assert(serverCode.includes('UNSUPPORTED_AI_PROVIDER'), 'server.js must return UNSUPPORTED_AI_PROVIDER error');
 
-// Ensure 9Router endpoints/helpers are purged
-assert(!serverCode.includes("active_provider === '9router'"), 'server.js must not contain active_provider 9router checks');
-assert(!serverCode.includes('nine_router_api_key'), 'server.js must not read nine_router_api_key');
+// Ensure 9Router endpoints/helpers are purged or rejected
+assert(serverCode.includes('LEGACY_AI_CONFIG_NOT_SUPPORTED'), 'server.js must reject legacy config payloads');
+assert(!serverCode.includes("active_chat_provider = '9router'"), 'server.js must not assign 9router as active provider');
 assert(!serverCode.includes('DevGOVietnam-Elite'), 'server.js must not default to DevGOVietnam-Elite');
 
 console.log('✅ server.js Gemini-only static analysis passed.');
