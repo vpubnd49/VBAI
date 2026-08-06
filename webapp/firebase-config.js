@@ -22,7 +22,7 @@ export const firebaseConfig = {
 export function validateEnvironmentConfig(overrideConfig = {}) {
   const cfg = { ...firebaseConfig, ...overrideConfig };
   const isStagingEnv = env.VITE_ENV === 'staging' || globalConfig.ENV === 'staging' || overrideConfig.isStaging === true;
-  
+
   if (isStagingEnv && cfg.projectId === "gen-lang-client-0462350485") {
     throw new Error("[SECURITY GATE] Staging environment build cannot use production Firebase Project ID (gen-lang-client-0462350485)!");
   }
