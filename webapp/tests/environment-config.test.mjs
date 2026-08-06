@@ -1,35 +1,100 @@
-/**
- * Environment Configuration Unit Test.
- * Validates Firebase environment config loading, production default fallback,
- * and staging cross-environment rejection gate.
- */
+import assert from 'node:assert/strict';
 
-import assert from 'node:assert';
-import { firebaseConfig, validateEnvironmentConfig } from '../firebase-config.js';
+import {
+  appEnvironment,
+  firebaseConfig,
+  validateEnvironmentConfig,
+} from '../firebase-config.js';
 
-console.log('[TEST] Running Environment Configuration Unit Tests...');
+console.log('[TEST] Running Firebase environment isolation tests...');
 
-// Test 1: Production Default Fallback
-assert.strictEqual(firebaseConfig.projectId, 'gen-lang-client-0462350485', 'Default project ID must match production');
-assert.strictEqual(firebaseConfig.authDomain, 'vbai.tracuu.lamdong.vn', 'Default auth domain must match production');
-console.log('  ✅ Test 1: Default production fallback verified');
+assert.equal(
+  appEnvironment,
+  'production',
+  'Node test imports must use the controlled production fallback'
+);
 
-// Test 2: Normal Production Validation Passes
 assert.doesNotThrow(() => {
-  validateEnvironmentConfig();
-}, 'Production config validation must pass without throwing');
-console.log('  ✅ Test 2: Production environment validation passed');
+  validateEnvironmentConfig(firebaseConfig, {
+    appEnvironment: 'production',
+  });
+});
 
-// Test 3: Staging Mode Rejects Production Project ID
-assert.throws(() => {
-  validateEnvironmentConfig({ isStaging: true, projectId: 'gen-lang-client-0462350485' });
-}, /SECURITY GATE/, 'Staging build with production project ID must be strictly rejected');
-console.log('  ✅ Test 3: Staging build with production project ID strictly rejected');
+console.log('  PASS: production fallback validates');
 
-// Test 4: Staging Mode Accepts Staging Project ID
+const stagingConfig = {
+  apiKey: 'test-staging-web-key',
+  authDomain: 'vbai-staging-7a17c2af.firebaseapp.com',
+  projectId: 'vbai-staging-7a17c2af',
+  storageBucket: 'vbai-staging-7a17c2af.firebasestorage.app',
+  messagingSenderId: '684023952241',
+  appId: '1:684023952241:web:teststagingappid',
+};
+
 assert.doesNotThrow(() => {
-  validateEnvironmentConfig({ isStaging: true, projectId: 'vbai-staging-7a17c2af' });
-}, 'Staging build with isolated staging project ID must pass validation');
-console.log('  ✅ Test 4: Staging build with staging project ID accepted');
+  validateEnvironmentConfig(stagingConfig, {
+    appEnvironment: 'staging',
+  });
+});
 
-console.log('🎉 Environment Configuration tests passed!');
+console.log('  PASS: complete isolated staging config validates');
+
+assert.throws(
+  () => {
+    validateEnvironmentConfig(firebaseConfig, {
+      appEnvironment: 'staging',
+    });
+  },
+  /Staging must use the isolated staging Firebase project/,
+  'Staging must reject the production Firebase project'
+);
+
+console.log('  PASS: staging rejects production project');
+
+assert.throws(
+  () => {
+    validateEnvironmentConfig(
+      {
+        ...stagingConfig,
+        apiKey: '',
+      },
+      {
+        appEnvironment: 'staging',
+      }
+    );
+  },
+  /Missing required Firebase fields/,
+  'Staging must reject missing Firebase values'
+);
+
+console.log('  PASS: staging rejects missing values');
+
+assert.throws(
+  () => {
+    validateEnvironmentConfig(
+      {
+        ...stagingConfig,
+        messagingSenderId: '999999999999',
+      },
+      {
+        appEnvironment: 'staging',
+      }
+    );
+  },
+  /sender ID is not isolated/,
+  'Staging must reject mismatched Firebase identity'
+);
+
+console.log('  PASS: staging rejects mismatched identity');
+
+assert.throws(
+  () => {
+    validateEnvironmentConfig(stagingConfig, {
+      appEnvironment: 'unknown-environment',
+    });
+  },
+  /Unsupported application environment/
+);
+
+console.log('  PASS: unknown application environment rejected');
+console.log('Firebase environment isolation tests passed.');

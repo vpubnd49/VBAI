@@ -8,6 +8,10 @@ RUN npm run build
 FROM nginx:alpine
 COPY --from=build /app/dist/ /usr/share/nginx/html/
 COPY nginx.conf /etc/nginx/conf.d/config.template
+COPY runtime-config.template.js /etc/vbai/runtime-config.template.js
+COPY docker-entrypoint.sh /usr/local/bin/vbai-entrypoint
 
-# Cloud Run requires the app to listen on the port defined by the $PORT environment variable
-CMD sh -c "envsubst '\$PORT \$API_BASE_URL' < /etc/nginx/conf.d/config.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+RUN sed -i 's/\r$//' /usr/local/bin/vbai-entrypoint \
+    && chmod +x /usr/local/bin/vbai-entrypoint
+
+CMD ["/usr/local/bin/vbai-entrypoint"]
