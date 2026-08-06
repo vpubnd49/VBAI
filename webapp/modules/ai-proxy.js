@@ -44,7 +44,7 @@ function sanitizeBackendBase(raw = '') {
 
   const host = parsed.hostname.toLowerCase();
   const sameOrigin = typeof window !== 'undefined' && parsed.origin === window.location.origin;
-  const whitelisted = ALLOWED_BACKEND_HOSTS.has(host);
+  const whitelisted = ALLOWED_BACKEND_HOSTS.has(host) || host.endsWith('.run.app');
   if (!sameOrigin && !whitelisted) {
     throw new Error('Backend URL khong nam trong danh sach host duoc phep.');
   }
