@@ -8,7 +8,7 @@ You need to create a new Firebase project and update the `firebaseConfig` in `we
 **Current Configuration:**
 ```javascript
 const firebaseConfig = {
-  apiKey: "AIzaSyC_abC-4uR72rFd8SXnaHFYY_kJ2R0CFcA",
+  apiKey: "YOUR_FIREBASE_API_KEY",
   authDomain: "vbai.tracuu.lamdong.vn",
   projectId: "gen-lang-client-0462350485",
   storageBucket: "gen-lang-client-0462350485.firebasestorage.app",

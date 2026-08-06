@@ -5,8 +5,19 @@ on:
     branches: [main]
 
 jobs:
+  security-scan:
+    name: Security Gate (Secret Scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/secret-scan.cjs
+
   proxy-tests:
     name: Proxy Tests
+    needs: security-scan
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -24,6 +35,7 @@ jobs:
 
   webapp-tests:
     name: Webapp Tests & Build
+    needs: security-scan
     runs-on: ubuntu-latest
     defaults:
       run:
