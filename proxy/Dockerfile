@@ -7,6 +7,8 @@ RUN npm ci --only=production
 # Copy source
 COPY server.js ./
 COPY lib ./lib
+COPY routes ./routes
+COPY legal ./legal
 COPY bosung_metadata.json ./
 
 # Production stage (run directly)
@@ -20,6 +22,8 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package*.json ./
 COPY --from=build /app/server.js ./
 COPY --from=build /app/lib ./lib
+COPY --from=build /app/routes ./routes
+COPY --from=build /app/legal ./legal
 COPY --from=build /app/bosung_metadata.json ./
 
 # Use dumb-init to handle signals correctly
