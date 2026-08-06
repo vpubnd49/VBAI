@@ -71,6 +71,18 @@ const renderedConfig = JSON.parse(
 
 assert.deepEqual(renderedConfig, stagingValues);
 
+assert.ok(
+  renderedTemplate.includes('APP_ENV: "staging"'),
+  'Rendered template must use the APP_ENV syntax checked by entrypoint'
+);
+
+assert.ok(
+  renderedTemplate.includes(
+    'FIREBASE_PROJECT_ID: "vbai-staging-7a17c2af"'
+  ),
+  'Rendered template must use the project syntax checked by entrypoint'
+);
+
 console.log('  PASS: runtime template renders isolated staging values');
 
 const publicRuntimeConfig = read('public/runtime-config.js');
@@ -124,6 +136,23 @@ assert.match(entrypoint, /Missing required environment variable/);
 assert.match(entrypoint, /vbai-staging-7a17c2af/);
 assert.match(entrypoint, /gen-lang-client-0462350485/);
 assert.match(entrypoint, /envsubst/);
+
+assert.ok(
+  entrypoint.includes(`grep -Fq 'APP_ENV: "staging"'`),
+  'Entrypoint must validate the generated APP_ENV property syntax'
+);
+
+assert.ok(
+  entrypoint.includes(
+    `grep -Fq 'FIREBASE_PROJECT_ID: "vbai-staging-7a17c2af"'`
+  ),
+  'Entrypoint must validate the generated project property syntax'
+);
+
+assert.ok(
+  !entrypoint.includes(`grep -Fq '"APP_ENV": "staging"'`),
+  'Entrypoint must not expect quoted JavaScript property names'
+);
 
 assert.match(
   nginx,

@@ -151,11 +151,11 @@ envsubst \
   > /etc/nginx/conf.d/default.conf
 
 if [ "$APP_ENV" = "staging" ]; then
-  grep -Fq '"APP_ENV": "staging"' \
+  grep -Fq 'APP_ENV: "staging"' \
     /usr/share/nginx/html/runtime-config.js ||
     fail "Generated runtime config is not staging."
 
-  grep -Fq '"FIREBASE_PROJECT_ID": "vbai-staging-7a17c2af"' \
+  grep -Fq 'FIREBASE_PROJECT_ID: "vbai-staging-7a17c2af"' \
     /usr/share/nginx/html/runtime-config.js ||
     fail "Generated runtime config has the wrong staging project."
 
