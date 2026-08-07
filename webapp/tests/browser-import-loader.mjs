@@ -4,7 +4,15 @@
  * and returns deterministic, side-effect-free mock exports.
  */
 
+const FILE_SAVER_TEST_URL = 'vbai-test:file-saver';
+
 export async function resolve(specifier, context, defaultResolve) {
+  if (specifier === 'file-saver') {
+    return {
+      url: FILE_SAVER_TEST_URL,
+      shortCircuit: true,
+    };
+  }
   if (specifier.startsWith('https://www.gstatic.com/firebasejs/')) {
     return {
       url: specifier,
@@ -15,6 +23,21 @@ export async function resolve(specifier, context, defaultResolve) {
 }
 
 export async function load(url, context, defaultLoad) {
+  if (url === FILE_SAVER_TEST_URL) {
+    return {
+      format: 'module',
+      shortCircuit: true,
+      source: `
+        export function saveAs() {
+          return undefined;
+        }
+
+        export default {
+          saveAs
+        };
+      `,
+    };
+  }
   if (url.startsWith('https://www.gstatic.com/firebasejs/')) {
     const code = `
       // Firebase App Mocks

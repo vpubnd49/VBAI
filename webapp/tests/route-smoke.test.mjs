@@ -29,6 +29,24 @@ if (typeof global.window === 'undefined') {
     sessionStorage: mockStorage(),
     currentUser: { uid: 'test_user_123', email: 'test@lamdong.gov.vn', getIdToken: async () => 'mock_token' },
     isAdmin: true,
+
+    __VBAI_CONFIG__: {
+      APP_ENV: 'development',
+      FIREBASE_API_KEY: 'test-api-key',
+      FIREBASE_AUTH_DOMAIN: 'test.local',
+      FIREBASE_PROJECT_ID: 'test-project',
+      FIREBASE_STORAGE_BUCKET: 'test-bucket',
+      FIREBASE_MESSAGING_SENDER_ID: '1234567890',
+      FIREBASE_APP_ID: '1:1234567890:web:test'
+    },
+
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    matchMedia: () => ({
+      matches: false,
+      addEventListener: () => {},
+      removeEventListener: () => {}
+    }),
   };
   global.localStorage = global.window.localStorage;
   global.sessionStorage = global.window.sessionStorage;
@@ -53,6 +71,7 @@ if (typeof global.document === 'undefined') {
     querySelectorAll() { return [new MockElement('div')]; }
     appendChild(child) { this.children.push(child); return child; }
     addEventListener() {}
+    click() {}
     removeEventListener() {}
     setAttribute() {}
     removeAttribute() {}
@@ -64,8 +83,81 @@ if (typeof global.document === 'undefined') {
     querySelectorAll: () => [new MockElement('div')],
     getElementById: () => new MockElement('div'),
     body: new MockElement('body'),
+    visibilityState: 'visible',
+    addEventListener: () => {},
+    removeEventListener: () => {},
   };
 }
+
+// ROUTE_SMOKE_FETCH_MOCK
+// Browser modules legitimately use relative URLs.
+// Node requires absolute URLs, therefore smoke tests intercept
+// only known browser-relative requests and never access network.
+
+global.fetch = async (input) => {
+  const url =
+    typeof input === 'string'
+      ? input
+      : String(input?.url || input || '');
+
+  let payload = {};
+
+  if (url === '/api/stats/visits') {
+    payload = {
+      count: 1050
+    };
+  }
+  else if (url === '/api/stats/visits/session') {
+    payload = {
+      count: 1050
+    };
+  }
+  else if (url === '/api/system-config-summary') {
+    payload = {
+      provider: 'gemini',
+      gemini_model: 'gemini-3.5-flash-lite',
+      gemini_endpoint: '',
+      transcribe_model: 'gemini-3.5-flash-lite',
+      has_gemini_key: false
+    };
+  }
+  else if (url === './skills-manifest.json') {
+    payload = {
+      skills: []
+    };
+  }
+  else if (
+    url === '/search-history' ||
+    url === '/api/search-history'
+  ) {
+    payload = {
+      logs: [],
+      isAdmin: true
+    };
+  }
+  else {
+    throw new Error(
+      `Unexpected network request during route smoke: ${url}`
+    );
+  }
+
+  return {
+    ok: true,
+    status: 200,
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+    blob: async () => new Blob(
+      [JSON.stringify(payload)],
+      {
+        type: 'application/json'
+      }
+    ),
+    arrayBuffer: async () =>
+      new TextEncoder()
+        .encode(JSON.stringify(payload))
+        .buffer
+  };
+};
 
 const ROUTE_MODULE_MAP = [
   { route: 'dashboard', file: 'dashboard.js', exportFn: 'renderDashboard' },
@@ -105,14 +197,17 @@ async function runRouteSmokeTest() {
       const mod = await import(fileUrl);
       if (typeof mod[item.exportFn] === 'function') {
         const mockContainer = global.document.createElement('div');
-        // Render module with mock container to verify execution
-        try {
-          mod[item.exportFn](mockContainer, item.route === 'search-history' ? () => {} : undefined);
-        } catch (renderErr) {
-          // Allow async render warnings, but verify synchronous code path parsed & executed
-          console.log(`  ℹ️ Route '${item.route}' sync render executed: ${renderErr.message.slice(0, 80)}`);
-        }
-        console.log(`  ✅ [PASS] Route '${item.route}' -> ${item.file}::${item.exportFn}() loaded and exercised cleanly`);
+        // Import and render must both succeed.
+        await Promise.resolve(
+          mod[item.exportFn](
+            mockContainer,
+            item.route === 'search-history'
+              ? () => {}
+              : undefined
+          )
+        );
+
+        console.log(`  ✅ [PASS] Route '${item.route}' -> ${item.file}::${item.exportFn}() loaded and rendered cleanly`);
         passedCount++;
       } else {
         console.error(`  ❌ [FAIL] Route '${item.route}': Export function ${item.exportFn} missing in ${item.file}`);

@@ -1,5 +1,5 @@
 # Build stage for backend proxy
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
@@ -12,7 +12,7 @@ COPY legal ./legal
 COPY bosung_metadata.json ./
 
 # Production stage (run directly)
-FROM node:20-alpine
+FROM node:24-alpine
 WORKDIR /app
 
 # Install dumb-init for proper signal handling

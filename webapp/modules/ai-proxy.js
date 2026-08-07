@@ -169,7 +169,7 @@ async function buildHttpErrorMessage(response, fallback = '') {
   return trimmed.slice(0, 320);
 }
 
-async function backendFetch(path, { method = 'GET', headers = {}, body, timeoutMs = 120000 } = {}) {
+export async function backendFetch(path, { method = 'GET', headers = {}, body, timeoutMs = 120000 } = {}) {
   const token = await getIdToken();
   if (!token) throw new Error('Bạn cần đăng nhập để sử dụng tính năng AI.');
   const base = getBackendBase();
