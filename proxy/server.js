@@ -18,7 +18,21 @@ const admin = require('firebase-admin');
 const multer = require('multer');
 const fetch = globalThis.fetch.bind(globalThis);
 const { cleanText: cleanStrictText, extractStrictLegalText } = require('./lib/legal-extract');
+const { detectQueryIntent } = require('./legal/domain/query-intent');
+const { orchestrateLegalSearch } = require('./legal/services/legal-search-orchestrator');
+const { validateCitations } = require('./legal/services/citation-validation.service');
 const path = require('path');
+
+function extractAssistantText(data) {
+  if (!data || typeof data !== 'object') return '';
+  if (Array.isArray(data.choices) && data.choices[0]?.message?.content) {
+    return String(data.choices[0].message.content || '');
+  }
+  if (Array.isArray(data.candidates) && data.candidates[0]?.content?.parts?.[0]?.text) {
+    return String(data.candidates[0].content.parts[0].text || '');
+  }
+  return '';
+}
 let bosungMetadata = null;
 try {
   bosungMetadata = require('./bosung_metadata.json');
@@ -2581,7 +2595,15 @@ app.post('/api/admin/system-config', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
     }
 
-    if (req.body.active_chat_provider === '9router' || req.body.active_provider === '9router' || req.body.nine_router_api_key || req.body.nine_router_endpoint || req.body.nine_router_model) {
+    if (
+      req.body.active_chat_provider === '9router' ||
+      req.body.active_provider === '9router' ||
+      req.body.nine_router_api_key !== undefined ||
+      req.body.nine_router_endpoint !== undefined ||
+      req.body.nine_router_model !== undefined ||
+      req.body.nine_router_models !== undefined ||
+      req.body.has_nine_router_key !== undefined
+    ) {
       return res.status(400).json({
         error: 'LEGACY_AI_CONFIG_NOT_SUPPORTED',
         message: 'Cấu hình nhà cung cấp AI cũ không còn được hỗ trợ.',
@@ -2613,23 +2635,27 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     const updateData = {
-      gemini_model: resolveGeminiModel(gemini_model),
-      transcribe_model: transcribe_model || gemini_model || 'gemini-3.5-flash-lite',
-      web_search_provider: sanitizeWebSearchProvider(web_search_provider),
-      web_search_mode: sanitizeWebSearchMode(web_search_mode),
       updated_at: admin.firestore.FieldValue.serverTimestamp(),
       updated_by: decoded.email || decoded.uid,
-      active_provider: admin.firestore.FieldValue.delete(),
-      active_chat_provider: admin.firestore.FieldValue.delete(),
       nine_router_api_key: admin.firestore.FieldValue.delete(),
       nine_router_endpoint: admin.firestore.FieldValue.delete(),
       nine_router_model: admin.firestore.FieldValue.delete(),
       nine_router_models: admin.firestore.FieldValue.delete(),
-      openai_api_key: admin.firestore.FieldValue.delete(),
-      openai_endpoint: admin.firestore.FieldValue.delete(),
-      openai_models: admin.firestore.FieldValue.delete(),
-      router_model: admin.firestore.FieldValue.delete(),
+      has_nine_router_key: admin.firestore.FieldValue.delete(),
     };
+
+    if (gemini_model !== undefined) {
+      updateData.gemini_model = resolveGeminiModel(gemini_model);
+    }
+    if (transcribe_model !== undefined) {
+      updateData.transcribe_model = String(transcribe_model || '').trim();
+    }
+    if (req.body.active_provider !== undefined) {
+      updateData.active_provider = req.body.active_provider;
+    }
+    if (req.body.active_chat_provider !== undefined) {
+      updateData.active_chat_provider = req.body.active_chat_provider;
+    }
 
     if (gemini_endpoint !== undefined) {
       const val = String(gemini_endpoint || '').trim();
@@ -2904,12 +2930,43 @@ app.post('/api/chat', async (req, res) => {
       ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
       : '';
     console.log('USER QUERY:', userMessage);
+
+    // Legal query detection & server-side evidence retrieval
+    let legalContext = null;
+    const intentResult = userMessage ? detectQueryIntent(userMessage) : null;
+    const isLegalQuery = Boolean(
+      intentResult?.isLegalQuery ||
+      (userMessage && /(?:luật|nghị định|thông tư|nghị quyết|quyết định|điều|khoản|điểm|hiệu lực|bãi bỏ|sửa đổi|thay thế|\d+\/\d+\/[A-Za-z0-9-]+)/i.test(userMessage))
+    );
+
+    if (isLegalQuery) {
+      try {
+        const legalSearchResult = await orchestrateLegalSearch({
+          query: userMessage,
+          forceFresh: false,
+          mode: 'cse_with_fallback',
+          provider: 'vertex_search',
+        });
+        if (legalSearchResult && legalSearchResult.success && legalSearchResult.legal) {
+          legalContext = legalSearchResult.legal;
+        }
+      } catch (legalErr) {
+        console.warn('[api/chat] Legal orchestration failed safely:', legalErr.message);
+        legalContext = {
+          available: false,
+          reason: 'LEGAL_EVIDENCE_UNAVAILABLE',
+        };
+      }
+    }
+
     console.log('NORMALIZED:', {
       route: '/api/chat',
       provider: 'gemini',
       model: effectiveModel,
       message_count: Array.isArray(normalizedMessages) ? normalizedMessages.length : 0,
       stream: stream === true,
+      isLegalQuery,
+      hasLegalContext: Boolean(legalContext?.evidenceBundle),
       note: 'Gemini-only architecture. Web search runs via /api/web-search before chat synthesis.',
     });
 
@@ -3064,6 +3121,21 @@ app.post('/api/chat', async (req, res) => {
         provider_error_reason: null,
         retried: attemptedModels.length > 1,
       };
+
+      // Server-side citation validation after Gemini synthesis
+      if (legalContext && legalContext.evidenceBundle) {
+        const assistantText = extractAssistantText(data);
+        const citationValidation = validateCitations(assistantText, legalContext.evidenceBundle);
+        console.log(`[Legal Validation] Performed: total=${citationValidation.totalCitations}, verified=${citationValidation.validCitationsCount}, unverified=${citationValidation.unverifiedCitationsCount}`);
+
+        data.legal = {
+          coordinates: legalContext.coordinates || [],
+          evidenceBundle: legalContext.evidenceBundle || null,
+          crossReferences: legalContext.crossReferences || null,
+          verification: legalContext.verification || { available: true },
+          citationValidation,
+        };
+      }
     }
     res.json(data);
   } catch (err) {

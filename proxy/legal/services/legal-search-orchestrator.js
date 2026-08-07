@@ -9,6 +9,10 @@ const { findKnownDocumentByNumber, findKnownDocumentByAlias } = require('../repo
 const { resolveMetadataForDocument } = require('./legal-metadata.service');
 const { buildSearchMetaResponse } = require('./legal-search-meta.service');
 
+const { parseArticleCoordinate } = require('../domain/article-coordinate');
+const { buildEvidenceBundle } = require('./evidence-bundle.service');
+const { resolveCrossReferences } = require('./cross-reference.service');
+
 async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_with_fallback', provider = 'vertex_search' }) {
   if (!query || typeof query !== 'string' || !query.trim()) {
     return {
@@ -76,6 +80,10 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
   }
 
   const meta = buildSearchMetaResponse({ query, results, mode, provider });
+  const articleCoord = parseArticleCoordinate(query);
+  const evidenceBundle = buildEvidenceBundle(query, results);
+  const crossReferences = resolveCrossReferences(results);
+
   const responseData = {
     success: true,
     query,
@@ -83,6 +91,17 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
     meta,
     results,
     metadata: metaDoc,
+    legal: {
+      coordinates: articleCoord.article ? [articleCoord] : [],
+      evidenceBundle,
+      crossReferences,
+      verification: {
+        documentResolved: Boolean(docNumber),
+        effectiveDateChecked: Boolean(metaDoc && metaDoc.effectiveDate),
+        relationsChecked: Boolean(crossReferences.nodes && crossReferences.nodes.length),
+        officialSourcesChecked: evidenceBundle.officialSourcesCount > 0,
+      },
+    },
   };
 
   if (!cacheStrategy.bypassCache) {

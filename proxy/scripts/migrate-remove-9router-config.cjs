@@ -1,10 +1,10 @@
 /**
  * One-time Firestore Migration Script: Remove 9Router Legacy Configuration Fields.
- * 
+ *
  * Usage:
  *   Dry-run mode (default, no changes written):
  *     node proxy/scripts/migrate-remove-9router-config.cjs --dry-run
- * 
+ *
  *   Apply changes to Firestore:
  *     node proxy/scripts/migrate-remove-9router-config.cjs --apply
  */
@@ -47,18 +47,28 @@ async function runMigration() {
   console.log('[Current Fields in config/system]:', Object.keys(data));
 
   const legacyFieldsToRemove = [
-    'active_provider',
-    'active_chat_provider',
     'nine_router_api_key',
     'nine_router_endpoint',
     'nine_router_model',
     'nine_router_models',
     'has_nine_router_key',
-    'openai_api_key',
-    'openai_endpoint',
-    'openai_models',
-    'router_model',
   ];
+
+  const PROTECTED_FIELDS = [
+    'gemini_api_key',
+    'gemini_endpoint',
+    'gemini_model',
+    'transcribe_model',
+    'vertex_project_id',
+    'vertex_location',
+    'search_engine_id',
+    'system_prompt',
+  ];
+
+  const beforeSnapshot = {};
+  for (const pf of PROTECTED_FIELDS) {
+    beforeSnapshot[pf] = data[pf];
+  }
 
   const fieldsToDelete = [];
   for (const field of legacyFieldsToRemove) {
@@ -67,23 +77,35 @@ async function runMigration() {
     }
   }
 
-  console.log(`\n[Legacy Fields to be deleted] (${fieldsToDelete.length}):`, fieldsToDelete);
+  console.log(`\n[Legacy 9Router Fields to be deleted] (${fieldsToDelete.length}):`, fieldsToDelete);
 
   const updates = {};
   for (const field of fieldsToDelete) {
     updates[field] = admin.firestore.FieldValue.delete();
   }
 
-  // Ensure Gemini fields are valid
-  if (!data.gemini_model) {
-    updates.gemini_model = 'gemini-3.5-flash-lite';
+  // Handle provider transition if active provider was 9router
+  if (data.active_provider === '9router') {
+    updates.active_provider = 'gemini';
+    console.log('[Provider Migration] Active provider set from 9router -> gemini');
   }
-  if (!data.transcribe_model) {
-    updates.transcribe_model = 'gemini-3.5-flash-lite';
+  if (data.active_chat_provider === '9router') {
+    updates.active_chat_provider = 'gemini';
+    console.log('[Provider Migration] Active chat provider set from 9router -> gemini');
+  }
+
+  // Protected fields integrity check
+  for (const pf of PROTECTED_FIELDS) {
+    if (updates[pf] !== undefined) {
+      throw new Error(`[CRITICAL SECURITY FAILURE] Migration attempted to mutate protected field: ${pf}`);
+    }
+    if (beforeSnapshot[pf] !== data[pf]) {
+      throw new Error(`[CRITICAL SECURITY FAILURE] Protected field ${pf} mutated during snapshot inspection`);
+    }
   }
 
   if (isDryRun) {
-    console.log('\n[DRY-RUN Complete] No changes were written to Firestore.');
+    console.log('\n[DRY-RUN Complete] Verified 0 writes executed to Firestore.');
     console.log('To apply these changes, run with: node proxy/scripts/migrate-remove-9router-config.cjs --apply');
     process.exit(0);
   }
