@@ -1,0 +1,147 @@
+{
+  "id": "dich_vu",
+  "name": "Hợp đồng dịch vụ",
+  "group": "Công ty ↔ Công ty",
+  "icon": "🤝",
+  "summary": "Hợp đồng để một bên thực hiện một công việc (dịch vụ) cho bên kia và được trả tiền dịch vụ. Áp dụng cho cả công ty với công ty và công ty với cá nhân; theo Bộ luật Dân sự 2015 (Điều 513-521), và Luật Thương mại 2005 nếu mang tính thương mại.",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015 - Điều 513 (Hợp đồng dịch vụ)",
+    "Bộ luật Dân sự 2015 - Điều 514 (Đối tượng của hợp đồng dịch vụ)",
+    "Bộ luật Dân sự 2015 - Điều 515, 516 (Nghĩa vụ, quyền của bên sử dụng dịch vụ)",
+    "Bộ luật Dân sự 2015 - Điều 517, 518 (Nghĩa vụ, quyền của bên cung ứng dịch vụ)",
+    "Bộ luật Dân sự 2015 - Điều 519 (Trả tiền dịch vụ)",
+    "Bộ luật Dân sự 2015 - Điều 520 (Đơn phương chấm dứt thực hiện hợp đồng dịch vụ)",
+    "Bộ luật Dân sự 2015 - Điều 521 (Tiếp tục thực hiện hợp đồng dịch vụ)",
+    "Bộ luật Dân sự 2015 - Điều 357 (Trách nhiệm do chậm thực hiện nghĩa vụ trả tiền) và Điều 468 (Lãi suất: trần thỏa thuận 20%/năm; mặc định 10%/năm)",
+    "Bộ luật Dân sự 2015 - Điều 418 (Thỏa thuận phạt vi phạm trong hợp đồng dân sự)",
+    "Luật Thương mại 2005 - Điều 300, 301 (Phạt vi phạm; mức phạt tối đa 8% với hợp đồng thương mại)",
+    "Luật Thương mại 2005 - Điều 302 (Bồi thường thiệt hại)"
+  ],
+  "parties": {
+    "a": "Bên cung ứng dịch vụ (Bên A)",
+    "b": "Bên sử dụng dịch vụ (Bên B)"
+  },
+  "title": "HỢP ĐỒNG DỊCH VỤ",
+  "preamble": "- Căn cứ Bộ luật Dân sự số 91/2015/QH13 ngày 24/11/2015;\n- Căn cứ Luật Thương mại số 36/2005/QH11 ngày 14/6/2005 (nếu hợp đồng mang tính thương mại);\n- Căn cứ nhu cầu và khả năng của hai bên.\n\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ngay_ky",
+      "label": "Ngày ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "date"
+    },
+    {
+      "key": "dia_diem_ky",
+      "label": "Địa điểm ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "optional",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_ten",
+      "label": "Tên Bên cung ứng dịch vụ (Bên A)",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_dia_chi",
+      "label": "Địa chỉ Bên A",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_ma_so",
+      "label": "MST / CCCD Bên A",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_ten",
+      "label": "Tên Bên sử dụng dịch vụ (Bên B)",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_dia_chi",
+      "label": "Địa chỉ Bên B",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_ma_so",
+      "label": "MST / CCCD Bên B",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "mo_ta_dich_vu",
+      "label": "Mô tả công việc/dịch vụ",
+      "section": "Nội dung dịch vụ",
+      "tier": "required",
+      "type": "textarea"
+    },
+    {
+      "key": "yeu_cau_chat_luong",
+      "label": "Yêu cầu về chất lượng, số lượng",
+      "section": "Nội dung dịch vụ",
+      "tier": "required",
+      "type": "textarea"
+    },
+    {
+      "key": "thoi_han_thuc_hien",
+      "label": "Thời hạn / tiến độ thực hiện",
+      "section": "Nội dung dịch vụ",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "gia_dich_vu",
+      "label": "Giá dịch vụ (tiền dịch vụ)",
+      "section": "Giá và thanh toán",
+      "tier": "required",
+      "type": "money"
+    },
+    {
+      "key": "phuong_thuc_thanh_toan",
+      "label": "Phương thức thanh toán",
+      "section": "Giá và thanh toán",
+      "tier": "required",
+      "type": "select",
+      "options": [
+        "Chuyển khoản ngân hàng",
+        "Tiền mặt"
+      ]
+    }
+  ],
+  "lint": [
+    {
+      "field": "muc_phat_vi_pham",
+      "op": "max",
+      "value": 8,
+      "message": "Với hợp đồng thương mại, tổng mức phạt vi phạm không được vượt quá 8% giá trị phần nghĩa vụ hợp đồng bị vi phạm.",
+      "legalRef": "Điều 301 Luật Thương mại 2005",
+      "severity": "warn"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: NỘI DUNG DỊCH VỤ",
+      "text": "Bên A cung ứng dịch vụ: {{mo_ta_dich_vu}}. Yêu cầu: {{yeu_cau_chat_luong}}."
+    },
+    {
+      "heading": "ĐIỀU 2: THỜI HẠN VÀ GIÁ",
+      "text": "Thời hạn: {{thoi_han_thuc_hien}}. Giá dịch vụ: {{gia_dich_vu}}, thanh toán bằng {{phuong_thuc_thanh_toan}}."
+    }
+  ],
+  "closing": "Hợp đồng có hiệu lực kể từ ngày ký. Lập thành 02 bản.\n\nBÊN A                                      BÊN B",
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

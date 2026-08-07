@@ -26,9 +26,9 @@ export function renderAdminPanel(container) {
   }
 
   container.innerHTML = `
-    <div class="admin-user-status-banner" style="padding:12px 16px; margin-bottom:20px; border-radius:8px; background:rgba(30, 41, 59, 0.7); border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; font-size:0.9rem">
-      <div>👤 Tài khoản: <strong style="color:#60a5fa">${escapeHtml(window.currentUser?.email || 'Chưa đăng nhập')}</strong></div>
-      <div>🔑 Quyền Quản trị: <strong style="color:${window.isAdmin ? '#34d399' : '#f87171'}">${window.isAdmin ? 'Hợp lệ (Admin)' : 'Không khả dụng (Yêu cầu đăng xuất & đăng nhập lại)'}</strong></div>
+    <div class="admin-user-status-banner" style="padding:12px 16px; margin-bottom:20px; border-radius:8px; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #cbd5e1); color:var(--text-primary, #0f172a); display:flex; justify-content:space-between; align-items:center; font-size:0.9rem">
+      <div>👤 Tài khoản: <strong style="color:var(--primary, #0284c7)">${escapeHtml(window.currentUser?.email || 'Chưa đăng nhập')}</strong></div>
+      <div>🔑 Quyền Quản trị: <strong style="color:${window.isAdmin ? 'var(--success, #059669)' : 'var(--danger, #dc2626)'}">${window.isAdmin ? 'Hợp lệ (Admin)' : 'Không khả dụng (Yêu cầu đăng xuất & đăng nhập lại)'}</strong></div>
     </div>
 
     <div class="panel-group admin-config-panel">
@@ -73,6 +73,10 @@ export function renderAdminPanel(container) {
                 <input type="text" id="transcribe_model" class="form-input" placeholder="gemini-3.5-flash-lite">
               </div>
               <div class="form-group">
+                <label class="form-label">Model meeting (Biên bản cuộc họp)</label>
+                <input type="text" id="meeting_model" class="form-input" placeholder="gemini-3.5-flash-lite">
+              </div>
+              <div class="form-group">
                 <label class="form-label">Danh sách Model Gemini khả dụng</label>
                 <div class="config-inline-row">
                   <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập model (VD: gemini-3.5-flash-lite)">
@@ -97,10 +101,11 @@ export function renderAdminPanel(container) {
                 <input type="text" id="vertex_project_id" class="form-input" placeholder="gen-lang-client-0462350485">
               </div>
               <div class="form-group">
-                <label class="form-label">Location & Data Store ID</label>
+                <label class="form-label">Location, Data Store ID & Serving Config</label>
                 <div class="config-inline-row">
-                  <input type="text" id="vertex_location" class="form-input" placeholder="global" style="width: 35%;">
+                  <input type="text" id="vertex_location" class="form-input" placeholder="global" style="width: 25%;">
                   <input type="text" id="vertex_data_store_id" class="form-input" placeholder="vbai-legal-search" style="flex:1;">
+                  <input type="text" id="vertex_serving_config" class="form-input" placeholder="default_config" style="width: 30%;">
                 </div>
               </div>
               <div class="form-group">
@@ -155,7 +160,7 @@ export function renderAdminPanel(container) {
               </div>
               <div class="form-group">
                 <label class="form-label">App Build Git SHA:</label>
-                <input type="text" class="form-input" value="${typeof __VBAI_FULL_GIT_SHA__ !== 'undefined' ? __VBAI_FULL_GIT_SHA__ : '0814f39e4e4c3f0a86856b4a5066afcac1ee9a24'}" readonly>
+                <input type="text" class="form-input" value="${typeof __VBAI_FULL_GIT_SHA__ !== 'undefined' ? __VBAI_FULL_GIT_SHA__ : 'dev-build'}" readonly>
               </div>
             </section>
           </div>
@@ -470,6 +475,7 @@ async function initSystemConfigPanel(container) {
   const geminiRuntimeWarning = formEl.querySelector('#gemini-runtime-warning');
   
   const transcribeModelInput = formEl.querySelector('#transcribe_model');
+  const meetingModelInput = formEl.querySelector('#meeting_model');
   const vertexProjectIdInput = formEl.querySelector('#vertex_project_id');
   const vertexLocationInput = formEl.querySelector('#vertex_location');
   const vertexDataStoreIdInput = formEl.querySelector('#vertex_data_store_id');
@@ -608,23 +614,28 @@ async function initSystemConfigPanel(container) {
         return;
       }
 
+      // Helper for safe input access
+      const setInputValue = (el, val) => { if (el) el.value = val; };
+      const getInputValue = (el, fallback = '') => el ? el.value.trim() : fallback;
+
       // Load Gemini
-      geminiModelInput.value = config.gemini_model || 'gemini-3.5-flash-lite';
-      geminiEndpointInput.value = config.gemini_endpoint || '';
-      geminiKeyInput.value = config.gemini_api_key || '';
-      geminiKeyInput.type = 'password';
+      setInputValue(geminiModelInput, config.gemini_model || 'gemini-3.5-flash-lite');
+      setInputValue(geminiEndpointInput, config.gemini_endpoint || '');
+      setInputValue(geminiKeyInput, config.gemini_api_key || '');
+      if (geminiKeyInput) geminiKeyInput.type = 'password';
       if (toggleGeminiKeyBtn) toggleGeminiKeyBtn.textContent = 'Hiện key';
       setGeminiKeyVerifyStatus(config.has_gemini_key ? 'Đã lưu Gemini API key. Bạn có thể xác nhận lại bất cứ lúc nào.' : 'Chưa có Gemini API key.');
-      updateGeminiRuntimeWarning(geminiModelInput.value, !!config.has_gemini_key);
+      updateGeminiRuntimeWarning(geminiModelInput ? geminiModelInput.value : '', !!config.has_gemini_key);
       geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
       renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
 
       // Load other configs
-      transcribeModelInput.value = config.transcribe_model || 'gemini-3.5-flash-lite';
-      vertexProjectIdInput.value = config.vertex_project_id || '';
-      vertexLocationInput.value = config.vertex_location || 'global';
-      vertexDataStoreIdInput.value = config.vertex_data_store_id || '';
-      vertexServingConfigInput.value = config.vertex_serving_config || '';
+      setInputValue(transcribeModelInput, config.transcribe_model || 'gemini-3.5-flash-lite');
+      setInputValue(meetingModelInput, config.meeting_model || 'gemini-3.5-flash-lite');
+      setInputValue(vertexProjectIdInput, config.vertex_project_id || '');
+      setInputValue(vertexLocationInput, config.vertex_location || 'global');
+      setInputValue(vertexDataStoreIdInput, config.vertex_data_store_id || '');
+      setInputValue(vertexServingConfigInput, config.vertex_serving_config || '');
 
       const provider = config.web_search_provider || 'vertex_search';
       const mode = config.web_search_mode || 'cse_with_fallback';
@@ -640,22 +651,24 @@ async function initSystemConfigPanel(container) {
   }
 
   async function saveConfig() {
+    const getInputValue = (el, fallback = '') => el ? el.value.trim() : fallback;
     const payload = {
       // Gemini
-      gemini_model: geminiModelInput.value.trim(),
-      gemini_endpoint: geminiEndpointInput.value.trim(),
+      gemini_model: getInputValue(geminiModelInput, 'gemini-3.5-flash-lite'),
+      gemini_endpoint: getInputValue(geminiEndpointInput),
       gemini_models: geminiModels,
-      gemini_api_key: geminiKeyInput.value.trim(),
+      gemini_api_key: getInputValue(geminiKeyInput),
 
       // Other Settings
-      transcribe_model: transcribeModelInput.value.trim() || 'gemini-3.5-flash-lite',
+      transcribe_model: getInputValue(transcribeModelInput, 'gemini-3.5-flash-lite'),
+      meeting_model: getInputValue(meetingModelInput, 'gemini-3.5-flash-lite'),
       web_search_provider: getSelectedRadio('web_search_provider', 'vertex_search'),
       web_search_mode: getSelectedRadio('web_search_mode', 'cse_with_fallback'),
       web_search_fallback_sources: getFallbackSources(),
-      vertex_project_id: vertexProjectIdInput.value.trim(),
-      vertex_location: vertexLocationInput.value.trim() || 'global',
-      vertex_data_store_id: vertexDataStoreIdInput.value.trim(),
-      vertex_serving_config: vertexServingConfigInput.value.trim(),
+      vertex_project_id: getInputValue(vertexProjectIdInput),
+      vertex_location: getInputValue(vertexLocationInput, 'global'),
+      vertex_data_store_id: getInputValue(vertexDataStoreIdInput),
+      vertex_serving_config: getInputValue(vertexServingConfigInput),
     };
 
     saveBtn.disabled = true;
@@ -814,15 +827,27 @@ function renderPage(container) {
   if (!tbody) return;
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const pageLogs = allLogs.slice(start, start + ITEMS_PER_PAGE);
-  tbody.innerHTML = pageLogs.length > 0 ? pageLogs.map((item) => `
-    <tr style="border-bottom:1px solid var(--border-color)">
-      <td style="padding:12px;">${formatDate(item.data.timestamp)}</td>
-      <td style="padding:12px;">${escapeHtml(item.data.userEmail || '')}</td>
-      <td style="padding:12px;">${escapeHtml(item.data.query || '')}</td>
-      <td style="padding:12px;">${escapeHtml(item.data.model || '')}</td>
-      <td style="padding:12px;"><button class="btn-delete" data-id="${item.id}">Xóa</button></td>
-    </tr>
-  `).join('') : '<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
+  tbody.innerHTML = pageLogs.length > 0 ? pageLogs.map((item) => {
+    const userDisplay = item.data.userEmail || item.data.user || 'Unknown';
+    const queryDisplay = item.data.query || item.data.action || '';
+    const modeBadge = item.data.mode ? `<span class="recent-mode-tag" style="font-size:0.68rem; margin-left:6px;">${escapeHtml(item.data.mode)}</span>` : '';
+    const evidenceMeta = (typeof item.data.verifiedEvidenceCount === 'number')
+      ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Xác minh: ${item.data.verifiedEvidenceCount}/${item.data.totalEvidenceCount || 0} căn cứ</div>`
+      : '';
+    return `
+      <tr style="border-bottom:1px solid var(--border-color)">
+        <td style="padding:12px;">${formatDate(item.data.timestamp)}</td>
+        <td style="padding:12px;">${escapeHtml(userDisplay)}</td>
+        <td style="padding:12px;">
+          <div>${escapeHtml(queryDisplay)} ${modeBadge}</div>
+          ${evidenceMeta}
+        </td>
+        <td style="padding:12px;">${escapeHtml(item.data.model || '')}</td>
+        <td style="padding:12px;"><button class="btn-delete" data-id="${item.id}">Xóa</button></td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
+
 
   const totalPages = Math.ceil(allLogs.length / ITEMS_PER_PAGE) || 1;
   const paginationControls = container.querySelector('#pagination-controls');

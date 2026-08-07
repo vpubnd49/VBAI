@@ -2375,6 +2375,51 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'vbai-proxy' });
 });
 
+// GET: Visit counter (authenticated user read stats/visits)
+app.get('/api/stats/visits', async (req, res) => {
+  try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!decoded) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const db = admin.firestore();
+    const snap = await db.collection('stats').doc('visits').get();
+    const count = snap.exists ? Number(snap.data()?.count || 0) : 0;
+    return res.json({ count });
+  } catch (err) {
+    console.error('GET /api/stats/visits error:', err);
+    return res.status(500).json({ error: 'Internal server error', message: err.message, count: null });
+  }
+});
+
+// POST: Session visit counter (authenticated user atomic increment by 1)
+app.post('/api/stats/visits/session', async (req, res) => {
+  try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!decoded) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const db = admin.firestore();
+    const visitRef = db.collection('stats').doc('visits');
+    await visitRef.set(
+      {
+        count: admin.firestore.FieldValue.increment(1),
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    const snap = await visitRef.get();
+    const count = snap.exists ? Number(snap.data()?.count || 0) : 0;
+    return res.json({ count });
+  } catch (err) {
+    console.error('POST /api/stats/visits/session error:', err);
+    return res.status(500).json({ error: 'Internal server error', message: err.message, count: null });
+  }
+});
+
+
 // GET: System config summary (non-sensitive)
 app.get('/api/system-config-summary', async (req, res) => {
   try {
@@ -2904,6 +2949,13 @@ app.post('/api/chat', async (req, res) => {
       return res.status(rateCheck.status).json({ error: rateCheck.error, message: rateCheck.message });
     }
 
+    // Extract and internalize trace metadata for audit logging; strip before model payload creation
+    const traceMeta = req.body?.trace || req.body?.audit || null;
+    if (req.body) {
+      delete req.body.trace;
+      delete req.body.audit;
+    }
+
     const { messages, contents, model, stream = false, temperature = 0.7, max_tokens, provider } = req.body;
     const normalizedMessages = Array.isArray(messages)
       ? sanitizeMessagesForOpenAI(messages)
@@ -2929,7 +2981,13 @@ app.post('/api/chat', async (req, res) => {
     const userMessage = Array.isArray(normalizedMessages)
       ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
       : '';
-    console.log('USER QUERY:', userMessage);
+
+    const auditQuery = String(traceMeta?.query || userMessage || '').trim();
+    const auditFeature = String(traceMeta?.feature || 'legal-search').trim();
+    const auditMode = String(traceMeta?.mode || 'legal-search').trim();
+    const auditEffectiveDate = traceMeta?.effectiveDate ? String(traceMeta.effectiveDate).trim() : null;
+
+    console.log('USER QUERY:', userMessage, 'AUDIT QUERY:', auditQuery);
 
     // Legal query detection & server-side evidence retrieval
     let legalContext = null;
@@ -3097,6 +3155,26 @@ app.post('/api/chat', async (req, res) => {
     }
 
     if (!attempt?.ok) {
+      // Record failed search attempt to search_logs
+      try {
+        const db = admin.firestore();
+        await db.collection('search_logs').add({
+          query: auditQuery,
+          model: primaryModel || 'gemini-3.5-flash-lite',
+          userEmail: decoded.email || decoded.uid || 'anonymous',
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          feature: auditFeature,
+          mode: auditMode,
+          effectiveDate: auditEffectiveDate,
+          status: 'error',
+          verifiedEvidenceCount: 0,
+          totalEvidenceCount: 0,
+          requestId: String(req.headers['x-request-id'] || '').trim() || null
+        });
+      } catch (logErr) {
+        console.warn('[search_logs] Audit trace error log failed:', logErr.message);
+      }
+
       return res.status(attempt.status || 500).json({
         error: 'Provider request failed',
         message: attempt.message || `Provider error ${attempt.status || 500}`,
@@ -3112,6 +3190,8 @@ app.post('/api/chat', async (req, res) => {
 
     finalModel = finalModel || attemptedModels[attemptedModels.length - 1] || primaryModel;
     const data = attempt.data;
+    let citationValidation = null;
+
     if (data && typeof data === 'object' && !Array.isArray(data)) {
       data.meta = {
         ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
@@ -3125,7 +3205,7 @@ app.post('/api/chat', async (req, res) => {
       // Server-side citation validation after Gemini synthesis
       if (legalContext && legalContext.evidenceBundle) {
         const assistantText = extractAssistantText(data);
-        const citationValidation = validateCitations(assistantText, legalContext.evidenceBundle);
+        citationValidation = validateCitations(assistantText, legalContext.evidenceBundle);
         console.log(`[Legal Validation] Performed: total=${citationValidation.totalCitations}, verified=${citationValidation.validCitationsCount}, unverified=${citationValidation.unverifiedCitationsCount}`);
 
         data.legal = {
@@ -3137,12 +3217,45 @@ app.post('/api/chat', async (req, res) => {
         };
       }
     }
+
+    // Centralized Search Audit Trace logging to Firestore search_logs collection
+    try {
+      const db = admin.firestore();
+      const verifiedCount = legalContext?.evidenceBundle?.verifiedCount ||
+        (citationValidation?.validCitationsCount) || 0;
+      const totalCount = legalContext?.evidenceBundle?.documents?.length ||
+        (citationValidation?.totalCitations) || 0;
+
+      await db.collection('search_logs').add({
+        query: auditQuery,
+        prompt: auditQuery,
+        model: finalModel,
+        user_id: decoded.uid || null,
+        user_email: decoded.email || decoded.uid || 'anonymous',
+        userEmail: decoded.email || decoded.uid || 'anonymous',
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        feature: auditFeature,
+        mode: auditMode,
+        effectiveDate: auditEffectiveDate,
+        status: 'success',
+        verified_count: verifiedCount,
+        evidence_count: totalCount,
+        verifiedEvidenceCount: verifiedCount,
+        totalEvidenceCount: totalCount,
+        requestId: String(req.headers['x-request-id'] || '').trim() || null
+      });
+    } catch (logErr) {
+      console.warn('[search_logs] Failed to write audit trace:', logErr.message);
+    }
+
     res.json(data);
   } catch (err) {
     console.error('POST /api/chat error:', err);
     res.status(500).json({ error: 'Internal server error', message: err.message });
   }
 });
+
 
 // POST: Audio transcription proxy
 app.post('/api/transcribe', (req, res, next) => {
@@ -6614,13 +6727,94 @@ function selectBestAlternative(items, requestedDocType, query) {
   return sorted.length > 0 ? sorted[0] : null;
 }
 
+// Search History API — Authenticated & Rule-Enforced
+app.get('/api/search-history', async (req, res) => {
+  try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!decoded) {
+      return res.status(401).json({ error: 'Unauthorized', message: 'Bạn cần đăng nhập để xem lịch sử tra cứu.' });
+    }
+
+    const requesterIsAdmin = isAdmin(decoded);
+    const db = admin.firestore();
+    let queryRef = db.collection('search_logs');
+
+    if (!requesterIsAdmin) {
+      const userId = decoded.uid;
+      queryRef = queryRef.where('user_id', '==', userId);
+    }
+
+    const snapshot = await queryRef.orderBy('created_at', 'desc').limit(requesterIsAdmin ? 500 : 100).get();
+
+    const logs = [];
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      logs.push({
+        id: docSnap.id,
+        query: data.query || data.prompt || data.q || '',
+        mode: data.mode || 'legal-search',
+        user: data.user_email || data.userEmail || data.user_id || 'Ẩn danh',
+        userId: data.user_id || null,
+        createdAt: data.created_at || data.timestamp || null,
+        evidenceCount: data.evidence_count || data.evidenceCount || 0,
+        verifiedCount: data.verified_count || data.verifiedCount || 0,
+        ...data
+      });
+    });
+
+    return res.json({ success: true, isAdmin: requesterIsAdmin, logs });
+  } catch (err) {
+    console.error('GET /api/search-history error:', err);
+    return res.status(500).json({ error: 'Internal server error', message: err.message });
+  }
+});
+
+app.delete('/api/search-history/:id', async (req, res) => {
+  try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!decoded) {
+      return res.status(401).json({ error: 'Unauthorized', message: 'Bạn cần đăng nhập.' });
+    }
+
+    const logId = req.params.id;
+    if (!logId) {
+      return res.status(400).json({ error: 'Bad Request', message: 'Thiếu ID bản ghi.' });
+    }
+
+    const db = admin.firestore();
+    const docRef = db.collection('search_logs').doc(logId);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(404).json({ error: 'Not Found', message: 'Không tìm thấy bản ghi.' });
+    }
+
+    const data = docSnap.data();
+    const requesterIsAdmin = isAdmin(decoded);
+    const isOwner = (data.user_id && data.user_id === decoded.uid) ||
+                    (data.user_email && data.user_email.toLowerCase() === (decoded.email || '').toLowerCase());
+
+    if (!requesterIsAdmin && !isOwner) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Bạn không có quyền xóa bản ghi này.' });
+    }
+
+    await docRef.delete();
+    return res.json({ success: true, id: logId, message: 'Đã xóa bản ghi thành công.' });
+  } catch (err) {
+    console.error('DELETE /api/search-history/:id error:', err);
+    return res.status(500).json({ error: 'Internal server error', message: err.message });
+  }
+});
+
 // Build info route
 app.get('/api/build-info', (req, res) => {
   res.json({
     product: 'VBAI Legal Pro',
     version: '2',
     service: 'vbai-proxy',
-    gitSha: process.env.GIT_SHA || process.env.K_REVISION || '0814f39e4e4c3f0a86856b4a5066afcac1ee9a24',
+    gitSha: process.env.GIT_SHA || process.env.K_REVISION || 'dev',
     timestamp: new Date().toISOString()
   });
 });

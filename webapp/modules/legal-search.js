@@ -5,7 +5,7 @@
  */
 
 import { renderEvidencePanel } from './evidence-panel.js';
-import { sendChatRequest, sendLegalAgentRequest } from './ai-proxy.js';
+import { sendStructuredChatRequest, sendLegalAgentRequest } from './ai-proxy.js';
 import { formatLegalAnswer } from './legal/answer-formatter.js';
 import { showToast } from './ui-utils.js';
 
@@ -163,7 +163,14 @@ async function executeLegalSearch(container, query) {
 
   try {
     const fullPrompt = buildModePrompt(query, currentSearchState.mode, currentSearchState.effectiveDate);
-    const response = await sendChatRequest([{ role: 'user', content: fullPrompt }]);
+    const trace = {
+      feature: 'legal-search',
+      query: query,
+      mode: currentSearchState.mode,
+      effectiveDate: currentSearchState.effectiveDate,
+    };
+    const response = await sendStructuredChatRequest([{ role: 'user', content: fullPrompt }], null, { trace });
+
 
     let rawText = '';
     let evidenceBundle = null;
@@ -235,15 +242,19 @@ function bindCitationInteractions(container) {
   const chips = container.querySelectorAll('.legal-citation-chip');
   chips.forEach(chip => {
     chip.addEventListener('click', () => {
-      const docNum = chip.dataset.citationId || chip.querySelector('.chip-text')?.textContent || '';
+      const docNum = (chip.dataset.citationId || chip.querySelector('.chip-text')?.textContent || '').trim().toLowerCase();
       if (!docNum) return;
 
       const cards = container.querySelectorAll('.evidence-card');
+      let found = false;
       cards.forEach(card => {
         card.classList.remove('highlighted');
-        if (card.innerText.toLowerCase().includes(docNum.toLowerCase())) {
+        const cardDocNum = (card.dataset.docNumber || '').trim().toLowerCase();
+        const matches = (cardDocNum && (cardDocNum === docNum || cardDocNum.includes(docNum) || docNum.includes(cardDocNum))) || card.innerText.toLowerCase().includes(docNum);
+        if (matches && !found) {
           card.classList.add('highlighted');
           card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          found = true;
         }
       });
     });

@@ -1,0 +1,470 @@
+{
+  "id": "lao_dong",
+  "name": "Hợp đồng lao động",
+  "group": "Công ty ↔ Cá nhân",
+  "icon": "💼",
+  "title": "HỢP ĐỒNG LAO ĐỘNG",
+  "summary": "Hợp đồng lao động giữa công ty (người sử dụng lao động) và cá nhân (người lao động) theo Bộ luật Lao động 2019, gồm đầy đủ các nội dung chủ yếu: công việc, địa điểm, thời hạn, thử việc, tiền lương và phụ cấp, thời giờ làm việc - nghỉ ngơi, bảo hộ lao động, bảo hiểm và đào tạo. Hỗ trợ cả hợp đồng xác định và không xác định thời hạn, với cảnh báo về lương tối thiểu vùng (Nghị định 293/2025/NĐ-CP), giới hạn thử việc và làm thêm giờ.",
+  "parties": {
+    "a": "Người sử dụng lao động (Công ty)",
+    "b": "Người lao động"
+  },
+  "preamble": "Căn cứ Bộ luật Lao động số 45/2019/QH14;\nCăn cứ Thông tư 10/2020/TT-BLĐTBXH và Nghị định 145/2020/NĐ-CP;\nCăn cứ nhu cầu và năng lực của hai bên;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:\n- BÊN A (Người sử dụng lao động): {{ten_nsdld}}, địa chỉ: {{dia_chi_nsdld}}, đại diện: {{nguoi_dai_dien}}.\n- BÊN B (Người lao động): {{ten_nld}}, sinh ngày {{ngay_sinh_nld}}, giới tính {{gioi_tinh_nld}}, CCCD/Hộ chiếu số {{cccd_nld}}, nơi cư trú: {{dia_chi_nld}}.\nHai bên thống nhất ký kết hợp đồng lao động với các điều khoản sau:",
+  "legalBasis": [
+    "Bộ luật Lao động 2019 (Luật số 45/2019/QH14) - Điều 21 (nội dung chủ yếu của HĐLĐ; khoản 2: bảo vệ bí mật kinh doanh, bí mật công nghệ), Điều 20 (loại HĐLĐ), Điều 24-26 (thử việc), Điều 90-91 & 96-97 (tiền lương), Điều 105 & 107 & 109 & 111 & 113-114 (thời giờ làm việc, làm thêm, nghỉ ngơi, nghỉ hằng năm), Điều 34-36 (chấm dứt HĐLĐ)",
+    "Thông tư 10/2020/TT-BLĐTBXH - Điều 3 (hướng dẫn nội dung HĐLĐ; cho phép dẫn chiếu thỏa ước/nội quy/quy định của NSDLĐ với nâng bậc-nâng lương (khoản 6), thời giờ làm việc-nghỉ ngơi (khoản 7), bảo hộ lao động (khoản 8)), Điều 4 (bảo vệ bí mật kinh doanh, bí mật công nghệ)",
+    "Nghị định 145/2020/NĐ-CP - quy định chi tiết một số điều của Bộ luật Lao động về điều kiện lao động và quan hệ lao động",
+    "Nghị định 293/2025/NĐ-CP - mức lương tối thiểu vùng (hiệu lực 01/01/2026): Vùng I 5.310.000đ; Vùng II 4.730.000đ; Vùng III 4.140.000đ; Vùng IV 3.700.000đ/tháng (thay thế Nghị định 74/2024/NĐ-CP)",
+    "Luật An toàn, vệ sinh lao động 2015; Luật Bảo hiểm xã hội; Luật Bảo hiểm y tế; Luật Việc làm"
+  ],
+  "fields": [
+    {
+      "key": "ten_nsdld",
+      "label": "Tên đầy đủ của công ty/người sử dụng lao động?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text",
+      "help": "Tên doanh nghiệp/tổ chức đúng theo giấy đăng ký kinh doanh.",
+      "placeholder": "Công ty TNHH ABC"
+    },
+    {
+      "key": "dia_chi_nsdld",
+      "label": "Địa chỉ trụ sở của người sử dụng lao động?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text",
+      "help": "Địa chỉ ghi trên giấy phép đăng ký.",
+      "placeholder": "Số 1, đường X, phường Y, TP HCM"
+    },
+    {
+      "key": "nguoi_dai_dien",
+      "label": "Họ tên và chức vụ người đại diện ký hợp đồng bên công ty?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text",
+      "help": "Người có thẩm quyền ký (Giám đốc, người được ủy quyền).",
+      "placeholder": "Nguyễn Văn A - Giám đốc"
+    },
+    {
+      "key": "ten_nld",
+      "label": "Họ và tên người lao động?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text",
+      "help": "Ghi đúng họ tên theo CCCD.",
+      "placeholder": "Trần Thị B"
+    },
+    {
+      "key": "ngay_sinh_nld",
+      "label": "Ngày sinh của người lao động?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "date",
+      "help": "Theo CCCD/hộ chiếu.",
+      "placeholder": "01/01/1995"
+    },
+    {
+      "key": "gioi_tinh_nld",
+      "label": "Giới tính của người lao động?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "select",
+      "help": "Chọn giới tính.",
+      "options": [
+        "Nam",
+        "Nữ",
+        "Khác"
+      ]
+    },
+    {
+      "key": "cccd_nld",
+      "label": "Số CCCD/Hộ chiếu của người lao động?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text",
+      "help": "Số căn cước công dân hoặc hộ chiếu còn hiệu lực.",
+      "placeholder": "079095000123"
+    },
+    {
+      "key": "dia_chi_nld",
+      "label": "Nơi cư trú của người lao động?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text",
+      "help": "Địa chỉ thường trú hoặc tạm trú.",
+      "placeholder": "Số 5, đường Z, TP HCM"
+    },
+    {
+      "key": "chuc_danh",
+      "label": "Chức danh/vị trí công việc?",
+      "section": "Công việc",
+      "tier": "required",
+      "type": "text",
+      "help": "Tên vị trí người lao động đảm nhận.",
+      "placeholder": "Nhân viên kinh doanh"
+    },
+    {
+      "key": "mo_ta_cong_viec",
+      "label": "Mô tả công việc phải làm?",
+      "section": "Công việc",
+      "tier": "required",
+      "type": "textarea",
+      "help": "Liệt kê các nhiệm vụ chính. Đây là nội dung chủ yếu bắt buộc theo Điều 21 Bộ luật Lao động 2019.",
+      "placeholder": "Tìm kiếm khách hàng, chăm sóc khách hàng, đạt chỉ tiêu doanh số..."
+    },
+    {
+      "key": "dia_diem_lam_viec",
+      "label": "Địa điểm làm việc?",
+      "section": "Công việc",
+      "tier": "required",
+      "type": "text",
+      "help": "Nơi người lao động làm việc; nếu làm ở nhiều nơi thì ghi rõ phạm vi.",
+      "placeholder": "Văn phòng công ty tại TP HCM"
+    },
+    {
+      "key": "loai_hop_dong",
+      "label": "Loại hợp đồng lao động?",
+      "section": "Công việc",
+      "tier": "required",
+      "type": "select",
+      "help": "Xác định thời hạn tối đa 36 tháng (mỗi vị trí được ký tối đa 2 lần liên tiếp); không xác định thời hạn là không ấn định ngày kết thúc (Điều 20 Bộ luật Lao động 2019).",
+      "options": [
+        "Hợp đồng xác định thời hạn (tối đa 36 tháng)",
+        "Hợp đồng không xác định thời hạn"
+      ]
+    },
+    {
+      "key": "thoi_han_hd",
+      "label": "Thời hạn hợp đồng là bao lâu?",
+      "section": "Công việc",
+      "tier": "required",
+      "type": "text",
+      "help": "Ví dụ 12 tháng, 24 tháng. Tối đa 36 tháng cho hợp đồng xác định thời hạn.",
+      "placeholder": "12 tháng",
+      "condition": {
+        "key": "loai_hop_dong",
+        "equals": "Hợp đồng xác định thời hạn (tối đa 36 tháng)"
+      }
+    },
+    {
+      "key": "ngay_bat_dau",
+      "label": "Ngày bắt đầu làm việc?",
+      "section": "Công việc",
+      "tier": "required",
+      "type": "date",
+      "help": "Ngày hợp đồng có hiệu lực và người lao động bắt đầu làm việc.",
+      "placeholder": "01/07/2026"
+    },
+    {
+      "key": "ngay_ket_thuc",
+      "label": "Ngày kết thúc hợp đồng?",
+      "section": "Công việc",
+      "tier": "required",
+      "type": "date",
+      "help": "Chỉ áp dụng với hợp đồng xác định thời hạn.",
+      "placeholder": "30/06/2027",
+      "condition": {
+        "key": "loai_hop_dong",
+        "equals": "Hợp đồng xác định thời hạn (tối đa 36 tháng)"
+      }
+    },
+    {
+      "key": "co_thu_viec",
+      "label": "Có thỏa thuận thử việc không?",
+      "section": "Thử việc",
+      "tier": "optional",
+      "type": "select",
+      "help": "Thử việc là tùy nghi; nếu có phải tuân thủ giới hạn thời gian (Điều 25) và lương tối thiểu 85% (Điều 26).",
+      "options": [
+        "Có",
+        "Không"
+      ]
+    },
+    {
+      "key": "thoi_gian_thu_viec",
+      "label": "Thời gian thử việc (số ngày)?",
+      "section": "Thử việc",
+      "tier": "optional",
+      "type": "number",
+      "help": "Tối đa theo Điều 25: 180 ngày (người quản lý doanh nghiệp), 60 ngày (cao đẳng trở lên), 30 ngày (trung cấp/kỹ thuật/nghiệp vụ), 6 ngày (công việc khác).",
+      "placeholder": "60",
+      "condition": {
+        "key": "co_thu_viec",
+        "equals": "Có"
+      }
+    },
+    {
+      "key": "luong_thu_viec_pct",
+      "label": "Lương thử việc bằng bao nhiêu % lương chính thức?",
+      "section": "Thử việc",
+      "tier": "optional",
+      "type": "number",
+      "help": "Theo Điều 26 Bộ luật Lao động 2019, ít nhất phải bằng 85% mức lương của công việc.",
+      "placeholder": "85",
+      "condition": {
+        "key": "co_thu_viec",
+        "equals": "Có"
+      }
+    },
+    {
+      "key": "muc_luong",
+      "label": "Mức lương theo công việc (đồng/tháng)?",
+      "section": "Tiền lương",
+      "tier": "required",
+      "type": "money",
+      "help": "Lương cơ bản theo công việc/chức danh, phải bằng hoặc cao hơn lương tối thiểu vùng nơi làm việc (từ 01/01/2026: Vùng I 5.310.000đ, II 4.730.000đ, III 4.140.000đ, IV 3.700.000đ - Nghị định 293/2025/NĐ-CP).",
+      "placeholder": "10000000"
+    },
+    {
+      "key": "hinh_thuc_tra_luong",
+      "label": "Hình thức trả lương?",
+      "section": "Tiền lương",
+      "tier": "default",
+      "type": "select",
+      "help": "Nếu không thỏa thuận, theo Điều 96 Bộ luật Lao động 2019 trả theo thời gian là hình thức phổ biến; có thể trả bằng tiền mặt hoặc chuyển khoản.",
+      "placeholder": "Chuyển khoản",
+      "options": [
+        "Theo thời gian (tháng)",
+        "Theo sản phẩm",
+        "Khoán"
+      ],
+      "defaultText": "Nếu các bên không thỏa thuận: áp dụng trả lương theo thời gian (Điều 96 Bộ luật Lao động 2019); lương được trả bằng tiền mặt hoặc qua tài khoản ngân hàng của người lao động.",
+      "legalRef": "Điều 96 Bộ luật Lao động 2019; Điều 54 Nghị định 145/2020/NĐ-CP"
+    },
+    {
+      "key": "ky_han_tra_luong",
+      "label": "Kỳ hạn trả lương?",
+      "section": "Tiền lương",
+      "tier": "default",
+      "type": "text",
+      "help": "Thường trả 1 lần/tháng hoặc nửa tháng/lần.",
+      "placeholder": "Một lần vào ngày 05 hằng tháng",
+      "defaultText": "Nếu không thỏa thuận: người hưởng lương tháng được trả một tháng một lần hoặc nửa tháng một lần, vào thời điểm hai bên thống nhất và có tính chu kỳ (Điều 97 Bộ luật Lao động 2019).",
+      "legalRef": "Điều 97 Bộ luật Lao động 2019"
+    },
+    {
+      "key": "phu_cap",
+      "label": "Phụ cấp lương và các khoản bổ sung khác?",
+      "section": "Tiền lương",
+      "tier": "optional",
+      "type": "textarea",
+      "help": "Ví dụ phụ cấp ăn trưa, xăng xe, điện thoại, trách nhiệm... Tùy nghi theo thỏa thuận.",
+      "placeholder": "Phụ cấp ăn trưa 730.000 đồng/tháng, phụ cấp điện thoại 200.000 đồng/tháng"
+    },
+    {
+      "key": "nang_bac_nang_luong",
+      "label": "Chế độ nâng bậc, nâng lương?",
+      "section": "Tiền lương",
+      "tier": "default",
+      "type": "textarea",
+      "help": "Có thể ghi cụ thể hoặc dẫn chiếu nội quy/thỏa ước lao động tập thể.",
+      "placeholder": "Theo Quy chế lương của công ty, xét nâng lương định kỳ hằng năm",
+      "defaultText": "Nếu không thỏa thuận cụ thể: thực hiện theo thỏa ước lao động tập thể, quy chế của người sử dụng lao động; khoản 6 Điều 3 Thông tư 10/2020/TT-BLĐTBXH cho phép dẫn chiếu nội dung nâng bậc, nâng lương theo các quy định này.",
+      "legalRef": "Điểm e khoản 1 Điều 21 Bộ luật Lao động 2019; khoản 6 Điều 3 Thông tư 10/2020/TT-BLĐTBXH"
+    },
+    {
+      "key": "thoi_gio_lam_viec",
+      "label": "Thời giờ làm việc?",
+      "section": "Thời giờ làm việc, nghỉ ngơi",
+      "tier": "default",
+      "type": "text",
+      "help": "Không quá 8 giờ/ngày và 48 giờ/tuần (Điều 105 Bộ luật Lao động 2019).",
+      "placeholder": "Từ 8h00 đến 17h00, thứ Hai đến thứ Sáu",
+      "defaultText": "Nếu không thỏa thuận: thời giờ làm việc bình thường không quá 8 giờ/ngày và không quá 48 giờ/tuần (Điều 105 Bộ luật Lao động 2019); có thể thỏa thuận thực hiện theo nội quy lao động (khoản 7 Điều 3 Thông tư 10/2020/TT-BLĐTBXH).",
+      "legalRef": "Điều 105 Bộ luật Lao động 2019; khoản 7 Điều 3 Thông tư 10/2020/TT-BLĐTBXH"
+    },
+    {
+      "key": "thoi_gio_nghi",
+      "label": "Thời giờ nghỉ ngơi, ngày nghỉ hằng tuần?",
+      "section": "Thời giờ làm việc, nghỉ ngơi",
+      "tier": "default",
+      "type": "text",
+      "help": "Nghỉ giữa giờ và ít nhất 1 ngày nghỉ/tuần.",
+      "placeholder": "Nghỉ trưa 60 phút; nghỉ thứ Bảy, Chủ nhật",
+      "defaultText": "Nếu không thỏa thuận: người lao động được nghỉ giữa giờ ít nhất 30 phút liên tục (làm ca ngày), 45 phút (làm ca đêm), và nghỉ ít nhất 24 giờ liên tục mỗi tuần (Điều 109, 111 Bộ luật Lao động 2019).",
+      "legalRef": "Điều 109, Điều 111 Bộ luật Lao động 2019"
+    },
+    {
+      "key": "nghi_phep_nam",
+      "label": "Số ngày nghỉ phép năm (có hưởng lương)?",
+      "section": "Thời giờ làm việc, nghỉ ngơi",
+      "tier": "default",
+      "type": "number",
+      "help": "Tối thiểu 12 ngày/năm với điều kiện làm việc bình thường, đủ 12 tháng.",
+      "placeholder": "12",
+      "defaultText": "Nếu không thỏa thuận: người lao động làm đủ 12 tháng được nghỉ 12 ngày phép/năm (điều kiện bình thường), tăng theo thâm niên (cứ 5 năm thêm 1 ngày) và điều kiện công việc nặng nhọc, độc hại (Điều 113, 114 Bộ luật Lao động 2019).",
+      "legalRef": "Điều 113, Điều 114 Bộ luật Lao động 2019"
+    },
+    {
+      "key": "bao_ho_lao_dong",
+      "label": "Trang bị bảo hộ lao động?",
+      "section": "An toàn, bảo hiểm",
+      "tier": "default",
+      "type": "textarea",
+      "help": "Có thể ghi cụ thể hoặc dẫn chiếu nội quy/quy định của công ty.",
+      "placeholder": "Trang bị theo quy định an toàn vệ sinh lao động của công ty",
+      "defaultText": "Nếu không thỏa thuận cụ thể: người sử dụng lao động phải bảo đảm điều kiện an toàn, vệ sinh lao động và trang bị phương tiện bảo vệ cá nhân theo quy định; có thể dẫn chiếu thỏa ước lao động tập thể, quy định của người sử dụng lao động (khoản 8 Điều 3 Thông tư 10/2020/TT-BLĐTBXH).",
+      "legalRef": "Điểm h khoản 1 Điều 21 Bộ luật Lao động 2019; Luật An toàn, vệ sinh lao động 2015; khoản 8 Điều 3 Thông tư 10/2020/TT-BLĐTBXH"
+    },
+    {
+      "key": "dao_tao",
+      "label": "Chế độ đào tạo, bồi dưỡng nâng cao trình độ kỹ năng nghề?",
+      "section": "Đào tạo",
+      "tier": "optional",
+      "type": "textarea",
+      "help": "Tùy nghi: chế độ cử đi đào tạo, kinh phí, cam kết làm việc sau đào tạo.",
+      "placeholder": "Công ty hỗ trợ đào tạo nghiệp vụ định kỳ"
+    },
+    {
+      "key": "co_bao_mat",
+      "label": "Công việc có liên quan đến bí mật kinh doanh/công nghệ không?",
+      "section": "Bảo mật",
+      "tier": "optional",
+      "type": "select",
+      "help": "Nếu có, hai bên có thể thỏa thuận bằng văn bản về bảo mật (khoản 2 Điều 21 Bộ luật Lao động 2019).",
+      "options": [
+        "Có",
+        "Không"
+      ]
+    },
+    {
+      "key": "bao_mat",
+      "label": "Nội dung thỏa thuận bảo mật?",
+      "section": "Bảo mật",
+      "tier": "optional",
+      "type": "textarea",
+      "help": "Phạm vi, thời hạn bảo mật, quyền lợi và bồi thường nếu vi phạm.",
+      "placeholder": "Không tiết lộ thông tin khách hàng, công thức, dữ liệu kinh doanh trong và sau khi làm việc",
+      "condition": {
+        "key": "co_bao_mat",
+        "equals": "Có"
+      }
+    },
+    {
+      "key": "dia_diem_ky",
+      "label": "Địa điểm ký hợp đồng?",
+      "section": "Ký kết",
+      "tier": "required",
+      "type": "text",
+      "help": "Nơi ký kết hợp đồng.",
+      "placeholder": "TP Hồ Chí Minh"
+    },
+    {
+      "key": "ngay_ky",
+      "label": "Ngày ký hợp đồng?",
+      "section": "Ký kết",
+      "tier": "required",
+      "type": "date",
+      "help": "Ngày hai bên ký kết.",
+      "placeholder": "15/06/2026"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: CÔNG VIỆC, ĐỊA ĐIỂM VÀ THỜI HẠN HỢP ĐỒNG",
+      "text": "1.1. Người sử dụng lao động tuyển dụng Người lao động vào làm việc với chức danh/vị trí: {{chuc_danh}}.\n1.2. Mô tả công việc: {{mo_ta_cong_viec}}.\n1.3. Địa điểm làm việc: {{dia_diem_lam_viec}}.\n1.4. Loại hợp đồng: {{loai_hop_dong}}."
+    },
+    {
+      "heading": "ĐIỀU 1A: THỜI HẠN VÀ NGÀY BẮT ĐẦU",
+      "text": "Hợp đồng có thời hạn {{thoi_han_hd}} kể từ ngày {{ngay_bat_dau}} đến hết ngày {{ngay_ket_thuc}}.",
+      "condition": {
+        "key": "loai_hop_dong",
+        "equals": "Hợp đồng xác định thời hạn (tối đa 36 tháng)"
+      }
+    },
+    {
+      "heading": "ĐIỀU 1A: THỜI HẠN VÀ NGÀY BẮT ĐẦU",
+      "text": "Hợp đồng không xác định thời hạn, có hiệu lực kể từ ngày {{ngay_bat_dau}}, không ấn định thời điểm chấm dứt.",
+      "condition": {
+        "key": "loai_hop_dong",
+        "equals": "Hợp đồng không xác định thời hạn"
+      }
+    },
+    {
+      "heading": "ĐIỀU 2: THỬ VIỆC",
+      "text": "Hai bên thỏa thuận thời gian thử việc là {{thoi_gian_thu_viec}} ngày. Tiền lương trong thời gian thử việc bằng {{luong_thu_viec_pct}}% mức lương của công việc chính thức (theo Điều 26 Bộ luật Lao động 2019, ít nhất bằng 85%). Mỗi công việc chỉ được thử việc một lần. Khi kết thúc thử việc đạt yêu cầu, hai bên tiếp tục thực hiện hợp đồng này.",
+      "condition": {
+        "key": "co_thu_viec",
+        "equals": "Có"
+      }
+    },
+    {
+      "heading": "ĐIỀU 3: TIỀN LƯƠNG VÀ PHỤ CẤP",
+      "text": "3.1. Mức lương theo công việc/chức danh: {{muc_luong}} đồng/tháng.\n3.2. Hình thức trả lương: {{hinh_thuc_tra_luong}}.\n3.3. Kỳ hạn trả lương: {{ky_han_tra_luong}}.\n3.4. Phụ cấp lương và các khoản bổ sung khác: {{phu_cap}}.\n3.5. Chế độ nâng bậc, nâng lương: {{nang_bac_nang_luong}}."
+    },
+    {
+      "heading": "ĐIỀU 4: THỜI GIỜ LÀM VIỆC, NGHỈ NGƠI",
+      "text": "4.1. Thời giờ làm việc: {{thoi_gio_lam_viec}} (không quá 8 giờ/ngày và 48 giờ/tuần theo Điều 105 Bộ luật Lao động 2019).\n4.2. Thời giờ nghỉ ngơi, ngày nghỉ hằng tuần: {{thoi_gio_nghi}}.\n4.3. Nghỉ hằng năm: {{nghi_phep_nam}} ngày/năm.\n4.4. Làm thêm giờ: thực hiện theo Điều 107 Bộ luật Lao động 2019, có sự đồng ý của Người lao động, không quá 50% số giờ làm việc bình thường trong 01 ngày, không quá 40 giờ/tháng và không quá 200 giờ/năm (hoặc 300 giờ/năm đối với ngành nghề được pháp luật cho phép)."
+    },
+    {
+      "heading": "ĐIỀU 5: BẢO HỘ LAO ĐỘNG VÀ BẢO HIỂM",
+      "text": "5.1. Trang bị bảo hộ lao động: {{bao_ho_lao_dong}}.\n5.2. Bảo hiểm xã hội, bảo hiểm y tế, bảo hiểm thất nghiệp: hai bên tham gia đầy đủ theo quy định của pháp luật. Mức đóng và quyền lợi thực hiện theo Luật Bảo hiểm xã hội, Luật Bảo hiểm y tế, Luật Việc làm và các văn bản hướng dẫn."
+    },
+    {
+      "heading": "ĐIỀU 6: ĐÀO TẠO, BỒI DƯỠNG NÂNG CAO TRÌNH ĐỘ",
+      "text": "Chế độ đào tạo, bồi dưỡng, nâng cao trình độ, kỹ năng nghề: {{dao_tao}}."
+    },
+    {
+      "heading": "ĐIỀU 7: BẢO VỆ BÍ MẬT KINH DOANH, BÍ MẬT CÔNG NGHỆ",
+      "text": "Khi làm công việc liên quan trực tiếp đến bí mật kinh doanh, bí mật công nghệ, Người lao động có nghĩa vụ bảo mật theo thỏa thuận: {{bao_mat}}. Thỏa thuận này thực hiện theo khoản 2 Điều 21 Bộ luật Lao động 2019 và Điều 4 Thông tư 10/2020/TT-BLĐTBXH.",
+      "condition": {
+        "key": "co_bao_mat",
+        "equals": "Có"
+      }
+    },
+    {
+      "heading": "ĐIỀU 8: QUYỀN VÀ NGHĨA VỤ CỦA HAI BÊN",
+      "text": "Quyền và nghĩa vụ của Người sử dụng lao động và Người lao động thực hiện theo Bộ luật Lao động, nội quy lao động, thỏa ước lao động tập thể (nếu có) và các thỏa thuận tại hợp đồng này. Các nội dung khác không quy định trong hợp đồng được áp dụng theo quy định của pháp luật lao động hiện hành."
+    },
+    {
+      "heading": "ĐIỀU 9: CHẤM DỨT HỢP ĐỒNG",
+      "text": "Việc tạm hoãn, chấm dứt hợp đồng và thời hạn báo trước thực hiện theo các Điều 34, 35, 36 Bộ luật Lao động 2019. Khi đơn phương chấm dứt hợp đồng, bên chấm dứt phải báo trước theo đúng thời hạn luật định (ít nhất 30 ngày với hợp đồng xác định thời hạn từ 12 đến 36 tháng, ít nhất 45 ngày với hợp đồng không xác định thời hạn, ít nhất 03 ngày với hợp đồng xác định thời hạn dưới 12 tháng, trừ các trường hợp không phải báo trước theo luật)."
+    }
+  ],
+  "closing": "Hợp đồng này được lập thành 02 (hai) bản có giá trị pháp lý như nhau, mỗi bên giữ 01 (một) bản, có hiệu lực kể từ ngày {{ngay_bat_dau}}. Những nội dung không được thỏa thuận trong hợp đồng được thực hiện theo quy định của Bộ luật Lao động và pháp luật liên quan.\n\nĐẠI DIỆN NGƯỜI SỬ DỤNG LAO ĐỘNG (ký, ghi rõ họ tên, đóng dấu)        NGƯỜI LAO ĐỘNG (ký, ghi rõ họ tên)",
+  "lint": [
+    {
+      "field": "muc_luong",
+      "op": "min",
+      "value": 3700000,
+      "message": "Mức lương không được thấp hơn lương tối thiểu vùng. Từ 01/01/2026 (Nghị định 293/2025/NĐ-CP), mức tối thiểu thấp nhất (Vùng IV) là 3.700.000 đồng/tháng; Vùng III 4.140.000đ; Vùng II 4.730.000đ; Vùng I 5.310.000đ. Hãy kiểm tra mức lương tối thiểu của vùng nơi làm việc.",
+      "legalRef": "Điều 90-91 Bộ luật Lao động 2019; Nghị định 293/2025/NĐ-CP",
+      "severity": "warn"
+    },
+    {
+      "field": "thoi_gian_thu_viec",
+      "op": "max",
+      "value": 180,
+      "message": "Thời gian thử việc không được vượt quá 180 ngày (chỉ áp dụng cho người quản lý doanh nghiệp). Các trường hợp khác: tối đa 60 ngày (cao đẳng trở lên), 30 ngày (trung cấp/kỹ thuật/nghiệp vụ), 6 ngày làm việc (công việc khác).",
+      "legalRef": "Điều 25 Bộ luật Lao động 2019",
+      "severity": "error"
+    },
+    {
+      "field": "luong_thu_viec_pct",
+      "op": "min",
+      "value": 85,
+      "message": "Lương thử việc phải bằng ít nhất 85% mức lương của công việc.",
+      "legalRef": "Điều 26 Bộ luật Lao động 2019",
+      "severity": "error"
+    },
+    {
+      "field": "thoi_han_hd",
+      "op": "note",
+      "value": "36 tháng",
+      "message": "Hợp đồng xác định thời hạn không quá 36 tháng. Mỗi vị trí chỉ được ký tối đa 2 lần liên tiếp; ký lần 3 phải chuyển thành hợp đồng không xác định thời hạn (trừ một số trường hợp đặc biệt theo khoản 2 Điều 20).",
+      "legalRef": "Điều 20 Bộ luật Lao động 2019",
+      "severity": "warn"
+    },
+    {
+      "field": "thoi_gio_lam_viec",
+      "op": "note",
+      "value": "8 giờ/ngày, 48 giờ/tuần",
+      "message": "Thời giờ làm việc bình thường không quá 8 giờ/ngày và không quá 48 giờ/tuần. Làm thêm không quá 50% giờ làm việc bình thường trong 1 ngày, không quá 40 giờ/tháng và 200 giờ/năm (300 giờ/năm với một số ngành nghề được phép).",
+      "legalRef": "Điều 105, Điều 107 Bộ luật Lao động 2019",
+      "severity": "warn"
+    }
+  ],
+  "verifyNotes": [
+    "SỬA QUAN TRỌNG - Cập nhật lương tối thiểu vùng: template cũ dùng Nghị định 74/2024/NĐ-CP (Vùng IV 3.450.000đ) đã hết hiệu lực. Đã thay bằng Nghị định 293/2025/NĐ-CP (hiệu lực 01/01/2026, đã kiểm chứng qua baochinhphu.vn): Vùng I 5.310.000đ, II 4.730.000đ, III 4.140.000đ, IV 3.700.000đ. Lint floor muc_luong nâng từ 3.450.000 lên 3.700.000 (Vùng IV - sàn tuyệt đối), legalBasis và help đã cập nhật."
+  ]
+}

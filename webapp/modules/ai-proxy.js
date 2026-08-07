@@ -199,9 +199,34 @@ async function getSystemConfigSafe() {
   return config;
 }
 
+export async function getVisitCount() {
+  try {
+    const res = await backendFetch('/stats/visits', { method: 'GET' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.count === 'number' ? data.count : null;
+  } catch (e) {
+    console.warn('Lỗi lấy lượt truy cập:', e);
+    return null;
+  }
+}
+
+export async function recordVisitSession() {
+  try {
+    const res = await backendFetch('/stats/visits/session', { method: 'POST' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.count === 'number' ? data.count : null;
+  } catch (e) {
+    console.warn('Lỗi ghi nhận phiên truy cập:', e);
+    return null;
+  }
+}
+
 export async function sendChatRequest(messages, model, options = {}) {
   const requestOptions = { ...options };
   const timeoutMs = requestOptions.timeoutMs;
+  const trace = requestOptions.trace;
   delete requestOptions.timeoutMs;
   delete requestOptions.context;
   delete requestOptions.onDelta;
@@ -222,8 +247,10 @@ export async function sendChatRequest(messages, model, options = {}) {
     messages: messagesList,
     contents: contentsList,
     stream: false,
+    trace: trace || undefined,
     ...requestOptions,
   };
+
 
   if (isReasoningModel(resolvedModel)) {
     delete payload.temperature;
@@ -260,6 +287,54 @@ export async function sendChatRequest(messages, model, options = {}) {
 
   const data = await response.json();
   return extractTextFromPayload(data) || '';
+}
+
+export async function sendStructuredChatRequest(messages, model, options = {}) {
+  const requestOptions = { ...options };
+  const timeoutMs = requestOptions.timeoutMs;
+  const trace = requestOptions.trace;
+  delete requestOptions.timeoutMs;
+
+  const systemConfig = await getSystemConfigSafe();
+  const resolvedModel = normalizeModelName(
+    model || systemConfig.gemini_model || DEFAULT_PROXY_MODEL
+  );
+
+  const messagesList = normalizeMessagesForProvider(messages, resolvedModel);
+  const contentsList = normalizeContentsForProvider(messages, resolvedModel);
+
+  const payload = {
+    model: resolvedModel,
+    messages: messagesList,
+    contents: contentsList,
+    stream: false,
+    trace: trace || undefined,
+    ...requestOptions,
+  };
+
+  const response = await backendFetch('/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    timeoutMs: timeoutMs ?? 120000,
+  });
+
+  if (!response.ok) {
+    const rawMessage = await buildHttpErrorMessage(response, `HTTP Error ${response.status}`);
+    throw new Error(rawMessage || 'Không thể gọi dịch vụ AI.');
+  }
+
+  const data = await response.json();
+  const text = extractTextFromPayload(data) || '';
+
+  return {
+    text,
+    legal: data?.legal || data?.legal_metadata || null,
+    evidenceBundle: data?.evidenceBundle || data?.legal?.evidenceBundle || data?.evidence_bundle || null,
+    citations: data?.citations || data?.legal?.citations || [],
+    meta: data?.meta || null,
+    rawMeta: data
+  };
 }
 
 export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, options = {}) {

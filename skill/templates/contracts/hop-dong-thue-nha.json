@@ -1,0 +1,273 @@
+{
+  "id": "thue_nha",
+  "name": "Hợp đồng thuê nhà ở",
+  "group": "Cá nhân ↔ Cá nhân",
+  "icon": "🏠",
+  "summary": "Hợp đồng cho cá nhân thuê nhà ở để sinh sống. Bao gồm các điều khoản chủ yếu (nhà cho thuê, giá thuê, thời hạn, mục đích) và các điều khoản thường lệ được pháp luật bổ khuyết (sửa chữa, đặt cọc, đơn phương chấm dứt báo trước 30 ngày, trả lại nhà). Soạn theo Luật Nhà ở 2023 và Bộ luật Dân sự 2015.",
+  "legalBasis": [
+    "Luật Nhà ở 2023 (Luật số 27/2023/QH15), Điều 162 (hình thức hợp đồng về nhà ở), Điều 163 (nội dung hợp đồng về nhà ở)",
+    "Luật Nhà ở 2023, Điều 164 (công chứng, chứng thực; thuê nhà ở KHÔNG bắt buộc công chứng/chứng thực, trừ khi các bên có nhu cầu)",
+    "Luật Nhà ở 2023, Điều 170 (các trường hợp chấm dứt hợp đồng thuê nhà ở), Điều 172 (đơn phương chấm dứt thực hiện hợp đồng thuê nhà ở; khoản 4: thông báo trước ít nhất 30 ngày)",
+    "Bộ luật Dân sự 2015, Điều 472 (khái niệm hợp đồng thuê tài sản), Điều 473 (giá thuê), Điều 474 (thời hạn thuê), Điều 475 (cho thuê lại), Điều 477 (bảo đảm giá trị sử dụng, sửa chữa), Điều 481 (trả tiền thuê), Điều 482 (trả lại tài sản thuê)",
+    "Bộ luật Dân sự 2015, Điều 328 (đặt cọc), Điều 418 (thỏa thuận phạt vi phạm)"
+  ],
+  "parties": {
+    "a": "Bên cho thuê (Bên A)",
+    "b": "Bên thuê (Bên B)"
+  },
+  "title": "HỢP ĐỒNG THUÊ NHÀ Ở",
+  "preamble": "- Căn cứ Bộ luật Dân sự số 91/2015/QH13 ngày 24/11/2015;\n- Căn cứ Luật Nhà ở số 27/2023/QH15 ngày 27/11/2023;\n- Căn cứ nhu cầu và khả năng của các bên.\n\nHôm nay, ngày {{ngay_ky}}, tại {{noi_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "noi_ky",
+      "label": "Nơi ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "text",
+      "help": "Tỉnh/thành phố nơi hai bên ký hợp đồng.",
+      "placeholder": "TP. Hồ Chí Minh"
+    },
+    {
+      "key": "ngay_ky",
+      "label": "Ngày ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "date",
+      "help": "Ngày hai bên cùng ký."
+    },
+    {
+      "key": "ben_a_ten",
+      "label": "Họ tên Bên cho thuê",
+      "section": "Bên cho thuê (Bên A)",
+      "tier": "required",
+      "type": "text",
+      "help": "Họ và tên đầy đủ của chủ nhà cho thuê.",
+      "placeholder": "Nguyễn Văn A"
+    },
+    {
+      "key": "ben_a_cccd",
+      "label": "Số CCCD/CMND Bên A",
+      "section": "Bên cho thuê (Bên A)",
+      "tier": "required",
+      "type": "text",
+      "help": "Số căn cước công dân hoặc hộ chiếu để xác định chủ thể.",
+      "placeholder": "0790xxxxxxxx"
+    },
+    {
+      "key": "ben_a_diachi",
+      "label": "Địa chỉ thường trú Bên A",
+      "section": "Bên cho thuê (Bên A)",
+      "tier": "required",
+      "type": "text",
+      "help": "Địa chỉ liên hệ/cư trú của chủ nhà.",
+      "placeholder": "Số 1, đường ABC, Quận X, TP HCM"
+    },
+    {
+      "key": "ben_b_ten",
+      "label": "Họ tên Bên thuê",
+      "section": "Bên thuê (Bên B)",
+      "tier": "required",
+      "type": "text",
+      "help": "Họ và tên đầy đủ của người thuê nhà.",
+      "placeholder": "Trần Thị B"
+    },
+    {
+      "key": "ben_b_cccd",
+      "label": "Số CCCD/CMND Bên B",
+      "section": "Bên thuê (Bên B)",
+      "tier": "required",
+      "type": "text",
+      "help": "Số căn cước công dân hoặc hộ chiếu của người thuê.",
+      "placeholder": "0010xxxxxxxx"
+    },
+    {
+      "key": "ben_b_diachi",
+      "label": "Địa chỉ thường trú Bên B",
+      "section": "Bên thuê (Bên B)",
+      "tier": "required",
+      "type": "text",
+      "help": "Địa chỉ thường trú/liên hệ của người thuê.",
+      "placeholder": "Số 5, đường DEF, Quận Y, TP HCM"
+    },
+    {
+      "key": "nha_diachi",
+      "label": "Địa chỉ nhà cho thuê",
+      "section": "Nhà ở cho thuê",
+      "tier": "required",
+      "type": "text",
+      "help": "Địa chỉ chính xác của căn nhà/căn hộ/phòng cho thuê.",
+      "placeholder": "Căn hộ 12.05, Chung cư XYZ, Quận X, TP HCM"
+    },
+    {
+      "key": "nha_dientich",
+      "label": "Diện tích sử dụng (m²)",
+      "section": "Nhà ở cho thuê",
+      "tier": "required",
+      "type": "number",
+      "help": "Diện tích sử dụng của nhà ở cho thuê.",
+      "placeholder": "55"
+    },
+    {
+      "key": "nha_dacdiem",
+      "label": "Đặc điểm, hiện trạng nhà ở",
+      "section": "Nhà ở cho thuê",
+      "tier": "required",
+      "type": "textarea",
+      "help": "Mô tả loại nhà, số phòng, nội thất kèm theo.",
+      "placeholder": "Căn hộ 2 phòng ngủ, 1 WC; có máy lạnh, tủ lạnh, bếp; hiện trạng tốt"
+    },
+    {
+      "key": "muc_dich",
+      "label": "Mục đích thuê",
+      "section": "Điều khoản thuê",
+      "tier": "required",
+      "type": "select",
+      "help": "Hợp đồng này dùng cho thuê để ở.",
+      "options": [
+        "Để ở",
+        "Để ở kết hợp làm việc tại nhà"
+      ]
+    },
+    {
+      "key": "gia_thue",
+      "label": "Giá thuê mỗi tháng (VND)",
+      "section": "Điều khoản thuê",
+      "tier": "required",
+      "type": "money",
+      "help": "Số tiền thuê hằng tháng.",
+      "placeholder": "8000000"
+    },
+    {
+      "key": "thoi_han",
+      "label": "Thời hạn thuê (tháng)",
+      "section": "Điều khoản thuê",
+      "tier": "required",
+      "type": "number",
+      "help": "Tổng thời gian thuê tính bằng tháng.",
+      "placeholder": "12"
+    },
+    {
+      "key": "ngay_batdau",
+      "label": "Ngày bắt đầu thuê",
+      "section": "Điều khoản thuê",
+      "tier": "required",
+      "type": "date",
+      "help": "Ngày bắt đầu tính thời hạn thuê."
+    },
+    {
+      "key": "ky_thanh_toan",
+      "label": "Kỳ thanh toán tiền thuê",
+      "section": "Thanh toán",
+      "tier": "default",
+      "type": "select",
+      "options": [
+        "Hằng tháng",
+        "Hằng quý (3 tháng)",
+        "Theo thỏa thuận khác"
+      ],
+      "defaultText": "Nếu các bên không thỏa thuận, trả theo tháng.",
+      "legalRef": "Điều 481 khoản 1 Bộ luật Dân sự 2015"
+    },
+    {
+      "key": "ngay_thanh_toan",
+      "label": "Hạn trả tiền hằng kỳ (ngày)",
+      "section": "Thanh toán",
+      "tier": "default",
+      "type": "number",
+      "placeholder": "5"
+    },
+    {
+      "key": "tien_coc",
+      "label": "Tiền đặt cọc (VND)",
+      "section": "Thanh toán",
+      "tier": "default",
+      "type": "money",
+      "placeholder": "8000000"
+    },
+    {
+      "key": "chiphi_dichvu",
+      "label": "Chi phí dịch vụ (điện, nước...)",
+      "section": "Chi phí",
+      "tier": "default",
+      "type": "textarea",
+      "placeholder": "Bên thuê thanh toán theo thực tế"
+    },
+    {
+      "key": "sua_chua",
+      "label": "Trách nhiệm sửa chữa nhà",
+      "section": "Quyền và nghĩa vụ",
+      "tier": "default",
+      "type": "textarea",
+      "placeholder": "Bên A sửa hư hỏng lớn; Bên B tự sửa hư hỏng nhỏ"
+    },
+    {
+      "key": "cho_thue_lai",
+      "label": "Cho thuê lại / cho ở nhờ",
+      "section": "Quyền và nghĩa vụ",
+      "tier": "default",
+      "type": "select",
+      "options": [
+        "Không được phép",
+        "Được phép nếu có sự đồng ý bằng văn bản của Bên A"
+      ]
+    },
+    {
+      "key": "bao_truoc_ngay",
+      "label": "Thời hạn báo trước khi đơn phương chấm dứt (ngày)",
+      "section": "Chấm dứt hợp đồng",
+      "tier": "default",
+      "type": "number",
+      "placeholder": "30",
+      "defaultText": "Thông báo bằng văn bản cho bên kia biết trước ít nhất 30 ngày. (Điều 172 khoản 4 Luật Nhà ở 2023)",
+      "legalRef": "Điều 172 khoản 4 Luật Nhà ở 2023"
+    }
+  ],
+  "lint": [
+    {
+      "field": "gia_thue",
+      "op": "min",
+      "value": 1,
+      "message": "Giá thuê là điều khoản chủ yếu, phải lớn hơn 0.",
+      "legalRef": "Điều 473 Bộ luật Dân sự 2015",
+      "severity": "error"
+    },
+    {
+      "field": "bao_truoc_ngay",
+      "op": "min",
+      "value": 30,
+      "message": "Thời hạn báo trước khi đơn phương chấm dứt hợp đồng thuê nhà ở phải ít nhất 30 ngày.",
+      "legalRef": "Điều 172 khoản 4 Luật Nhà ở 2023",
+      "severity": "warn"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: NHÀ Ở CHO THUÊ",
+      "text": "Bên A đồng ý cho Bên B thuê nhà ở tại địa chỉ: {{nha_diachi}}. Diện tích sử dụng: {{nha_dientich}} m². Đặc điểm và hiện trạng nhà ở khi bàn giao: {{nha_dacdiem}}."
+    },
+    {
+      "heading": "ĐIỀU 2: MỤC ĐÍCH THUÊ",
+      "text": "Bên B thuê nhà ở nêu trên với mục đích: {{muc_dich}}. Sử dụng đúng mục đích."
+    },
+    {
+      "heading": "ĐIỀU 3: GIÁ THUÊ VÀ THỜI HẠN THUÊ",
+      "text": "Giá thuê là {{gia_thue}} VND/tháng. Thời hạn thuê là {{thoi_han}} tháng, kể từ ngày {{ngay_batdau}}."
+    },
+    {
+      "heading": "ĐIỀU 4: THANH TOÁN VÀ ĐẶT CỌC",
+      "text": "Bên B thanh toán tiền thuê theo kỳ {{ky_thanh_toan}} trước ngày {{ngay_thanh_toan}}. Đặt cọc {{tien_coc}} VND."
+    },
+    {
+      "heading": "ĐIỀU 5: CHI PHÍ DỊCH VỤ VÀ SỬA CHỮA",
+      "text": "Chi phí: {{chiphi_dichvu}}. Sửa chữa: {{sua_chua}}."
+    },
+    {
+      "heading": "ĐIỀU 6: ĐƠN PHƯƠNG CHẤM DỨT",
+      "text": "Báo trước ít nhất {{bao_truoc_ngay}} ngày khi đơn phương chấm dứt theo quy định Luật Nhà ở 2023."
+    }
+  ],
+  "closing": "Hợp đồng có hiệu lực kể từ ngày ký. Lập thành 02 bản có giá trị như nhau.\n\nBÊN CHO THUÊ (BÊN A)                          BÊN THUÊ (BÊN B)",
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3 templates"
+  ]
+}

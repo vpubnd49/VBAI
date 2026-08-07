@@ -1,0 +1,54 @@
+{
+  "id": "thoa_thuan_co_dong",
+  "name": "Thỏa thuận cổ đông sáng lập",
+  "group": "Cá nhân ↔ Cá nhân / Doanh nghiệp",
+  "icon": "👥",
+  "title": "THỎA THUẬN CỔ ĐÔNG SÁNG LẬP",
+  "summary": "Thỏa thuận cổ đông sáng lập điều chỉnh các cam kết về tỷ lệ sở hữu, quyền biểu quyết, hạn chế chuyển nhượng cổ phần theo Luật Doanh nghiệp 2020.",
+  "parties": {
+    "a": "Cổ đông sáng lập A",
+    "b": "Cổ đông sáng lập B"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nCăn cứ Luật Doanh nghiệp 2020;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Tên cổ đông A",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "co_phan_bena",
+      "label": "Tỷ lệ cổ phần A (%)",
+      "section": "Cổ phần",
+      "tier": "required",
+      "type": "number"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Tên cổ đông B",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "co_phan_benb",
+      "label": "Tỷ lệ cổ phần B (%)",
+      "section": "Cổ phần",
+      "tier": "required",
+      "type": "number"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: TỶ LỆ SỞ HỮU CỔ PHẦN",
+      "text": "Cổ đông A nắm giữ {{co_phan_bena}}% cổ phần, Cổ đông B nắm giữ {{co_phan_benb}}% cổ phần."
+    }
+  ],
+  "closing": "Thỏa thuận lập thành 02 bản có giá trị như nhau.\n\nCỔ ĐÔNG A                                   CỔ ĐÔNG B",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

@@ -3,14 +3,14 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-let gitSha = '0814f39';
-let fullGitSha = '0814f39e4e4c3f0a86856b4a5066afcac1ee9a24';
+let gitSha = 'dev';
+let fullGitSha = 'dev-build';
 try {
   fullGitSha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
   gitSha = fullGitSha.substring(0, 7);
 } catch (e) {
-  if (process.env.GIT_SHA) {
-    fullGitSha = process.env.GIT_SHA;
+  if (process.env.GIT_SHA || process.env.COMMIT_SHA) {
+    fullGitSha = process.env.GIT_SHA || process.env.COMMIT_SHA;
     gitSha = fullGitSha.substring(0, 7);
   }
 }

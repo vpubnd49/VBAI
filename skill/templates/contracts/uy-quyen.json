@@ -1,0 +1,99 @@
+{
+  "id": "uy_quyen",
+  "name": "Hợp đồng ủy quyền",
+  "group": "Cá nhân ↔ Cá nhân",
+  "icon": "✍️",
+  "title": "HỢP ĐỒNG ỦY QUYỀN",
+  "summary": "Hợp đồng theo đó Bên ủy quyền giao cho Bên được ủy quyền nhân danh mình thực hiện một hoặc một số công việc nhất định trong phạm vi và thời hạn thỏa thuận. Theo BLDS 2015: mặc định không có thù lao trừ khi có thỏa thuận; thời hạn 01 năm nếu không thỏa thuận.",
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "parties": {
+    "a": "Bên ủy quyền",
+    "b": "Bên được ủy quyền"
+  },
+  "legalBasis": [
+    "Bộ luật Dân sự 2015 - Điều 562 (Hợp đồng ủy quyền)",
+    "Bộ luật Dân sự 2015 - Điều 563 (Thời hạn ủy quyền)"
+  ],
+  "fields": [
+    {
+      "key": "ngay_ky",
+      "label": "Ngày ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "date"
+    },
+    {
+      "key": "dia_diem_ky",
+      "label": "Nơi ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "optional",
+      "type": "text"
+    },
+    {
+      "key": "ben_uy_quyen_ten",
+      "label": "Họ tên Bên ủy quyền",
+      "section": "Bên ủy quyền",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_uy_quyen_cccd",
+      "label": "Số CCCD Bên ủy quyền",
+      "section": "Bên ủy quyền",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_duoc_uy_quyen_ten",
+      "label": "Họ tên Bên được ủy quyền",
+      "section": "Bên được ủy quyền",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_duoc_uy_quyen_cccd",
+      "label": "Số CCCD Bên được ủy quyền",
+      "section": "Bên được ủy quyền",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "noi_dung_uy_quyen",
+      "label": "Nội dung công việc ủy quyền",
+      "section": "Nội dung",
+      "tier": "required",
+      "type": "textarea"
+    },
+    {
+      "key": "thoi_han_uy_quyen",
+      "label": "Thời hạn ủy quyền",
+      "section": "Thời hạn",
+      "tier": "default",
+      "type": "text",
+      "placeholder": "01 năm"
+    }
+  ],
+  "lint": [
+    {
+      "field": "thoi_han_uy_quyen",
+      "op": "note",
+      "message": "Mặc định 01 năm nếu không thỏa thuận.",
+      "legalRef": "Điều 563 BLDS 2015",
+      "severity": "warn"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: NỘI DUNG ỦY QUYỀN",
+      "text": "Bên ủy quyền ủy quyền cho Bên được ủy quyền thực hiện: {{noi_dung_uy_quyen}}."
+    },
+    {
+      "heading": "ĐIỀU 2: THỜI HẠN ỦY QUYỀN",
+      "text": "Thời hạn ủy quyền: {{thoi_han_uy_quyen}}."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN ỦY QUYỀN                                BÊN ĐƯỢC ỦY QUYỀN",
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

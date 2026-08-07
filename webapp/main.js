@@ -27,11 +27,11 @@ function applyGlobalModelDefaults() {
 }
 
 // ============ STATE ============
-const gitSha = typeof __VBAI_GIT_SHA__ !== 'undefined' ? __VBAI_GIT_SHA__ : '0814f39';
+const gitSha = typeof __VBAI_GIT_SHA__ !== 'undefined' ? __VBAI_GIT_SHA__ : 'dev';
 const state = {
   currentPage: 'dashboard',
   sidebarOpen: false,
-  version: `VBAI Legal Pro V2 (${gitSha})`
+  version: `VBAI Legal Pro V2 · Build: ${gitSha}`
 };
 
 // ============ CLOCK ============
@@ -133,12 +133,16 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
       case 'document-lookup':
       case 'situation-analysis':
       case 'compare-regulations':
-      case 'effective-date':
-      case 'search-history': {
+      case 'effective-date': {
         const { renderLegalSearchUI } = await import('./modules/legal-search.js');
         container.innerHTML = '';
-        const mode = initialMode || (page === 'search-history' ? 'legal-search' : page);
-        renderLegalSearchUI(container, mode, initialQuery);
+        renderLegalSearchUI(container, initialMode || page, initialQuery);
+        break;
+      }
+      case 'search-history': {
+        const { renderSearchHistory } = await import('./modules/search-history.js');
+        container.innerHTML = '';
+        renderSearchHistory(container, navigateTo);
         break;
       }
       case 'chat-assistant': {

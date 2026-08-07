@@ -1,11 +1,8 @@
-/**
- * VBAI Legal Pro V2 — Dashboard (Legal Pro Home)
- * Search-first legal workspace with central search box, quick actions,
- * recent searches, legal source principles, and ancillary tools shortcuts.
- */
+import { getVisitCount, recordVisitSession } from './ai-proxy.js';
 
 export function renderDashboard(container, navigateTo) {
   const recentSearches = getRecentSearches();
+
 
   container.innerHTML = `
     <div class="legal-home-wrapper">
@@ -224,7 +221,42 @@ export function renderDashboard(container, navigateTo) {
 
   // Load Build SHA in Footer
   loadFooterBuildInfo(container);
+
+  // Hydrate Visit Counter safely from backend API
+  hydrateVisitCounter(container);
 }
+
+async function hydrateVisitCounter(container) {
+  const visitEl = container.querySelector('#visit-count');
+  if (!visitEl) return;
+
+  const SESSION_KEY = 'vbai_visit_session_v2';
+  const isNewSession = !sessionStorage.getItem(SESSION_KEY);
+
+  try {
+    let count = null;
+    if (isNewSession) {
+      count = await recordVisitSession();
+      if (count !== null) {
+        sessionStorage.setItem(SESSION_KEY, '1');
+      }
+    }
+
+    if (count === null) {
+      count = await getVisitCount();
+    }
+
+    if (count !== null && typeof count === 'number') {
+      visitEl.textContent = count.toLocaleString('vi-VN');
+    } else {
+      visitEl.textContent = '--';
+    }
+  } catch (err) {
+    console.warn('Visit counter hydration failed safely:', err);
+    visitEl.textContent = '--';
+  }
+}
+
 
 function getRecentSearches() {
   try {
@@ -267,7 +299,7 @@ function loadFooterBuildInfo(container) {
   const el = container.querySelector('#footer-build-sha');
   if (!el) return;
 
-  const gitSha = typeof __VBAI_GIT_SHA__ !== 'undefined' ? __VBAI_GIT_SHA__ : '0814f39';
+  const gitSha = typeof __VBAI_GIT_SHA__ !== 'undefined' ? __VBAI_GIT_SHA__ : 'dev';
   el.textContent = `Build: ${gitSha}`;
 
   // Try fetching public/build-info.json dynamically

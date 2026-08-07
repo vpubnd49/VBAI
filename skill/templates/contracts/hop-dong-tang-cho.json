@@ -1,0 +1,50 @@
+{
+  "id": "tang_cho",
+  "name": "Hợp đồng tặng cho tài sản / đất đai",
+  "group": "Cá nhân ↔ Cá nhân",
+  "icon": "🎁",
+  "title": "HỢP ĐỒNG TẶNG CHO TÀI SẢN",
+  "summary": "Hợp đồng tặng cho tài sản hoặc quyền sử dụng đất giữa bên tặng cho và bên được tặng cho.",
+  "parties": {
+    "a": "Bên tặng cho (Bên A)",
+    "b": "Bên được tặng cho (Bên B)"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015"
+  ],
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Tên bên tặng cho (Bên A)",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Tên bên được tặng cho (Bên B)",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "tai_san_tang_cho",
+      "label": "Mô tả tài sản tặng cho",
+      "section": "Tài sản",
+      "tier": "required",
+      "type": "text"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: TÀI SẢN TẶNG CHO",
+      "text": "Bên A tặng cho Bên B tài sản: {{tai_san_tang_cho}}."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN A                                       BÊN B",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

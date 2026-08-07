@@ -1,0 +1,125 @@
+{
+  "id": "mua_ban_hh",
+  "name": "Hợp đồng mua bán hàng hóa",
+  "group": "Công ty ↔ Công ty",
+  "icon": "📦",
+  "summary": "Hợp đồng giữa hai doanh nghiệp, theo đó Bên bán giao hàng hóa và chuyển quyền sở hữu cho Bên mua, Bên mua nhận hàng và thanh toán. Soạn theo Luật Thương mại 2005 và Bộ luật Dân sự 2015, có điều khoản về số lượng/chất lượng, giao hàng, chuyển rủi ro, thanh toán, bảo hành và phạt vi phạm (tối đa 8%).",
+  "legalBasis": [
+    "Luật Thương mại 2005 (số 36/2005/QH11) - Mục 2 Chương II, Điều 24-62: hợp đồng mua bán hàng hóa, quyền và nghĩa vụ các bên",
+    "Luật Thương mại 2005 - Điều 300, 301 (phạt vi phạm tối đa 8% giá trị phần nghĩa vụ bị vi phạm)",
+    "Bộ luật Dân sự 2015 (số 91/2015/QH13) - Điều 398 (nội dung hợp đồng)"
+  ],
+  "parties": {
+    "a": "Bên bán",
+    "b": "Bên mua"
+  },
+  "title": "HỢP ĐỒNG MUA BÁN HÀNG HÓA",
+  "preamble": "- Căn cứ Bộ luật Dân sự số 91/2015/QH13;\n- Căn cứ Luật Thương mại số 36/2005/QH11;\n- Căn cứ nhu cầu và khả năng của hai Bên.\n\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ten_ben_ban",
+      "label": "Tên doanh nghiệp Bên bán",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "mst_ben_ban",
+      "label": "Mã số thuế Bên bán",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "dia_chi_ben_ban",
+      "label": "Địa chỉ trụ sở Bên bán",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_ben_mua",
+      "label": "Tên doanh nghiệp Bên mua",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "mst_ben_mua",
+      "label": "Mã số thuế Bên mua",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "dia_chi_ben_mua",
+      "label": "Địa chỉ trụ sở Bên mua",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_hang_hoa",
+      "label": "Tên hàng hóa / mô tả đối tượng",
+      "section": "Hàng hóa",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "so_luong",
+      "label": "Số lượng",
+      "section": "Hàng hóa",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "don_gia",
+      "label": "Đơn giá (VNĐ)",
+      "section": "Giá và thanh toán",
+      "tier": "required",
+      "type": "money"
+    },
+    {
+      "key": "tong_gia_tri",
+      "label": "Tổng giá trị hợp đồng (VNĐ)",
+      "section": "Giá và thanh toán",
+      "tier": "required",
+      "type": "money"
+    },
+    {
+      "key": "phuong_thuc_thanh_toan",
+      "label": "Phương thức thanh toán",
+      "section": "Giá và thanh toán",
+      "tier": "required",
+      "type": "select",
+      "options": [
+        "Chuyển khoản ngân hàng",
+        "Tiền mặt"
+      ]
+    }
+  ],
+  "lint": [
+    {
+      "field": "muc_phat_vi_pham",
+      "op": "max",
+      "value": 8,
+      "message": "Mức phạt vi phạm không được vượt quá 8% giá trị phần nghĩa vụ hợp đồng bị vi phạm.",
+      "legalRef": "Điều 301 Luật Thương mại 2005",
+      "severity": "error"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: HÀNG HÓA VÀ GIÁ CẢ",
+      "text": "Bên bán bán cho Bên mua hàng hóa: {{ten_hang_hoa}}, số lượng {{so_luong}}. Tổng giá trị hợp đồng: {{tong_gia_tri}} VNĐ."
+    },
+    {
+      "heading": "ĐIỀU 2: THANH TOÁN",
+      "text": "Bên mua thanh toán bằng phương thức: {{phuong_thuc_thanh_toan}}."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN BÁN                                    BÊN MUA",
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

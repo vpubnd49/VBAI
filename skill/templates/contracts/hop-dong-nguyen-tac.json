@@ -1,0 +1,88 @@
+{
+  "id": "nguyen_tac",
+  "name": "Hợp đồng nguyên tắc",
+  "group": "Công ty ↔ Công ty",
+  "icon": "📜",
+  "summary": "Hợp đồng khung thiết lập các nguyên tắc chung, quyền và nghĩa vụ cơ bản giữa hai doanh nghiệp cho một chuỗi giao dịch lặp lại.",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015 - Điều 385 (khái niệm hợp đồng)",
+    "Luật Thương mại 2005 - Điều 300-301 (phạt vi phạm tối đa 8%)"
+  ],
+  "parties": {
+    "a": "Bên A (Bên cung cấp / Bên bán)",
+    "b": "Bên B (Bên mua / Bên sử dụng)"
+  },
+  "title": "HỢP ĐỒNG NGUYÊN TẮC",
+  "preamble": "- Căn cứ Bộ luật Dân sự 2015;\n- Căn cứ Luật Thương mại 2005;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ngay_ky",
+      "label": "Ngày ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "date"
+    },
+    {
+      "key": "dia_diem_ky",
+      "label": "Địa điểm ký",
+      "section": "Thông tin chung",
+      "tier": "optional",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_ten",
+      "label": "Tên Bên A",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_mst",
+      "label": "Mã số thuế Bên A",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_ten",
+      "label": "Tên Bên B",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_mst",
+      "label": "Mã số thuế Bên B",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "doi_tuong",
+      "label": "Đối tượng / phạm vi hợp tác",
+      "section": "Nội dung",
+      "tier": "required",
+      "type": "textarea"
+    }
+  ],
+  "lint": [
+    {
+      "field": "muc_phat",
+      "op": "max",
+      "value": 8,
+      "message": "Phạt vi phạm không quá 8% theo Luật Thương mại 2005.",
+      "legalRef": "Điều 301 Luật Thương mại 2005",
+      "severity": "error"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: NỘI DUNG NGUYÊN TẮC",
+      "text": "Hai Bên thống nhất nguyên tắc hợp tác: {{doi_tuong}}."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nĐẠI DIỆN BÊN A                                   ĐẠI DIỆN BÊN B",
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

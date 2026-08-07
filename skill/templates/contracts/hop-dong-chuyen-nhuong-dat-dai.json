@@ -1,0 +1,76 @@
+{
+  "id": "chuyen_nhuong_dat_dai",
+  "name": "Hợp đồng chuyển nhượng quyền sử dụng đất",
+  "group": "Cá nhân ↔ Cá nhân / Doanh nghiệp",
+  "icon": "🏡",
+  "title": "HỢP ĐỒNG CHUYỂN NHƯỢNG QUYỀN SỬ DỤNG ĐẤT",
+  "summary": "Hợp đồng chuyển nhượng quyền sử dụng đất và tài sản gắn liền với đất tuân thủ Luật Đất đai 2024 và Bộ luật Dân sự 2015.",
+  "parties": {
+    "a": "Bên chuyển nhượng (Bên bán)",
+    "b": "Bên nhận chuyển nhượng (Bên mua)"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nCăn cứ Luật Đất đai 2024;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015",
+    "Luật Đất đai 2024 (Luật số 31/2024/QH15)"
+  ],
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Họ và tên bên bán (Bên A)?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "cccd_bena",
+      "label": "Số CCCD bên bán?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Họ và tên bên mua (Bên B)?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "cccd_benb",
+      "label": "Số CCCD bên mua?",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "so_do_thong_tin",
+      "label": "Thông tin Giấy chứng nhận QSDĐ",
+      "section": "Đối tượng hợp đồng",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "gia_chuyen_nhuong",
+      "label": "Giá chuyển nhượng (VND)?",
+      "section": "Giá và Thanh toán",
+      "tier": "required",
+      "type": "number"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: ĐỐI TƯỢNG CHUYỂN NHƯỢNG",
+      "text": "Bên A chuyển nhượng cho Bên B thửa đất theo GCN: {{so_do_thong_tin}}."
+    },
+    {
+      "heading": "ĐIỀU 2: GIÁ VÀ THANH TOÁN",
+      "text": "Giá chuyển nhượng: {{gia_chuyen_nhuong}} VND."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 04 bản có giá trị như nhau.\n\nBÊN CHUYỂN NHƯỢNG                           BÊN NHẬN CHUYỂN NHƯỢNG",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

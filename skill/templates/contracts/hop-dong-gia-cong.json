@@ -1,0 +1,51 @@
+{
+  "id": "gia_cong",
+  "name": "Hợp đồng gia công thương mại",
+  "group": "Doanh nghiệp ↔ Doanh nghiệp / Cá nhân",
+  "icon": "🏭",
+  "title": "HỢP ĐỒNG GIA CÔNG THƯƠNG MẠI",
+  "summary": "Hợp đồng gia công thương mại giữa bên đặt gia công và bên nhận gia công hàng hóa theo Luật Thương mại 2005.",
+  "parties": {
+    "a": "Bên đặt gia công (Bên A)",
+    "b": "Bên nhận gia công (Bên B)"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nCăn cứ Luật Thương mại 2005;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015",
+    "Luật Thương mại 2005"
+  ],
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Tên bên A",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Tên bên B",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "san_pham_gia_cong",
+      "label": "Sản phẩm gia công",
+      "section": "Nội dung",
+      "tier": "required",
+      "type": "text"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: SẢN PHẨM GIA CÔNG",
+      "text": "Bên B gia công cho Bên A sản phẩm: {{san_pham_gia_cong}}."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN A                                       BÊN B",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

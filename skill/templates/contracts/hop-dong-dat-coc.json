@@ -1,0 +1,106 @@
+{
+  "id": "dat_coc",
+  "name": "Hợp đồng đặt cọc",
+  "group": "Cá nhân ↔ Cá nhân",
+  "icon": "🔐",
+  "summary": "Hợp đồng theo đó Bên đặt cọc giao cho Bên nhận đặt cọc một khoản tiền (hoặc tài sản có giá trị) trong một thời hạn để bảo đảm việc giao kết hoặc thực hiện một hợp đồng. Nếu Bên đặt cọc từ chối thì mất cọc; nếu Bên nhận đặt cọc từ chối thì phải trả lại cọc và một khoản tiền tương đương (phạt cọc), trừ khi có thỏa thuận khác (Điều 328 BLDS 2015).",
+  "title": "HỢP ĐỒNG ĐẶT CỌC",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015 - Điều 328 (Đặt cọc)",
+    "Bộ luật Dân sự 2015 - Điều 117 (Điều kiện có hiệu lực của giao dịch dân sự)"
+  ],
+  "parties": {
+    "a": "Bên đặt cọc (Bên A)",
+    "b": "Bên nhận đặt cọc (Bên B)"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ngay_ky",
+      "label": "Ngày ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "date"
+    },
+    {
+      "key": "dia_diem_ky",
+      "label": "Ký tại đâu (tỉnh/thành phố)?",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_ten",
+      "label": "Họ tên Bên đặt cọc",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_cccd",
+      "label": "Số CCCD/CMND Bên A",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_ten",
+      "label": "Họ tên Bên nhận đặt cọc",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_cccd",
+      "label": "Số CCCD/CMND Bên B",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "so_tien_dat_coc",
+      "label": "Số tiền đặt cọc",
+      "section": "Tài sản đặt cọc",
+      "tier": "required",
+      "type": "money"
+    },
+    {
+      "key": "so_tien_dat_coc_bang_chu",
+      "label": "Số tiền đặt cọc bằng chữ",
+      "section": "Tài sản đặt cọc",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "thoi_han_dat_coc",
+      "label": "Thời hạn đặt cọc",
+      "section": "Thời hạn",
+      "tier": "required",
+      "type": "date"
+    }
+  ],
+  "lint": [
+    {
+      "field": "so_tien_dat_coc",
+      "op": "min",
+      "value": 1,
+      "message": "Số tiền đặt cọc phải lớn hơn 0.",
+      "legalRef": "Điều 328 BLDS 2015",
+      "severity": "error"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: SỐ TIỀN ĐẶT CỌC",
+      "text": "Bên A đặt cọc cho Bên B số tiền: {{so_tien_dat_coc}} đồng (bằng chữ: {{so_tien_dat_coc_bang_chu}})."
+    },
+    {
+      "heading": "ĐIỀU 2: THỜI HẠN VÀ XỬ LÝ VI PHẠM",
+      "text": "Thời hạn đặt cọc đến ngày: {{thoi_han_dat_coc}}. Việc xử lý tiền cọc khi vi phạm thực hiện theo Điều 328 Bộ luật Dân sự 2015."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN ĐẶT CỌC                                BÊN NHẬN ĐẶT CỌC",
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

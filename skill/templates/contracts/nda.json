@@ -1,0 +1,99 @@
+{
+  "id": "nda",
+  "name": "Thỏa thuận bảo mật thông tin (NDA)",
+  "group": "Công ty ↔ Công ty",
+  "icon": "🤐",
+  "summary": "Thỏa thuận để hai doanh nghiệp cam kết giữ bí mật các thông tin trao đổi trong quá trình hợp tác. Dựa trên nguyên tắc tự do thỏa thuận, kết hợp cơ chế bảo hộ bí mật kinh doanh theo Luật Sở hữu trí tuệ.",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015 - Điều 3 (tự do, tự nguyện cam kết, thỏa thuận)",
+    "Luật Sở hữu trí tuệ 2005 - Điều 84 (điều kiện bảo hộ bí mật kinh doanh)"
+  ],
+  "parties": {
+    "a": "Bên tiết lộ thông tin (Bên A)",
+    "b": "Bên nhận thông tin (Bên B)"
+  },
+  "title": "THỎA THUẬN BẢO MẬT THÔNG TIN",
+  "preamble": "- Căn cứ Bộ luật Dân sự 2015;\n- Căn cứ Luật Sở hữu trí tuệ;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ngay_ky",
+      "label": "Ngày ký thỏa thuận",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "date"
+    },
+    {
+      "key": "dia_diem_ky",
+      "label": "Địa điểm ký",
+      "section": "Thông tin chung",
+      "tier": "optional",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_ten",
+      "label": "Tên Bên tiết lộ (Bên A)",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_mst",
+      "label": "Mã số thuế Bên A",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_ten",
+      "label": "Tên Bên nhận (Bên B)",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_mst",
+      "label": "Mã số thuế Bên B",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "pham_vi_thong_tin_mat",
+      "label": "Phạm vi thông tin được coi là 'Thông tin mật'",
+      "section": "Phạm vi",
+      "tier": "required",
+      "type": "textarea"
+    },
+    {
+      "key": "thoi_han_bao_mat_nam",
+      "label": "Thời hạn bảo mật (số năm)",
+      "section": "Thời hạn",
+      "tier": "default",
+      "type": "number",
+      "placeholder": "3"
+    }
+  ],
+  "lint": [
+    {
+      "field": "thoi_han_bao_mat_nam",
+      "op": "min",
+      "value": 1,
+      "message": "Thời hạn bảo mật nên tối thiểu 1 năm.",
+      "severity": "warn"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: PHẠM VI THÔNG TIN MẬT",
+      "text": "Thông tin mật gồm: {{pham_vi_thong_tin_mat}}."
+    },
+    {
+      "heading": "ĐIỀU 2: THỜI HẠN BẢO MẬT",
+      "text": "Nghĩa vụ bảo mật kéo dài {{thoi_han_bao_mat_nam}} năm kể từ ngày ký."
+    }
+  ],
+  "closing": "Thỏa thuận lập thành 02 bản có giá trị như nhau.\n\nBÊN A                                       BÊN B",
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

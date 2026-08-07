@@ -33,6 +33,18 @@ function parseFrontmatter(content) {
 
 function getDefaultTriggers(skillId) {
   const triggerMap = {
+    Skill_LegalKit_V3: [
+      'phap luat',
+      'tu van luat',
+      'tranh chap',
+      'bi kien',
+      'nghi dinh',
+      'soan hop dong',
+      'mau hop dong',
+      'ky hop dong',
+      'nd30',
+      'hd05'
+    ],
     Skill_The_Thuc_VB_Dang_HD05: [
       'dang uy',
       'dang bo',
@@ -76,6 +88,7 @@ function getDefaultTriggers(skillId) {
   return triggerMap[skillId] || [];
 }
 
+
 function normalizeTriggers(raw) {
   if (!raw) return [];
 
@@ -98,15 +111,16 @@ async function compile() {
   // 1. Quét Skill nội bộ dự án VBAI
   const items = fs.readdirSync(ROOT_DIR, { withFileTypes: true });
   for (const item of items) {
-    if (item.isDirectory() && item.name.startsWith('Skill_') && item.name !== 'Skill_Claude' && item.name !== 'Skill_Codex') {
+    if (item.isDirectory() && (item.name.startsWith('Skill_') || item.name === 'skill') && item.name !== 'Skill_Claude' && item.name !== 'Skill_Codex') {
       const skillPath = path.join(ROOT_DIR, item.name);
-      processSkill(skillPath, item.name, skills);
+      processSkill(skillPath, item.name === 'skill' ? 'Skill_LegalKit_V3' : item.name, skills);
     }
   }
 
-  // Sắp xếp theo thứ tự mong muốn: Đảng -> Hành chính -> PDF -> DOCX
-  const order = ['Skill_The_Thuc_VB_Dang_HD05', 'Skill_The_Thuc_VB_ND30', 'Skill_PDF', 'Skill_DOCX'];
+  // Sắp xếp theo thứ tự mong muốn: LegalKit V3 -> Đảng -> Hành chính -> PDF -> DOCX
+  const order = ['Skill_LegalKit_V3', 'Skill_The_Thuc_VB_Dang_HD05', 'Skill_The_Thuc_VB_ND30', 'Skill_PDF', 'Skill_DOCX'];
   skills.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+
   
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(skills, null, 2), 'utf8');
   console.log(`\n✅ Đã biên dịch xong ${skills.length} skills!`);
@@ -138,7 +152,10 @@ function processSkill(skillPath, skillId, skillsList, isExternal = false) {
     let page = 'dashboard';
     let accent = 'pine';
 
-    if (skillId.includes('ND30')) {
+    if (skillId.includes('LegalKit') || skillId === 'skill') {
+      page = 'legal-search';
+      accent = 'daquy';
+    } else if (skillId.includes('ND30')) {
       page = 'vb-nd30';
       accent = 'mist';
     } else if (skillId.includes('Dang_HD05') || skillId.includes('Dang_HD36')) {

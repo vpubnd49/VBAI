@@ -1,0 +1,51 @@
+{
+  "id": "dai_ly",
+  "name": "Hợp đồng đại lý thương mại",
+  "group": "Doanh nghiệp ↔ Doanh nghiệp / Cá nhân",
+  "icon": "🤝",
+  "title": "HỢP ĐỒNG ĐẠI LÝ THƯƠNG MẠI",
+  "summary": "Hợp đồng đại lý thương mại quy định quyền và nghĩa vụ của bên giao đại lý và bên làm đại lý bán hàng hóa theo Luật Thương mại 2005.",
+  "parties": {
+    "a": "Bên giao đại lý (Bên A)",
+    "b": "Bên làm đại lý (Bên B)"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nCăn cứ Luật Thương mại 2005;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015",
+    "Luật Thương mại 2005"
+  ],
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Tên bên A",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Tên bên B",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "hang_hoa_dai_ly",
+      "label": "Hàng hóa đại lý",
+      "section": "Hàng hóa",
+      "tier": "required",
+      "type": "text"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: HÀNG HÓA ĐẠI LÝ",
+      "text": "Bên A giao cho Bên B làm đại lý mặt hàng: {{hang_hoa_dai_ly}}."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN A                                       BÊN B",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

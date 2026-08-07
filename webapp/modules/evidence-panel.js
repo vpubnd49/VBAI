@@ -21,7 +21,7 @@ export function renderEvidencePanel(container, evidenceData = null) {
     contentHtml = `
       <div class="evidence-empty-state">
         <div class="evidence-empty-icon">⚖️</div>
-        <div class="evidence-empty-title">Chưa có căn cứ pháp lý nào</div>
+        <div class="evidence-empty-title">Chưa có căn cứ được kiểm chứng từ hệ thống.</div>
         <div class="evidence-empty-desc">Nhập câu hỏi hoặc số hiệu văn bản để tìm kiếm căn cứ trích dẫn chính thức.</div>
       </div>
     `;

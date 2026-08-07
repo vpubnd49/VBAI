@@ -2375,20 +2375,10 @@ export async function sendMessage(text, onChunk) {
   };
 
   const logSearchEvent = (assistantText, extra = {}) => {
-    try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      addDoc(collection(db, "search_logs"), {
-        query: rawUserText,
-        model: `${currentModelName}`,
-        userEmail: window.currentUser?.email || "Unknown",
-        timestamp: serverTimestamp(),
-        skillsApplied: matchedSkills.map(s => s.id),
-        assistantReply: String(assistantText || '').slice(0, 2000),
-        ...sanitizeSearchLogExtra(extra),
-      }).catch(err => console.warn("Log Err:", err));
-    } catch (e) {}
+    // Backend centralized trace logging is active in /api/chat. Client-side duplicate write disabled.
+    return;
   };
+
 
   try {
     if (currentAttachedFile) {

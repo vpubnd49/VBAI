@@ -1,0 +1,328 @@
+/**
+ * VBAI Legal Pro V2 — Search History Module
+ * Real search logs UI rendering from Firestore `search_logs`
+ * Enables searching, filtering, re-opening query in Legal Search UI, and item deletion.
+ */
+
+import { firebaseConfig } from '../firebase-config.js';
+import { showToast } from './ui-utils.js';
+
+let historyState = {
+  logs: [],
+  filteredLogs: [],
+  currentPage: 1,
+  pageSize: 15,
+  filterQuery: '',
+  filterMode: 'all',
+  isLoading: false,
+};
+
+export async function renderSearchHistory(container, navigateToCallback) {
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="search-history-workspace" style="padding: 20px; max-width: 1200px; margin: 0 auto;">
+      <!-- Header Bar -->
+      <div class="search-history-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+        <div>
+          <h1 style="font-size:1.5rem; font-weight:700; color:var(--text-primary); margin:0 0 6px 0;">📜 Lịch sử Tra cứu Pháp luật</h1>
+          <p style="font-size:0.9rem; color:var(--text-secondary); margin:0;">Nhật ký tra cứu và căn cứ pháp lý được lưu trữ realtime từ hệ thống.</p>
+        </div>
+        <button id="refresh-history-btn" class="btn btn-secondary" style="display:flex; align-items:center; gap:6px;">
+          <span>🔄</span> <span>Làm mới</span>
+        </button>
+      </div>
+
+      <!-- Controls & Filter Bar -->
+      <div class="history-controls-card" style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; margin-bottom:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+        <div style="flex:1; min-width:240px; position:relative;">
+          <input type="text" id="history-search-input" class="form-input" placeholder="Tìm theo câu hỏi, từ khóa hoặc email..." style="width:100%; padding-left:36px;">
+          <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:0.6;">🔍</span>
+        </div>
+
+        <select id="history-mode-filter" class="form-input" style="width:180px;">
+          <option value="all">Tất cả chế độ</option>
+          <option value="legal-search">Tra cứu chung</option>
+          <option value="document-lookup">Số hiệu văn bản</option>
+          <option value="situation-analysis">Tình huống</option>
+          <option value="compare-regulations">So sánh</option>
+          <option value="effective-date">Hiệu lực</option>
+        </select>
+      </div>
+
+      <!-- Main History Table Panel -->
+      <div class="history-table-panel" style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+        <div class="table-responsive" style="overflow-x:auto;">
+          <table class="history-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.9rem;">
+            <thead>
+              <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color); color:var(--text-secondary); font-weight:600;">
+                <th style="padding:12px 16px; width:170px;">Thời gian</th>
+                <th style="padding:12px 16px; width:180px;">Người tra cứu</th>
+                <th style="padding:12px 16px; width:140px;">Chế độ</th>
+                <th style="padding:12px 16px;">Từ khóa / Câu hỏi tra cứu</th>
+                <th style="padding:12px 16px; width:130px;">Kết quả</th>
+                <th style="padding:12px 16px; width:140px; text-align:right;">Hành động</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <tr>
+                <td colspan="6" style="padding:40px; text-align:center; color:var(--text-muted);">
+                  <div class="spinner" style="margin:0 auto 12px auto;"></div>
+                  Đang tải nhật ký tra cứu từ Firestore...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div id="history-pagination" style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--bg-secondary); border-top:1px solid var(--border-color); font-size:0.85rem;">
+          <div id="history-count-info" style="color:var(--text-secondary);">Đang hiển thị 0 bản ghi</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button id="history-prev-btn" class="btn btn-secondary btn-sm" disabled>⬅️ Trước</button>
+            <span id="history-page-num" style="font-weight:600; padding:0 8px;">1 / 1</span>
+            <button id="history-next-btn" class="btn btn-secondary btn-sm" disabled>Tiếp ➡️</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Attach Event Listeners
+  const searchInput = container.querySelector('#history-search-input');
+  const modeFilter = container.querySelector('#history-mode-filter');
+  const refreshBtn = container.querySelector('#refresh-history-btn');
+  const prevBtn = container.querySelector('#history-prev-btn');
+  const nextBtn = container.querySelector('#history-next-btn');
+
+  searchInput.addEventListener('input', (e) => {
+    historyState.filterQuery = e.target.value.toLowerCase().trim();
+    historyState.currentPage = 1;
+    applyFilterAndRender(container, navigateToCallback);
+  });
+
+  modeFilter.addEventListener('change', (e) => {
+    historyState.filterMode = e.target.value;
+    historyState.currentPage = 1;
+    applyFilterAndRender(container, navigateToCallback);
+  });
+
+  refreshBtn.addEventListener('click', () => {
+    fetchLogs(container, navigateToCallback);
+  });
+
+  prevBtn.addEventListener('click', () => {
+    if (historyState.currentPage > 1) {
+      historyState.currentPage -= 1;
+      renderTablePage(container, navigateToCallback);
+    }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    const totalPages = Math.ceil(historyState.filteredLogs.length / historyState.pageSize) || 1;
+    if (historyState.currentPage < totalPages) {
+      historyState.currentPage += 1;
+      renderTablePage(container, navigateToCallback);
+    }
+  });
+
+  // Initial Fetch
+  await fetchLogs(container, navigateToCallback);
+}
+
+async function fetchLogs(container, navigateToCallback) {
+  historyState.isLoading = true;
+  try {
+    const { backendFetch } = await import('./ai-proxy.js');
+    const response = await backendFetch('/search-history', { method: 'GET' });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    historyState.logs = Array.isArray(data.logs) ? data.logs : [];
+    historyState.isAdmin = data.isAdmin === true;
+    applyFilterAndRender(container, navigateToCallback);
+  } catch (err) {
+    console.error('Lỗi khi tải search_logs:', err);
+    const tbody = container.querySelector('#history-table-body');
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="padding:30px; text-align:center; color:var(--danger);">
+            ⚠️ Không thể kết nối nhật ký: ${err.message}
+          </td>
+        </tr>
+      `;
+    }
+  } finally {
+    historyState.isLoading = false;
+  }
+}
+
+function applyFilterAndRender(container, navigateToCallback) {
+  const { logs, filterQuery, filterMode } = historyState;
+
+  historyState.filteredLogs = logs.filter(item => {
+    const matchesQuery = !filterQuery ||
+      item.query.toLowerCase().includes(filterQuery) ||
+      item.user.toLowerCase().includes(filterQuery);
+
+    const matchesMode = filterMode === 'all' || item.mode === filterMode;
+
+    return matchesQuery && matchesMode;
+  });
+
+  renderTablePage(container, navigateToCallback);
+}
+
+function renderTablePage(container, navigateToCallback) {
+  const tbody = container.querySelector('#history-table-body');
+  const countInfo = container.querySelector('#history-count-info');
+  const pageNum = container.querySelector('#history-page-num');
+  const prevBtn = container.querySelector('#history-prev-btn');
+  const nextBtn = container.querySelector('#history-next-btn');
+
+  if (!tbody) return;
+
+  const { filteredLogs, currentPage, pageSize } = historyState;
+  const totalLogs = filteredLogs.length;
+  const totalPages = Math.ceil(totalLogs / pageSize) || 1;
+
+  if (totalLogs === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="padding:40px; text-align:center; color:var(--text-muted);">
+          📭 Chưa tìm thấy lịch sử tra cứu nào phù hợp.
+        </td>
+      </tr>
+    `;
+    if (countInfo) countInfo.textContent = 'Đang hiển thị 0 bản ghi';
+    if (pageNum) pageNum.textContent = '1 / 1';
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+    return;
+  }
+
+  const startIdx = (currentPage - 1) * pageSize;
+  const endIdx = Math.min(startIdx + pageSize, totalLogs);
+  const pageItems = filteredLogs.slice(startIdx, endIdx);
+
+  tbody.innerHTML = pageItems.map(item => {
+    const formattedTime = formatTimestamp(item.createdAt);
+    const modeBadge = getModeBadgeHtml(item.mode);
+    const resultBadge = item.verifiedCount > 0
+      ? `<span class="verify-chip verified-true" style="font-size:0.75rem;">${item.verifiedCount} đã kiểm chứng</span>`
+      : `<span class="verify-chip verified-false" style="font-size:0.75rem;">Chưa xác minh</span>`;
+
+    const canDelete = historyState.isAdmin || (window.currentUser && item.userId === window.currentUser.uid);
+    const deleteBtnHtml = canDelete
+      ? `<button class="btn btn-secondary btn-sm btn-delete-log" data-id="${item.id}" style="padding:4px 8px; font-size:0.8rem; color:var(--danger);" title="Xóa bản ghi">
+           <span>🗑️</span>
+         </button>`
+      : '';
+
+    return `
+      <tr style="border-bottom:1px solid var(--border-color); transition:background 0.2s;" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
+        <td style="padding:12px 16px; color:var(--text-secondary); white-space:nowrap;">${formattedTime}</td>
+        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; max-width:180px; white-space:nowrap;" title="${escapeHtml(item.user)}">${escapeHtml(item.user)}</td>
+        <td style="padding:12px 16px;">${modeBadge}</td>
+        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary);">
+          <div style="max-height:48px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
+            ${escapeHtml(item.query)}
+          </div>
+        </td>
+        <td style="padding:12px 16px;">${resultBadge}</td>
+        <td style="padding:12px 16px; text-align:right; white-space:nowrap;">
+          <button class="btn btn-primary btn-sm btn-reopen" data-query="${escapeAttribute(item.query)}" data-mode="${escapeAttribute(item.mode)}" style="padding:4px 10px; font-size:0.8rem; margin-right:4px;">
+            <span>🚀</span> <span>Mở lại</span>
+          </button>
+          ${deleteBtnHtml}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  if (countInfo) countInfo.textContent = `Hiển thị ${startIdx + 1} - ${endIdx} trên tổng số ${totalLogs} bản ghi`;
+  if (pageNum) pageNum.textContent = `${currentPage} / ${totalPages}`;
+  if (prevBtn) prevBtn.disabled = currentPage === 1;
+  if (nextBtn) nextBtn.disabled = currentPage === totalPages;
+
+  // Delegate Reopen and Delete actions
+  tbody.addEventListener('click', async (e) => {
+    const reopenBtn = e.target.closest('.btn-reopen');
+    if (reopenBtn) {
+      const q = reopenBtn.dataset.query;
+      const m = reopenBtn.dataset.mode || 'legal-search';
+      if (typeof navigateToCallback === 'function') {
+        navigateToCallback('legal-search', q, m);
+      }
+      return;
+    }
+
+    const deleteBtn = e.target.closest('.btn-delete-log');
+    if (deleteBtn) {
+      const logId = deleteBtn.dataset.id;
+      if (!confirm('Bạn có chắc chắn muốn xóa bản ghi nhật ký tra cứu này không?')) return;
+      deleteBtn.disabled = true;
+      try {
+        const { backendFetch } = await import('./ai-proxy.js');
+        const res = await backendFetch(`/search-history/${logId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `HTTP ${res.status}`);
+        }
+        showToast('Đã xóa bản ghi tra cứu thành công!');
+        fetchLogs(container, navigateToCallback);
+      } catch (err) {
+        showToast('Lỗi xóa bản ghi: ' + err.message, 'error');
+        deleteBtn.disabled = false;
+      }
+    }
+  });
+}
+
+function formatTimestamp(ts) {
+  if (!ts) return 'N/A';
+  let d;
+  if (ts.seconds) {
+    d = new Date(ts.seconds * 1000);
+  } else if (typeof ts === 'string' || typeof ts === 'number') {
+    d = new Date(ts);
+  } else {
+    return 'N/A';
+  }
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function getModeBadgeHtml(mode) {
+  const modeMap = {
+    'legal-search': { label: 'Tra cứu chung', class: 'badge-primary' },
+    'document-lookup': { label: 'Số hiệu VB', class: 'badge-info' },
+    'situation-analysis': { label: 'Tình huống', class: 'badge-warning' },
+    'compare-regulations': { label: 'So sánh', class: 'badge-success' },
+    'effective-date': { label: 'Hiệu lực', class: 'badge-secondary' },
+  };
+
+  const info = modeMap[mode] || { label: mode || 'Tra cứu', class: 'badge-secondary' };
+  return `<span class="badge ${info.class}" style="font-size:0.75rem; padding:2px 8px; border-radius:4px;">${escapeHtml(info.label)}</span>`;
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escapeAttribute(str) {
+  return String(str || '').replace(/"/g, '&quot;');
+}

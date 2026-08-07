@@ -1,12 +1,43 @@
 {
-  "version": 1,
-  "name": "VBAI Legal Knowledge Registry",
-  "description": "Bộ tri thức LegalKit hướng dẫn quy trình tra cứu, trích dẫn và phân loại ngành luật Việt Nam",
+  "version": 3,
+  "name": "VBAI Legal & LegalKit Knowledge Registry V3",
+  "description": "Bộ tri thức LegalKit V3 hướng dẫn quy trình tra cứu, trích dẫn, soạn thảo hợp đồng, kiểm định lint và chuẩn hóa NĐ30",
   "core": [
     "resources/legal-system.md",
     "resources/search-sources.md",
     "resources/citation-format.md",
-    "resources/cross-reference-guide.md"
+    "resources/cross-reference-guide.md",
+    "resources/contract-schema.md",
+    "resources/lint-rules.md",
+    "resources/monitored-laws.json",
+    "resources/precedents-catalog.json",
+    "resources/nd30-format-standard.md"
+  ],
+  "references": [
+    "references/quy_tac_the_thuc.md",
+    "references/phan_quyen_ky.md"
+  ],
+  "templates": [
+    "templates/contracts/hop-dong-lao-dong.json",
+    "templates/contracts/hop-dong-thue-nha.json",
+    "templates/contracts/hop-dong-vay-tien.json",
+    "templates/contracts/hop-dong-dich-vu.json",
+    "templates/contracts/mua-ban-hh.json",
+    "templates/contracts/hop-dong-dat-coc.json",
+    "templates/contracts/nda.json",
+    "templates/contracts/uy-quyen.json",
+    "templates/contracts/hop-dong-ctv.json",
+    "templates/contracts/hop-dong-nguyen-tac.json",
+    "templates/contracts/hop-dong-chuyen-nhuong-dat-dai.json",
+    "templates/contracts/hop-dong-thiet-ke-phan-mem.json",
+    "templates/contracts/hop-dong-thue-van-phong.json",
+    "templates/contracts/thoa-thuan-co-dong.json",
+    "templates/contracts/hop-dong-bao-lanh.json",
+    "templates/contracts/hop-dong-dai-ly.json",
+    "templates/contracts/hop-dong-gia-cong.json",
+    "templates/contracts/hop-dong-gop-von.json",
+    "templates/contracts/hop-dong-hop-tac-kinh-doanh.json",
+    "templates/contracts/hop-dong-tang-cho.json"
   ],
   "domains": [
     {
@@ -44,6 +75,12 @@
       "path": "resources/domains/06-chuyen-nganh-khac.md",
       "name": "Chuyên ngành khác",
       "keywords": ["an ninh mạng", "quảng cáo", "tiêu chuẩn", "hóa chất"]
+    },
+    {
+      "id": "hop-dong-catalog",
+      "path": "resources/domains/07-hop-dong-catalog.md",
+      "name": "Catalog Mẫu Hợp Đồng",
+      "keywords": ["mẫu hợp đồng", "soạn thảo", "hợp đồng mẫu", "template"]
     }
   ]
 }

@@ -1,0 +1,133 @@
+{
+  "id": "vay_tien",
+  "name": "Hợp đồng vay tài sản (vay tiền)",
+  "title": "HỢP ĐỒNG VAY TÀI SẢN (VAY TIỀN)",
+  "group": "Cá nhân ↔ Cá nhân",
+  "icon": "💵",
+  "summary": "Hợp đồng vay tiền giữa hai cá nhân theo quy định về hợp đồng vay tài sản tại Bộ luật Dân sự 2015. Mẫu hỗ trợ cả vay có lãi/không lãi, có kỳ hạn/không kỳ hạn, ghi nhận nghĩa vụ trả nợ, địa điểm trả nợ và lãi suất với trần 20%/năm.",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015 - Điều 463 (Khái niệm hợp đồng vay tài sản; bên vay chỉ phải trả lãi khi có thỏa thuận hoặc pháp luật có quy định)",
+    "Bộ luật Dân sự 2015 - Điều 468 (Lãi suất; trần lãi suất 20%/năm tại khoản 1)"
+  ],
+  "parties": {
+    "a": "Bên cho vay",
+    "b": "Bên vay"
+  },
+  "preamble": "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\nĐộc lập - Tự do - Hạnh phúc\n\n{{dia_diem_lap}}, ngày {{ngay_lap}}\nCăn cứ Bộ luật Dân sự 2015;\nHôm nay, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ngay_lap",
+      "label": "Ngày lập hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "date"
+    },
+    {
+      "key": "dia_diem_lap",
+      "label": "Nơi lập hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "text",
+      "placeholder": "TP. Hồ Chí Minh"
+    },
+    {
+      "key": "ben_a_ho_ten",
+      "label": "Họ và tên Bên cho vay",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_cccd",
+      "label": "Số CCCD/CMND Bên A",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_dia_chi",
+      "label": "Địa chỉ Bên A",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_ho_ten",
+      "label": "Họ và tên Bên vay",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_cccd",
+      "label": "Số CCCD/CMND Bên B",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_dia_chi",
+      "label": "Địa chỉ Bên B",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "so_tien_vay",
+      "label": "Số tiền vay (VNĐ)",
+      "section": "Khoản vay",
+      "tier": "required",
+      "type": "money"
+    },
+    {
+      "key": "so_tien_vay_bang_chu",
+      "label": "Số tiền vay bằng chữ",
+      "section": "Khoản vay",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "co_lai",
+      "label": "Có tính lãi không?",
+      "section": "Lãi suất",
+      "tier": "default",
+      "type": "select",
+      "options": ["Không tính lãi", "Có tính lãi"]
+    },
+    {
+      "key": "lai_suat_nam",
+      "label": "Lãi suất (%/năm)",
+      "section": "Lãi suất",
+      "tier": "required",
+      "type": "number",
+      "condition": {
+        "key": "co_lai",
+        "equals": "Có tính lãi"
+      }
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: SỐ TIỀN VAY",
+      "text": "Bên A cho Bên B vay số tiền {{so_tien_vay}} (bằng chữ: {{so_tien_vay_bang_chu}})."
+    },
+    {
+      "heading": "ĐIỀU 2: LÃI SUẤT",
+      "text": "Trạng thái tính lãi: {{co_lai}}."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN CHO VAY                                BÊN VAY",
+  "lint": [
+    {
+      "field": "lai_suat_nam",
+      "op": "max",
+      "value": 20,
+      "message": "Lãi suất không được vượt quá 20%/năm theo Điều 468 BLDS 2015.",
+      "legalRef": "Điều 468 BLDS 2015",
+      "severity": "error"
+    }
+  ],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "id": "gop_von",
+  "name": "Hợp đồng góp vốn thành lập doanh nghiệp",
+  "group": "Cá nhân ↔ Cá nhân / Doanh nghiệp",
+  "icon": "💰",
+  "title": "HỢP ĐỒNG GÓP VỐN THÀNH LẬP DOANH NGHIỆP",
+  "summary": "Hợp đồng góp vốn giữa các thành viên sáng lập theo Luật Doanh nghiệp 2020.",
+  "parties": {
+    "a": "Thành viên góp vốn thứ nhất",
+    "b": "Thành viên góp vốn thứ hai"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nCăn cứ Luật Doanh nghiệp 2020;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015",
+    "Luật Doanh nghiệp 2020"
+  ],
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Tên bên A",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "von_bena",
+      "label": "Số vốn góp bên A (VND)",
+      "section": "Vốn góp",
+      "tier": "required",
+      "type": "number"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Tên bên B",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "von_benb",
+      "label": "Số vốn góp bên B (VND)",
+      "section": "Vốn góp",
+      "tier": "required",
+      "type": "number"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: VỐN GÓP",
+      "text": "Bên A góp {{von_bena}} VND, Bên B góp {{von_benb}} VND."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN A                                       BÊN B",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

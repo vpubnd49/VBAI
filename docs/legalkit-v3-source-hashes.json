@@ -1,0 +1,16 @@
+{
+  "inventory_date": "2026-08-07T11:50:00Z",
+  "source_dir": "legalkit-vn-master",
+  "total_files": 54,
+  "git_exclude_pattern": "/legalkit-vn-master/",
+  "modules": {
+    "skill_instructions": "legalkit-vn-master/SKILL.md",
+    "manifest": "legalkit-vn-master/manifest.json",
+    "contract_templates_count": 20,
+    "domain_modules_count": 7,
+    "reference_docs_count": 2,
+    "resource_docs_count": 5
+  },
+  "canonical_destination": "skill/",
+  "status": "ALL_RESOURCES_MIGRATED_CANONICALLY"
+}

@@ -1,0 +1,62 @@
+{
+  "id": "bao_lanh",
+  "name": "Hợp đồng bảo lãnh thực hiện nghĩa vụ",
+  "group": "Doanh nghiệp ↔ Doanh nghiệp / Cá nhân",
+  "icon": "🛡️",
+  "title": "HỢP ĐỒNG BẢO LÃNH THỰC HIỆN NGHĨA VỤ",
+  "summary": "Hợp đồng bảo lãnh giữa bên bảo lãnh, bên được bảo lãnh và bên nhận bảo lãnh theo Bộ luật Dân sự 2015.",
+  "parties": {
+    "a": "Bên nhận bảo lãnh (Bên A)",
+    "b": "Bên bảo lãnh (Bên B)",
+    "c": "Bên được bảo lãnh (Bên C)"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Tên bên A",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Tên bên B",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_benc",
+      "label": "Tên bên C",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "nghia_vu_bao_lanh",
+      "label": "Nghĩa vụ được bảo lãnh",
+      "section": "Phạm vi",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "han_muc_bao_lanh",
+      "label": "Hạn mức bảo lãnh (VND)",
+      "section": "Phạm vi",
+      "tier": "required",
+      "type": "number"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: NỘI DUNG VÀ HẠN MỨC",
+      "text": "Bên B bảo lãnh cho Bên C thực hiện nghĩa vụ: {{nghia_vu_bao_lanh}}. Hạn mức: {{han_muc_bao_lanh}} VND."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 03 bản có giá trị như nhau.\n\nBÊN A                         BÊN B                         BÊN C",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

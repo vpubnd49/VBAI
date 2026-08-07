@@ -1,0 +1,54 @@
+{
+  "id": "thiet_ke_phan_mem",
+  "name": "Hợp đồng phát triển / thiết kế phần mềm",
+  "group": "Doanh nghiệp ↔ Doanh nghiệp / Cá nhân",
+  "icon": "💻",
+  "title": "HỢP ĐỒNG PHÁT TRIỂN PHẦN MỀM",
+  "summary": "Hợp đồng phát triển hoặc thiết kế phần mềm, ứng dụng di động giữa bên thuê và bên phát triển.",
+  "parties": {
+    "a": "Bên thuê phát triển (Bên A)",
+    "b": "Bên phát triển phần mềm (Bên B)"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nCăn cứ Luật Công nghệ thông tin 2006;\nCăn cứ Luật Sở hữu trí tuệ;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Tên bên A",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Tên bên B",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_phan_mem",
+      "label": "Tên phần mềm",
+      "section": "Nội dung",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "gia_tri_hd",
+      "label": "Giá trị hợp đồng",
+      "section": "Giá",
+      "tier": "required",
+      "type": "number"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: NỘI DUNG VÀ GIÁ TRỊ",
+      "text": "Bên A thuê Bên B phát triển phần mềm: {{ten_phan_mem}}. Tổng giá trị: {{gia_tri_hd}} VND."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN A                                       BÊN B",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

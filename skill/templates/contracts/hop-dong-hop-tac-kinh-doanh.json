@@ -1,0 +1,51 @@
+{
+  "id": "hop_tac_kinh_doanh",
+  "name": "Hợp đồng hợp tác kinh doanh (BCC)",
+  "group": "Doanh nghiệp ↔ Doanh nghiệp",
+  "icon": "🤝",
+  "title": "HỢP ĐỒNG HỢP TÁC KINH DOANH (BCC)",
+  "summary": "Hợp đồng hợp tác kinh doanh (BCC) giữa các đối tác nhằm thực hiện hoạt động đầu tư kinh doanh.",
+  "parties": {
+    "a": "Bên A (Đối tác thứ nhất)",
+    "b": "Bên B (Đối tác thứ hai)"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nCăn cứ Luật Đầu tư 2020;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015",
+    "Luật Đầu tư 2020"
+  ],
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Tên bên A",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Tên bên B",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "muc_tieu",
+      "label": "Mục tiêu hợp tác",
+      "section": "Nội dung",
+      "tier": "required",
+      "type": "text"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: MỤC TIÊU HỢP TÁC",
+      "text": "Hai Bên hợp tác kinh doanh nhằm: {{muc_tieu}}."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 04 bản có giá trị như nhau.\n\nBÊN A                                       BÊN B",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

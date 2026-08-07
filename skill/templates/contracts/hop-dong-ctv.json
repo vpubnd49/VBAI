@@ -1,0 +1,95 @@
+{
+  "id": "ctv",
+  "name": "Hợp đồng cộng tác viên / khoán việc",
+  "group": "Công ty ↔ Cá nhân",
+  "icon": "🧑‍💻",
+  "summary": "Hợp đồng dịch vụ dân sự giữa công ty và cá nhân (cộng tác viên/khoán việc) để thực hiện một công việc cụ thể, có kết quả bàn giao rõ ràng, không thiết lập quan hệ lao động.",
+  "legalBasis": [
+    "Bộ luật Dân sự 2015 - Điều 513 (khái niệm hợp đồng dịch vụ)",
+    "Thông tư 111/2013/TT-BTC - khấu trừ 10% thuế TNCN"
+  ],
+  "parties": {
+    "a": "Bên thuê dịch vụ (Bên A - Công ty)",
+    "b": "Cộng tác viên (Bên B - Cá nhân)"
+  },
+  "title": "HỢP ĐỒNG CỘNG TÁC VIÊN",
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nHôm nay, ngày {{ngay_ky}}, tại {{noi_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "noi_ky",
+      "label": "Nơi ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ngay_ky",
+      "label": "Ngày ký hợp đồng",
+      "section": "Thông tin chung",
+      "tier": "required",
+      "type": "date"
+    },
+    {
+      "key": "ben_a_ten",
+      "label": "Tên công ty (Bên A)",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_a_mst",
+      "label": "Mã số thuế Bên A",
+      "section": "Bên A",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_ten",
+      "label": "Họ và tên cộng tác viên (Bên B)",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ben_b_cccd",
+      "label": "Số CCCD Bên B",
+      "section": "Bên B",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "cong_viec",
+      "label": "Mô tả công việc",
+      "section": "Công việc",
+      "tier": "required",
+      "type": "textarea"
+    },
+    {
+      "key": "thu_lao",
+      "label": "Thù lao (VNĐ)",
+      "section": "Thù lao",
+      "tier": "required",
+      "type": "money"
+    }
+  ],
+  "lint": [
+    {
+      "field": "thu_lao",
+      "op": "min",
+      "value": 0,
+      "message": "Thù lao phải lớn hơn 0.",
+      "legalRef": "Điều 515 BLDS 2015",
+      "severity": "error"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: CÔNG VIỆC VÀ THÙ LAO",
+      "text": "Bên B thực hiện công việc: {{cong_viec}}. Thù lao: {{thu_lao}} VNĐ."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN A                                       BÊN B",
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}

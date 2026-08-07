@@ -1,0 +1,54 @@
+{
+  "id": "thue_van_phong",
+  "name": "Hợp đồng thuê văn phòng / mặt bằng thương mại",
+  "group": "Doanh nghiệp ↔ Doanh nghiệp / Cá nhân",
+  "icon": "🏢",
+  "title": "HỢP ĐỒNG THUÊ VĂN PHÒNG KINH DOANH",
+  "summary": "Hợp đồng thuê văn phòng hoặc mặt bằng thương mại ký giữa doanh nghiệp cho thuê và bên thuê.",
+  "parties": {
+    "a": "Bên cho thuê (Bên A)",
+    "b": "Bên thuê (Bên B)"
+  },
+  "preamble": "Căn cứ Bộ luật Dân sự 2015;\nCăn cứ Luật Kinh doanh bất động sản 2023;\nHôm nay, ngày {{ngay_ky}}, tại {{dia_diem_ky}}, chúng tôi gồm:",
+  "fields": [
+    {
+      "key": "ten_bena",
+      "label": "Tên bên cho thuê (Bên A)",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "ten_benb",
+      "label": "Tên bên thuê (Bên B)",
+      "section": "Thông tin các bên",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "vi_tri_mặt_bằng",
+      "label": "Vị trí văn phòng",
+      "section": "Đối tượng thuê",
+      "tier": "required",
+      "type": "text"
+    },
+    {
+      "key": "gia_thue",
+      "label": "Giá thuê (VND/tháng)",
+      "section": "Giá",
+      "tier": "required",
+      "type": "number"
+    }
+  ],
+  "body": [
+    {
+      "heading": "ĐIỀU 1: NỘI DUNG VÀ GIÁ THUÊ",
+      "text": "Bên A cho Bên B thuê văn phòng tại: {{vi_tri_mặt_bằng}}. Giá thuê: {{gia_thue}} VND/tháng."
+    }
+  ],
+  "closing": "Hợp đồng lập thành 02 bản có giá trị như nhau.\n\nBÊN A                                       BÊN B",
+  "lint": [],
+  "verifyNotes": [
+    "Tích hợp từ LegalKit v3"
+  ]
+}
