@@ -76,10 +76,12 @@ for (const token of requiredTokens) {
 console.log('  PASS: complete administrative theme tokens exist');
 
 assert.match(css, /color-scheme:\s*light/);
-assert.match(css, /--bg-primary:\s*#f4f7fb/i);
-assert.match(css, /--bg-secondary:\s*#ffffff/i);
-assert.match(css, /--text-primary:\s*#0f172a/i);
-assert.match(css, /--accent:\s*#2563eb/i);
+assert.match(css, /--bg-primary:\s*#F7FBFC/i);
+assert.match(css, /--bg-secondary:\s*#FFFFFF/i);
+assert.match(css, /--text-primary:\s*#0F172A/i);
+assert.match(css, /--accent:\s*#00778B/i);
+assert.match(css, /--sidebar-width:\s*224px/i);
+
 
 assert.doesNotMatch(
   css,
@@ -138,7 +140,7 @@ console.log('  PASS: module card rules are not duplicated');
 
 assert.match(
   css,
-  /\.nav-item\.active[\s\S]*color:\s*var\(--text-on-accent\)/
+  /\.nav-item\.active[\s\S]*color:\s*var\(--brand-primary\)/
 );
 
 assert.match(
