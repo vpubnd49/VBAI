@@ -1,201 +1,292 @@
-import { firebaseConfig } from '../firebase-config.js';
-
 /**
- * Dashboard Module - chat-first workspace with compact shortcuts.
+ * VBAI Legal Pro V2 — Dashboard (Legal Pro Home)
+ * Search-first legal workspace with central search box, quick actions,
+ * recent searches, legal source principles, and ancillary tools shortcuts.
  */
+
 export function renderDashboard(container, navigateTo) {
+  const recentSearches = getRecentSearches();
+
   container.innerHTML = `
-    <div class="dashboard-home">
-      <section class="dashboard-chat-shell">
-        <div class="dashboard-compact-hero">
-          <div class="dashboard-brand-row">
-            <img src="/admin-assistant-logo.svg" alt="Trợ lý hành chính" class="dashboard-main-logo">
-            <div>
-              <h1 class="hero-title">Trợ lý hành chính</h1>
-              <p class="hero-sub">Hỗ trợ hành chính số, tra cứu quy định, soạn thảo văn bản và xử lý nghiệp vụ hằng ngày cho cơ quan, đơn vị.</p>
+    <div class="legal-home-wrapper">
+      <!-- HERO SECTION -->
+      <section class="legal-home-hero">
+        <div class="hero-brand-header">
+          <img src="/legal-pro-logo.svg" alt="VBAI Legal Pro" class="legal-pro-main-logo">
+          <div class="hero-tagline-badge">VBAI LEGAL PRO V2 · KHÔNG SPECULATION</div>
+        </div>
+
+        <h1 class="hero-main-title">Tra cứu pháp luật có kiểm chứng</h1>
+        <p class="hero-sub-title">Tìm đúng văn bản, đúng điều khoản, đúng thời điểm hiệu lực.</p>
+
+        <!-- LARGE CENTRAL SEARCH BOX -->
+        <div class="legal-home-search-box">
+          <div class="search-box-inner">
+            <span class="search-box-icon">🔍</span>
+            <input 
+              type="text" 
+              id="home-main-search-input" 
+              class="home-search-input" 
+              placeholder="Nhập câu hỏi, số hiệu văn bản, điều/khoản hoặc tình huống pháp lý..."
+            >
+            <button id="home-main-search-btn" class="btn btn-primary home-search-btn">
+              <span>Tra cứu ngay</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- QUICK ACTIONS GRID -->
+        <div class="legal-quick-actions">
+          <button class="quick-action-card" data-mode="legal-search">
+            <span class="action-icon">🔍</span>
+            <span class="action-title">Tra cứu pháp luật</span>
+            <span class="action-sub">Hỏi đáp quy định & trích dẫn</span>
+          </button>
+
+          <button class="quick-action-card" data-mode="document-lookup">
+            <span class="action-icon">📜</span>
+            <span class="action-title">Tra cứu văn bản</span>
+            <span class="action-sub">Số hiệu, ngày ban hành, hiệu lực</span>
+          </button>
+
+          <button class="quick-action-card" data-mode="effective-date">
+            <span class="action-icon">📅</span>
+            <span class="action-title">Kiểm tra hiệu lực</span>
+            <span class="action-sub">Rà soát theo mốc thời gian</span>
+          </button>
+
+          <button class="quick-action-card" data-mode="compare-regulations">
+            <span class="action-icon">🔄</span>
+            <span class="action-title">So sánh quy định</span>
+            <span class="action-sub">Đối chiếu điểm mới & sửa đổi</span>
+          </button>
+
+          <button class="quick-action-card" data-mode="situation-analysis">
+            <span class="action-icon">⚖️</span>
+            <span class="action-title">Phân tích tình huống</span>
+            <span class="action-sub">Đánh giá rủi ro & áp dụng</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- TWO COLUMN INFO REGION: Recent Searches + Legal Sources -->
+      <div class="home-info-columns">
+        <!-- RECENT SEARCHES REGION -->
+        <section class="home-card-panel recent-searches-card">
+          <div class="panel-card-head">
+            <h3>🕒 Tra cứu gần đây</h3>
+            <span class="panel-head-tag">Lịch sử cá nhân</span>
+          </div>
+          <div class="panel-card-body" id="recent-searches-list">
+            ${renderRecentSearchesHtml(recentSearches)}
+          </div>
+        </section>
+
+        <!-- LEGAL SOURCES TRUST REGION -->
+        <section class="home-card-panel legal-sources-card">
+          <div class="panel-card-head">
+            <h3>🏛️ Nguyên tắc Nguồn Pháp Lý</h3>
+            <span class="panel-head-tag verified-tag">Đã kiểm chứng</span>
+          </div>
+          <div class="panel-card-body">
+            <ul class="legal-principles-list">
+              <li>
+                <strong class="principle-title">🏛️ Nguồn chính thức:</strong>
+                <span class="principle-desc">Ưu tiên Cổng VBPL (vbpl.vn), Công báo, Báo Chính phủ, Cổng QH.</span>
+              </li>
+              <li>
+                <strong class="principle-title">✓ Trạng thái kiểm chứng:</strong>
+                <span class="principle-desc">Chỉ gắn mác "Đã kiểm chứng" khi backend xác minh được điều khoản thật.</span>
+              </li>
+              <li>
+                <strong class="principle-title">📅 Ngày hiệu lực thực tế:</strong>
+                <span class="principle-desc">Tự động phân biệt văn bản Hiện hành, Hết hiệu lực, Bị bãi bỏ, Sửa đổi.</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+
+      <!-- ANCILLARY TOOLS SHORTCUTS -->
+      <section class="home-ancillary-section">
+        <div class="section-head-row">
+          <h2>Công cụ Phụ trợ & Soạn thảo</h2>
+          <span>Nghiệp vụ hành chính số</span>
+        </div>
+        <div class="modules-grid ancillary-grid">
+          <div class="ancillary-card" data-page="vb-nd30">
+            <div class="card-icon ocean">📄</div>
+            <div class="card-info">
+              <div class="card-title">Soạn VB Hành chính (NĐ30)</div>
+              <div class="card-desc">Công văn, Quyết định, Báo cáo chuẩn Nghị định 30/2020/NĐ-CP</div>
             </div>
           </div>
-          <div class="dashboard-focus-badge">Ưu tiên tra cứu</div>
-        </div>
-        <div id="chat-assistant-container" class="dashboard-chat-primary">
-          <div class="chat-panel-skeleton">
-            <div class="chat-panel-skeleton-row"></div>
-            <div class="chat-panel-skeleton-row short"></div>
-            <div class="chat-panel-skeleton-box"></div>
+
+          <div class="ancillary-card" data-page="vb-dang">
+            <div class="card-icon daquy">✍️</div>
+            <div class="card-info">
+              <div class="card-title">Soạn VB Đảng (HD05)</div>
+              <div class="card-desc">Nghị quyết, Chỉ thị, Quyết định chuẩn Hướng dẫn 05-HD/VPTW</div>
+            </div>
+          </div>
+
+          <div class="ancillary-card" data-page="spell-check">
+            <div class="card-icon daquy">🔍</div>
+            <div class="card-info">
+              <div class="card-title">Kiểm tra Thể thức & Chính tả</div>
+              <div class="card-desc">Rà soát lỗi thể thức văn bản hành chính & văn bản Đảng</div>
+            </div>
+          </div>
+
+          <div class="ancillary-card" data-page="pdf-tool">
+            <div class="card-icon sunset">⚙️</div>
+            <div class="card-info">
+              <div class="card-title">OCR & Xử lý PDF</div>
+              <div class="card-desc">Trích xuất văn bản, gộp/tách trang và quét tài liệu PDF</div>
+            </div>
+          </div>
+
+          <div class="ancillary-card" data-page="meeting-minutes">
+            <div class="card-icon pine">🎙️</div>
+            <div class="card-info">
+              <div class="card-title">Xử lý Ghi âm Cuộc họp</div>
+              <div class="card-desc">Chuyển ghi âm thành biên bản và thông báo kết luận</div>
+            </div>
+          </div>
+
+          <div class="ancillary-card" data-page="docx-tool">
+            <div class="card-icon pine">📝</div>
+            <div class="card-info">
+              <div class="card-title">Tạo & Xuất DOCX / PDF</div>
+              <div class="card-desc">Biên tập tài liệu Word chuyên nghiệp và xuất file chuẩn</div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="dashboard-quick-tools">
-        <div class="dashboard-section-head">
-          <h2>Các chức năng</h2>
-          <span>Lối tắt nghiệp vụ</span>
+      <!-- SUPPORT & FOOTER SECTION -->
+      <footer class="legal-pro-footer">
+        <div class="footer-build-badge">
+          <span>VBAI Legal Pro V2</span>
+          <span class="dot-sep">•</span>
+          <span id="footer-build-sha">Build: loading...</span>
+          <span class="dot-sep">•</span>
+          <span>Văn phòng UBND tỉnh Lâm Đồng</span>
         </div>
-        <div class="modules-grid dashboard-tools-grid" id="skills-grid">
-          <div style="grid-column: 1/-1; text-align: center; padding: 12px;">
-            <div class="spinner"></div>
-            <p style="margin-top: 10px; font-size: 0.8rem; color: var(--text-muted);">Đang tải danh sách kỹ năng...</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="contact-section" class="dashboard-support">
-        <div class="dashboard-section-head">
-          <h2>Liên hệ hỗ trợ</h2>
-          <span>Khi cần cấu hình hoặc xử lý lỗi</span>
-        </div>
-        <div class="stats-row dashboard-support-grid">
-          <a href="https://m.me/haichau2404" target="_blank" class="stat-card dashboard-support-card">
-            <div class="dashboard-support-icon messenger">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.453 5.502 3.734 7.254.195.15.316.386.324.64l.035 2.128c.008.497.53.818.966.576l2.368-1.314a.786.786 0 01.597-.064c.94.27 1.942.42 2.978.42 5.523 0 10-4.145 10-9.258S17.523 2 12 2zm.893 12.35l-2.585-2.756-5.044 2.756 5.544-5.885 2.585 2.756 5.044-2.756-5.544 5.885z"/></svg>
-            </div>
-            <div>
-              <div class="dashboard-support-title">Messenger</div>
-              <div class="dashboard-support-value">@haichau2404</div>
-            </div>
-          </a>
-
-          <a href="https://zalo.me/0911677209" target="_blank" class="stat-card dashboard-support-card">
-            <div class="dashboard-support-icon zalo">Z</div>
-            <div>
-              <div class="dashboard-support-title">Zalo</div>
-              <div class="dashboard-support-value">0911.677.209</div>
-            </div>
-          </a>
-        </div>
-      </section>
-
-
-      <footer class="app-footer dashboard-footer">
-        <div class="footer-line">Phiên bản v1.2.6 - Văn phòng UBND tỉnh Lâm Đồng</div>
-        <div class="footer-line">PHÁT TRIỂN BỞI: <a href="https://www.facebook.com/haichau2404" target="_blank" rel="noopener" class="footer-link">TRƯƠNG HẢI CHÂU</a></div>
-        <div class="footer-line" style="margin-top: 8px;">
-          <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(230,162,0,0.15); padding:4px 12px; border-radius:20px; border:1px solid rgba(230,162,0,0.3); font-size:0.7rem; color:var(--daquy-400)">
-            LƯỢT TRUY CẬP: <strong id="visit-count" style="font-size:0.8rem">...</strong>
-          </span>
+        <div class="footer-credit">Phát triển bởi: Trương Hải Châu</div>
+        <div class="footer-visit-counter">
+          Lượt truy cập hệ thống: <strong id="visit-count">...</strong>
         </div>
       </footer>
     </div>
   `;
 
-  const chatContainer = container.querySelector('#chat-assistant-container');
-  import('./chat-assistant.js').then(({ renderChatUI }) => {
-    renderChatUI(chatContainer);
-  }).catch(err => {
-    console.error('Lỗi tải chat-assistant:', err);
-    chatContainer.innerHTML = '<div style="padding:20px;text-align:center;color:var(--danger)">Không thể tải khung tra cứu. Vui lòng tải lại trang.</div>';
-  });
+  // Bind Central Search Input & Button
+  const mainInput = container.querySelector('#home-main-search-input');
+  const mainBtn = container.querySelector('#home-main-search-btn');
 
-  void hydrateSkills(container, navigateTo);
-  void hydrateVisitCounter(container);
-}
-
-function hydrateSkills(container, navigateTo) {
-  const skillsGrid = container.querySelector('#skills-grid');
-  if (!skillsGrid) return;
-
-  const skills = [
-    {
-      id: "Skill_The_Thuc_VB_Dang_HD05",
-      name: "Soạn VB Đảng (HD05)",
-      description: "Tạo văn bản Đảng (.docx) dùng thể thức theo Hướng dẫn 05-HD/VPTW (thay thế HD36). Hỗ trợ TẤT CẢ loại VB Đảng: Nghị quyết, Chỉ thị, Kết luận, Quyết định...",
-      icon: "✍️",
-      accent: "daquy",
-      page: "vb-dang"
-    },
-    {
-      id: "Skill_The_Thuc_VB_ND30",
-      name: "Soạn VB Hành chính (NĐ30)",
-      description: "Tạo văn bản hành chính chuẩn Nghị định số 30/2020/NĐ-CP. Hỗ trợ tất cả loại VBHC: công văn, quyết định, thông báo, báo cáo...",
-      icon: "📄",
-      accent: "ocean",
-      page: "vb-nd30"
-    },
-    {
-      id: "Skill_PDF",
-      name: "Xử lý PDF / OCR",
-      description: "Trích xuất nội dung từ file PDF. Hỗ trợ đọc, trích xuất văn bản/bảng biểu, gộp, tách, xoay trang, thêm hình mờ...",
-      icon: "⚙️",
-      accent: "sunset",
-      page: "pdf-tool"
-    },
-    {
-      id: "Skill_DOCX",
-      name: "Tạo & Xuất DOCX",
-      description: "Soạn thảo văn bản Word. Hỗ trợ tạo, đọc, chỉnh sửa tài liệu Word (.docx). Định dạng chuyên nghiệp, chèn bảng biểu...",
-      icon: "📝",
-      accent: "pine",
-      page: "docx-tool"
-    }
-  ];
-
-  const friendlyBadges = {
-    Skill_The_Thuc_VB_Dang_HD05: 'Nghị quyết, Chỉ thị...',
-    Skill_The_Thuc_VB_ND30: 'Quyết định, Báo cáo...',
-    Skill_PDF: 'Merge - OCR - Text',
-    Skill_DOCX: 'Chỉnh sửa - Tạo mới',
+  const executeHomeSearch = () => {
+    const q = mainInput.value.trim();
+    if (!q) return;
+    window.location.hash = `#legal-search?q=${encodeURIComponent(q)}`;
+    navigateTo('legal-search', q);
   };
 
-  skillsGrid.innerHTML = skills.map((skill) => `
-    <div class="module-card" data-accent="${skill.accent}" data-page="${skill.page}" id="card-${skill.id}">
-      <div class="module-icon ${skill.accent}">${skill.icon}</div>
-      <div class="module-title">${skill.name}</div>
-      <div class="module-desc">${skill.description.substring(0, 54)}...</div>
-      <div class="module-badge">${friendlyBadges[skill.id] || 'Tiện ích'}</div>
-    </div>
-  `).join('') + `
-    <div class="module-card" data-accent="daquy" data-page="spell-check" id="card-spell-check">
-      <div class="module-icon daquy">🔍</div>
-      <div class="module-title">Kiểm tra chính tả và thể thức</div>
-      <div class="module-desc">Rà soát chính tả và thể thức văn bản...</div>
-      <div class="module-badge">NĐ30 - HD05 - AI</div>
-    </div>
-    <div class="module-card" data-accent="pine" data-page="meeting-minutes" id="card-meeting-minutes">
-      <div class="module-icon pine">🎙️</div>
-      <div class="module-title">Xử lý ghi âm cuộc họp</div>
-      <div class="module-desc">Chuyển ghi âm thành thông báo...</div>
-      <div class="module-badge">STT - NĐ30 - HD05</div>
-    </div>
-  `;
-
-  skillsGrid.querySelectorAll('.module-card').forEach((card) => {
-    card.addEventListener('click', () => navigateTo(card.dataset.page));
+  mainBtn.addEventListener('click', executeHomeSearch);
+  mainInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') executeHomeSearch();
   });
+
+  // Bind Quick Actions
+  container.querySelectorAll('.quick-action-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const mode = card.dataset.mode || 'legal-search';
+      navigateTo('legal-search', '', mode);
+    });
+  });
+
+  // Bind Ancillary Cards
+  container.querySelectorAll('.ancillary-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const page = card.dataset.page;
+      if (page) navigateTo(page);
+    });
+  });
+
+  // Bind Recent Search Clicks
+  container.querySelectorAll('.recent-search-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const q = item.dataset.query;
+      const mode = item.dataset.mode || 'legal-search';
+      if (q) navigateTo('legal-search', q, mode);
+    });
+  });
+
+  // Load Build SHA in Footer
+  loadFooterBuildInfo(container);
 }
 
-async function hydrateVisitCounter(container) {
-  const visitEl = container.querySelector('#visit-count');
-  const SESSION_KEY = 'vbai_session_firestore';
-  const isNewSession = !sessionStorage.getItem(SESSION_KEY);
-
+function getRecentSearches() {
   try {
-    const [firebaseApp, firebaseFirestore] = await Promise.all([
-      import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js')
-    ]);
-
-    const { initializeApp, getApps, getApp } = firebaseApp;
-    const { getFirestore, doc, onSnapshot, setDoc, increment } = firebaseFirestore;
-
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const db = getFirestore(app);
-    const visitDocRef = doc(db, 'stats', 'visits');
-
-    onSnapshot(visitDocRef, (docSnap) => {
-      if (!docSnap.exists()) return;
-      const data = docSnap.data();
-      if (data.count && visitEl) {
-        visitEl.textContent = data.count.toLocaleString('vi-VN');
-      }
-    });
-
-    if (isNewSession) {
-      setDoc(visitDocRef, { count: increment(1) }, { merge: true })
-        .then(() => sessionStorage.setItem(SESSION_KEY, '1'))
-        .catch((err) => console.warn('Firestore Error:', err));
-    }
-  } catch (error) {
-    console.warn('Firebase Init Error:', error);
-    if (visitEl) visitEl.textContent = '1,200+';
+    return JSON.parse(localStorage.getItem('vbai_recent_searches') || '[]');
+  } catch (e) {
+    return [];
   }
+}
+
+function renderRecentSearchesHtml(searches) {
+  if (!searches || searches.length === 0) {
+    return `
+      <div class="recent-empty">
+        <span class="empty-icon">📂</span>
+        <span>Chưa có lịch sử tra cứu. Nhập tìm kiếm đầu tiên ở trên!</span>
+      </div>
+    `;
+  }
+
+  return searches.map(item => `
+    <div class="recent-search-item" data-query="${escapeAttribute(item.query)}" data-mode="${escapeAttribute(item.mode || 'legal-search')}">
+      <span class="recent-icon">🔍</span>
+      <span class="recent-query-text">${escapeHtml(item.query)}</span>
+      <span class="recent-mode-tag">${getModeTagLabel(item.mode)}</span>
+    </div>
+  `).join('');
+}
+
+function getModeTagLabel(mode) {
+  switch (mode) {
+    case 'document-lookup': return 'Văn bản';
+    case 'situation-analysis': return 'Tình huống';
+    case 'compare-regulations': return 'So sánh';
+    case 'effective-date': return 'Hiệu lực';
+    default: return 'Pháp luật';
+  }
+}
+
+function loadFooterBuildInfo(container) {
+  const el = container.querySelector('#footer-build-sha');
+  if (!el) return;
+
+  const gitSha = typeof __VBAI_GIT_SHA__ !== 'undefined' ? __VBAI_GIT_SHA__ : '0814f39';
+  el.textContent = `Build: ${gitSha}`;
+
+  // Try fetching public/build-info.json dynamically
+  fetch('/build-info.json')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.shortSha) {
+        el.textContent = `Build: ${data.shortSha}`;
+      } else if (data && data.gitSha) {
+        el.textContent = `Build: ${data.gitSha.substring(0, 7)}`;
+      }
+    })
+    .catch(() => {});
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeAttribute(str) {
+  return String(str || '').replace(/"/g, '&quot;');
 }

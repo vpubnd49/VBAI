@@ -1,0 +1,7 @@
+<svg width="180" height="40" viewBox="0 0 180 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="36" height="36" rx="8" fill="#00778B"/>
+  <path d="M18 10V26M18 14L11 18M18 14L25 18M11 18C11 20 13 21 15 21C17 21 18 20 18 18M25 18C25 20 23 21 21 21C19 21 18 20 18 18M13 26H23" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="44" y="22" font-family="Inter, sans-serif" font-size="16" font-weight="700" fill="#0F172A">VBAI Legal</text>
+  <text x="135" y="22" font-family="Inter, sans-serif" font-size="14" font-weight="800" fill="#00778B">PRO</text>
+  <text x="44" y="32" font-family="Inter, sans-serif" font-size="9" font-weight="500" fill="#64748B">Nền tảng Pháp lý AI Việt Nam</text>
+</svg>

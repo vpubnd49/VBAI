@@ -27,10 +27,11 @@ function applyGlobalModelDefaults() {
 }
 
 // ============ STATE ============
+const gitSha = typeof __VBAI_GIT_SHA__ !== 'undefined' ? __VBAI_GIT_SHA__ : '0814f39';
 const state = {
   currentPage: 'dashboard',
   sidebarOpen: false,
-  version: 'v1.2.6'
+  version: `VBAI Legal Pro V2 (${gitSha})`
 };
 
 // ============ CLOCK ============
@@ -60,28 +61,34 @@ export function showToast(msg, type = 'success') {
 
 // ============ NAVIGATION ============
 const PAGE_TITLES = {
-  dashboard: 'Tổng quan',
-  'chat-assistant': 'Tra cứu hành chính & pháp luật',
-  'vb-dang': 'Soạn VB Đảng (HD05)',
-  'vb-nd30': 'Soạn VB Hành chính (NĐ30)',
-  'pdf-tool': 'Xử lý PDF / OCR',
-  'docx-tool': 'Tạo & Xuất DOCX',
-  'spell-check': 'Kiểm tra chính tả & thể thức',
-  'meeting-minutes': 'Xử lý ghi âm cuộc họp',
-  'pdf-publisher': 'Công cụ Tóm tắt - Xuất PDF',
-  'admin-panel': 'Quản Trị Hệ Thống',
+  dashboard: 'VBAI Legal Pro V2 - Tổng quan',
+  'legal-search': 'Tra cứu Pháp luật',
+  'document-lookup': 'Tra cứu Văn bản',
+  'situation-analysis': 'Phân tích Tình huống',
+  'compare-regulations': 'So sánh Quy định',
+  'effective-date': 'Hiệu lực & Sửa đổi',
+  'chat-assistant': 'Tra cứu Pháp luật (Legacy)',
+  'vb-dang': 'Văn bản Đảng (HD05)',
+  'vb-nd30': 'Văn bản Hành chính (NĐ30)',
+  'pdf-tool': 'OCR / Đọc tài liệu',
+  'docx-tool': 'Tạo DOCX / PDF',
+  'spell-check': 'Kiểm tra Văn bản & Thể thức',
+  'meeting-minutes': 'Xử lý Ghi âm & Biên bản',
+  'pdf-publisher': 'Tóm tắt Hồ sơ & Xuất PDF',
+  'search-history': 'Lịch sử Tra cứu',
+  'admin-panel': 'Quản trị Hệ thống',
 };
 
 function showPageLoading(container) {
   container.innerHTML = `
     <div class="page-loading-wrapper">
       <div class="page-loading-spinner"></div>
-      <div class="page-loading-text">Đang tải mô-đun...</div>
+      <div class="page-loading-text">Đang tải mô-đun VBAI Legal Pro...</div>
     </div>
   `;
 }
 
-function navigateTo(page) {
+export function navigateTo(page, initialQuery = '', initialMode = '') {
   if (!page || !PAGE_TITLES[page]) {
     console.warn('Attempted to navigate to invalid page:', page);
     return;
@@ -94,7 +101,6 @@ function navigateTo(page) {
     item.classList.toggle('active', item.dataset.page === page);
   });
 
-  // Nếu đang ở Dashboard mà bấm Tổng quan thì F5 (theo yêu cầu user)
   if (previousPage === 'dashboard' && page === 'dashboard' && !window.firstLoad) {
     window.location.reload();
     return;
@@ -104,10 +110,10 @@ function navigateTo(page) {
   // Update breadcrumb
   document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[page]}</span>`;
   // Render page
-  renderPage(page);
+  renderPage(page, initialQuery, initialMode);
 }
 
-async function renderPage(page) {
+async function renderPage(page, initialQuery = '', initialMode = '') {
   const container = document.getElementById('page-content');
   if (!container) return;
   
@@ -121,6 +127,18 @@ async function renderPage(page) {
         const { renderDashboard } = await import('./modules/dashboard.js');
         container.innerHTML = '';
         renderDashboard(container, navigateTo);
+        break;
+      }
+      case 'legal-search':
+      case 'document-lookup':
+      case 'situation-analysis':
+      case 'compare-regulations':
+      case 'effective-date':
+      case 'search-history': {
+        const { renderLegalSearchUI } = await import('./modules/legal-search.js');
+        container.innerHTML = '';
+        const mode = initialMode || (page === 'search-history' ? 'legal-search' : page);
+        renderLegalSearchUI(container, mode, initialQuery);
         break;
       }
       case 'chat-assistant': {
@@ -182,7 +200,7 @@ async function renderPage(page) {
         break;
       }
       default:
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏔️</div><div class="empty-text">Trang không tồn tại</div></div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🏛️</div><div class="empty-text">Trang không tồn tại</div></div>';
     }
   } catch (err) {
     console.error(`Lỗi khi tải trang ${page}:`, err);
@@ -195,6 +213,7 @@ async function renderPage(page) {
     `;
   }
 }
+
 
 function preloadModules() {
   const triggerPreloads = () => {

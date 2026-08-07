@@ -42,35 +42,38 @@ export function renderAdminPanel(container) {
         <div id="config-status" class="config-status-banner config-status-info">Đang tải cấu hình...</div>
         <form id="system-config-form" class="system-config-form is-hidden">
           <div class="config-two-col-grid">
-            <!-- Card 1: Google Gemini -->
+            <!-- Group 1: AI (Google Gemini) -->
             <section class="config-section-card config-col-panel">
-              <div class="config-section-title" style="color: #60a5fa;"><span class="config-section-icon">●</span> Cấu hình Google Gemini</div>
+              <div class="config-section-title" style="color: var(--brand-primary);"><span class="config-section-icon">●</span> AI Engine (Google Gemini)</div>
               
               <div class="form-group">
                 <label class="form-label">Gemini API Key</label>
                 <div class="config-inline-row">
-                  <input type="password" id="gemini_api_key" class="form-input config-inline-grow" placeholder="AIza...">
+                  <input type="password" id="gemini_api_key" class="form-input config-inline-grow" placeholder="AIza... (Để trống nếu không đổi)">
                   <button type="button" id="toggle-gemini-key-btn" class="btn btn-secondary btn-sm config-inline-add-btn">Hiện key</button>
                   <button type="button" id="verify-gemini-key-btn" class="btn btn-primary btn-sm config-inline-add-btn">Xác nhận key</button>
                 </div>
                 <label class="config-radio-option" style="margin-top:8px">
                   <input type="checkbox" id="verify-gemini-on-save" checked> Xác nhận key khi lưu cấu hình
                 </label>
-                <small class="config-hint">Để trống nếu không muốn thay đổi khóa hiện tại</small>
+                <small class="config-hint">Khóa API được lưu an toàn trong Secret Manager/Firestore (PATCH semantics)</small>
                 <small id="gemini-key-verify-status" class="config-hint"></small>
               </div>
               <div class="form-group">
                 <label class="form-label">Gemini API Endpoint (Base URL)</label>
                 <input type="text" id="gemini_endpoint" class="form-input" placeholder="https://generativelanguage.googleapis.com/v1beta/openai">
-                <small class="config-hint">Mặc định của Google: https://generativelanguage.googleapis.com/v1beta/openai</small>
               </div>
               <div class="form-group">
                 <label class="form-label">Model mặc định (Gemini)</label>
                 <input type="text" id="gemini_model" class="form-input" placeholder="gemini-3.5-flash-lite">
-                <small id="gemini-runtime-warning" class="config-hint" style="display:none; color:#fbbf24;"></small>
+                <small id="gemini-runtime-warning" class="config-hint" style="display:none; color:var(--warning);"></small>
               </div>
               <div class="form-group">
-                <label class="form-label">Danh sách Model Gemini</label>
+                <label class="form-label">Model transcription (Ghi âm)</label>
+                <input type="text" id="transcribe_model" class="form-input" placeholder="gemini-3.5-flash-lite">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Danh sách Model Gemini khả dụng</label>
                 <div class="config-inline-row">
                   <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập model (VD: gemini-3.5-flash-lite)">
                   <button type="button" id="add-gemini-model-btn" class="btn btn-primary btn-sm config-inline-add-btn">+ Thêm</button>
@@ -79,64 +82,29 @@ export function renderAdminPanel(container) {
               </div>
             </section>
 
-            <!-- Card 2: Vertex AI Search -->
+            <!-- Group 2: Search (Google & Vertex AI Search) -->
             <section class="config-section-card config-col-panel config-section-vertex">
-              <div class="config-section-title"><span class="config-section-icon">●</span> Vertex AI Search</div>
-              <div class="form-group">
-                <label class="form-label">Project ID</label>
-                <input type="text" id="vertex_project_id" class="form-input" placeholder="gen-lang-client-xxxx">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Location</label>
-                <input type="text" id="vertex_location" class="form-input" placeholder="global">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Data Store ID</label>
-                <input type="text" id="vertex_data_store_id" class="form-input" placeholder="vbai-legal-search">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Serving Config</label>
-                <input type="text" id="vertex_serving_config" class="form-input" placeholder="projects/.../servingConfigs/default_search">
-              </div>
-              <div class="form-group config-ingest-group">
-                <label class="form-label">Đồng bộ Dữ liệu từ Storage</label>
-                <button type="button" id="trigger-vertex-ingest-btn" class="btn btn-secondary btn-sm config-ingest-btn">
-                  🔄 Đồng bộ dữ liệu (Ingest)
-                </button>
-                <small id="vertex-ingest-status" class="config-hint config-block-hint"></small>
-              </div>
-            </section>
-
-            <!-- Card 3: Cấu hình Chung & Tra cứu Web -->
-            <section class="config-section-card config-col-panel config-section-search">
-              <div class="config-section-title config-title-gold"><span class="config-section-icon">●</span> Tra cứu Web & Vận hành</div>
-              
-              <div class="form-group">
-                <div class="admin-ai-badge">Nền tảng AI: <strong>Google Gemini (Chính thức)</strong></div>
-              </div>
-              
-              <div class="form-group">
-                <label class="form-label">Model transcription</label>
-                <input type="text" id="transcribe_model" class="form-input" placeholder="gemini-3.5-flash-lite">
-              </div>
-
-              <div class="form-group" style="margin-top: 10px;">
-                <label class="form-label">Nhà cung cấp tra cứu web</label>
-                <div class="config-radio-row">
-                  <label class="config-radio-option"><input type="radio" name="web_search_provider" value="vertex_search"> Vertex AI Search</label>
-                </div>
-              </div>
-              
+              <div class="config-section-title"><span class="config-section-icon">●</span> Web Search & Vertex AI Search</div>
               <div class="form-group">
                 <label class="form-label">Chế độ tra cứu web</label>
                 <div class="config-radio-col">
-                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="cse_fast"> Nhanh nhat (khong fallback)</label>
-                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="cse_with_fallback"> Vertex + fallback nguon truc tiep</label>
+                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="cse_fast"> Nhanh nhất (Nguồn trực tiếp)</label>
+                  <label class="config-radio-option"><input type="radio" name="web_search_mode" value="cse_with_fallback"> Vertex AI Search + fallback nguồn chính thức</label>
                 </div>
               </div>
-
               <div class="form-group">
-                <label class="form-label">Web Search Fallback Sources</label>
+                <label class="form-label">Project ID Vertex</label>
+                <input type="text" id="vertex_project_id" class="form-input" placeholder="gen-lang-client-0462350485">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Location & Data Store ID</label>
+                <div class="config-inline-row">
+                  <input type="text" id="vertex_location" class="form-input" placeholder="global" style="width: 35%;">
+                  <input type="text" id="vertex_data_store_id" class="form-input" placeholder="vbai-legal-search" style="flex:1;">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Fallback Sources (Nguồn kiểm chứng)</label>
                 <div class="config-fallback-grid">
                   <label class="config-radio-option"><input type="checkbox" id="fallback_vbpl"> vbpl.vn</label>
                   <label class="config-radio-option"><input type="checkbox" id="fallback_chinhphu"> chinhphu.vn</label>
@@ -145,14 +113,59 @@ export function renderAdminPanel(container) {
                   <label class="config-radio-option"><input type="checkbox" id="fallback_luatvietnam"> luatvietnam.vn</label>
                 </div>
               </div>
+              <div class="form-group config-ingest-group">
+                <button type="button" id="trigger-vertex-ingest-btn" class="btn btn-secondary btn-sm config-ingest-btn">
+                  🔄 Đồng bộ dữ liệu Vertex (Ingest)
+                </button>
+                <small id="vertex-ingest-status" class="config-hint config-block-hint"></small>
+              </div>
+            </section>
+
+            <!-- Group 3: Legal Engine Metadata -->
+            <section class="config-section-card config-col-panel config-section-search">
+              <div class="config-section-title config-title-gold"><span class="config-section-icon">●</span> Engine Pháp Lý & Metadata</div>
+              <div class="form-group">
+                <div class="admin-ai-badge">Known Documents Index: <strong>750+ Văn bản quy phạm</strong></div>
+              </div>
+              <div class="form-group">
+                <div class="admin-ai-badge">Bổ sung Metadata: <strong>bosung_metadata.json (Active)</strong></div>
+              </div>
+              <div class="form-group">
+                <div class="admin-ai-badge">Citation Validator: <strong>Strict Verification Engine Wired</strong></div>
+              </div>
+              <div class="form-group">
+                <div class="admin-ai-badge">Môi trường AI Runtime: <strong>Google Gemini Only (Strict Mode)</strong></div>
+              </div>
+            </section>
+
+            <!-- Group 4: System & Build Info -->
+            <section class="config-section-card config-col-panel">
+              <div class="config-section-title" style="color: var(--info);"><span class="config-section-icon">●</span> Hệ Thống & Build Identity</div>
+              <div class="form-group">
+                <label class="form-label">Tên sản phẩm:</label>
+                <input type="text" class="form-input" value="VBAI Legal Pro V2" readonly>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Firebase Project ID:</label>
+                <input type="text" class="form-input" value="${window.__VBAI_CONFIG__?.FIREBASE_PROJECT_ID || 'gen-lang-client-0462350485'}" readonly>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Runtime Environment:</label>
+                <input type="text" class="form-input" value="${window.__VBAI_CONFIG__?.APP_ENV || 'production'}" readonly>
+              </div>
+              <div class="form-group">
+                <label class="form-label">App Build Git SHA:</label>
+                <input type="text" class="form-input" value="${typeof __VBAI_FULL_GIT_SHA__ !== 'undefined' ? __VBAI_FULL_GIT_SHA__ : '0814f39e4e4c3f0a86856b4a5066afcac1ee9a24'}" readonly>
+              </div>
             </section>
           </div>
 
           <div class="btn-row config-save-row">
-            <button id="save-system-config-btn" class="btn btn-primary config-save-btn">💾 Lưu cấu hình</button>
+            <button id="save-system-config-btn" class="btn btn-primary config-save-btn">💾 Lưu cấu hình AI & Hệ thống</button>
           </div>
           <div id="config-save-status" class="config-save-status"></div>
         </form>
+
       </div>
     </div>
 

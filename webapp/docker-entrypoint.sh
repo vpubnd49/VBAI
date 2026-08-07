@@ -165,7 +165,18 @@ if [ "$APP_ENV" = "staging" ]; then
   fi
 fi
 
+GIT_SHA_VAL="${GIT_SHA:-${COMMIT_SHA:-dev}}"
+cat <<EOF > /usr/share/nginx/html/build-info.json
+{
+  "product": "VBAI Legal Pro",
+  "version": "2",
+  "gitSha": "${GIT_SHA_VAL}",
+  "builtAt": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+}
+EOF
+
 printf '%s\n' \
   "[VBAI] Runtime configuration validated: ${APP_ENV}/${FIREBASE_PROJECT_ID}"
 
 exec nginx -g 'daemon off;'
+

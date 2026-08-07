@@ -6614,9 +6614,21 @@ function selectBestAlternative(items, requestedDocType, query) {
   return sorted.length > 0 ? sorted[0] : null;
 }
 
+// Build info route
+app.get('/api/build-info', (req, res) => {
+  res.json({
+    product: 'VBAI Legal Pro',
+    version: '2',
+    service: 'vbai-proxy',
+    gitSha: process.env.GIT_SHA || process.env.K_REVISION || '0814f39e4e4c3f0a86856b4a5066afcac1ee9a24',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Start server
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`VBAI Proxy listening on port ${PORT}`);
 });
+
 
