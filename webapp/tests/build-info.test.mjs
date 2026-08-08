@@ -16,4 +16,23 @@ assert.equal(content.product, 'VBAI Legal Pro', 'build-info.json product must be
 assert.equal(content.version, '2', 'build-info.json version must be 2');
 assert.ok(content.gitSha, 'build-info.json must contain gitSha');
 
-console.log('PASS: build-info.json structure validated.');
+// Regression: tracked placeholder must remain neutral
+assert.equal(
+  content.gitSha,
+  'dev',
+  'tracked public/build-info.json must remain a neutral placeholder'
+);
+
+assert.equal(
+  content.builtAt,
+  '',
+  'tracked public/build-info.json must not contain build timestamps'
+);
+
+assert.equal(
+  Object.prototype.hasOwnProperty.call(content, 'shortSha'),
+  false,
+  'tracked public/build-info.json must not contain generated shortSha'
+);
+
+console.log('PASS: build-info.json structure and placeholder neutrality validated.');

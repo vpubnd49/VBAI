@@ -17,31 +17,41 @@ try {
 
 const builtAt = new Date().toISOString();
 
-// Write build-info.json into public directory
-try {
-  const publicDir = path.resolve(__dirname, 'public');
-  if (!fs.existsSync(publicDir)) {
-    fs.mkdirSync(publicDir, { recursive: true });
-  }
-  fs.writeFileSync(
-    path.join(publicDir, 'build-info.json'),
-    JSON.stringify(
-      {
-        product: 'VBAI Legal Pro',
-        version: '2',
-        gitSha: fullGitSha,
-        shortSha: gitSha,
-        builtAt: builtAt,
-      },
-      null,
-      2
-    )
-  );
-} catch (err) {
-  console.warn('Could not write build-info.json:', err.message);
+// Build-only plugin: writes build-info.json into dist/ (not public/)
+function buildInfoPlugin() {
+  let resolvedConfig;
+
+  return {
+    name: 'vbai-build-info',
+    apply: 'build',
+
+    configResolved(config) {
+      resolvedConfig = config;
+    },
+
+    closeBundle() {
+      const outDir = resolvedConfig.build.outDir;
+      const absOutDir = path.isAbsolute(outDir)
+        ? outDir
+        : path.resolve(resolvedConfig.root, outDir);
+      const buildInfo = JSON.stringify(
+        {
+          product: 'VBAI Legal Pro',
+          version: '2',
+          gitSha: fullGitSha,
+          shortSha: gitSha,
+          builtAt: builtAt,
+        },
+        null,
+        2
+      ) + '\n';
+      fs.writeFileSync(path.join(absOutDir, 'build-info.json'), buildInfo);
+    },
+  };
 }
 
 export default defineConfig({
+  plugins: [buildInfoPlugin()],
   define: {
     __VBAI_GIT_SHA__: JSON.stringify(gitSha),
     __VBAI_FULL_GIT_SHA__: JSON.stringify(fullGitSha),
@@ -70,4 +80,3 @@ export default defineConfig({
     },
   },
 });
-
