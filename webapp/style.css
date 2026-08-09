@@ -2919,3 +2919,78 @@ input:checked + .slider-round:before {
   font-weight: 700;
 }
 
+/* ============================================
+   Rich Markdown Content & Block Styling
+   ============================================ */
+.chat-msg-rich, .legal-answer-body {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.chat-msg-rich h1, .legal-answer-body h1, .chat-h1,
+.chat-msg-rich h2, .legal-answer-body h2, .chat-h2,
+.chat-msg-rich h3, .legal-answer-body h3, .chat-h3,
+.chat-msg-rich h4, .legal-answer-body h4, .chat-h4 {
+  color: var(--brand-primary);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  line-height: 1.35;
+}
+
+.chat-msg-rich h1, .legal-answer-body h1, .chat-h1 { font-size: 1.25rem; border-bottom: 2px solid var(--accent-soft); padding-bottom: 6px; }
+.chat-msg-rich h2, .legal-answer-body h2, .chat-h2 { font-size: 1.15rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 4px; }
+.chat-msg-rich h3, .legal-answer-body h3, .chat-h3 { font-size: 1.05rem; }
+.chat-msg-rich h4, .legal-answer-body h4, .chat-h4 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
+
+.chat-msg-rich p, .legal-answer-body p, .chat-para {
+  margin-top: 0;
+  margin-bottom: 12px;
+  line-height: 1.65;
+}
+
+.chat-msg-rich hr, .legal-answer-body hr, .chat-hr {
+  border: 0;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 16px 0;
+}
+
+.chat-msg-rich ul, .legal-answer-body ul, .chat-rich-ul {
+  margin-top: 6px;
+  margin-bottom: 12px;
+  padding-left: 24px;
+  list-style-type: disc;
+}
+
+.chat-msg-rich ol, .legal-answer-body ol, .chat-rich-ol {
+  margin-top: 6px;
+  margin-bottom: 12px;
+  padding-left: 24px;
+  list-style-type: decimal;
+}
+
+.chat-msg-rich li, .legal-answer-body li {
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+
+.chat-msg-rich blockquote, .legal-answer-body blockquote, .chat-blockquote {
+  margin: 12px 0;
+  padding: 10px 16px;
+  background: var(--surface-soft);
+  border-left: 4px solid var(--brand-primary);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.chat-msg-rich strong, .legal-answer-body strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+

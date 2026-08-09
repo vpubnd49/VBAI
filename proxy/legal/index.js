@@ -13,6 +13,7 @@ const sourceTier = require('./domain/source-tier');
 const effectiveStatus = require('./domain/effective-status');
 const documentRelations = require('./domain/document-relations');
 const articleCoordinate = require('./domain/article-coordinate');
+const matchScore = require('./domain/match-score');
 
 const knownDocumentsRepo = require('./repositories/known-documents.repository');
 const localMetadataRepo = require('./repositories/local-metadata.repository');

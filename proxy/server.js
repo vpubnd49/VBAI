@@ -266,6 +266,15 @@ const LEGAL_TOPIC_CONSENSUS_MAP = Object.freeze([
     confidence: 'high',
   },
   {
+    patterns: [/to\s*chuc\s*chinh\s*quyen\s*dia\s*phuong/, /72\/2025\/qh15/],
+    documentNumber: '72/2025/QH15',
+    titleHint: 'Luật Tổ chức chính quyền địa phương',
+    topicHint: 'tổ chức chính quyền địa phương',
+    issuer: 'Quoc hoi',
+    requestedDocType: 'luat',
+    confidence: 'high',
+  },
+  {
     patterns: [/nay\s*quy\s*dinh\s*ve/, /73\/2025\/qh15/],
     documentNumber: '73/2025/QH15',
     titleHint: 'Luật này quy định về hoạt động nghề nghiệp, quyền và nghĩa v...',
@@ -971,6 +980,21 @@ function baseResolveKnownLegalDocument(query = '') {
         docNumber: '71/2025/QH15',
         titleHint: 'Luật Công nghiệp công nghệ số',
         topicHint: 'công nghiệp công nghệ số',
+      }),
+    };
+  }
+
+  if (/\bluat\s*72\b/.test(normalized) || /\b72\/2025\/qh15\b/.test(normalized)) {
+    return {
+      canonicalQuery: 'Luat 72/2025/QH15',
+      documentNumber: '72/2025/QH15',
+      titleHint: 'Luật Tổ chức chính quyền địa phương',
+      topicHint: 'tổ chức chính quyền địa phương',
+      confidence: 'high',
+      canonicalKey: buildLegalCanonicalKey({
+        docNumber: '72/2025/QH15',
+        titleHint: 'Luật Tổ chức chính quyền địa phương',
+        topicHint: 'tổ chức chính quyền địa phương',
       }),
     };
   }
@@ -2239,6 +2263,7 @@ const app = express();
 
 const webSearchRouter = require('./routes/web-search.routes');
 const webExtractRouter = require('./routes/web-extract.routes');
+const legalResearchRouter = require('./routes/legal-research.routes');
 
 // Security middleware
 app.use(helmet());
@@ -2251,6 +2276,57 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use('/api', webSearchRouter);
 app.use('/api', webExtractRouter);
+app.use('/api', legalResearchRouter);
+
+// Document metadata resolution endpoint
+app.get('/api/document-metadata', (req, res) => {
+  try {
+    const q = req.query.q || '';
+    if (!q) return res.json({ found: false });
+
+    const { getDocumentMetadata } = require('./legal/services/answer-validator');
+    const { extractLegalEntities } = require('./legal/domain/legal-entity-extractor');
+    const { findByPartialNumber } = require('./legal/repositories/known-documents.repository');
+
+    const entities = extractLegalEntities(q);
+    let docNum = null;
+
+    if (entities.hasDocumentRef) {
+      docNum = entities.documentNumbers[0].normalized;
+    } else if (entities.hasBareNumberRef && entities.bareNumberCandidates.length > 0) {
+      const candidate = entities.bareNumberCandidates[0];
+      const matches = findByPartialNumber(candidate.number, candidate.docType);
+      if (matches.length > 0) {
+        docNum = matches[0].documentNumber;
+      }
+    } else if (entities.hasPartialRef && entities.partialDocumentNumbers.length > 0) {
+      const matches = findByPartialNumber(entities.partialDocumentNumbers[0].number);
+      if (matches.length > 0) {
+        docNum = matches[0].documentNumber;
+      }
+    }
+
+    if (!docNum) {
+      const m = q.match(/(?:luật|nghị định|thông tư|bộ luật)\s+(?:số\s+)?(\d{1,4})/i);
+      if (m) {
+        const matches = findByPartialNumber(m[1]);
+        if (matches.length > 0) docNum = matches[0].documentNumber;
+      }
+    }
+
+    if (docNum) {
+      const meta = getDocumentMetadata(docNum);
+      if (meta) {
+        return res.json({ found: true, documentNumber: docNum, known_document: meta });
+      }
+    }
+
+    return res.json({ found: false });
+  } catch (err) {
+    console.error('[document-metadata] Error:', err);
+    return res.json({ found: false, error: err.message });
+  }
+});
 
 // Helper: Verify Firebase ID token from Authorization header
 async function verifyIdToken(req) {
@@ -6806,6 +6882,11 @@ app.delete('/api/search-history/:id', async (req, res) => {
     console.error('DELETE /api/search-history/:id error:', err);
     return res.status(500).json({ error: 'Internal server error', message: err.message });
   }
+});
+
+// Health check route
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'vbai-proxy', timestamp: new Date().toISOString() });
 });
 
 // Build info route

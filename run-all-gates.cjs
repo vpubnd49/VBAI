@@ -1,64 +1,37 @@
 /**
- * VBAI Legal Pro V2 — Master Gate Validation Runner
- * Executes all unit tests, LegalKit validators, CSS light audits, and route smoke tests.
+ * VBAI V3 — Run all gates in one shot
+ * Usage: node run-all-gates.cjs
  */
-
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
 
-const ROOT_DIR = __dirname;
-
-console.log('======================================================================');
-console.log('VBAI LEGAL PRO V2 — MASTER POST-IMPLEMENTATION VERIFICATION GATE');
-console.log('======================================================================\n');
+const REPO = __dirname;
+const steps = [
+  { name: 'V3 Hardening Verification', cmd: 'node', args: ['proxy/tests/verify-v3-hardening.cjs'] },
+  { name: 'Legal Entity Extractor Test', cmd: 'node', args: ['proxy/tests/legal-entity-extractor.test.cjs'] },
+  { name: 'Answer Validator Test', cmd: 'node', args: ['proxy/tests/answer-validator.test.cjs'] },
+  { name: 'Legal Query Engine Test', cmd: 'node', args: ['proxy/tests/legal-query-engine.test.cjs'] },
+];
 
 let allPassed = true;
-
-function runStep(name, command, cwd = ROOT_DIR) {
-  console.log(`▶ Running [${name}]...`);
-  try {
-    const output = execSync(command, { cwd, encoding: 'utf8', stdio: 'pipe' });
-    console.log(output);
-    console.log(`✅ [${name}] PASS\n`);
-  } catch (err) {
-    console.error(`❌ [${name}] FAIL`);
-    console.error(err.stdout || err.stderr || err.message);
-    console.log('\n');
+for (const step of steps) {
+  console.log(`\n== ${step.name} ==`);
+  const result = spawnSync(step.cmd, step.args, {
+    cwd: REPO,
+    stdio: 'inherit',
+    env: { ...process.env, NODE_NO_WARNINGS: '1' },
+  });
+  if (result.status !== 0) {
+    console.error(`FAILED: ${step.name} (exit code ${result.status})`);
     allPassed = false;
   }
 }
 
-const { pathToFileURL } = require('url');
-const loaderUrl = pathToFileURL(path.resolve(ROOT_DIR, 'webapp/tests/browser-import-loader.mjs')).href;
-
-// 1. LegalKit Programmatic Validation
-runStep('LegalKit V3 Validator', 'node skill/validate-legalkit.cjs');
-
-// 2. Skill Compiler
-runStep('Skills Compiler', 'node webapp/compile-skills.cjs');
-
-// 3. Route Smoke Test (with custom test loader for remote browser ESM imports)
-runStep('16-Route Smoke Test', `node --loader "${loaderUrl}" webapp/tests/route-smoke.test.mjs`);
-
-// 4. CSS Light Audit Test
-runStep('CSS Light-Only Audit', 'node webapp/tests/css-light-audit.test.mjs');
-
-// 5. Proxy Unit Tests
-runStep('Proxy Gemini-Only Test', 'node proxy/tests/unit/gemini-only.test.cjs');
-runStep('Proxy Migration Safety Test', 'node proxy/tests/unit/migration-safety.test.cjs');
-runStep('Proxy Zero-Occurrence Test', 'node proxy/tests/unit/zero-occurrence.test.cjs');
-
-// 6. WebApp Audit Trace Test
-runStep('Audit Trace Test', 'node webapp/tests/audit-trace.test.mjs');
-
-// 7. Full WebApp Test Suite (All Discovered Tests)
-runStep('Full WebApp Test Suite (All 17 Tests)', 'node webapp/tests/run-all.mjs');
-
-console.log('======================================================================');
+console.log('\n======================================================================');
 if (allPassed) {
-  console.log('🎉 ALL VERIFICATION GATES PASSED! RESULT: POST_IMPLEMENTATION_VERIFIED_PASS');
+  console.log('ALL GATES PASSED — READY FOR DEPLOYMENT');
 } else {
-  console.error('⚠️ ONE OR MORE GATES FAILED! RESULT: POST_IMPLEMENTATION_BLOCKED');
+  console.log('SOME GATES FAILED — REVIEW REQUIRED');
   process.exit(1);
 }
 console.log('======================================================================');

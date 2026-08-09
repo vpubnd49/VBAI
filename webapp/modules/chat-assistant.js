@@ -1176,63 +1176,113 @@ function renderComparisonTable(blockLines = []) {
 }
 
 function renderAssistantRichText(rawText = "") {
+  if (!rawText) return "";
   const src = decodeNumericHtmlEntities(String(rawText || "")).replace(/\r/g, "");
   const lines = src.split("\n");
-  const chunks = [];
+  const htmlBlocks = [];
   let i = 0;
-  let inList = false;
 
   while (i < lines.length) {
     const ln = lines[i] || "";
     const trimmed = ln.trim();
 
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    // Horizontal Rule (---, ***, ___)
+    if (/^(?:---|\*\*\*|___)$/.test(trimmed)) {
+      htmlBlocks.push('<hr class="chat-hr">');
+      i++;
+      continue;
+    }
+
+    // Markdown Table (| header | header |)
     if (trimmed.startsWith("|") && i + 1 < lines.length && String(lines[i + 1] || "").trim().startsWith("|")) {
-      if (inList) {
-        chunks.push("</ul>");
-        inList = false;
-      }
       const block = [];
       let j = i;
       while (j < lines.length) {
         const t = String(lines[j] || "").trim();
         if (!t.startsWith("|")) break;
         block.push(t);
-        j += 1;
+        j++;
       }
       const tableHtml = renderComparisonTable(block);
       if (tableHtml) {
-        chunks.push(tableHtml);
+        htmlBlocks.push(tableHtml);
         i = j;
         continue;
       }
     }
 
-    // High-fidelity Markdown list parsing
-    if (trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
-      const content = trimmed.substring(2).trim();
-      if (!inList) {
-        chunks.push('<ul class="chat-rich-list">');
-        inList = true;
-      }
-      chunks.push(`<li>${applyInlineMarkdown(escapeHtml(content))}</li>`);
-      i += 1;
+    // Headings (# H1, ## H2, ### H3, #### H4)
+    const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const titleText = applyInlineMarkdown(escapeHtml(headingMatch[2]));
+      htmlBlocks.push(`<h${level} class="chat-h${level}">${titleText}</h${level}>`);
+      i++;
       continue;
-    } else {
-      if (inList) {
-        chunks.push("</ul>");
-        inList = false;
-      }
     }
 
-    chunks.push(applyInlineMarkdown(escapeHtml(ln)));
-    i += 1;
+    // Unordered List (*, -, •)
+    if (trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
+      const listItems = [];
+      while (i < lines.length) {
+        const lineTrim = String(lines[i] || "").trim();
+        if (lineTrim.startsWith("* ") || lineTrim.startsWith("- ") || lineTrim.startsWith("• ")) {
+          const itemText = lineTrim.replace(/^(?:\*|-|•)\s+/, "").trim();
+          listItems.push(`<li>${applyInlineMarkdown(escapeHtml(itemText))}</li>`);
+          i++;
+        } else {
+          break;
+        }
+      }
+      htmlBlocks.push(`<ul class="chat-rich-ul">${listItems.join("")}</ul>`);
+      continue;
+    }
+
+    // Ordered List (1. , 2. , 3. )
+    if (/^\d+[\.\)]\s+/.test(trimmed)) {
+      const listItems = [];
+      while (i < lines.length) {
+        const lineTrim = String(lines[i] || "").trim();
+        if (/^\d+[\.\)]\s+/.test(lineTrim)) {
+          const itemText = lineTrim.replace(/^\d+[\.\)]\s+/, "").trim();
+          listItems.push(`<li>${applyInlineMarkdown(escapeHtml(itemText))}</li>`);
+          i++;
+        } else {
+          break;
+        }
+      }
+      htmlBlocks.push(`<ol class="chat-rich-ol">${listItems.join("")}</ol>`);
+      continue;
+    }
+
+    // Blockquote (> text)
+    if (trimmed.startsWith("> ")) {
+      const quoteLines = [];
+      while (i < lines.length) {
+        const lineTrim = String(lines[i] || "").trim();
+        if (lineTrim.startsWith("> ")) {
+          quoteLines.push(applyInlineMarkdown(escapeHtml(lineTrim.substring(2).trim())));
+          i++;
+        } else {
+          break;
+        }
+      }
+      htmlBlocks.push(`<blockquote class="chat-blockquote">${quoteLines.join("<br>")}</blockquote>`);
+      continue;
+    }
+
+    // Paragraph
+    const paraText = applyInlineMarkdown(escapeHtml(trimmed));
+    htmlBlocks.push(`<p class="chat-para">${paraText}</p>`);
+    i++;
   }
 
-  if (inList) {
-    chunks.push("</ul>");
-  }
-
-  return chunks.join("<br>");
+  return htmlBlocks.join("");
 }
 
 async function exportDraftToDocx(query = "", answer = "") {
@@ -2487,8 +2537,10 @@ export async function sendMessage(text, onChunk) {
     let finalUserText = `${contextualUserText}\n\n[Thong tin chuan hoa tu he thong]\n${JSON.stringify(normalizedLegalQuery, null, 2)}\n\nYeu cau:\n- Dung thong tin chuan hoa nay nhu tin hieu goi y ban dau.\n- Khong duoc coi do la ket luan cuoi cung.\n- Phai doi chieu lai voi nguon tra cuu thuc te truoc khi ket luan.\n- Neu nguon khong du chac chan hoac khong khop hoan toan, phai noi ro chua du can cu.`;
     if (shouldSearchWebForFreshness && !useWebSearch) {
       // Skip the blocking guard if the query contains a full document number (e.g., 74/2025/QH15)
-      // because the AI can answer specific document lookups from its training data
-      const hasFullDocNumber = /\b\d+\/\d{4}\/[A-Z0-9-]+\b/i.test(rawUserText);
+      // or a bare document reference (e.g., luật 72, nghị định 72)
+      const hasFullDocNumber = /\b\d+\/\d{4}\/[A-Z0-9-]+\b/i.test(rawUserText)
+        || /(?:luật|bộ luật|nghị định|thông tư|quyết định|nghị quyết)\s+(?:số\s+)?\d{1,4}\b/i.test(rawUserText)
+        || /luật\s+\d{1,4}/i.test(rawUserText);
       if (!hasFullDocNumber) {
         const guardText = ensureFollowUpQuestion(
           buildFreshnessGuardMessage(rawUserText, 'He thong chua cau hinh Web Search nen khong the dam bao thong tin moi nhat theo thoi diem hien tai.'),
@@ -2507,43 +2559,39 @@ export async function sendMessage(text, onChunk) {
         if (onChunk) onChunk(guardText);
         return guardText;
       }
-      // Has full doc number: fall through to AI synthesis with best-effort data
-      // Resolve document metadata from proxy even without web search
+      // Has doc number or bare doc reference: fall through to AI synthesis with best-effort data
+      // Resolve document metadata from proxy
       if (hasFullDocNumber) {
         try {
           const token = window.currentUser ? await window.currentUser.getIdToken() : null;
-          if (token) {
-            const metaRes = await fetch(`/api/document-metadata?q=${encodeURIComponent(rawUserText)}`, {
-              headers: { 'Authorization': `Bearer ${token}` },
-            });
-            if (metaRes.ok) {
-              const metaData = await metaRes.json();
-              if (metaData?.found && metaData?.known_document) {
-                webSearchMeta = { known_document: metaData.known_document };
-                // Inject verified metadata into the prompt
-                const kd = metaData.known_document;
-                const metaLines = ['\n\n[THONG TIN DA XAC MINH TU HE THONG - BAT BUOC SU DUNG THONG TIN NAY]:'];
-                if (kd.documentNumber) metaLines.push(`- So hieu van ban: ${kd.documentNumber}`);
-                if (kd.titleHint || kd.trich_yeu) metaLines.push(`- Ten van ban: ${kd.titleHint || kd.trich_yeu}`);
-                if (kd.issuer) metaLines.push(`- Co quan ban hanh: ${kd.issuer}`);
-                if (kd.ngay_ban_hanh) metaLines.push(`- Ngay ban hanh: ${kd.ngay_ban_hanh}`);
-                if (kd.ngay_hieu_luc) metaLines.push(`- Ngay co hieu luc: ${kd.ngay_hieu_luc}`);
-                if (kd.tinh_trang_hieu_luc) {
-                  const statusMap = { co_hieu_luc: 'Co hieu luc', het_hieu_luc: 'Het hieu luc', ngung_hieu_luc: 'Ngung hieu luc' };
-                  metaLines.push(`- Tinh trang hieu luc: ${statusMap[kd.tinh_trang_hieu_luc] || kd.tinh_trang_hieu_luc}`);
-                }
-                if (Array.isArray(kd.thay_the_cho) && kd.thay_the_cho.length > 0) {
-                  metaLines.push(`- Thay the cho cac van ban: ${kd.thay_the_cho.join(', ')}`);
-                }
-                if (kd.tom_tat_chinh_sach) {
-                  const summary = Array.isArray(kd.tom_tat_chinh_sach) ? kd.tom_tat_chinh_sach.join(' ') : String(kd.tom_tat_chinh_sach);
-                  metaLines.push(`- Tom tat chinh sach: ${summary.slice(0, 500)}`);
-                }
-                if (kd.tom_tat_chuong_dieu) {
-                  metaLines.push(`- Cau truc chuong dieu: ${kd.tom_tat_chuong_dieu}`);
-                }
-                finalUserText += metaLines.join('\n');
+          const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+          const metaRes = await fetch(`/api/document-metadata?q=${encodeURIComponent(rawUserText)}`, { headers });
+          if (metaRes.ok) {
+            const metaData = await metaRes.json();
+            if (metaData?.found && metaData?.known_document) {
+              webSearchMeta = { known_document: metaData.known_document };
+              const kd = metaData.known_document;
+              const metaLines = ['\n\n[THONG TIN DA XAC MINH TU HE THONG - BAT BUOC SU DUNG THONG TIN NAY]:'];
+              if (kd.documentNumber) metaLines.push(`- So hieu van ban: ${kd.documentNumber}`);
+              if (kd.titleHint || kd.trich_yeu || kd.title) metaLines.push(`- Ten van ban: ${kd.titleHint || kd.trich_yeu || kd.title}`);
+              if (kd.issuer) metaLines.push(`- Co quan ban hanh: ${kd.issuer}`);
+              if (kd.ngay_ban_hanh) metaLines.push(`- Ngay ban hanh: ${kd.ngay_ban_hanh}`);
+              if (kd.ngay_hieu_luc) metaLines.push(`- Ngay co hieu luc: ${kd.ngay_hieu_luc}`);
+              if (kd.tinh_trang_hieu_luc) {
+                const statusMap = { co_hieu_luc: 'Co hieu luc', het_hieu_luc: 'Het hieu luc', ngung_hieu_luc: 'Ngung hieu luc' };
+                metaLines.push(`- Tinh trang hieu luc: ${statusMap[kd.tinh_trang_hieu_luc] || kd.tinh_trang_hieu_luc}`);
               }
+              if (Array.isArray(kd.thay_the_cho) && kd.thay_the_cho.length > 0) {
+                metaLines.push(`- Thay the cho cac van ban: ${kd.thay_the_cho.join(', ')}`);
+              }
+              if (kd.tom_tat_chinh_sach) {
+                const summary = Array.isArray(kd.tom_tat_chinh_sach) ? kd.tom_tat_chinh_sach.join(' ') : String(kd.tom_tat_chinh_sach);
+                metaLines.push(`- Tom tat chinh sach: ${summary.slice(0, 500)}`);
+              }
+              if (kd.tom_tat_chuong_dieu) {
+                metaLines.push(`- Cau truc chuong dieu: ${kd.tom_tat_chuong_dieu}`);
+              }
+              finalUserText += metaLines.join('\n');
             }
           }
         } catch (metaErr) {
