@@ -2261,26 +2261,38 @@ const initFirebase = () => {
 
 const app = express();
 
-const webSearchRouter = require('./routes/web-search.routes');
-const webExtractRouter = require('./routes/web-extract.routes');
 const legalResearchRouter = require('./routes/legal-research.routes');
 
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN || '*',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (server-to-server, curl, etc.)
+    if (!origin) return callback(null, true);
+    const allowed = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+    // If no origins configured (dev mode), allow all
+    if (allowed.length === 0) return callback(null, true);
+    if (allowed.includes(origin)) return callback(null, true);
+    return callback(new Error('CORS origin not allowed: ' + origin));
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use('/api', webSearchRouter);
-app.use('/api', webExtractRouter);
+// Note: web-search and web-extract have full inline handlers below
+// with auth + rate limiting. Only mount legal-research router.
 app.use('/api', legalResearchRouter);
 
-// Document metadata resolution endpoint
-app.get('/api/document-metadata', (req, res) => {
+// Document metadata resolution endpoint (auth required)
+app.get('/api/document-metadata', async (req, res) => {
   try {
+    initFirebase();
+    const decoded = await verifyIdToken(req);
+    if (!decoded) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const q = req.query.q || '';
     if (!q) return res.json({ found: false });
 

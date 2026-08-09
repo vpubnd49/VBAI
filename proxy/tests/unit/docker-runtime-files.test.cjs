@@ -22,24 +22,25 @@ const server = read('server.js');
 const webSearchRoute = read('routes/web-search.routes.js');
 const webExtractRoute = read('routes/web-extract.routes.js');
 
+// web-search and web-extract have full inline handlers in server.js
+// with auth + rate limiting. Route files exist but are NOT mounted.
+// Only legal-research.routes is mounted as a router.
 assert.match(
   server,
-  /require\('\.\/routes\/web-search\.routes'\)/
+  /require\('\.\/routes\/legal-research\.routes'\)/,
+  'server.js must import legal-research router'
 );
 
+// Verify the inline handlers exist
 assert.match(
   server,
-  /require\('\.\/routes\/web-extract\.routes'\)/
+  /app\.post\('\/api\/web-search'/,
+  'server.js must have inline web-search handler'
 );
-
 assert.match(
-  webSearchRoute,
-  /require\('\.\.\/legal\/services\/legal-search-orchestrator'\)/
-);
-
-assert.match(
-  webExtractRoute,
-  /require\('\.\.\/legal\/services\/legal-content-fetcher'\)/
+  server,
+  /app\.post\('\/api\/web-extract'/,
+  'server.js must have inline web-extract handler'
 );
 
 assert.equal(
