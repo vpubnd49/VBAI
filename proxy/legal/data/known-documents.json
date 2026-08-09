@@ -1,5 +1,26 @@
 [
   {
+    "id": "72-2025-qh15",
+    "document_number": "72/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Tổ chức chính quyền địa phương",
+    "topic_aliases": ["tổ chức chính quyền địa phương", "chính quyền địa phương", "to chuc chinh quyen dia phuong"],
+    "query_patterns": ["to chuc chinh quyen dia phuong", "chinh quyen dia phuong", "luat 72"],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-16",
+    "effective_date": "2025-07-01",
+    "effective_status": "co_hieu_luc",
+    "status_as_of": "2025-07-01",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [],
+    "verification_status": "verified",
+    "verified_at": "2025-07-01",
+    "review_state": "published",
+    "data_version": 1
+  },
+  {
     "id": "117-2025-qh15",
     "document_number": "117/2025/QH15",
     "document_type": "luat",
