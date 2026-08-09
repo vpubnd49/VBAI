@@ -42,6 +42,7 @@ function findInBosungMetadata(docNumber = '') {
     if (entry && normalizeDocumentNumber(entry.so_hieu) === target) {
       return {
         source: 'bosung_metadata',
+        sourceTier: 'official',
         documentNumber: entry.so_hieu,
         documentType: entry.loai_van_ban || '',
         title: entry.trich_yeu || '',
@@ -53,6 +54,7 @@ function findInBosungMetadata(docNumber = '') {
         summary: entry.tom_tat_chinh_sach || '',
         chapterArticleSummary: entry.tom_tat_chuong_dieu || '',
         verified: true,
+        verificationStatus: 'verified',
       };
     }
   }
@@ -65,8 +67,14 @@ function findInKnownDocuments(docNumber = '') {
   const docs = loadKnownDocsData();
   const found = docs.find((d) => normalizeDocumentNumber(d.document_number) === target);
   if (!found) return null;
+  // Strictly evidence-based verification: only mark verified if artifacts exist
+  const hasEvidenceArtifacts = Array.isArray(found.official_source_urls)
+    && found.official_source_urls.length > 0
+    && found.verified_at;
+  const isVerified = found.verification_status === 'verified' && hasEvidenceArtifacts;
   return {
     source: 'known_documents',
+    sourceTier: isVerified ? 'official' : 'reference',
     documentNumber: found.document_number,
     documentType: found.document_type || '',
     title: found.title || '',
@@ -77,7 +85,8 @@ function findInKnownDocuments(docNumber = '') {
     replacements: found.replaces || [],
     summary: '',
     chapterArticleSummary: '',
-    verified: found.verification_status === 'verified',
+    verified: isVerified,
+    verificationStatus: isVerified ? 'verified' : (found.verification_status || 'unverified'),
   };
 }
 

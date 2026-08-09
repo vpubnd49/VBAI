@@ -57,18 +57,82 @@ function findKnownDocumentByAlias(query = '') {
 function validateKnownDocumentRegistry() {
   const docs = loadKnownDocuments(true);
   const errors = [];
+  const warnings = [];
+
   if (!Array.isArray(docs)) {
-    return { valid: false, errors: ['Known documents must be an array'] };
+    return { valid: false, errors: ['Known documents must be an array'], warnings: [], count: 0 };
   }
+
+  const REQUIRED_FIELDS = ['id', 'document_number', 'document_type', 'title', 'verification_status', 'review_state'];
+  const VALID_VERIFICATION_STATUSES = ['verified', 'unverified', 'identity_resolved', 'pending'];
+  const VALID_REVIEW_STATES = ['published', 'draft', 'archived'];
+  const ARRAY_FIELDS = ['topic_aliases', 'query_patterns', 'replaces', 'amends', 'superseded_by', 'official_source_urls'];
+
+  const idSet = new Set();
+  const docNumSet = new Set();
+
   docs.forEach((doc, idx) => {
-    if (!doc.id || !doc.document_number || !doc.document_type) {
-      errors.push(`Document index ${idx} is missing required fields (id, document_number, document_type)`);
+    const label = `index ${idx} (${doc.document_number || '?'})`;
+
+    // Required fields
+    for (const f of REQUIRED_FIELDS) {
+      if (!doc[f] && doc[f] !== 0) {
+        errors.push(`${label} missing required field '${f}'`);
+      }
+    }
+
+    // Duplicate id
+    if (doc.id) {
+      if (idSet.has(doc.id)) {
+        errors.push(`${label} has duplicate id '${doc.id}'`);
+      }
+      idSet.add(doc.id);
+    }
+
+    // Duplicate document_number (normalized)
+    const dnNorm = String(doc.document_number || '').toUpperCase().trim();
+    if (dnNorm) {
+      if (docNumSet.has(dnNorm)) {
+        errors.push(`${label} has duplicate document_number '${doc.document_number}'`);
+      }
+      docNumSet.add(dnNorm);
+    }
+
+    // Valid enum values
+    if (doc.verification_status && !VALID_VERIFICATION_STATUSES.includes(doc.verification_status)) {
+      errors.push(`${label} invalid verification_status '${doc.verification_status}'`);
+    }
+    if (doc.review_state && !VALID_REVIEW_STATES.includes(doc.review_state)) {
+      errors.push(`${label} invalid review_state '${doc.review_state}'`);
+    }
+
+    // Fail-closed verification policy
+    if (doc.verification_status === 'verified') {
+      const hasUrl = Array.isArray(doc.official_source_urls) && doc.official_source_urls.length > 0;
+      const hasVerifiedAt = doc.verified_at && String(doc.verified_at).trim().length > 0;
+      if (!hasUrl || !hasVerifiedAt) {
+        errors.push(`${label} marked 'verified' without evidence artifacts (official_source_urls + verified_at required)`);
+      }
+    }
+
+    // Array fields must be arrays
+    for (const f of ARRAY_FIELDS) {
+      if (doc[f] !== undefined && !Array.isArray(doc[f])) {
+        errors.push(`${label} field '${f}' must be an array`);
+      }
+    }
+
+    // Warn: no topic_aliases or query_patterns
+    if (!doc.topic_aliases || doc.topic_aliases.length === 0) {
+      warnings.push(`${label} has no topic_aliases (may not be discoverable by semantic search)`);
     }
   });
+
   return {
     valid: errors.length === 0,
     count: docs.length,
     errors,
+    warnings,
   };
 }
 

@@ -14,6 +14,7 @@ function runStep(name, testFile) {
   }
 }
 
+runStep('Known documents integrity', 'known-documents-integrity.test.cjs');
 runStep('Unit tests', 'run-unit-tests.cjs');
 runStep('Golden legal extract tests', 'golden-legal-extract.test.cjs');
 
