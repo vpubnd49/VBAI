@@ -4,8 +4,8 @@ import { setActiveDocumentContext, getActiveDocumentContext, clearActiveDocument
 clearActiveDocumentContext();
 assert.equal(getActiveDocumentContext().documentNumber, null);
 
-setActiveDocumentContext('72/2025/QH15', 'Luật an ninh mạng');
+setActiveDocumentContext('72/2025/QH15', 'Luật Tổ chức chính quyền địa phương');
 assert.equal(getActiveDocumentContext().documentNumber, '72/2025/QH15');
-assert.equal(getActiveDocumentContext().title, 'Luật an ninh mạng');
+assert.equal(getActiveDocumentContext().title, 'Luật Tổ chức chính quyền địa phương');
 
 console.log('PASS legal-conversation-memory.test.mjs');

@@ -2496,6 +2496,13 @@ app.post('/api/stats/visits/session', async (req, res) => {
 });
 
 
+function maskApiKey(key = '') {
+  const str = String(key || '').trim();
+  if (!str) return '';
+  if (str.length <= 8) return '••••••••';
+  return str.slice(0, 4) + '••••••••' + str.slice(-4);
+}
+
 // GET: System config summary (non-sensitive)
 app.get('/api/system-config-summary', async (req, res) => {
   try {
@@ -2510,13 +2517,18 @@ app.get('/api/system-config-summary', async (req, res) => {
     const cseConfigured = !!(data.google_search_key && data.google_search_cx);
     const vertexConfigured = isVertexSearchConfigured(data);
     const activeGeminiKey = process.env.GEMINI_API_KEY || data.gemini_api_key;
+    const isConfigured = !!activeGeminiKey;
     res.json({
+      configured: isConfigured,
+      maskedKey: requesterIsAdmin && activeGeminiKey ? maskApiKey(activeGeminiKey) : '',
+      provider: 'gemini',
+      model: data.gemini_model || 'gemini-3.5-flash-lite',
       gemini_model: data.gemini_model || 'gemini-3.5-flash-lite',
       gemini_endpoint: data.gemini_endpoint || GEMINI_API_ENDPOINT,
       google_search_configured: cseConfigured,
       vertex_search_configured: vertexConfigured,
       web_search_configured: cseConfigured || vertexConfigured,
-      has_gemini_key: requesterIsAdmin ? !!activeGeminiKey : false,
+      has_gemini_key: requesterIsAdmin ? isConfigured : false,
       google_search_key: requesterIsAdmin ? (data.google_search_key || '') : '',
       google_search_cx: requesterIsAdmin ? (data.google_search_cx || '') : '',
       vertex_project_id: requesterIsAdmin ? (data.vertex_project_id || '') : '',
@@ -2785,9 +2797,14 @@ app.post('/api/admin/system-config', async (req, res) => {
         : admin.firestore.FieldValue.delete();
     }
 
-    // Only update keys if provided (non-empty)
-    if (gemini_api_key && gemini_api_key.trim()) {
-      updateData.gemini_api_key = gemini_api_key.trim();
+    // Update or clear Gemini API Key
+    if (req.body.clear_gemini_api_key === true || req.body.clear_gemini_key === true || gemini_api_key === '__CLEAR__') {
+      updateData.gemini_api_key = admin.firestore.FieldValue.delete();
+    } else if (gemini_api_key !== undefined) {
+      const keyVal = String(gemini_api_key || '').trim();
+      if (keyVal) {
+        updateData.gemini_api_key = keyVal;
+      }
     }
 
     if (google_search_key !== undefined) {

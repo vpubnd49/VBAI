@@ -52,11 +52,12 @@ export function renderAdminPanel(container) {
                   <input type="password" id="gemini_api_key" class="form-input config-inline-grow" placeholder="AIza... (Để trống nếu không đổi)">
                   <button type="button" id="toggle-gemini-key-btn" class="btn btn-secondary btn-sm config-inline-add-btn">Hiện key</button>
                   <button type="button" id="verify-gemini-key-btn" class="btn btn-primary btn-sm config-inline-add-btn">Xác nhận key</button>
+                  <button type="button" id="clear-gemini-key-btn" class="btn btn-danger btn-sm config-inline-add-btn">Xóa key</button>
                 </div>
                 <label class="config-radio-option" style="margin-top:8px">
                   <input type="checkbox" id="verify-gemini-on-save" checked> Xác nhận key khi lưu cấu hình
                 </label>
-                <small class="config-hint">Khóa API được lưu an toàn trong Secret Manager/Firestore (PATCH semantics)</small>
+                <small class="config-hint">Khóa API được lưu an toàn trong Secret Manager/Firestore</small>
                 <small id="gemini-key-verify-status" class="config-hint"></small>
               </div>
               <div class="form-group">
@@ -710,6 +711,24 @@ async function initSystemConfigPanel(container) {
   verifyGeminiKeyBtn?.addEventListener('click', () => {
     const useStoredKey = !geminiKeyInput.value.trim();
     void runKeyValidation('gemini', { useStoredKey });
+  });
+  const clearGeminiKeyBtn = formEl.querySelector('#clear-gemini-key-btn');
+  clearGeminiKeyBtn?.addEventListener('click', async () => {
+    if (!confirm('Bạn có chắc chắn muốn xóa Gemini API key khỏi hệ thống không?')) return;
+    try {
+      if (geminiKeyInput) geminiKeyInput.value = '';
+      await updateSystemConfig({ clear_gemini_api_key: true });
+      if (saveStatusEl) {
+        saveStatusEl.className = 'config-save-status success';
+        saveStatusEl.textContent = '✅ Đã xóa Gemini API key thành công.';
+      }
+      await loadConfig();
+    } catch (err) {
+      if (saveStatusEl) {
+        saveStatusEl.className = 'config-save-status error';
+        saveStatusEl.textContent = `❌ Lỗi xóa key: ${err.message}`;
+      }
+    }
   });
 
   refreshBtn.addEventListener('click', loadConfig);
