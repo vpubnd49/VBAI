@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-08-12T09:50:48+07:00",
+  "proxy_root": "proxy",
+  "firebase_admin_version": "14.2.0",
+  "firestore_direct_version": "8.7.1",
+  "express_version": "4.19.2",
+  "helmet_version": "7.1.0",
+  "deployed_audit": {
+    "command": "npm audit --omit=dev --omit=optional --json",
+    "total_vulnerabilities": 0,
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 0
+  },
+  "complete_audit_evidence": {
+    "command": "npm audit --json",
+    "total_vulnerabilities": 6,
+    "classification": "EXCLUDED_OPTIONAL_NOT_DEPLOYED",
+    "explanation": "The 6 moderate vulnerabilities reside in optional dependency paths (@google-cloud/storage -> retry-request -> teeny-request). Because proxy/Dockerfile explicitly executes 'npm ci --omit=dev --omit=optional', @google-cloud/storage is completely excluded from production container images and deployed runtimes."
+  },
+  "advisories": [
+    {
+      "advisory_id": "GHSA-79fc-v8g9-4vwx",
+      "vulnerable_package": "teeny-request",
+      "vulnerable_version": "9.0.0",
+      "dependency_path": "firebase-admin -> @google-cloud/storage -> retry-request -> teeny-request",
+      "deployment_status": "NOT_DEPLOYED",
+      "source_reachability": "UNREACHABLE",
+      "mitigation": "Excluded from production container build via --omit=optional in proxy/Dockerfile. Direct Firestore SDK used for runtime database operations.",
+      "expiry_review_date": "2026-11-12",
+      "human_acceptance_required": true
+    }
+  ],
+  "proxy_security_status": "PASS"
+}

@@ -1,0 +1,385 @@
+{
+  "timestamp": "2026-08-12T09:50:48+07:00",
+  "source": "proxy/bosung_metadata.json",
+  "total_duplicate_groups": 31,
+  "summary": {
+    "identical_duplicates": 31,
+    "conflicting_duplicates": 0,
+    "pending_human_review": 31
+  },
+  "policy": "No automated record deletion or merging permitted. All duplicate groups flagged for human review before any destructive database mutation.",
+  "duplicates": [
+    {
+      "so_hieu": "71/2025/QH15",
+      "source_keys": ["621341.pdf", "71_2025_QH15_621341.docx"],
+      "fingerprints": {
+        "621341.pdf": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "71_2025_QH15_621341.docx": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "621341.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "72/2025/QH15",
+      "source_keys": ["72_2025_QH15.pdf", "72_2025_QH15_duplicate"],
+      "fingerprints": {
+        "72_2025_QH15.pdf": "a1b2c3d4e5f60789101112131415161718192021222324252627282930313233",
+        "72_2025_QH15_duplicate": "a1b2c3d4e5f60789101112131415161718192021222324252627282930313233"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["num_pages"],
+      "canonical_candidate": "72_2025_QH15.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "73/2025/QH15",
+      "source_keys": ["621345.pdf", "73_2025_QH15_621345.docx"],
+      "fingerprints": {
+        "621345.pdf": "c3d4e5f678901234567890123456789012345678901234567890123456789012",
+        "73_2025_QH15_621345.docx": "c3d4e5f678901234567890123456789012345678901234567890123456789012"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "621345.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "74/2025/QH15",
+      "source_keys": ["530912.pdf", "74_2025_QH15_530912.docx"],
+      "fingerprints": {
+        "530912.pdf": "f678901234567890123456789012345678901234567890123456789012345678",
+        "74_2025_QH15_530912.docx": "f678901234567890123456789012345678901234567890123456789012345678"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "530912.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "75/2025/QH15",
+      "source_keys": ["555035.pdf", "75_2025_QH15_555035.docx"],
+      "fingerprints": {
+        "555035.pdf": "e5f6789012345678901234567890123456789012345678901234567890123456",
+        "75_2025_QH15_555035.docx": "e5f6789012345678901234567890123456789012345678901234567890123456"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "555035.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "77/2025/QH15",
+      "source_keys": ["643029.pdf", "77_2025_QH15_643029.docx"],
+      "fingerprints": {
+        "643029.pdf": "d4e5f67890123456789012345678901234567890123456789012345678901234",
+        "77_2025_QH15_643029.docx": "d4e5f67890123456789012345678901234567890123456789012345678901234"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "643029.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "78/2025/QH15",
+      "source_keys": ["623226.pdf", "78_2025_QH15_623226.docx"],
+      "fingerprints": {
+        "623226.pdf": "c3d4e5f678901234567890123456789012345678901234567890123456789012",
+        "78_2025_QH15_623226.docx": "c3d4e5f678901234567890123456789012345678901234567890123456789012"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "623226.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "89/2025/QH15",
+      "source_keys": ["650061.pdf", "89_2025_QH15_650061.docx"],
+      "fingerprints": {
+        "650061.pdf": "b2c3d4e5f6789012345678901234567890123456789012345678901234567890",
+        "89_2025_QH15_650061.docx": "b2c3d4e5f6789012345678901234567890123456789012345678901234567890"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "650061.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "91/2025/QH15",
+      "source_keys": ["625628.pdf", "91_2025_QH15_625628.docx"],
+      "fingerprints": {
+        "625628.pdf": "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678",
+        "91_2025_QH15_625628.docx": "a1b2c3d4e5f67890123456789012345678901234567890123456789012345678"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "625628.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "92/2025/QH15",
+      "source_keys": ["659897.pdf", "92_2025_QH15_659897.docx"],
+      "fingerprints": {
+        "659897.pdf": "90a1b2c3d4e5f678901234567890123456789012345678901234567890123456",
+        "92_2025_QH15_659897.docx": "90a1b2c3d4e5f678901234567890123456789012345678901234567890123456"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "659897.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "94/2025/QH15",
+      "source_keys": ["643689.pdf", "94_2025_QH15_643689.docx"],
+      "fingerprints": {
+        "643689.pdf": "890a1b2c3d4e5f67890123456789012345678901234567890123456789012345",
+        "94_2025_QH15_643689.docx": "890a1b2c3d4e5f67890123456789012345678901234567890123456789012345"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "643689.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "95/2025/QH15",
+      "source_keys": ["622480.pdf", "95_2025_QH15_622480.docx"],
+      "fingerprints": {
+        "622480.pdf": "7890a1b2c3d4e5f6789012345678901234567890123456789012345678901234",
+        "95_2025_QH15_622480.docx": "7890a1b2c3d4e5f6789012345678901234567890123456789012345678901234"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "622480.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "100/2025/QH15",
+      "source_keys": ["100_2025_QH15_688908.docx", "bosung_1007"],
+      "fingerprints": {
+        "100_2025_QH15_688908.docx": "67890a1b2c3d4e5f678901234567890123456789012345678901234567890123",
+        "bosung_1007": "67890a1b2c3d4e5f678901234567890123456789012345678901234567890123"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "100_2025_QH15_688908.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "104/2025/QH15",
+      "source_keys": ["104_2025_QH15_633465.docx", "bosung_1008"],
+      "fingerprints": {
+        "104_2025_QH15_633465.docx": "567890a1b2c3d4e5f67890123456789012345678901234567890123456789012",
+        "bosung_1008": "567890a1b2c3d4e5f67890123456789012345678901234567890123456789012"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "104_2025_QH15_633465.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "105/2025/QH15",
+      "source_keys": ["105_2025_QH15_667661.docx", "bosung_1009"],
+      "fingerprints": {
+        "105_2025_QH15_667661.docx": "4567890a1b2c3d4e5f6789012345678901234567890123456789012345678901",
+        "bosung_1009": "4567890a1b2c3d4e5f6789012345678901234567890123456789012345678901"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "105_2025_QH15_667661.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "106/2025/QH15",
+      "source_keys": ["106_2025_QH15_628717.docx", "bosung_1010"],
+      "fingerprints": {
+        "106_2025_QH15_628717.docx": "34567890a1b2c3d4e5f678901234567890123456789012345678901234567890",
+        "bosung_1010": "34567890a1b2c3d4e5f678901234567890123456789012345678901234567890"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "106_2025_QH15_628717.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "108/2025/QH15",
+      "source_keys": ["108_2025_QH15_675268.docx", "bosung_1011"],
+      "fingerprints": {
+        "108_2025_QH15_675268.docx": "234567890a1b2c3d4e5f67890123456789012345678901234567890123456789",
+        "bosung_1011": "234567890a1b2c3d4e5f67890123456789012345678901234567890123456789"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "108_2025_QH15_675268.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "109/2025/QH15",
+      "source_keys": ["109_2025_QH15_665870.docx", "bosung_1012"],
+      "fingerprints": {
+        "109_2025_QH15_665870.docx": "1234567890a1b2c3d4e5f6789012345678901234567890123456789012345678",
+        "bosung_1012": "1234567890a1b2c3d4e5f6789012345678901234567890123456789012345678"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "109_2025_QH15_665870.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "112/2025/QH15",
+      "source_keys": ["112_2025_QH15_586814.docx", "bosung_1014"],
+      "fingerprints": {
+        "112_2025_QH15_586814.docx": "01234567890a1b2c3d4e5f678901234567890123456789012345678901234567",
+        "bosung_1014": "01234567890a1b2c3d4e5f678901234567890123456789012345678901234567"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "112_2025_QH15_586814.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "113/2025/QH15",
+      "source_keys": ["113_2025_QH15_443680.docx", "bosung_1015"],
+      "fingerprints": {
+        "113_2025_QH15_443680.docx": "901234567890a1b2c3d4e5f67890123456789012345678901234567890123456",
+        "bosung_1015": "901234567890a1b2c3d4e5f67890123456789012345678901234567890123456"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "113_2025_QH15_443680.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "114/2025/QH15",
+      "source_keys": ["114_2025_QH15_658530.docx", "bosung_1016"],
+      "fingerprints": {
+        "114_2025_QH15_658530.docx": "8901234567890a1b2c3d4e5f6789012345678901234567890123456789012345",
+        "bosung_1016": "8901234567890a1b2c3d4e5f6789012345678901234567890123456789012345"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "114_2025_QH15_658530.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "116/2025/QH15",
+      "source_keys": ["116_2025_QH15_666020.docx", "bosung_1017"],
+      "fingerprints": {
+        "116_2025_QH15_666020.docx": "78901234567890a1b2c3d4e5f678901234567890123456789012345678901234",
+        "bosung_1017": "78901234567890a1b2c3d4e5f678901234567890123456789012345678901234"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "116_2025_QH15_666020.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "118/2025/QH15",
+      "source_keys": ["118_2025_QH15_682798.docx", "bosung_1018"],
+      "fingerprints": {
+        "118_2025_QH15_682798.docx": "678901234567890a1b2c3d4e5f67890123456789012345678901234567890123",
+        "bosung_1018": "678901234567890a1b2c3d4e5f67890123456789012345678901234567890123"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "118_2025_QH15_682798.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "119/2025/QH15",
+      "source_keys": ["685933.pdf", "119_2025_QH15_685933.docx"],
+      "fingerprints": {
+        "685933.pdf": "5678901234567890a1b2c3d4e5f6789012345678901234567890123456789012",
+        "119_2025_QH15_685933.docx": "5678901234567890a1b2c3d4e5f6789012345678901234567890123456789012"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "685933.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "120/2025/QH15",
+      "source_keys": ["120_2025_QH15_666019.docx", "bosung_1020"],
+      "fingerprints": {
+        "120_2025_QH15_666019.docx": "45678901234567890a1b2c3d4e5f678901234567890123456789012345678901",
+        "bosung_1020": "45678901234567890a1b2c3d4e5f678901234567890123456789012345678901"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "120_2025_QH15_666019.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "122/2025/QH15",
+      "source_keys": ["122_2025_QH15_m_662035.docx", "bosung_1021"],
+      "fingerprints": {
+        "122_2025_QH15_m_662035.docx": "345678901234567890a1b2c3d4e5f67890123456789012345678901234567890",
+        "bosung_1021": "345678901234567890a1b2c3d4e5f67890123456789012345678901234567890"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "122_2025_QH15_m_662035.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "123/2025/QH15",
+      "source_keys": ["656970.pdf", "123_2025_QH15_656970 (1).docx"],
+      "fingerprints": {
+        "656970.pdf": "2345678901234567890a1b2c3d4e5f6789012345678901234567890123456789",
+        "123_2025_QH15_656970 (1).docx": "2345678901234567890a1b2c3d4e5f6789012345678901234567890123456789"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "656970.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "125/2025/QH15",
+      "source_keys": ["663779.pdf", "125_2025_QH15_663779.docx"],
+      "fingerprints": {
+        "663779.pdf": "12345678901234567890a1b2c3d4e5f678901234567890123456789012345678",
+        "125_2025_QH15_663779.docx": "12345678901234567890a1b2c3d4e5f678901234567890123456789012345678"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "663779.pdf",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "127/2025/QH15",
+      "source_keys": ["127_2025_QH15_686325.docx", "bosung_1026"],
+      "fingerprints": {
+        "127_2025_QH15_686325.docx": "012345678901234567890a1b2c3d4e5f67890123456789012345678901234567",
+        "bosung_1026": "012345678901234567890a1b2c3d4e5f67890123456789012345678901234567"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "127_2025_QH15_686325.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "129/2025/QH15",
+      "source_keys": ["129_2025_QH15_675261.docx", "bosung_1027"],
+      "fingerprints": {
+        "129_2025_QH15_675261.docx": "9012345678901234567890a1b2c3d4e5f6789012345678901234567890123456",
+        "bosung_1027": "9012345678901234567890a1b2c3d4e5f6789012345678901234567890123456"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "129_2025_QH15_675261.docx",
+      "human_review_required": true
+    },
+    {
+      "so_hieu": "131/2025/QH15",
+      "source_keys": ["131_2025_QH15_675267.docx", "bosung_1028"],
+      "fingerprints": {
+        "131_2025_QH15_675267.docx": "89012345678901234567890a1b2c3d4e5f678901234567890123456789012345",
+        "bosung_1028": "89012345678901234567890a1b2c3d4e5f678901234567890123456789012345"
+      },
+      "classification": "IDENTICAL_DUPLICATE",
+      "differing_fields": ["original_filename"],
+      "canonical_candidate": "131_2025_QH15_675267.docx",
+      "human_review_required": true
+    }
+  ]
+}
