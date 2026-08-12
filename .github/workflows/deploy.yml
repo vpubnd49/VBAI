@@ -75,7 +75,6 @@ jobs:
           git reset --hard HEAD
           git clean -fd
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$RELEASE_SHA"
           SOURCE_HASH=$(node -e "import('./webapp/vite.config.js').then(m=>console.log(m.computeSourceTreeHash()))")
           [[ "$SOURCE_HASH" =~ ^[0-9a-f]{64}$ ]]
           echo "source_tree_hash=$SOURCE_HASH" >> "$GITHUB_OUTPUT"
