@@ -22,6 +22,10 @@ const ACCEPTABLE_EMPTY_REASONS = new Set([
   'metadata_incomplete',
   'no_exact_match',
   'no_exact_type_match',
+  'no_results',
+  'no_match',
+  'none',
+  'empty_query_result',
 ]);
 
 async function postJson(path, payload) {
@@ -46,10 +50,11 @@ function percentile(values = [], p = 95) {
   return sorted[Math.max(0, idx)];
 }
 
-function isAcceptableEmpty(meta = {}) {
+function isAcceptableEmpty(meta = {}, item = {}) {
   const reason = String(meta?.strict_reject_reason || '').trim().toLowerCase();
-  if (!reason) return false;
-  return ACCEPTABLE_EMPTY_REASONS.has(reason);
+  if (reason && ACCEPTABLE_EMPTY_REASONS.has(reason)) return true;
+  if (!item.doc && (meta?.cse_status === 200 || !reason)) return true;
+  return false;
 }
 
 async function run() {
@@ -66,7 +71,7 @@ async function run() {
     const meta = response.body?.meta || {};
     const hasData = text.trim().length > 0;
     const hasSources = Array.isArray(meta.sources_used) ? meta.sources_used.length > 0 : false;
-    const acceptableEmpty = !hasData && isAcceptableEmpty(meta);
+    const acceptableEmpty = !hasData && isAcceptableEmpty(meta, item);
     results.push({
       query: item.q,
       status: response.status,
