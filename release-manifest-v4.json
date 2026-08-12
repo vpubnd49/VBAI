@@ -1,0 +1,34 @@
+{
+  "manifestVersion": "4.0.0",
+  "product": "VBAI Legal Pro",
+  "repository": "vpubnd49/VBAI",
+  "branch": "refactor/gemini-only-light-ui-v1",
+  "sourceMasterBaseline": "4205db4f3b6b138479f19d7c69a9113bdfd8b79c",
+  "releaseStatus": "NO_GO_IMPLEMENTATION_INCOMPLETE",
+  "generatedAt": "2026-08-09T12:00:00.000Z",
+  "phaseStatus": {
+    "phase0": "PASS",
+    "phase1": "PASS",
+    "phase2": "PASS",
+    "phase3": "PARTIALLY_IMPLEMENTED",
+    "phase4": "PARTIALLY_IMPLEMENTED",
+    "phase5": "DOCUMENTATION_ONLY",
+    "phase6": "IMPLEMENTED_NOT_FULLY_TESTED",
+    "phase7": "IMPLEMENTED_NOT_FULLY_TESTED",
+    "phase8": "BLOCKED"
+  },
+  "legalDataVersion": {
+    "bosungMetadata": "100_canonical_entries",
+    "knownDocuments": "4_registry_entries",
+    "failClosedPolicyEnforced": true
+  },
+  "artifactPaths": {
+    "phase03Audit": "docs/audits/phase-03-api-security.md",
+    "phase04Audit": "docs/audits/phase-04-runtime-cicd.md",
+    "phase05Audit": "docs/audits/phase-05-backend-refactor.md",
+    "phase06Audit": "docs/audits/phase-06-privacy.md",
+    "phase07Audit": "docs/audits/phase-07-docs-governance.md",
+    "finalGateReport": "docs/audits/final-upgrade-gate-v4.md",
+    "releaseRunbook": "docs/runbooks/cloud-run-release.md"
+  }
+}

@@ -158,6 +158,7 @@ assert.match(
   nginx,
   /proxy_pass https:\/\/\$\{FIREBASE_AUTH_HOST\};/
 );
+assert.match(nginx, /client_max_body_size 25m;/);
 assert.doesNotMatch(
   nginx,
   /proxy_pass https:\/\/gen-lang-client-0462350485\.firebaseapp\.com/

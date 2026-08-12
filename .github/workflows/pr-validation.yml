@@ -4,24 +4,41 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
-  security-scan:
-    name: Security Gate (Secret Scan)
+  source-and-security:
+    name: Source, secret and release-contract gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node scripts/secret-scan.cjs
+      - name: Reject malformed source and credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test -z "$(git ls-files -- proxy/service-account.json webapp/github-sa-key.json)"
+          node scripts/secret-scan.cjs
+          while IFS= read -r -d '' file; do node --check "$file"; done < <(find proxy webapp tools scripts -type f \( -name '*.js' -o -name '*.cjs' -o -name '*.mjs' \) -not -path '*/node_modules/*' -print0)
+      - name: Run deterministic release verifier tests
+        run: |
+          node tools/release/tests/release-invariants.test.mjs
+          node tools/release/tests/master-runner-contract.test.mjs
 
-  proxy-tests:
-    name: Proxy Tests
-    needs: security-scan
+  proxy:
+    name: Proxy tests and deployed audit
+    needs: source-and-security
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: proxy
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,17 +46,20 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: proxy/package-lock.json
-      - run: npm ci
-      - run: npm run test:unit
-      - run: npm run test:golden
+      - run: npm --prefix proxy ci
+      - run: npm --prefix proxy audit --omit=dev --omit=optional --json
+      - run: npm --prefix proxy run test:all
+      - name: Validate optional storage is source-unreachable
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -RIE --include='*.js' --include='*.cjs' --include='*.mjs' 'firebase-admin/storage|admin\.storage|getStorage\(|\.bucket\(|bucket\.file\(' proxy --exclude-dir=node_modules | wc -l)" -eq 0
+          grep -Fq 'npm ci --omit=dev --omit=optional' proxy/Dockerfile
 
-  webapp-tests:
-    name: Webapp Tests & Build
-    needs: security-scan
+  webapp:
+    name: Webapp tests, audit and build
+    needs: source-and-security
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: webapp
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,6 +67,90 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: webapp/package-lock.json
-      - run: npm ci
-      - run: npm run test:all
-      - run: npm run build
+      - run: npm --prefix webapp ci
+      - name: Install locked Playwright Chromium runtime
+        working-directory: webapp
+        run: npx playwright install --with-deps chromium
+      - run: npm --prefix webapp audit --json
+      - run: npm --prefix webapp run test:all
+      - run: npm --prefix webapp run build
+        env:
+          GIT_SHA: ${{ github.sha }}
+          SOURCE_TREE_DIRTY: "false"
+          REQUIRE_CLEAN_BUILD: "true"
+
+  legal-kit:
+    name: LegalKit authoritative source comparison
+    needs: source-and-security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Require immutable Source Master in the repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d legalkit-vn-master || { echo 'BLOCKED: legalkit-vn-master is not present in the checked-out source'; exit 2; }
+          node skill/validate-legalkit.cjs --check
+
+  data-governance:
+    name: Deterministic legal metadata
+    needs: source-and-security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node proxy/tests/unit/bosung-metadata-index.test.cjs
+      - run: node tools/release/check-bosung-metadata.mjs --output "$RUNNER_TEMP/bosung-metadata-governance.json"
+
+  production-images:
+    name: Production image content
+    needs: [proxy, webapp]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production images locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_HASH=$(git archive --format=tar HEAD | sha256sum | awk '{print $1}')
+          docker build -t vbai-proxy-pr ./proxy
+          docker build -t vbai-webapp-pr \
+            --build-arg "GIT_SHA=${{ github.sha }}" \
+            --build-arg "SOURCE_TREE_HASH=${SOURCE_HASH}" \
+            --build-arg SOURCE_TREE_DIRTY=false \
+            --build-arg REQUIRE_CLEAN_BUILD=true ./webapp
+      - name: Inspect actual proxy runtime dependency tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint node vbai-proxy-pr -e "try{require.resolve('@google-cloud/storage');process.exit(1)}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}"
+          docker run --rm --entrypoint node vbai-proxy-pr -e "require('firebase-admin/app');require('firebase-admin/auth');require('firebase-admin/firestore')"
+
+  merge-gate:
+    name: Required merge gate
+    if: always()
+    needs: [source-and-security, proxy, webapp, legal-kit, data-governance, production-images]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every upstream job to succeed
+        env:
+          SOURCE_RESULT: ${{ needs.source-and-security.result }}
+          PROXY_RESULT: ${{ needs.proxy.result }}
+          WEBAPP_RESULT: ${{ needs.webapp.result }}
+          LEGALKIT_RESULT: ${{ needs.legal-kit.result }}
+          DATA_RESULT: ${{ needs.data-governance.result }}
+          IMAGE_RESULT: ${{ needs.production-images.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SOURCE_RESULT" = success
+          test "$PROXY_RESULT" = success
+          test "$WEBAPP_RESULT" = success
+          test "$LEGALKIT_RESULT" = success
+          test "$DATA_RESULT" = success
+          test "$IMAGE_RESULT" = success

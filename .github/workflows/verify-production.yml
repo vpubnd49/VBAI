@@ -1,0 +1,200 @@
+name: Production Release Verification
+
+on:
+  workflow_run:
+    workflows: [Production Release]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: vbai-production-verification
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: gen-lang-client-0462350485
+  EXPECTED_PROJECT_NUMBER: "419728335518"
+  REGION: asia-southeast1
+  ARTIFACT_REPOSITORY: vbai
+  PROXY_SERVICE: vbai-proxy
+  WEBAPP_SERVICE: vbai
+  CANONICAL_PRODUCTION_URL: https://vbai-419728335518.asia-southeast1.run.app
+
+jobs:
+  verify:
+    name: Verify completed source run and production state
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_available: ${{ steps.artifacts.outputs.deployment_available }}
+    steps:
+      - name: Checkout exact source workflow commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Download source-run evidence
+        id: artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .evidence/source-artifacts
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir .evidence/source-artifacts
+          test -f ".evidence/source-artifacts/deployment-state-${SOURCE_RUN_ID}/deployment-state.json"
+          test -f ".evidence/source-artifacts/immutable-images-${SOURCE_RUN_ID}/image-manifest.json"
+          find ".evidence/source-artifacts/master-gates-${SOURCE_RUN_ID}" -name master-gate-results.json -type f | grep -q .
+          echo "deployment_available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate read-only verifier identity
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_VERIFY_SERVICE_ACCOUNT }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Independently inspect source run, image and Cloud Run state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_DIR=".evidence/source-artifacts/deployment-state-${SOURCE_RUN_ID}"
+          IMAGE_DIR=".evidence/source-artifacts/immutable-images-${SOURCE_RUN_ID}"
+          DEPLOY_STATE="$DEPLOY_DIR/deployment-state.json"
+          PROXY_REV=$(node -p "require('./$DEPLOY_STATE').proxy.candidateRevision")
+          WEBAPP_REV=$(node -p "require('./$DEPLOY_STATE').webapp.candidateRevision")
+          EXPECTED_SHA=$(node -p "require('./$DEPLOY_STATE').expectedSha")
+          test "$EXPECTED_SHA" = "${{ github.event.workflow_run.head_sha }}"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > .evidence/source-workflow.json
+          REMOTE_SHA=$(git ls-remote origin refs/heads/main | awk '{print $1}')
+          test "$REMOTE_SHA" = "$EXPECTED_SHA"
+          echo "$REMOTE_SHA" > .evidence/remote-main-sha.txt
+
+          test "$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')" = "$EXPECTED_PROJECT_NUMBER"
+          gcloud run services describe "$PROXY_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-service.json
+          gcloud run services describe "$WEBAPP_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/webapp-service.json
+          gcloud run revisions describe "$PROXY_REV" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-revision.json
+          gcloud run revisions describe "$WEBAPP_REV" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/webapp-revision.json
+
+          PROXY_IMAGE=$(node -p "require('./$IMAGE_DIR/image-manifest.json').proxy.image")
+          PROXY_DIGEST=$(node -p "require('./$IMAGE_DIR/image-manifest.json').proxy.builtDigest")
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker pull "${PROXY_IMAGE}@${PROXY_DIGEST}"
+          docker run --rm --entrypoint node "${PROXY_IMAGE}@${PROXY_DIGEST}" -e "try{require.resolve('@google-cloud/storage');process.exit(1)}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}"
+          docker run --rm --entrypoint node "${PROXY_IMAGE}@${PROXY_DIGEST}" -e "require('firebase-admin/app');require('firebase-admin/auth');require('firebase-admin/firestore')"
+          test "$(grep -RIE --include='*.js' --include='*.cjs' --include='*.mjs' 'firebase-admin/storage|admin\.storage|getStorage\(|\.bucket\(|bucket\.file\(' proxy --exclude-dir=node_modules | wc -l)" -eq 0
+
+          curl --fail --show-error --silent "$CANONICAL_PRODUCTION_URL/" >/dev/null
+          curl --fail --show-error --silent "$CANONICAL_PRODUCTION_URL/build-info.json" > .evidence/canonical-build-info.json
+          PROXY_URL=$(node -p "require('./.evidence/proxy-service.json').status.url")
+          curl --fail --show-error --silent "$PROXY_URL/health" >/dev/null
+          curl --fail --show-error --silent "$PROXY_URL/api/build-info" > .evidence/proxy-build-info.json
+
+      - name: Compose evidence-derived state
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_DIR=".evidence/source-artifacts/deployment-state-${SOURCE_RUN_ID}"
+          IMAGE_DIR=".evidence/source-artifacts/immutable-images-${SOURCE_RUN_ID}"
+          GATE_DIR=".evidence/source-artifacts/master-gates-${SOURCE_RUN_ID}"
+          GATE_FILE=$(find "$GATE_DIR" -name master-gate-results.json -type f | head -1)
+          AUDIT_FILE=$(find "$GATE_DIR" -path '*/audits/proxy-deployed.json' -type f | head -1)
+          COMPLETE_AUDIT_FILE=$(find "$GATE_DIR" -path '*/audits/proxy-complete.json' -type f | head -1)
+          test -n "$GATE_FILE"
+          test -n "$AUDIT_FILE"
+          test -n "$COMPLETE_AUDIT_FILE"
+          node - "$DEPLOY_DIR/deployment-state.json" "$IMAGE_DIR/image-manifest.json" "$GATE_FILE" "$AUDIT_FILE" "$COMPLETE_AUDIT_FILE" <<'NODE' > .evidence/release-state.json
+          const fs=require('fs'); const read=p=>JSON.parse(fs.readFileSync(p));
+          const deploy=read(process.argv[2]), images=read(process.argv[3]), gates=read(process.argv[4]), audit=read(process.argv[5]), completeAudit=read(process.argv[6]);
+          const run=read('.evidence/source-workflow.json'), proxyService=read('.evidence/proxy-service.json'), webappService=read('.evidence/webapp-service.json');
+          const proxyRevision=read('.evidence/proxy-revision.json'), webappRevision=read('.evidence/webapp-revision.json');
+          const canonical=read('.evidence/canonical-build-info.json'), proxyBuild=read('.evidence/proxy-build-info.json');
+          if(proxyBuild.gitSha!==deploy.expectedSha) process.exit(1);
+          const v=audit.metadata?.vulnerabilities||{};
+          const cv=completeAudit.metadata?.vulnerabilities||{};
+          console.log(JSON.stringify({
+            schemaVersion:1,repository:'vpubnd49/VBAI',branch:run.head_branch,baselineSha:deploy.baselineSha,expectedSha:deploy.expectedSha,
+            remote:{branchSha:fs.readFileSync('.evidence/remote-main-sha.txt','utf8').trim()},
+            workflow:{id:run.id,url:run.html_url,event:run.event,status:run.status,conclusion:run.conclusion,headSha:run.head_sha,workflowName:run.name},
+            gates:{total:gates.totalGates,passed:gates.passed,failed:gates.failed,blocked:gates.blocked,headSha:gates.head},
+            security:{acceptance:'NOT_REQUIRED_ZERO_VULNERABILITIES',optionalStorageAbsent:true,storageRuntimeUnreachable:true,
+              deployedAudit:{critical:Number(v.critical||0),high:Number(v.high||0),moderate:Number(v.moderate||0),low:Number(v.low||0)},
+              completeAudit:{critical:Number(cv.critical||0),high:Number(cv.high||0),moderate:Number(cv.moderate||0),low:Number(cv.low||0)}},
+            images,
+            cloudRun:{projectId:process.env.PROJECT_ID,projectNumber:process.env.EXPECTED_PROJECT_NUMBER,region:process.env.REGION,
+              proxy:{serviceName:process.env.PROXY_SERVICE,candidateRevision:deploy.proxy.candidateRevision,previousRevision:deploy.proxy.previousRevision,rollbackArmed:true,promotionAttempted:true,service:proxyService,revision:proxyRevision},
+              webapp:{serviceName:process.env.WEBAPP_SERVICE,candidateRevision:deploy.webapp.candidateRevision,previousRevision:deploy.webapp.previousRevision,rollbackArmed:true,promotionAttempted:true,service:webappService,revision:webappRevision}},
+            canonical:{url:process.env.CANONICAL_PRODUCTION_URL,healthOk:true,gitSha:canonical.gitSha}
+          },null,2));
+          NODE
+
+      - name: Run deterministic release verifier
+        shell: bash
+        run: node tools/release/verify-release.mjs --input .evidence/release-state.json --output .evidence/release-verification.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: production-verification-${{ github.event.workflow_run.id }}
+          path: .evidence
+          if-no-files-found: error
+          retention-days: 90
+
+  rollback:
+    name: Roll back when independent verification fails
+    if: ${{ always() && needs.verify.result == 'failure' }}
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download deployment state from source run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .evidence
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "deployment-state-${SOURCE_RUN_ID}" --dir .evidence
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Restore both previous revisions and verify exact traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROXY_PREV=$(node -p "require('./.evidence/deployment-state.json').proxy.previousRevision")
+          WEBAPP_PREV=$(node -p "require('./.evidence/deployment-state.json').webapp.previousRevision")
+          gcloud run services update-traffic "$PROXY_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" --to-revisions "${PROXY_PREV}=100"
+          gcloud run services update-traffic "$WEBAPP_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" --to-revisions "${WEBAPP_PREV}=100"
+          for SPEC in "$PROXY_SERVICE:$PROXY_PREV" "$WEBAPP_SERVICE:$WEBAPP_PREV"; do
+            SERVICE="${SPEC%%:*}"
+            EXPECTED_REVISION="${SPEC#*:}"
+            gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json | \
+              node -e '
+                let raw=""; process.stdin.on("data", chunk => raw += chunk); process.stdin.on("end", () => {
+                  const service=JSON.parse(raw), expected=process.argv[1], traffic=service.status?.traffic||[];
+                  const positive=traffic.filter(row => Number(row.percent||0)>0);
+                  const total=positive.reduce((sum,row)=>sum+Number(row.percent||0),0);
+                  if(total!==100 || positive.some(row => row.revisionName!==expected)) process.exit(1);
+                });
+              ' "$EXPECTED_REVISION"
+          done

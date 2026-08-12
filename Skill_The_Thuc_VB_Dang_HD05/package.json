@@ -1,7 +1,7 @@
 {
-  "name": "skill-vb-dang-hd36",
+  "name": "skill-vb-dang-hd05",
   "version": "1.0.0",
-  "description": "Sinh van ban Dang (.docx) chuan HD 36-HD/VPTW",
+  "description": "Sinh van ban Dang (.docx) chuan HD 05-HD/VPTW",
   "dependencies": {
     "docx": "^9.4.1"
   }

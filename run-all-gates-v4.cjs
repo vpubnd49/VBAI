@@ -490,14 +490,14 @@ async function runGate16() {
   let stderr = '';
   let assertionsExecuted = 0;
 
-  const r1 = spawnSync(process.execPath, ['tests/ui-static-audit.test.mjs'], { cwd: webappDir, encoding: 'utf8' });
+  const r1 = spawnSync(process.execPath, ['--experimental-loader', loaderUrl, 'tests/ui-static-audit.test.mjs'], { cwd: webappDir, encoding: 'utf8' });
   stdout += r1.stdout || '';
   stderr += r1.stderr || '';
   if (r1.status !== 0) throw new Error(`ui-static-audit.test.mjs failed: ${r1.stderr}`);
   const match1 = stdout.match(/(\d+)\s+assertions/i);
   assertionsExecuted += match1 ? parseInt(match1[1], 10) : 1;
 
-  const r2 = spawnSync(process.execPath, ['tests/login-theme.test.mjs'], { cwd: webappDir, encoding: 'utf8' });
+  const r2 = spawnSync(process.execPath, ['--experimental-loader', loaderUrl, 'tests/login-theme.test.mjs'], { cwd: webappDir, encoding: 'utf8' });
   stdout += r2.stdout || '';
   stderr += r2.stderr || '';
   if (r2.status !== 0) throw new Error(`login-theme.test.mjs failed: ${r2.stderr}`);
@@ -550,7 +550,7 @@ async function runGate21() {
     return finishError('BLOCKED', 'NPM_CLI_NOT_FOUND');
   }
 
-  const testArgs = ['tests/build-info.test.mjs'];
+  const testArgs = ['--experimental-loader', loaderUrl, 'tests/build-info.test.mjs'];
   const testRes = spawnSync(process.execPath, testArgs, {
     cwd: webappDir, encoding: 'utf8', timeout: 180000, windowsHide: true, shell: false
   });
@@ -1000,12 +1000,12 @@ const gates = [
   { id: 15, name: 'Webapp clean install using npm ci', command: webappNpmCi.command, args: webappNpmCi.args, cwd: path.join(REPO, 'webapp'), blockedReason: webappNpmCi.blockedReason },
   { id: 16, name: 'Static UI, light theme, undefined tokens and login theme', custom: runGate16, cwd: path.join(REPO, 'webapp') },
   { id: 17, name: 'Functional route smoke test 16/16', command: process.execPath, args: ['--experimental-loader', loaderUrl, 'tests/route-smoke.test.mjs'], cwd: path.join(REPO, 'webapp') },
-  { id: 18, name: 'Rendered UI matrix 612 scenarios', command: process.execPath, args: ['tests/ui-rendered-audit.test.mjs'], cwd: path.join(REPO, 'webapp') },
-  { id: 19, name: 'Rendered artifact contract validation', command: process.execPath, args: ['tests/ui-rendered-artifact-contract.test.mjs', resultJsonPath], cwd: path.join(REPO, 'webapp') },
+  { id: 18, name: 'Rendered UI matrix 612 scenarios', command: process.execPath, args: ['--experimental-loader', loaderUrl, 'tests/ui-rendered-audit.test.mjs'], cwd: path.join(REPO, 'webapp') },
+  { id: 19, name: 'Rendered artifact contract validation', command: process.execPath, args: ['--experimental-loader', loaderUrl, 'tests/ui-rendered-artifact-contract.test.mjs', resultJsonPath], cwd: path.join(REPO, 'webapp') },
   { id: 20, name: 'Complete webapp test:all', command: webappTestAll.command, args: webappTestAll.args, cwd: path.join(REPO, 'webapp'), blockedReason: webappTestAll.blockedReason },
   { id: 21, name: 'Build identity, full-tree hash and clean-build guard', custom: runGate21, cwd: path.join(REPO, 'webapp') },
   { id: 22, name: 'Runtime dependency audits of proxy and webapp', custom: runGate22, cwd: REPO },
-  { id: 23, name: 'Deploy workflow contract and candidate promotion safety', command: process.execPath, args: ['tests/deploy-workflow-contract.test.mjs'], cwd: path.join(REPO, 'webapp') },
+  { id: 23, name: 'Deploy workflow contract and candidate promotion safety', command: process.execPath, args: ['--experimental-loader', loaderUrl, 'tests/deploy-workflow-contract.test.mjs'], cwd: path.join(REPO, 'webapp') },
   { id: 24, name: 'Container build, boot, health and local smoke test', custom: runGate24, cwd: REPO },
   { id: 25, name: 'Final tracked-mutation/read-only integrity gate', custom: runGate25, cwd: REPO }
 ];

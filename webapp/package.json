@@ -10,14 +10,21 @@
     "daily-run": "node daily-run.cjs",
     "test:policy": "node tests/two-tier-policy.test.mjs",
     "test:legal": "node tests/run-all.mjs",
+    "test:ui-rendered": "node tests/ui-rendered-audit.test.mjs",
     "test:all": "node tests/run-all.mjs"
   },
   "devDependencies": {
-    "vite": "^7.1.12"
+    "@playwright/test": "^1.40.0",
+    "vite": "7.3.6"
   },
   "dependencies": {
     "docx": "^9.6.1",
     "file-saver": "^2.0.5",
     "marked": "^18.0.3"
+  },
+  "overrides": {
+    "docx": {
+      "nanoid": "^5.1.16"
+    }
   }
 }

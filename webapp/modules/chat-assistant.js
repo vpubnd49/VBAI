@@ -3207,7 +3207,7 @@ export async function renderChatUI(container) {
           <div class="file-icon">${fileIcon}</div>
           <div class="file-info">
             <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
-            <div class="file-status" style="color: #34d399;">Sẵn sàng • ${kbSize} KB (${text.length.toLocaleString()} ký tự)</div>
+            <div class="file-status" style="color: var(--status-success-text, #059669);">Sẵn sàng • ${kbSize} KB (${text.length.toLocaleString()} ký tự)</div>
           </div>
           <button class="btn-remove" title="Xóa đính kèm">×</button>
         `;
@@ -3355,14 +3355,14 @@ export async function renderChatUI(container) {
       if (!modalGeminiKeyStatus) return;
       modalGeminiKeyStatus.textContent = message;
       if (kind === 'success') {
-        modalGeminiKeyStatus.style.color = '#34d399';
+        modalGeminiKeyStatus.style.color = 'var(--status-success-text, #059669)';
         return;
       }
       if (kind === 'error') {
-        modalGeminiKeyStatus.style.color = '#f87171';
-        return;
+        modalGeminiKeyStatus.style.color = 'var(--status-error-text, #dc2626)';
+      } else {
+        modalGeminiKeyStatus.style.color = 'var(--text-muted)';
       }
-      modalGeminiKeyStatus.style.color = 'var(--text-muted)';
     };
 
     const runModalKeyValidation = async ({ useStoredKey = true } = {}) => {

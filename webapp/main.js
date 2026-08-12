@@ -67,7 +67,7 @@ const PAGE_TITLES = {
   'situation-analysis': 'Phân tích Tình huống',
   'compare-regulations': 'So sánh Quy định',
   'effective-date': 'Hiệu lực & Sửa đổi',
-  'chat-assistant': 'Tra cứu Pháp luật (Legacy)',
+  'chat-assistant': 'Trợ lý Chat AI',
   'vb-dang': 'Văn bản Đảng (HD05)',
   'vb-nd30': 'Văn bản Hành chính (NĐ30)',
   'pdf-tool': 'OCR / Đọc tài liệu',

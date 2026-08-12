@@ -180,7 +180,7 @@ export function renderAdminPanel(container) {
         <div class="panel-header-icon">🛡️</div>
         Quản Trị Hệ Thống - Vết Tra Cứu (Mới nhất)
         <div style="flex:1"></div>
-        <button id="delete-all-logs-btn" class="btn btn-sm" style="padding:4px 8px; font-size:0.8rem; background:#ef4444; color:white; border:none; margin-right:8px">Xóa tất cả</button>
+        <button id="delete-all-logs-btn" class="btn btn-sm" style="padding:4px 8px; font-size:0.8rem; background:var(--btn-danger-bg, #b91c1c); color:white; border:none; margin-right:8px">Xóa tất cả</button>
         <button id="refresh-logs-btn" class="btn btn-secondary btn-sm" style="padding:4px 8px; font-size:0.8rem">Làm mới</button>
       </div>
       <div class="panel-body" style="padding:0; overflow-x:auto">
@@ -237,26 +237,26 @@ export function renderAdminPanel(container) {
     </div>
 
     <!-- Edit User Modal -->
-    <div id="edit-user-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center">
-      <div style="background:#0f1f38; border:1px solid rgba(96,165,250,0.3); border-radius:12px; width:100%; max-width:450px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5)">
-        <h3 style="margin-top:0; margin-bottom:20px; color:#e6f1ff; border-bottom:1px solid rgba(96,165,250,0.2); padding-bottom:10px">✏️ Sửa thông tin thành viên</h3>
+    <div id="edit-user-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:var(--overlay-backdrop); backdrop-filter:blur(4px); z-index:9999; justify-content:center; align-items:center">
+      <div style="background:var(--bg-card); border:1px solid var(--border-default); border-radius:12px; width:100%; max-width:450px; padding:24px; box-shadow:var(--shadow-lg)">
+        <h3 style="margin-top:0; margin-bottom:20px; color:var(--text-primary); border-bottom:1px solid var(--border-subtle); padding-bottom:10px">✏️ Sửa thông tin thành viên</h3>
         <form id="edit-user-form">
           <input type="hidden" id="edit-user-uid">
           <div style="margin-bottom:16px; text-align:left">
-            <label style="display:block; font-size:0.8rem; color:#cfe4ff; margin-bottom:6px">Email</label>
-            <input type="text" id="edit-user-email" class="form-input" style="width:100%; background:rgba(8,17,32,0.5); color:#8899af; cursor:not-allowed; border:1px solid rgba(96,165,250,0.1); border-radius:6px; padding:8px; box-sizing:border-box" readonly>
+            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:6px">Email</label>
+            <input type="text" id="edit-user-email" class="form-input" style="width:100%; background:var(--surface-muted); color:var(--text-muted); cursor:not-allowed; border:1px solid var(--border-subtle); border-radius:6px; padding:8px; box-sizing:border-box" readonly>
           </div>
           <div style="margin-bottom:16px; text-align:left">
-            <label style="display:block; font-size:0.8rem; color:#cfe4ff; margin-bottom:6px">Tên hiển thị</label>
-            <input type="text" id="edit-user-name" class="form-input" style="width:100%; background:rgba(8,17,32,0.5); color:#e6f1ff; border:1px solid rgba(96,165,250,0.2); border-radius:6px; padding:8px; box-sizing:border-box" required>
+            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:6px">Tên hiển thị</label>
+            <input type="text" id="edit-user-name" class="form-input" style="width:100%; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-default); border-radius:6px; padding:8px; box-sizing:border-box" required>
           </div>
           <div style="margin-bottom:16px; text-align:left">
-            <label style="display:block; font-size:0.8rem; color:#cfe4ff; margin-bottom:6px">Chức vụ</label>
-            <input type="text" id="edit-user-position" class="form-input" style="width:100%; background:rgba(8,17,32,0.5); color:#e6f1ff; border:1px solid rgba(96,165,250,0.2); border-radius:6px; padding:8px; box-sizing:border-box">
+            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:6px">Chức vụ</label>
+            <input type="text" id="edit-user-position" class="form-input" style="width:100%; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-default); border-radius:6px; padding:8px; box-sizing:border-box">
           </div>
           <div style="margin-bottom:24px; text-align:left">
-            <label style="display:block; font-size:0.8rem; color:#cfe4ff; margin-bottom:6px">Vai trò hệ thống</label>
-            <select id="edit-user-role" style="width:100%; background:#081120; color:#e6f1ff; border:1px solid rgba(96,165,250,0.2); border-radius:6px; padding:8px; outline:none; box-sizing:border-box">
+            <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:6px">Vai trò hệ thống</label>
+            <select id="edit-user-role" style="width:100%; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border-default); border-radius:6px; padding:8px; outline:none; box-sizing:border-box">
               <option value="DEPARTMENT">DEPARTMENT (Chuyên viên)</option>
               <option value="OFFICE">OFFICE (Trưởng/Phó phòng)</option>
               <option value="LEADER">LEADER (Lãnh đạo)</option>
@@ -748,11 +748,11 @@ async function initSystemConfigPanel(container) {
       });
       
       vertexIngestStatus.textContent = '✅ Đã kích hoạt tiến trình đồng bộ thành công!';
-      vertexIngestStatus.style.color = '#34d399';
+      vertexIngestStatus.style.color = 'var(--status-success-text, #059669)';
       alert(result.message || 'Kích hoạt đồng bộ thành công!');
     } catch (err) {
       vertexIngestStatus.textContent = `❌ Thất bại: ${err.message}`;
-      vertexIngestStatus.style.color = '#f87171';
+      vertexIngestStatus.style.color = 'var(--status-error-text, #dc2626)';
       alert('Lỗi kích hoạt đồng bộ: ' + err.message);
     } finally {
       triggerVertexIngestBtn.disabled = false;
@@ -836,7 +836,7 @@ async function loadLogs(container) {
   } catch (error) {
     console.error('Error loading logs:', error);
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:#f87171">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--status-error-text, #dc2626)">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
     }
   }
 }
@@ -905,7 +905,7 @@ async function loadUsers(container) {
   } catch (error) {
     console.error('Error loading users:', error);
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:#f87171">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--status-error-text, #dc2626)">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
     }
   }
 }
@@ -927,8 +927,8 @@ function renderUsersPage(container) {
         <td style="padding:12px;">${formatDate(item.data.createdAt)}</td>
         <td style="padding:12px;">${formatDate(item.data.lastLogin)}</td>
         <td style="padding:12px; text-align:right">
-          <button class="btn-user-edit" data-id="${item.id}" data-email="${escapeHtml(email)}" data-name="${escapeHtml(name)}" data-position="${escapeHtml(position)}" data-role="${escapeHtml(role)}" style="padding:4px 8px; font-size:0.8rem; background:#3b82f6; color:white; border:none; border-radius:4px; margin-right:4px; cursor:pointer">Sửa</button>
-          <button class="btn-user-delete" data-id="${item.id}" data-email="${escapeHtml(email)}" style="padding:4px 8px; font-size:0.8rem; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer">Xóa</button>
+          <button class="btn-user-edit" data-id="${item.id}" data-email="${escapeHtml(email)}" data-name="${escapeHtml(name)}" data-position="${escapeHtml(position)}" data-role="${escapeHtml(role)}" style="padding:4px 8px; font-size:0.8rem; background:var(--btn-primary-bg, #1d4ed8); color:white; border:none; border-radius:4px; margin-right:4px; cursor:pointer">Sửa</button>
+          <button class="btn-user-delete" data-id="${item.id}" data-email="${escapeHtml(email)}" style="padding:4px 8px; font-size:0.8rem; background:var(--btn-danger-bg, #b91c1c); color:white; border:none; border-radius:4px; cursor:pointer">Xóa</button>
         </td>
       </tr>
     `;
