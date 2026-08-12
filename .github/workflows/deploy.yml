@@ -75,7 +75,7 @@ jobs:
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "NO_GO: invalid release_sha"; exit 1; }
           [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "NO_GO: invalid baseline_sha"; exit 1; }
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-          SOURCE_HASH=$(GIT_SHA="$RELEASE_SHA" node --input-type=module -e "import { computeSourceTreeHash } from './webapp/vite.config.js'; console.log(computeSourceTreeHash());")
+          SOURCE_HASH=$(GIT_SHA="$RELEASE_SHA" node --input-type=module -e "import * as m from './webapp/vite.config.js'; const fn = m.computeSourceTreeHash || (typeof m.default === 'object' && m.default ? m.default.computeSourceTreeHash : null); console.log(typeof fn === 'function' ? fn() : '');")
           [[ "$SOURCE_HASH" =~ ^[0-9a-f]{64}$ ]]
           echo "source_tree_hash=$SOURCE_HASH" >> "$GITHUB_OUTPUT"
 
