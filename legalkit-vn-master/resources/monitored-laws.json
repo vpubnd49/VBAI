@@ -1,0 +1,156 @@
+[
+  {
+    "id": "91/2015/QH13",
+    "name": "Bộ luật Dân sự 2015",
+    "type": "Bộ luật",
+    "effective_date": "01/01/2017",
+    "expiry_date": "",
+    "status": "active",
+    "replaced_by": "",
+    "last_checked": "2026-07-21",
+    "notes": "Bộ luật nền tảng cho mọi giao dịch dân sự và hợp đồng."
+  },
+  {
+    "id": "45/2019/QH14",
+    "name": "Bộ luật Lao động 2019",
+    "type": "Bộ luật",
+    "effective_date": "01/01/2021",
+    "expiry_date": "",
+    "status": "active",
+    "replaced_by": "",
+    "last_checked": "2026-07-21",
+    "notes": "Điều chỉnh quan hệ lao động, thử việc, kỷ luật và sa thải."
+  },
+  {
+    "id": "45/2013/QH13",
+    "name": "Luật Đất đai 2013",
+    "type": "Luật",
+    "effective_date": "01/07/2014",
+    "expiry_date": "01/08/2024",
+    "status": "expired",
+    "replaced_by": "31/2024/QH15",
+    "last_checked": "2026-07-21",
+    "notes": "Đã hết hiệu lực từ ngày 01/08/2024 do Luật Đất đai 2024 có hiệu lực."
+  },
+  {
+    "id": "31/2024/QH15",
+    "name": "Luật Đất đai 2024",
+    "type": "Luật",
+    "effective_date": "01/08/2024",
+    "expiry_date": "",
+    "status": "active",
+    "replaced_by": "",
+    "last_checked": "2026-07-21",
+    "notes": "Luật mới điều chỉnh về quyền sử dụng đất, bồi thường, thu hồi đất."
+  },
+  {
+    "id": "65/2014/QH13",
+    "name": "Luật Nhà ở 2014",
+    "type": "Luật",
+    "effective_date": "01/07/2015",
+    "expiry_date": "01/08/2024",
+    "status": "expired",
+    "replaced_by": "27/2023/QH15",
+    "last_checked": "2026-07-21",
+    "notes": "Thay thế bởi Luật Nhà ở 2023 từ ngày 01/08/2024."
+  },
+  {
+    "id": "27/2023/QH15",
+    "name": "Luật Nhà ở 2023",
+    "type": "Luật",
+    "effective_date": "01/08/2024",
+    "expiry_date": "",
+    "status": "active",
+    "replaced_by": "",
+    "last_checked": "2026-07-21",
+    "notes": "Quy định về sở hữu nhà ở, phát triển nhà ở xã hội và quản lý chung cư."
+  },
+  {
+    "id": "66/2014/QH13",
+    "name": "Luật Kinh doanh bất động sản 2014",
+    "type": "Luật",
+    "effective_date": "01/07/2015",
+    "expiry_date": "01/08/2024",
+    "status": "expired",
+    "replaced_by": "29/2023/QH15",
+    "last_checked": "2026-07-21",
+    "notes": "Hết hiệu lực từ ngày 01/08/2024."
+  },
+  {
+    "id": "29/2023/QH15",
+    "name": "Luật Kinh doanh bất động sản 2023",
+    "type": "Luật",
+    "effective_date": "01/08/2024",
+    "expiry_date": "",
+    "status": "active",
+    "replaced_by": "",
+    "last_checked": "2026-07-21",
+    "notes": "Điều chỉnh kinh doanh nhà ở, công trình xây dựng và chuyển nhượng dự án."
+  },
+  {
+    "id": "59/2020/QH14",
+    "name": "Luật Doanh nghiệp 2020",
+    "type": "Luật",
+    "effective_date": "01/01/2021",
+    "expiry_date": "",
+    "status": "active",
+    "replaced_by": "",
+    "last_checked": "2026-07-21",
+    "notes": "Quy định về đăng ký doanh nghiệp, quản trị nội bộ công ty TNHH và Cổ phần."
+  },
+  {
+    "id": "36/2005/QH11",
+    "name": "Luật Thương mại 2005",
+    "type": "Luật",
+    "effective_date": "01/01/2006",
+    "expiry_date": "",
+    "status": "active",
+    "replaced_by": "",
+    "last_checked": "2026-07-21",
+    "notes": "Quy định về hành vi thương mại, gia công, đại lý và mua bán hàng hóa."
+  },
+  {
+    "id": "50/2005/QH11",
+    "name": "Luật Sở hữu trí tuệ 2005",
+    "type": "Luật",
+    "effective_date": "01/07/2006",
+    "expiry_date": "",
+    "status": "partially_expired",
+    "replaced_by": "07/2022/QH15",
+    "last_checked": "2026-07-21",
+    "notes": "Còn hiệu lực một phần, được sửa đổi, bổ sung lớn bởi Luật Sở hữu trí tuệ 2022."
+  },
+  {
+    "id": "145/2020/NĐ-CP",
+    "name": "Nghị định 145/2020/NĐ-CP hướng dẫn Bộ luật Lao động",
+    "type": "Nghị định",
+    "effective_date": "01/02/2021",
+    "expiry_date": "",
+    "status": "active",
+    "replaced_by": "",
+    "last_checked": "2026-07-21",
+    "notes": "Nghị định quy định chi tiết về quan hệ lao động, tiền lương và làm thêm giờ."
+  },
+  {
+    "id": "74/2024/NĐ-CP",
+    "name": "Nghị định 74/2024/NĐ-CP về lương tối thiểu vùng",
+    "type": "Nghị định",
+    "effective_date": "01/07/2024",
+    "expiry_date": "01/01/2026",
+    "status": "expired",
+    "replaced_by": "293/2025/NĐ-CP",
+    "last_checked": "2026-07-21",
+    "notes": "Đã hết hiệu lực từ ngày 01/01/2026 do Nghị định 293/2025/NĐ-CP bắt đầu có hiệu lực."
+  },
+  {
+    "id": "293/2025/NĐ-CP",
+    "name": "Nghị định 293/2025/NĐ-CP quy định mức lương tối thiểu vùng mới",
+    "type": "Nghị định",
+    "effective_date": "01/01/2026",
+    "expiry_date": "",
+    "status": "active",
+    "replaced_by": "",
+    "last_checked": "2026-07-21",
+    "notes": "Quy định mức lương tối thiểu vùng mới nhất áp dụng từ đầu năm 2026."
+  }
+]

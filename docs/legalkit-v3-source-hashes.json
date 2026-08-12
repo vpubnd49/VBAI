@@ -1,16 +1,555 @@
 {
-  "inventory_date": "2026-08-07T11:50:00Z",
+  "inventory_date": "2026-08-12T00:58:35.834Z",
   "source_dir": "legalkit-vn-master",
+  "dest_dir": "skill",
   "total_files": 54,
-  "git_exclude_pattern": "/legalkit-vn-master/",
-  "modules": {
-    "skill_instructions": "legalkit-vn-master/SKILL.md",
-    "manifest": "legalkit-vn-master/manifest.json",
-    "contract_templates_count": 20,
-    "domain_modules_count": 7,
-    "reference_docs_count": 2,
-    "resource_docs_count": 5
+  "counts": {
+    "COPIED": 41,
+    "DIFFERENT": 0,
+    "MISSING": 0,
+    "EXCLUDED_BY_POLICY": 13
   },
-  "canonical_destination": "skill/",
-  "status": "ALL_RESOURCES_MIGRATED_CANONICALLY"
+  "overall_status": "SYNCHRONIZED",
+  "files": [
+    {
+      "source": ".gitignore",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Git config not synced to skill/",
+      "sourceSize": 333,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "package-lock.json",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Lock file for standalone scripts",
+      "sourceSize": 8012,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "package.json",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "NPM config for standalone scripts, not needed in skill/",
+      "sourceSize": 321,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "README.md",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Source README, skill/ has its own SKILL.md",
+      "sourceSize": 8391,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "README_ND30.md",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "ND30-specific README, content embedded in resources/nd30-format-standard.md",
+      "sourceSize": 2425,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "references/case-studies/dat-dai-tranh-chap-dat-coc.md",
+      "destination": "references/case-studies/dat-dai-tranh-chap-dat-coc.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 4626,
+      "sourceSha256": "0a550c2d84845edf8cf1adb9f36fad3a5360aef4db846a49c61dade9cea3a671",
+      "destSize": 4626,
+      "destSha256": "0a550c2d84845edf8cf1adb9f36fad3a5360aef4db846a49c61dade9cea3a671"
+    },
+    {
+      "source": "references/case-studies/lao-dong-don-phuong-cham-dut.md",
+      "destination": "references/case-studies/lao-dong-don-phuong-cham-dut.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 4536,
+      "sourceSha256": "a4f73e7fe3b8ec1482d9087652c8f553c763699b909e5d92ef2281401f5347fb",
+      "destSize": 4536,
+      "destSha256": "a4f73e7fe3b8ec1482d9087652c8f553c763699b909e5d92ef2281401f5347fb"
+    },
+    {
+      "source": "references/phan_quyen_ky.md",
+      "destination": "references/phan_quyen_ky.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 3020,
+      "sourceSha256": "c65f789e6128ba069c6e9dc85cd9b4153b9f5af23f378217c79864dee5499754",
+      "destSize": 3020,
+      "destSha256": "c65f789e6128ba069c6e9dc85cd9b4153b9f5af23f378217c79864dee5499754"
+    },
+    {
+      "source": "references/quy_tac_the_thuc.md",
+      "destination": "references/quy_tac_the_thuc.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 4573,
+      "sourceSha256": "ffbdf09c152a67652ddd6bbbe5c34db2ffce7e9b0eda42df9b2aca609288d8b9",
+      "destSize": 4573,
+      "destSha256": "ffbdf09c152a67652ddd6bbbe5c34db2ffce7e9b0eda42df9b2aca609288d8b9"
+    },
+    {
+      "source": "resources/citation-format.md",
+      "destination": "resources/citation-format.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 6466,
+      "sourceSha256": "2d6e3eab591172b00895dee8971c68a9a62273bef071e0533e728fb72e88c838",
+      "destSize": 6466,
+      "destSha256": "2d6e3eab591172b00895dee8971c68a9a62273bef071e0533e728fb72e88c838"
+    },
+    {
+      "source": "resources/contract-schema.md",
+      "destination": "resources/contract-schema.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 3012,
+      "sourceSha256": "73b55ad8def8b15f98094a8f539263b7c912d9c51c36c5cd17173d607455a973",
+      "destSize": 3012,
+      "destSha256": "73b55ad8def8b15f98094a8f539263b7c912d9c51c36c5cd17173d607455a973"
+    },
+    {
+      "source": "resources/cross-reference-guide.md",
+      "destination": "resources/cross-reference-guide.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 5794,
+      "sourceSha256": "d6b84795898ddffe90fa565e3e9ab04d0e7ed3f8e8d7e6274b67bf5cb2956104",
+      "destSize": 5794,
+      "destSha256": "d6b84795898ddffe90fa565e3e9ab04d0e7ed3f8e8d7e6274b67bf5cb2956104"
+    },
+    {
+      "source": "resources/domains/01-dan-su.md",
+      "destination": "resources/domains/01-dan-su.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 3675,
+      "sourceSha256": "e3c1f7878ddb87481f75dc9559f26e7e1235aeb2f52998594326ffa0c3e47d5c",
+      "destSize": 3675,
+      "destSha256": "e3c1f7878ddb87481f75dc9559f26e7e1235aeb2f52998594326ffa0c3e47d5c"
+    },
+    {
+      "source": "resources/domains/02-hinh-su-hanh-chinh.md",
+      "destination": "resources/domains/02-hinh-su-hanh-chinh.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 3404,
+      "sourceSha256": "0e993a102ac70549164e81e5d5264abad42743194b04222ae1f243226fb5cbc8",
+      "destSize": 3404,
+      "destSha256": "0e993a102ac70549164e81e5d5264abad42743194b04222ae1f243226fb5cbc8"
+    },
+    {
+      "source": "resources/domains/03-doanh-nghiep-lao-dong.md",
+      "destination": "resources/domains/03-doanh-nghiep-lao-dong.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 4138,
+      "sourceSha256": "530ec978a3dbfefaa51ba97e172405f040670cc5da30e8a25283fa3b5a354c00",
+      "destSize": 4138,
+      "destSha256": "530ec978a3dbfefaa51ba97e172405f040670cc5da30e8a25283fa3b5a354c00"
+    },
+    {
+      "source": "resources/domains/04-dat-dai-xay-dung.md",
+      "destination": "resources/domains/04-dat-dai-xay-dung.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 4627,
+      "sourceSha256": "efb8ad1c3ad954aa1ce882a6201e9a4ee215a047e6c7e4660ef1343f84851960",
+      "destSize": 4627,
+      "destSha256": "efb8ad1c3ad954aa1ce882a6201e9a4ee215a047e6c7e4660ef1343f84851960"
+    },
+    {
+      "source": "resources/domains/05-thue-tai-chinh.md",
+      "destination": "resources/domains/05-thue-tai-chinh.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 4227,
+      "sourceSha256": "6cc35ee9271be116d6f875dbd2a0f99ab986b91ebce8edbfeff4c1563ba0ee19",
+      "destSize": 4227,
+      "destSha256": "6cc35ee9271be116d6f875dbd2a0f99ab986b91ebce8edbfeff4c1563ba0ee19"
+    },
+    {
+      "source": "resources/domains/06-chuyen-nganh-khac.md",
+      "destination": "resources/domains/06-chuyen-nganh-khac.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 2849,
+      "sourceSha256": "f8e7ce50c17efe2ac3851366761e90088c2f3b8b5b7dce193a2097142a1fc7ca",
+      "destSize": 2849,
+      "destSha256": "f8e7ce50c17efe2ac3851366761e90088c2f3b8b5b7dce193a2097142a1fc7ca"
+    },
+    {
+      "source": "resources/domains/07-hop-dong-catalog.md",
+      "destination": "resources/domains/07-hop-dong-catalog.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 5125,
+      "sourceSha256": "03c36cc019a1c7819801f2b1efa981f6d5d2f8a4a32ebc5e2ac29bd2c7a576a6",
+      "destSize": 5125,
+      "destSha256": "03c36cc019a1c7819801f2b1efa981f6d5d2f8a4a32ebc5e2ac29bd2c7a576a6"
+    },
+    {
+      "source": "resources/legal-system.md",
+      "destination": "resources/legal-system.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 5107,
+      "sourceSha256": "e9641d16b7ccde5aaa0dd43c56db2146850f99507faacf733b4b968f8426e5b5",
+      "destSize": 5107,
+      "destSha256": "e9641d16b7ccde5aaa0dd43c56db2146850f99507faacf733b4b968f8426e5b5"
+    },
+    {
+      "source": "resources/lint-rules.md",
+      "destination": "resources/lint-rules.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 5250,
+      "sourceSha256": "a5e0ca02345083a89dc8fab8140808b3e729af6429f9057441b7bfa34aba156f",
+      "destSize": 5250,
+      "destSha256": "a5e0ca02345083a89dc8fab8140808b3e729af6429f9057441b7bfa34aba156f"
+    },
+    {
+      "source": "resources/monitored-laws.json",
+      "destination": "resources/monitored-laws.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 5123,
+      "sourceSha256": "a3e0ed0c26bf42622eee2d63729e773945a19c371560b1701fa2211f9efcf540",
+      "destSize": 5123,
+      "destSha256": "a3e0ed0c26bf42622eee2d63729e773945a19c371560b1701fa2211f9efcf540"
+    },
+    {
+      "source": "resources/nd30-format-standard.md",
+      "destination": "resources/nd30-format-standard.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 6463,
+      "sourceSha256": "d4bcd37dfc9c40ee29263fe0b6d723a75ddefac14e0a29ee84300acc22abc263",
+      "destSize": 6463,
+      "destSha256": "d4bcd37dfc9c40ee29263fe0b6d723a75ddefac14e0a29ee84300acc22abc263"
+    },
+    {
+      "source": "resources/precedents-catalog.json",
+      "destination": "resources/precedents-catalog.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 8384,
+      "sourceSha256": "e3a6a7b6426850a24115210ddc32d3438c9a4762d9f45087011a338531e2c30f",
+      "destSize": 8384,
+      "destSha256": "e3a6a7b6426850a24115210ddc32d3438c9a4762d9f45087011a338531e2c30f"
+    },
+    {
+      "source": "resources/search-sources.md",
+      "destination": "resources/search-sources.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 4881,
+      "sourceSha256": "556254301820b3da2dd0abc181a450540e340dc5ad0d06d8b5110e637c3828a7",
+      "destSize": 4881,
+      "destSha256": "556254301820b3da2dd0abc181a450540e340dc5ad0d06d8b5110e637c3828a7"
+    },
+    {
+      "source": "scripts/contract_builder.py",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Python build script, runs standalone",
+      "sourceSize": 22281,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "scripts/dashboard.py",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Python dashboard script, runs standalone",
+      "sourceSize": 17796,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "scripts/generate_cong_van.js",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Node.js generator script, runs standalone",
+      "sourceSize": 13603,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "scripts/generate_quyet_dinh.js",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Node.js generator script, runs standalone",
+      "sourceSize": 13942,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "scripts/law_updater.py",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Python law update script, runs standalone",
+      "sourceSize": 8540,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "scripts/sot_validator.py",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Python SOT validation script, runs standalone",
+      "sourceSize": 6197,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "SKILL.md",
+      "destination": "SKILL.md",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 17559,
+      "sourceSha256": "75a00a2b7c78566358d85e88b0bd1157f4101f96373ec3f872e9df165123e4dd",
+      "destSize": 17559,
+      "destSha256": "75a00a2b7c78566358d85e88b0bd1157f4101f96373ec3f872e9df165123e4dd"
+    },
+    {
+      "source": "SKILL_ND30.md",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "ND30-specific skill doc, merged into main SKILL.md",
+      "sourceSize": 5202,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    },
+    {
+      "source": "templates/contracts/hop-dong-bao-lanh.json",
+      "destination": "templates/contracts/hop-dong-bao-lanh.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 7470,
+      "sourceSha256": "00db765b9ddb89fa169ec24a02b4b75926f55c3c6c96fd016f5a6c0c3f4f1140",
+      "destSize": 7470,
+      "destSha256": "00db765b9ddb89fa169ec24a02b4b75926f55c3c6c96fd016f5a6c0c3f4f1140"
+    },
+    {
+      "source": "templates/contracts/hop-dong-chuyen-nhuong-dat-dai.json",
+      "destination": "templates/contracts/hop-dong-chuyen-nhuong-dat-dai.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 8190,
+      "sourceSha256": "3b988604062a7721f983bec4180b102eec5f0c8cce56c88f74b2bdbe20ac96c8",
+      "destSize": 8190,
+      "destSha256": "3b988604062a7721f983bec4180b102eec5f0c8cce56c88f74b2bdbe20ac96c8"
+    },
+    {
+      "source": "templates/contracts/hop-dong-ctv.json",
+      "destination": "templates/contracts/hop-dong-ctv.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 28567,
+      "sourceSha256": "066e6123dc9013f4f8c1fb994aaed59c270a6c849463429b716d7d0bbb4e07e6",
+      "destSize": 28567,
+      "destSha256": "066e6123dc9013f4f8c1fb994aaed59c270a6c849463429b716d7d0bbb4e07e6"
+    },
+    {
+      "source": "templates/contracts/hop-dong-dai-ly.json",
+      "destination": "templates/contracts/hop-dong-dai-ly.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 6806,
+      "sourceSha256": "dd17253d81d1a7978f929d7f832a7cd7a6207b480786101a28d21f6ac0ee431c",
+      "destSize": 6806,
+      "destSha256": "dd17253d81d1a7978f929d7f832a7cd7a6207b480786101a28d21f6ac0ee431c"
+    },
+    {
+      "source": "templates/contracts/hop-dong-dat-coc.json",
+      "destination": "templates/contracts/hop-dong-dat-coc.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 31907,
+      "sourceSha256": "a24f00a611051763730fa09bdf696889a7d3920aa35e370eae8880a26c4ffdec",
+      "destSize": 31907,
+      "destSha256": "a24f00a611051763730fa09bdf696889a7d3920aa35e370eae8880a26c4ffdec"
+    },
+    {
+      "source": "templates/contracts/hop-dong-dich-vu.json",
+      "destination": "templates/contracts/hop-dong-dich-vu.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 28906,
+      "sourceSha256": "12260f731342e293d76e1171a414534dc135c6689745d9c7e286f69b9e91c63b",
+      "destSize": 28906,
+      "destSha256": "12260f731342e293d76e1171a414534dc135c6689745d9c7e286f69b9e91c63b"
+    },
+    {
+      "source": "templates/contracts/hop-dong-gia-cong.json",
+      "destination": "templates/contracts/hop-dong-gia-cong.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 6995,
+      "sourceSha256": "cf0ddbcaed278646b1bf9b7ddecdc109bbd448041b805082dd42de60bced40ae",
+      "destSize": 6995,
+      "destSha256": "cf0ddbcaed278646b1bf9b7ddecdc109bbd448041b805082dd42de60bced40ae"
+    },
+    {
+      "source": "templates/contracts/hop-dong-gop-von.json",
+      "destination": "templates/contracts/hop-dong-gop-von.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 6732,
+      "sourceSha256": "b4e3f0c405d5247433aa4d22c01db54dd56b63a70133755d9c7b16bd921edb23",
+      "destSize": 6732,
+      "destSha256": "b4e3f0c405d5247433aa4d22c01db54dd56b63a70133755d9c7b16bd921edb23"
+    },
+    {
+      "source": "templates/contracts/hop-dong-hop-tac-kinh-doanh.json",
+      "destination": "templates/contracts/hop-dong-hop-tac-kinh-doanh.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 6800,
+      "sourceSha256": "ffe78fbd9925d735c163e1b104b6edbd53bd4d3619f3f60686ce92155c08d13e",
+      "destSize": 6800,
+      "destSha256": "ffe78fbd9925d735c163e1b104b6edbd53bd4d3619f3f60686ce92155c08d13e"
+    },
+    {
+      "source": "templates/contracts/hop-dong-lao-dong.json",
+      "destination": "templates/contracts/hop-dong-lao-dong.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 28871,
+      "sourceSha256": "7c2faac419eaacd6e1e8540e3a02d237dfcec460c3a7ba3f6c90dbdce2216a93",
+      "destSize": 28871,
+      "destSha256": "7c2faac419eaacd6e1e8540e3a02d237dfcec460c3a7ba3f6c90dbdce2216a93"
+    },
+    {
+      "source": "templates/contracts/hop-dong-nguyen-tac.json",
+      "destination": "templates/contracts/hop-dong-nguyen-tac.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 36920,
+      "sourceSha256": "a82cb072e31e473e9e7a2915b43619962daa9c8aa04e36d091fe7114e3f30617",
+      "destSize": 36920,
+      "destSha256": "a82cb072e31e473e9e7a2915b43619962daa9c8aa04e36d091fe7114e3f30617"
+    },
+    {
+      "source": "templates/contracts/hop-dong-tang-cho.json",
+      "destination": "templates/contracts/hop-dong-tang-cho.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 6115,
+      "sourceSha256": "9f1a06bc568b4e2dc4b9c194592031e33c4be5c54c35daddb1c603a216a82bd6",
+      "destSize": 6115,
+      "destSha256": "9f1a06bc568b4e2dc4b9c194592031e33c4be5c54c35daddb1c603a216a82bd6"
+    },
+    {
+      "source": "templates/contracts/hop-dong-thiet-ke-phan-mem.json",
+      "destination": "templates/contracts/hop-dong-thiet-ke-phan-mem.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 7598,
+      "sourceSha256": "7bdbed54a5b160d693c33e5559667b2e0da2012946faa614014db5e69e268f5a",
+      "destSize": 7598,
+      "destSha256": "7bdbed54a5b160d693c33e5559667b2e0da2012946faa614014db5e69e268f5a"
+    },
+    {
+      "source": "templates/contracts/hop-dong-thue-nha.json",
+      "destination": "templates/contracts/hop-dong-thue-nha.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 28128,
+      "sourceSha256": "249a96a3e994a8fb9454d0b56b6dfd4e1faa49690c249d1fd5cc83ac350c2173",
+      "destSize": 28128,
+      "destSha256": "249a96a3e994a8fb9454d0b56b6dfd4e1faa49690c249d1fd5cc83ac350c2173"
+    },
+    {
+      "source": "templates/contracts/hop-dong-thue-van-phong.json",
+      "destination": "templates/contracts/hop-dong-thue-van-phong.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 7170,
+      "sourceSha256": "be95ff8a28dabe05478b4e08d79baf71b9f0abc7d470da6e13fbdf2e0cc35066",
+      "destSize": 7170,
+      "destSha256": "be95ff8a28dabe05478b4e08d79baf71b9f0abc7d470da6e13fbdf2e0cc35066"
+    },
+    {
+      "source": "templates/contracts/hop-dong-vay-tien.json",
+      "destination": "templates/contracts/hop-dong-vay-tien.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 29260,
+      "sourceSha256": "0fdac1faf4915511933d671acc8b8a3d39a0f422b317037fce8c3ba87395a8e5",
+      "destSize": 29260,
+      "destSha256": "0fdac1faf4915511933d671acc8b8a3d39a0f422b317037fce8c3ba87395a8e5"
+    },
+    {
+      "source": "templates/contracts/mua-ban-hh.json",
+      "destination": "templates/contracts/mua-ban-hh.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 35783,
+      "sourceSha256": "7bc5aacc59786a5eab8134c8e219fbf62fb0c5deb932a2ac2321e9e86043b776",
+      "destSize": 35783,
+      "destSha256": "7bc5aacc59786a5eab8134c8e219fbf62fb0c5deb932a2ac2321e9e86043b776"
+    },
+    {
+      "source": "templates/contracts/nda.json",
+      "destination": "templates/contracts/nda.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 29396,
+      "sourceSha256": "6070bea61df1325e047ee0def1be94f8fa21e66cbd8518e91ad841d5556c8fe4",
+      "destSize": 29396,
+      "destSha256": "6070bea61df1325e047ee0def1be94f8fa21e66cbd8518e91ad841d5556c8fe4"
+    },
+    {
+      "source": "templates/contracts/thoa-thuan-co-dong.json",
+      "destination": "templates/contracts/thoa-thuan-co-dong.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 6440,
+      "sourceSha256": "2f4b8c4527865d95f35859c5dcfb16cfa424f1256457f343c84d5906d422cdaf",
+      "destSize": 6440,
+      "destSha256": "2f4b8c4527865d95f35859c5dcfb16cfa424f1256457f343c84d5906d422cdaf"
+    },
+    {
+      "source": "templates/contracts/uy-quyen.json",
+      "destination": "templates/contracts/uy-quyen.json",
+      "status": "COPIED",
+      "reason": null,
+      "sourceSize": 23587,
+      "sourceSha256": "cbb6e40b2accc3d9d9a585910461964c76e269037bc2e41e440f6df3ee15d360",
+      "destSize": 23587,
+      "destSha256": "cbb6e40b2accc3d9d9a585910461964c76e269037bc2e41e440f6df3ee15d360"
+    },
+    {
+      "source": "templates/engine/index.html",
+      "destination": null,
+      "status": "EXCLUDED_BY_POLICY",
+      "reason": "Template engine HTML (416KB), deployed separately, not bundled in skill/",
+      "sourceSize": 416803,
+      "sourceSha256": null,
+      "destSize": null,
+      "destSha256": null
+    }
+  ]
 }

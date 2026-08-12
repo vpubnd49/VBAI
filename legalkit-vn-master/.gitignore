@@ -1,0 +1,29 @@
+# Output files (hợp đồng đã render, báo cáo kiểm tra VB)
+output/
+
+# Research folders tạo ra khi chạy Mode A
+legal_research_*/
+
+# Node modules
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Scratch / temp
+scratch/
+*.tmp
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,12 @@
+{
+  "name": "skill-the-thuc-vb-nd30",
+  "version": "1.0.0",
+  "description": "Sinh file .docx van ban hanh chinh chuan Nghi dinh 30/2020/ND-CP",
+  "scripts": {
+    "cong-van": "node scripts/generate_cong_van.js",
+    "quyet-dinh": "node scripts/generate_quyet_dinh.js"
+  },
+  "dependencies": {
+    "docx": "^9.0.0"
+  }
+}

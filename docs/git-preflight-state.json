@@ -1,0 +1,14 @@
+{
+    "product":  "VBAI Legal Pro V2",
+    "repository":  "https://github.com/vpubnd49/VBAI",
+    "targetSha":  "4bf438218174cf794b39e37fb667c8e2a075e122",
+    "targetBranch":  "refactor/gemini-only-light-ui-v1",
+    "targetRef":  "refs/heads/refactor/gemini-only-light-ui-v1",
+    "observedHead":  "4bf438218174cf794b39e37fb667c8e2a075e122",
+    "observedBranch":  "refactor/gemini-only-light-ui-v1",
+    "dirty":  true,
+    "generatedAt":  "2026-08-10T11:20:39.6377662Z",
+    "deployExecuted":  false,
+    "pushExecuted":  false,
+    "commitExecuted":  false
+}
