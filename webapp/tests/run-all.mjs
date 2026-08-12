@@ -44,8 +44,8 @@ for (const file of discoveredFiles) {
   const isRouteSmoke = file === 'route-smoke.test.mjs';
   const isRenderedAudit = file === 'ui-rendered-audit.test.mjs';
 
-  const args = (isRouteSmoke && fs.existsSync(loaderPath))
-    ? ['--loader', loaderUrl, filePath]
+  const args = fs.existsSync(loaderPath)
+    ? ['--experimental-loader', loaderUrl, filePath]
     : [filePath];
 
   executedCount++;
@@ -72,9 +72,10 @@ if (renderedExitCode === 0) {
     console.error(`UI_ARTIFACT_PATH_NOT_FOUND=${resultJsonPath}`);
     failedCount++;
   } else {
-    executedCount++;
-    console.log('\n--- Running Artifact Contract Validation ---');
-    const contractRes = spawnSync(process.execPath, [contractFilePath, resultJsonPath], { stdio: 'inherit', cwd: webappDir, env });
+    const contractArgs = fs.existsSync(loaderPath)
+      ? ['--experimental-loader', loaderUrl, contractFilePath, resultJsonPath]
+      : [contractFilePath, resultJsonPath];
+    const contractRes = spawnSync(process.execPath, contractArgs, { stdio: 'inherit', cwd: webappDir, env });
     contractExitCode = contractRes.status;
     console.log(`ARTIFACT_CONTRACT_EXIT=${contractExitCode}`);
 
