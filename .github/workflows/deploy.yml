@@ -179,6 +179,10 @@ jobs:
     name: Build immutable images
     needs: validate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     outputs:
       proxy_digest: ${{ steps.images.outputs.proxy_digest }}
       webapp_digest: ${{ steps.images.outputs.webapp_digest }}
@@ -194,6 +198,7 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_BUILD_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY || secrets.GCP_CREDENTIALS || secrets.GCP_SERVICE_ACCOUNT_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
       - uses: google-github-actions/setup-gcloud@v3
@@ -281,19 +286,23 @@ jobs:
     name: Candidate deploy and exact promotion
     needs: [validate, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     environment: production
     outputs:
       deployment_artifact: deployment-state-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_sha }}
+          ref: ${{ inputs.release_sha || github.sha }}
 
       - name: Authenticate deployer with Workload Identity Federation
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY || secrets.GCP_CREDENTIALS || secrets.GCP_SERVICE_ACCOUNT_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
       - uses: google-github-actions/setup-gcloud@v3
