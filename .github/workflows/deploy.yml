@@ -49,10 +49,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: |
-            proxy/package-lock.json
-            webapp/package-lock.json
 
       - name: Validate immutable release identity
         id: identity
@@ -75,7 +71,7 @@ jobs:
           git reset --hard HEAD
           git clean -fd
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-          SOURCE_HASH=$(node -e "import('./webapp/vite.config.js').then(m=>console.log(m.computeSourceTreeHash()))")
+          SOURCE_HASH=$(node --input-type=module -e "const { computeSourceTreeHash } = await import('./webapp/vite.config.js'); console.log(computeSourceTreeHash());")
           [[ "$SOURCE_HASH" =~ ^[0-9a-f]{64}$ ]]
           echo "source_tree_hash=$SOURCE_HASH" >> "$GITHUB_OUTPUT"
 
