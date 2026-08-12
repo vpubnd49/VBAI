@@ -1,7 +1,16 @@
-<svg width="180" height="40" viewBox="0 0 180 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="36" height="36" rx="8" fill="#00778B"/>
-  <path d="M18 10V26M18 14L11 18M18 14L25 18M11 18C11 20 13 21 15 21C17 21 18 20 18 18M25 18C25 20 23 21 21 21C19 21 18 20 18 18M13 26H23" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="44" y="22" font-family="Inter, sans-serif" font-size="16" font-weight="700" fill="#0F172A">VBAI Legal</text>
-  <text x="135" y="22" font-family="Inter, sans-serif" font-size="14" font-weight="800" fill="#00778B">PRO</text>
-  <text x="44" y="32" font-family="Inter, sans-serif" font-size="9" font-weight="500" fill="#64748B">Nền tảng Pháp lý AI Việt Nam</text>
+<svg width="210" height="40" viewBox="0 0 210 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logo-grad" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00778B" />
+      <stop offset="100%" stop-color="#00A6B8" />
+    </linearGradient>
+  </defs>
+  <!-- Icon Emblem -->
+  <rect width="36" height="36" rx="10" fill="url(#logo-grad)" />
+  <path d="M18 9V27M18 13L10 17M18 13L26 17M10 17C10 19.5 12.5 20.5 14.5 20.5C16.5 20.5 18 19.5 18 17M26 17C26 19.5 23.5 20.5 21.5 20.5C19.5 20.5 18 19.5 18 17M12 27H24" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M28 8L29 11L32 12L29 13L28 16L27 13L24 12L27 11L28 8Z" fill="#E7F7F9"/>
+
+  <!-- Typography -->
+  <text x="46" y="21" font-family="'Inter', sans-serif" font-size="16" font-weight="800" fill="#0F172A">VBAI Legal <tspan fill="#00778B">PRO</tspan></text>
+  <text x="46" y="32" font-family="'Inter', sans-serif" font-size="9" font-weight="600" fill="#64748B" letter-spacing="0.2">Nền tảng Pháp lý AI Việt Nam</text>
 </svg>

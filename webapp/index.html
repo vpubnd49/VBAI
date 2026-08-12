@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -19,10 +19,8 @@
     <!-- Sidebar Navigation -->
     <nav id="sidebar" class="sidebar collapsed">
       <div class="sidebar-header">
-        <div class="logo" id="logo-refresh" style="cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-          <div class="logo-icon">
-            <img src="/legal-pro-logo.svg" alt="Logo VBAI Legal Pro" style="height: 32px; object-fit: contain;">
-          </div>
+        <div class="logo" id="logo-refresh" style="cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+          <img src="/legal-pro-logo.svg" alt="VBAI Legal Pro V2" style="height: 36px; width: auto; max-width: 100%; object-fit: contain;">
         </div>
       </div>
 
@@ -37,6 +35,13 @@
             <rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
           </svg>
           <span>Tổng quan</span>
+        </button>
+
+        <button class="nav-item" data-page="chat-assistant" id="nav-chat-assistant">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Trợ lý Chat AI</span>
         </button>
 
         <!-- SECTION II: TRA CỨU PHÁP LUẬT -->
