@@ -142,30 +142,7 @@
     "original_filename": "621341.pdf",
     "num_pages": 28
   },
-  "72_2025_QH15.pdf": {
-    "so_hieu": "72/2025/QH15",
-    "loai_van_ban": "luat",
-    "co_quan_ban_hanh": "Quốc hội",
-    "ngay_ban_hanh": "16/06/2025",
-    "ngay_hieu_luc": "16/06/2025",
-    "tinh_trang_hieu_luc": "co_hieu_luc",
-    "trich_yeu": "Luật Tổ chức chính quyền địa phương",
-    "thay_the_cho": [
-      "65/2025/QH15"
-    ],
-    "tom_tat_chinh_sach": "Tổ chức đơn vị hành chính thành 02 cấp gồm cấp tỉnh và cấp xã; quy định tổ chức, nhiệm vụ, quyền hạn của Hội đồng nhân dân, Ủy ban nhân dân, phân quyền, phân cấp và điều khoản chuyển tiếp.",
-    "original_filename": "72_2025_QH15.pdf",
-    "num_pages": 0,
-    "tom_tat_chuong_dieu": "",
-    "summary_verified": false,
-    "official_source_urls": [
-      "https://vanban.chinhphu.vn/?classid=1&docid=214553&pageid=27160&typegroupid=3",
-      "https://xaydungchinhsach.chinhphu.vn/toan-van-luat-so-72-2025-qh15-to-chuc-chinh-quyen-dia-phuong-119250618161434371.htm"
-    ],
-    "verified": true,
-    "verified_at": "2026-08-12T00:00:00+07:00",
-    "verification_basis": "Cổng TTĐT Chính phủ; Điều 1 và Điều 51 Luật 72/2025/QH15"
-  },
+
   "621345.pdf": {
     "so_hieu": "73/2025/QH15",
     "loai_van_ban": "luat",
