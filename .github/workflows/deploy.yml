@@ -135,19 +135,32 @@ jobs:
 
       - name: Execute master 25 gates
         id: gates
-        env:
-          VBAI_EXPECTED_HEAD: ${{ inputs.release_sha || github.sha }}
-          VBAI_EXPECTED_BRANCH: main
         shell: bash
         run: |
           set -euo pipefail
+          EXPECTED_HEAD="${{ inputs.release_sha }}"
+          if [ -z "$EXPECTED_HEAD" ] || [ "$EXPECTED_HEAD" = "undefined" ]; then
+            EXPECTED_HEAD=$(git rev-parse HEAD)
+          fi
+          export VBAI_EXPECTED_HEAD="$EXPECTED_HEAD"
+          export VBAI_EXPECTED_BRANCH="main"
           node run-all-gates-v4.cjs
           GATE_FILE=$(find "$GITHUB_WORKSPACE/.." -path '*/VBAI-audit-artifacts/master-25-*/master-gate-results.json' -type f -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)
           test -n "$GATE_FILE"
-          node - "$GATE_FILE" "${{ inputs.release_sha || github.sha }}" <<'NODE'
+          node - "$GATE_FILE" "$EXPECTED_HEAD" <<'NODE'
           const fs = require('fs');
           const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-          if (data.totalGates !== 25 || data.passed !== 25 || data.failed !== 0 || data.blocked !== 0 || data.head !== process.argv[3]) process.exit(1);
+          if (data.totalGates !== 25 || data.passed !== 25 || data.failed !== 0 || data.blocked !== 0 || data.head !== process.argv[3]) {
+            console.error('Master gates assertion failed:', JSON.stringify({
+              totalGates: data.totalGates,
+              passed: data.passed,
+              failed: data.failed,
+              blocked: data.blocked,
+              dataHead: data.head,
+              expectedHead: process.argv[3]
+            }, null, 2));
+            process.exit(1);
+          }
           NODE
           ARTIFACT_NAME="master-gates-${{ github.run_id }}"
           echo "artifact_name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
