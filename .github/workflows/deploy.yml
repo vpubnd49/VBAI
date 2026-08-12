@@ -50,6 +50,13 @@ jobs:
         with:
           node-version: 24
 
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --prefix proxy ci
+          npm --prefix webapp ci
+
       - name: Validate immutable release identity
         id: identity
         shell: bash
@@ -74,13 +81,6 @@ jobs:
           SOURCE_HASH=$(node --input-type=module -e "const { computeSourceTreeHash } = await import('./webapp/vite.config.js'); console.log(computeSourceTreeHash());")
           [[ "$SOURCE_HASH" =~ ^[0-9a-f]{64}$ ]]
           echo "source_tree_hash=$SOURCE_HASH" >> "$GITHUB_OUTPUT"
-
-      - name: Install locked dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm --prefix proxy ci
-          npm --prefix webapp ci
 
       - name: Install locked Playwright Chromium runtime
         working-directory: webapp
