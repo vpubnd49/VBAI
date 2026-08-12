@@ -199,7 +199,6 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_BUILD_SERVICE_ACCOUNT }}
-          credentials_json: ${{ secrets.GCP_SA_KEY || secrets.GCP_CREDENTIALS || secrets.GCP_SERVICE_ACCOUNT_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
       - uses: google-github-actions/setup-gcloud@v3
@@ -303,7 +302,6 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
-          credentials_json: ${{ secrets.GCP_SA_KEY || secrets.GCP_CREDENTIALS || secrets.GCP_SERVICE_ACCOUNT_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
       - uses: google-github-actions/setup-gcloud@v3
