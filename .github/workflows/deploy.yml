@@ -145,10 +145,8 @@ jobs:
           export VBAI_EXPECTED_HEAD="$EXPECTED_HEAD"
           export VBAI_EXPECTED_BRANCH="main"
           node run-all-gates-v4.cjs
-          GATE_FILE=$(find "$GITHUB_WORKSPACE/.." -name "master-gate-results.json" -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -1 | cut -d' ' -f2-)
-          if [ -z "$GATE_FILE" ]; then
-            GATE_FILE=$(find "$GITHUB_WORKSPACE" -name "master-gate-results.json" -type f 2>/dev/null | head -1)
-          fi
+          SEARCH_ROOT=$(cd "$GITHUB_WORKSPACE/.." && pwd)
+          GATE_FILE=$(find "$SEARCH_ROOT" -name "master-gate-results.json" -type f 2>/dev/null | head -1)
           test -n "$GATE_FILE"
           node - "$GATE_FILE" "$EXPECTED_HEAD" <<'NODE'
           const fs = require('fs');
