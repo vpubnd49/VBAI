@@ -78,7 +78,7 @@ jobs:
           git reset --hard HEAD
           git clean -fd
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-          SOURCE_HASH=$(node --input-type=module -e "const { computeSourceTreeHash } = await import('./webapp/vite.config.js'); console.log(computeSourceTreeHash());")
+          SOURCE_HASH=$(node --input-type=module -e "const m = await import('./webapp/vite.config.js'); const fn = m.computeSourceTreeHash || (typeof m.default === 'object' && m.default ? m.default.computeSourceTreeHash : null); console.log(typeof fn === 'function' ? fn() : '');")
           [[ "$SOURCE_HASH" =~ ^[0-9a-f]{64}$ ]]
           echo "source_tree_hash=$SOURCE_HASH" >> "$GITHUB_OUTPUT"
 
