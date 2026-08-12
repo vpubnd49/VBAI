@@ -197,8 +197,8 @@ jobs:
       - name: Authenticate build identity with Workload Identity Federation
         uses: google-github-actions/auth@v3
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_BUILD_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/419728335518/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider' }}
+          service_account: ${{ secrets.GCP_BUILD_SERVICE_ACCOUNT || 'vbai-build-sa@gen-lang-client-0462350485.iam.gserviceaccount.com' }}
           project_id: ${{ env.PROJECT_ID }}
 
       - uses: google-github-actions/setup-gcloud@v3
@@ -300,8 +300,8 @@ jobs:
       - name: Authenticate deployer with Workload Identity Federation
         uses: google-github-actions/auth@v3
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/419728335518/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider' }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT || 'vbai-deploy-sa@gen-lang-client-0462350485.iam.gserviceaccount.com' }}
           project_id: ${{ env.PROJECT_ID }}
 
       - uses: google-github-actions/setup-gcloud@v3
