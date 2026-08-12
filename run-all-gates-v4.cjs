@@ -42,12 +42,25 @@ if (!fs.existsSync(AUDIT_DIR)) fs.mkdirSync(AUDIT_DIR, { recursive: true });
 if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR, { recursive: true });
 
 function resolveNpmCli() {
+  const nodeDir = path.dirname(process.execPath);
   const candidates = [
     process.env.npm_execpath,
-    path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+    path.join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    path.join(nodeDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    path.join(nodeDir, '..', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    '/usr/local/lib/node_modules/npm/bin/npm-cli.js',
+    '/usr/lib/node_modules/npm/bin/npm-cli.js',
   ].filter(Boolean);
 
-  const found = candidates.find(candidate => fs.existsSync(candidate));
+  let found = candidates.find(candidate => fs.existsSync(candidate));
+  if (!found) {
+    try {
+      const whichNpm = execSync(process.platform === 'win32' ? 'where npm' : 'which npm', { encoding: 'utf8' }).trim().split(/\r?\n/)[0];
+      if (whichNpm && fs.existsSync(whichNpm)) {
+        found = whichNpm;
+      }
+    } catch (_) {}
+  }
   if (!found) {
     throw new Error('NPM_CLI_NOT_FOUND: ' + candidates.join('; '));
   }
@@ -65,7 +78,10 @@ function getNpmCommand(args) {
   if (!npmCli) {
     return { command: null, args, blockedReason: 'NPM_CLI_NOT_FOUND: npm-cli.js path could not be resolved' };
   }
-  return { command: process.execPath, args: [npmCli, ...args], blockedReason: null };
+  if (npmCli.endsWith('.js')) {
+    return { command: process.execPath, args: [npmCli, ...args], blockedReason: null };
+  }
+  return { command: npmCli, args, blockedReason: null };
 }
 
 async function getFreePort() {
