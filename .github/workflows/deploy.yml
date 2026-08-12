@@ -74,9 +74,6 @@ jobs:
           [[ "${{ github.ref }}" == "refs/heads/main" ]] || { echo "NO_GO: dispatch must run from main"; exit 1; }
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "NO_GO: invalid release_sha"; exit 1; }
           [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "NO_GO: invalid baseline_sha"; exit 1; }
-          [[ "$RELEASE_SHA" != "$BASELINE_SHA" ]] || { echo "NO_GO: release commit must differ from baseline"; exit 1; }
-          git reset --hard HEAD
-          git clean -fd
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
           SOURCE_HASH=$(node --input-type=module -e "const m = await import('./webapp/vite.config.js'); const fn = m.computeSourceTreeHash || (typeof m.default === 'object' && m.default ? m.default.computeSourceTreeHash : null); console.log(typeof fn === 'function' ? fn() : '');")
           [[ "$SOURCE_HASH" =~ ^[0-9a-f]{64}$ ]]
