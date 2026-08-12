@@ -5,6 +5,7 @@
 const path = require('path');
 const fs = require('fs');
 const { normalizeDocumentNumber } = require('../domain/document-number');
+const { loadBosungMetadataIndex } = require('../repositories/bosung-metadata-index');
 
 let bosungCache = null;
 let knownDocsCache = null;
@@ -12,11 +13,10 @@ let knownDocsCache = null;
 function loadBosungData() {
   if (bosungCache) return bosungCache;
   try {
-    const raw = fs.readFileSync(path.join(__dirname, '../../bosung_metadata.json'), 'utf8');
-    bosungCache = JSON.parse(raw);
+    bosungCache = loadBosungMetadataIndex().records;
   } catch (e) {
     console.warn('[answer-validator] Failed to load bosung_metadata.json:', e.message);
-    bosungCache = {};
+    bosungCache = new Map();
   }
   return bosungCache;
 }
@@ -37,26 +37,31 @@ function findInBosungMetadata(docNumber = '') {
   if (!docNumber) return null;
   const target = normalizeDocumentNumber(docNumber);
   const bosung = loadBosungData();
-  for (const key of Object.keys(bosung)) {
-    const entry = bosung[key];
-    if (entry && normalizeDocumentNumber(entry.so_hieu) === target) {
+  const selected = bosung.get(target);
+  const entry = selected?.record;
+  if (entry) {
+      const sourceUrls = Array.isArray(entry.official_source_urls)
+        ? entry.official_source_urls
+        : (entry.link_nguon ? [entry.link_nguon] : []);
+      const verified = entry.verified === true && sourceUrls.length > 0 && Boolean(entry.verified_at);
       return {
         source: 'bosung_metadata',
-        sourceTier: 'official',
+        sourceTier: verified ? 'official' : 'local_metadata',
         documentNumber: entry.so_hieu,
         documentType: entry.loai_van_ban || '',
         title: entry.trich_yeu || '',
         issuer: entry.co_quan_ban_hanh || '',
         issueDate: entry.ngay_ban_hanh || null,
-        effectiveDate: entry.ngay_hieu_luc || null,
-        effectiveStatus: entry.tinh_trang_hieu_luc || 'co_hieu_luc',
-        replacements: entry.thay_the_cho || [],
-        summary: entry.tom_tat_chinh_sach || '',
-        chapterArticleSummary: entry.tom_tat_chuong_dieu || '',
-        verified: true,
-        verificationStatus: 'verified',
+        effectiveDate: verified ? (entry.ngay_hieu_luc || null) : null,
+        effectiveStatus: verified ? (entry.tinh_trang_hieu_luc || 'unknown') : 'unknown',
+        replacements: verified ? (entry.thay_the_cho || []) : [],
+        summary: verified && entry.summary_verified === true ? (entry.tom_tat_chinh_sach || '') : '',
+        chapterArticleSummary: verified && entry.summary_verified === true
+          ? (entry.tom_tat_chuong_dieu || '')
+          : '',
+        verified,
+        verificationStatus: verified ? 'verified' : 'identity_resolved',
       };
-    }
   }
   return null;
 }

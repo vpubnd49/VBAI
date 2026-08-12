@@ -1,14 +1,18 @@
 // Seed test search_logs, then delete all to test the loop
-const admin = require('firebase-admin');
 const path = require('path');
+const {
+  FieldValue,
+  getFirebaseFirestore,
+  initializeFirebaseApp,
+} = require('./services/firebase-admin.service');
 
 const saPath = path.join(__dirname, 'service-account.json');
-admin.initializeApp({
-  credential: admin.credential.cert(require(saPath)),
-  projectId: 'gen-lang-client-0462350485'
+initializeFirebaseApp({
+  serviceAccount: require(saPath),
+  projectId: 'gen-lang-client-0462350485',
 });
 
-const db = admin.firestore();
+const db = getFirebaseFirestore();
 
 async function main() {
   // Step 1: Seed 5 test documents
@@ -20,7 +24,7 @@ async function main() {
       userEmail: `test${i}@example.com`,
       query: `Test query ${i} - delete all test`,
       model: 'gemini-test',
-      timestamp: admin.firestore.FieldValue.serverTimestamp()
+      timestamp: FieldValue.serverTimestamp()
     });
   }
   await batch.commit();

@@ -1,36 +1,26 @@
 /**
  * Repository adapter for local metadata (bosung_metadata.json/jsonl) with provenance support.
  */
-const path = require('path');
-const fs = require('fs');
 const { normalizeDocumentNumber } = require('../domain/document-number');
+const { loadBosungMetadataIndex } = require('./bosung-metadata-index');
 
 let localMetadataCache = null;
 
 function loadLocalMetadataMap() {
   if (localMetadataCache) return localMetadataCache;
 
-  const map = new Map();
-  const jsonPath = path.join(__dirname, '..', '..', 'bosung_metadata.json');
-
   try {
-    if (fs.existsSync(jsonPath)) {
-      const raw = fs.readFileSync(jsonPath, 'utf8');
-      const parsed = JSON.parse(raw);
-      for (const key of Object.keys(parsed)) {
-        const item = parsed[key];
-        if (item && item.so_hieu) {
-          const normKey = normalizeDocumentNumber(item.so_hieu);
-          map.set(normKey, item);
-        }
-      }
+    const index = loadBosungMetadataIndex();
+    const map = new Map();
+    for (const [documentNumber, selected] of index.records) {
+      map.set(documentNumber, selected.record);
     }
+    localMetadataCache = map;
   } catch (e) {
     console.warn('[local-metadata.repository] Could not load bosung_metadata.json:', e.message);
+    localMetadataCache = new Map();
   }
-
-  localMetadataCache = map;
-  return map;
+  return localMetadataCache;
 }
 
 function getLocalMetadataByDocumentNumber(docNumber = '') {
@@ -40,8 +30,12 @@ function getLocalMetadataByDocumentNumber(docNumber = '') {
   const raw = map.get(normKey);
   if (!raw) return null;
 
-  const effectiveStatus = raw.tinh_trang_hieu_luc || 'unknown';
-  const verificationStatus = raw.verified ? 'verified' : 'unverified';
+  const officialSourceUrls = Array.isArray(raw.official_source_urls)
+    ? raw.official_source_urls
+    : (raw.link_nguon ? [raw.link_nguon] : []);
+  const verified = raw.verified === true && officialSourceUrls.length > 0 && Boolean(raw.verified_at);
+  const effectiveStatus = verified ? (raw.tinh_trang_hieu_luc || 'unknown') : 'unknown';
+  const verificationStatus = verified ? 'verified' : 'unverified';
 
   return {
     documentNumber: normKey,
@@ -49,21 +43,31 @@ function getLocalMetadataByDocumentNumber(docNumber = '') {
     documentType: raw.loai_van_ban || null,
     issuer: raw.co_quan_ban_hanh || null,
     issueDate: raw.ngay_ban_hanh || null,
-    effectiveDate: raw.ngay_hieu_luc || null,
+    effectiveDate: verified ? (raw.ngay_hieu_luc || null) : null,
     effectiveStatus,
-    statusAsOf: raw.ngay_cap_nhat || null,
-    replaces: Array.isArray(raw.thay_the_cho) ? raw.thay_the_cho : (raw.thay_the_cho ? [raw.thay_the_cho] : []),
-    amends: Array.isArray(raw.sua_doi_cho) ? raw.sua_doi_cho : [],
-    supersededBy: Array.isArray(raw.bi_thay_the_boi) ? raw.bi_thay_the_boi : [],
-    sourceUrl: raw.link_nguon || null,
-    sourceTier: 'local_metadata',
+    statusAsOf: verified ? (raw.ngay_cap_nhat || raw.verified_at || null) : null,
+    replaces: verified && Array.isArray(raw.thay_the_cho) ? raw.thay_the_cho : [],
+    amends: verified && Array.isArray(raw.sua_doi_cho) ? raw.sua_doi_cho : [],
+    supersededBy: verified && Array.isArray(raw.bi_thay_the_boi) ? raw.bi_thay_the_boi : [],
+    sourceUrl: verified ? officialSourceUrls[0] : null,
+    sourceTier: verified ? 'official' : 'local_metadata',
     retrievedAt: raw.retrieved_at || null,
     contentSha256: raw.content_hash || null,
     verificationStatus,
-    reviewState: 'reviewed',
+    reviewState: verified ? 'source_verified' : 'pending_review',
     provenance: {
-      documentNumber: { field: 'documentNumber', value: normKey, sourceTier: 'local_metadata', confidence: 0.95 },
-      effectiveStatus: { field: 'effectiveStatus', value: effectiveStatus, sourceTier: 'local_metadata', confidence: 0.8 },
+      documentNumber: {
+        field: 'documentNumber',
+        value: normKey,
+        sourceTier: verified ? 'official' : 'local_metadata',
+        confidence: verified ? 1 : 0.7,
+      },
+      effectiveStatus: {
+        field: 'effectiveStatus',
+        value: effectiveStatus,
+        sourceTier: verified ? 'official' : 'local_metadata',
+        confidence: verified ? 1 : 0,
+      },
     },
   };
 }

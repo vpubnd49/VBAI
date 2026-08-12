@@ -10,6 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { parseBosungMetadata } = require('../legal/repositories/bosung-metadata-index');
 
 let passed = 0;
 let failed = 0;
@@ -57,8 +58,8 @@ try {
 }
 
 try {
-  bosungData = JSON.parse(fs.readFileSync(bosungPath, 'utf8'));
-  assert(true, 'bosung_metadata.json is valid JSON');
+  bosungData = parseBosungMetadata(fs.readFileSync(bosungPath, 'utf8'));
+  assert(true, 'bosung_metadata.json is valid JSON with unique top-level source keys');
 } catch (e) {
   assert(false, `bosung_metadata.json is valid JSON: ${e.message}`);
 }
@@ -161,23 +162,16 @@ assert(verificationViolations === 0, 'No documents marked "verified" without evi
 // ─────────────────────────────────────────────────────────────────
 console.log('\n--- 4. Bosung Metadata Integrity ---');
 
-const bosungByDocNum = {};
-let bosungDuplicates = 0;
-for (const key of Object.keys(bosungData)) {
-  const entry = bosungData[key];
-  if (!entry || !entry.so_hieu) continue;
-  const normalized = String(entry.so_hieu).trim().toUpperCase();
-  if (!normalized) continue;
-  if (bosungByDocNum[normalized]) {
-    bosungDuplicates++;
-    console.warn(`    WARN: bosung_metadata.json has duplicate so_hieu '${entry.so_hieu}' (keys: ${bosungByDocNum[normalized]} vs ${key})`);
-  } else {
-    bosungByDocNum[normalized] = key;
-  }
-}
-
-// Warn (not fail) on bosung duplicates since it's authoritative data
-assertWarn(bosungDuplicates === 0, `bosung_metadata.json has no duplicate so_hieu values (found ${bosungDuplicates} duplicates)`);
+const { loadBosungMetadataIndex } = require('../legal/repositories/bosung-metadata-index');
+const bosungIndex = loadBosungMetadataIndex(true);
+assert(
+  bosungIndex.diagnostics.unresolvedConflicts.length === 0,
+  'All duplicate so_hieu groups are deterministic, complementary, or explicitly resolved'
+);
+assert(
+  bosungIndex.records.size > 0,
+  `Deterministic bosung index contains records (${bosungIndex.records.size})`
+);
 
 // ─────────────────────────────────────────────────────────────────
 // 5. Repository lookup consistency
@@ -234,21 +228,25 @@ const {
   getDocumentMetadata, isDocumentKnown, validateAnswer,
 } = require('../legal/services/answer-validator');
 
-// Bosung takes priority over known-docs
+// The source-verified 72/2025/QH15 identity is deterministic across duplicate source files.
 const meta72 = getDocumentMetadata('72/2025/QH15');
 assert(meta72 !== null, `getDocumentMetadata('72/2025/QH15') returns non-null`);
 assert(
   meta72.source === 'bosung_metadata',
-  `getDocumentMetadata('72/2025/QH15') prioritizes bosung_metadata source`
+  `getDocumentMetadata('72/2025/QH15') uses deterministic source-verified metadata`
 );
-assert(meta72.effectiveStatus === 'co_hieu_luc', `72/2025/QH15 has effectiveStatus 'co_hieu_luc'`);
+assert(meta72.verified === true, `72/2025/QH15 requires official source evidence`);
+assert(meta72.effectiveDate === '16/06/2025', `72/2025/QH15 effective date matches Article 51`);
+assert(meta72.effectiveStatus === 'co_hieu_luc', `72/2025/QH15 verified status is exposed`);
+assert(meta72.replacements.includes('65/2025/QH15'), `72/2025/QH15 replaces 65/2025/QH15`);
+assert(meta72.summary === '', `unreviewed derived summary remains suppressed`);
 
 // Unknown document
 assert(!isDocumentKnown('99/9999/XX'), `isDocumentKnown returns false for unknown document`);
 
 // validateAnswer with known doc citation
 const answerResult = validateAnswer({
-  documents: [{ documentNumber: '72/2025/QH15', status: 'co_hieu_luc' }],
+  documents: [{ documentNumber: '72/2025/QH15', status: meta72.effectiveStatus }],
   citations: [{ documentNumber: '72/2025/QH15' }],
 });
 assert(answerResult.valid === true, `validateAnswer with known doc is valid`);

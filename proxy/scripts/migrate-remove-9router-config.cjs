@@ -8,7 +8,11 @@
  *   Apply changes to Firestore:
  *     node proxy/scripts/migrate-remove-9router-config.cjs --apply
  */
-const admin = require('firebase-admin');
+const {
+  FieldValue,
+  getFirebaseFirestore,
+  initializeFirebaseApp,
+} = require('../services/firebase-admin.service');
 
 async function runMigration() {
   const args = process.argv.slice(2);
@@ -25,16 +29,11 @@ async function runMigration() {
 
   console.log(`[Target Project ID]: ${projectId}`);
 
-  if (!admin.apps.length) {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-      const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-      admin.initializeApp({ credential: admin.credential.cert(sa), projectId });
-    } else {
-      admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId });
-    }
-  }
-
-  const db = admin.firestore();
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+    : null;
+  initializeFirebaseApp({ projectId, serviceAccount });
+  const db = getFirebaseFirestore();
   const configRef = db.collection('config').doc('system');
 
   const snap = await configRef.get();
@@ -81,7 +80,7 @@ async function runMigration() {
 
   const updates = {};
   for (const field of fieldsToDelete) {
-    updates[field] = admin.firestore.FieldValue.delete();
+    updates[field] = FieldValue.delete();
   }
 
   // Handle provider transition if active provider was 9router
@@ -115,7 +114,7 @@ async function runMigration() {
     process.exit(0);
   }
 
-  updates.updated_at = admin.firestore.FieldValue.serverTimestamp();
+  updates.updated_at = FieldValue.serverTimestamp();
   updates.updated_by = 'migration_script_gemini_only_v1';
 
   await configRef.update(updates);

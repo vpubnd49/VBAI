@@ -2,7 +2,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const admin = require('firebase-admin');
+const {
+  FieldValue,
+  getFirebaseFirestore,
+  initializeFirebaseApp,
+} = require('../services/firebase-admin.service');
 
 function getEnv(name, fallback = '') {
   return String(process.env[name] || fallback).trim();
@@ -56,12 +60,9 @@ async function main() {
 
   const serviceAccount = loadServiceAccount();
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId,
-  });
+  initializeFirebaseApp({ serviceAccount, projectId });
 
-  const db = admin.firestore();
+  const db = getFirebaseFirestore();
   const ref = db.doc('config/system');
 
   const now = new Date().toISOString();
@@ -72,13 +73,13 @@ async function main() {
     transcribe_model: transcribeModel,
     web_search_provider: webSearchProvider,
     web_search_mode: webSearchMode,
-    google_search_key: googleSearchKey || admin.firestore.FieldValue.delete(),
-    google_search_cx: googleSearchCx || admin.firestore.FieldValue.delete(),
+    google_search_key: googleSearchKey || FieldValue.delete(),
+    google_search_cx: googleSearchCx || FieldValue.delete(),
     google_search_configured: !!(googleSearchKey && googleSearchCx),
-    vertex_project_id: vertexProjectId || admin.firestore.FieldValue.delete(),
+    vertex_project_id: vertexProjectId || FieldValue.delete(),
     vertex_location: vertexLocation || 'global',
-    vertex_data_store_id: vertexDataStoreId || admin.firestore.FieldValue.delete(),
-    vertex_serving_config: vertexServingConfig || admin.firestore.FieldValue.delete(),
+    vertex_data_store_id: vertexDataStoreId || FieldValue.delete(),
+    vertex_serving_config: vertexServingConfig || FieldValue.delete(),
     vertex_search_configured: !!(vertexProjectId && (vertexServingConfig || vertexDataStoreId)),
     web_search_fallback_sources: {
       vbpl: true,

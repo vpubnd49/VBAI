@@ -1,14 +1,17 @@
 // Check users collection
-const admin = require('firebase-admin');
 const path = require('path');
+const {
+  getFirebaseFirestore,
+  initializeFirebaseApp,
+} = require('./services/firebase-admin.service');
 
 const saPath = path.join(__dirname, 'service-account.json');
-admin.initializeApp({
-  credential: admin.credential.cert(require(saPath)),
-  projectId: 'gen-lang-client-0462350485'
+initializeFirebaseApp({
+  serviceAccount: require(saPath),
+  projectId: 'gen-lang-client-0462350485',
 });
 
-const db = admin.firestore();
+const db = getFirebaseFirestore();
 
 async function main() {
   const snapshot = await db.collection('users').get();

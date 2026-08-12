@@ -14,14 +14,33 @@ dns.setDefaultResultOrder('ipv4first');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const admin = require('firebase-admin');
 const multer = require('multer');
 const fetch = globalThis.fetch.bind(globalThis);
 const { cleanText: cleanStrictText, extractStrictLegalText } = require('./lib/legal-extract');
 const { detectQueryIntent } = require('./legal/domain/query-intent');
+const { normalizeDocumentNumber } = require('./legal/domain/document-number');
 const { orchestrateLegalSearch } = require('./legal/services/legal-search-orchestrator');
+const {
+  evaluateLegalEvidence,
+  selectValidatedLegalItems,
+  hasUnsafeCitations,
+} = require('./services/legal-evidence-policy');
 const { validateCitations } = require('./legal/services/citation-validation.service');
 const path = require('path');
+const { validateMagicBytes, VALID_AUDIO_EXTS, readFileHeader, registerCleanup, cleanupTempFile: cleanupTempFileUtil } = require('./middleware/upload-security');
+const { encodeCursor, decodeCursor, validateCursor, sanitizeHistoryDoc, SAFE_HISTORY_FIELDS } = require('./utils/pagination');
+const { createTranscriptionRouter } = require('./routers/transcription.router');
+const { loadBosungMetadataIndex } = require('./legal/repositories/bosung-metadata-index');
+const {
+  FieldPath,
+  FieldValue,
+  Timestamp,
+  applicationDefault,
+  getFirebaseApp,
+  getFirebaseAuth,
+  getFirebaseFirestore,
+  initFirebase,
+} = require('./services/firebase-admin.service');
 
 function extractAssistantText(data) {
   if (!data || typeof data !== 'object') return '';
@@ -33,29 +52,13 @@ function extractAssistantText(data) {
   }
   return '';
 }
-let bosungMetadata = null;
-try {
-  bosungMetadata = require('./bosung_metadata.json');
-} catch (e) {
-  console.warn('Failed to load bosung_metadata.json:', e.message);
-}
-
 function getBosungMetadataBySoHieu(soHieu = '') {
   if (!soHieu) return null;
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const rawData = fs.readFileSync(path.join(__dirname, 'bosung_metadata.json'), 'utf8');
-    const dynamicMetadata = JSON.parse(rawData);
-    const cleanSoHieu = soHieu.trim().toUpperCase();
-    for (const key of Object.keys(dynamicMetadata)) {
-      const meta = dynamicMetadata[key];
-      if (meta && String(meta.so_hieu || '').trim().toUpperCase() === cleanSoHieu) {
-        return meta;
-      }
-    }
+    const selected = loadBosungMetadataIndex().records.get(normalizeDocumentNumber(soHieu));
+    return selected?.record || null;
   } catch (e) {
-    console.warn('Failed to dynamically load bosung_metadata.json:', e.message);
+    console.warn('Failed to load deterministic bosung metadata index:', e.message);
   }
   return null;
 }
@@ -64,25 +67,49 @@ function enrichWithLocalMetadata(doc) {
   if (!doc || !doc.documentNumber) return doc;
   const localMeta = getBosungMetadataBySoHieu(doc.documentNumber);
   if (localMeta) {
+    const sourceUrls = Array.isArray(localMeta.official_source_urls)
+      ? localMeta.official_source_urls
+      : [];
+    const verified = localMeta.verified === true && sourceUrls.length > 0 && Boolean(localMeta.verified_at);
+    const summaryVerified = verified && localMeta.summary_verified === true;
     return {
       ...doc,
       issuer: doc.issuer || localMeta.co_quan_ban_hanh,
       ngay_ban_hanh: localMeta.ngay_ban_hanh,
-      ngay_hieu_luc: localMeta.ngay_hieu_luc,
-      tinh_trang_hieu_luc: localMeta.tinh_trang_hieu_luc || 'co_hieu_luc',
+      ngay_hieu_luc: verified ? localMeta.ngay_hieu_luc : null,
+      tinh_trang_hieu_luc: verified ? localMeta.tinh_trang_hieu_luc : null,
       trich_yeu: localMeta.trich_yeu,
-      tom_tat_chinh_sach: localMeta.tom_tat_chinh_sach,
-      tom_tat_chuong_dieu: localMeta.tom_tat_chuong_dieu,
-      thay_the_cho: localMeta.thay_the_cho,
+      tom_tat_chinh_sach: summaryVerified ? localMeta.tom_tat_chinh_sach : null,
+      tom_tat_chuong_dieu: summaryVerified ? localMeta.tom_tat_chuong_dieu : null,
+      thay_the_cho: verified ? localMeta.thay_the_cho : [],
+      official_source_urls: verified ? sourceUrls : [],
+      metadata_verification_status: verified ? 'verified' : 'unverified',
     };
   }
   return doc;
 }
 
-const MAX_AUDIO_UPLOAD_MB = Number(process.env.MAX_AUDIO_UPLOAD_MB || '500');
-const MAX_AUDIO_UPLOAD_BYTES = MAX_AUDIO_UPLOAD_MB * 1024 * 1024;
+const { DEFAULT_MAX_AUDIO_UPLOAD_MB, ABSOLUTE_MAX_AUDIO_UPLOAD_MB, MAX_AUDIO_UPLOAD_MB, MAX_AUDIO_UPLOAD_BYTES } = require('./schemas/upload-config');
+const os = require('os');
+const fs = require('fs');
+
+const UPLOAD_TEMP_DIR = path.join(os.tmpdir(), 'vbai-transcribe-uploads');
+if (!fs.existsSync(UPLOAD_TEMP_DIR)) {
+  fs.mkdirSync(UPLOAD_TEMP_DIR, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, UPLOAD_TEMP_DIR);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'audio-' + uniqueSuffix + path.extname(file.originalname || '.tmp'));
+  }
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: storage,
   limits: {
     fileSize: MAX_AUDIO_UPLOAD_BYTES,
     files: 1,
@@ -1826,15 +1853,31 @@ function extractTextFromProviderPayload(data = {}) {
   return '';
 }
 
-async function uploadToGeminiFiles({ apiKey, fileBuffer, mimeType, filename }) {
+async function uploadToGeminiFiles({ filePath, mimeType, filename, model, prompt }) {
+  const config = await getCachedSystemConfig();
+  const apiKey = process.env.GEMINI_API_KEY || config?.gemini_api_key;
+  if (!apiKey) {
+    const err = new Error('Gemini API key is missing from environment and system configuration');
+    err.status = 503;
+    throw err;
+  }
+
+  if (!filePath || !fs.existsSync(filePath)) {
+    throw new Error('Valid audio filePath is required for streaming provider upload');
+  }
+  const stat = await fs.promises.stat(filePath);
+  if (stat.size < 4) {
+    throw new Error('File size too small (minimum 4 bytes required)');
+  }
+
   const initUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`;
   const initRes = await fetch(initUrl, {
     method: 'POST',
     headers: {
       'X-Goog-Upload-Protocol': 'resumable',
       'X-Goog-Upload-Command': 'start',
-      'X-Goog-Upload-Header-Content-Length': String(fileBuffer.length),
-      'X-Goog-Upload-Header-Content-Type': mimeType,
+      'X-Goog-Upload-Header-Content-Length': String(stat.size),
+      'X-Goog-Upload-Header-Content-Type': mimeType || 'audio/mpeg',
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -1854,23 +1897,94 @@ async function uploadToGeminiFiles({ apiKey, fileBuffer, mimeType, filename }) {
     throw new Error('Gemini File upload response missing x-goog-upload-url or Location header');
   }
 
-  const uploadRes = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Length': String(fileBuffer.length),
-      'X-Goog-Upload-Offset': '0',
-      'X-Goog-Upload-Command': 'upload, finalize',
-    },
-    body: fileBuffer,
-  });
+  const fileStream = fs.createReadStream(filePath);
+  let uploadRes;
+  try {
+    uploadRes = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Length': String(stat.size),
+        'X-Goog-Upload-Offset': '0',
+        'X-Goog-Upload-Command': 'upload, finalize',
+      },
+      body: fileStream,
+      duplex: 'half',
+    });
+  } catch (err) {
+    if (fileStream && !fileStream.destroyed) fileStream.destroy();
+    throw err;
+  }
 
   if (!uploadRes.ok) {
     const errText = await uploadRes.text();
     throw new Error(`Failed to upload bytes to Gemini File API: ${uploadRes.status} - ${errText}`);
   }
 
-  const data = await uploadRes.json();
-  return data.file;
+  const uploadData = await uploadRes.json();
+  const fileInfo = uploadData.file || uploadData;
+  const fileUri = fileInfo.uri || fileInfo.file_uri;
+  const fileMimeType = fileInfo.mimeType || fileInfo.mime_type || mimeType || 'audio/mpeg';
+  const remoteFileName = fileInfo.name;
+
+  if (!fileUri) {
+    throw new Error('Gemini File upload response missing file URI');
+  }
+
+  try {
+    let currentState = fileInfo.state;
+    let pollCount = 0;
+    while (currentState === 'PROCESSING' && pollCount < 10) {
+      await new Promise(r => setTimeout(r, 2000));
+      pollCount++;
+      const checkRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${remoteFileName}?key=${encodeURIComponent(apiKey)}`);
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        currentState = checkData.state;
+      }
+    }
+
+    const targetModel = normalizeModelInput(model || config?.transcribe_model || config?.gemini_model || 'gemini-3.5-flash-lite');
+    const modelName = targetModel.startsWith('models/') ? targetModel : `models/${targetModel}`;
+    const generateUrl = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const effectivePrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
+
+    const genRes = await fetch(generateUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { file_data: { file_uri: fileUri, mime_type: fileMimeType } },
+              { text: effectivePrompt },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!genRes.ok) {
+      const errText = await genRes.text();
+      throw new Error(`Gemini generateContent failed: ${genRes.status} - ${errText}`);
+    }
+
+    const genData = await genRes.json();
+    const transcribedText = extractAssistantText(genData);
+
+    return {
+      text: transcribedText,
+      meta: {
+        provider_status: 200,
+        file_uri: fileUri,
+        final_model: targetModel,
+        transcription_path: 'gemini_files_resumable_generate_content',
+      },
+    };
+  } finally {
+    if (remoteFileName) {
+      deleteFromGeminiFiles({ apiKey, fileName: remoteFileName }).catch(() => {});
+    }
+  }
 }
 
 async function deleteFromGeminiFiles({ apiKey, fileName }) {
@@ -2226,42 +2340,9 @@ async function readProviderError(providerRes) {
   }
 }
 
-// Initialize Firebase Admin SDK
-let firebaseInitialized = false;
-const initFirebase = () => {
-  if (firebaseInitialized) return;
-
-  const projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0462350485';
-
-  // Try to initialize with service account key if present (Cloud Run will inject via env)
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-    : null;
-
-  if (serviceAccount) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      databaseURL: `https://${projectId}.firebaseio.com`,
-      projectId: projectId
-    });
-  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
-      projectId: projectId
-    });
-  } else {
-    // Fallback: initialize with default credentials (works on Cloud Run with service account attached)
-    admin.initializeApp({
-      projectId: projectId
-    });
-  }
-
-  firebaseInitialized = true;
-};
-
 const app = express();
 
-const legalResearchRouter = require('./routes/legal-research.routes');
+const { router: legalResearchRouter, initRouter: initLegalResearchRouter } = require('./routes/legal-research.routes');
 
 // Security middleware
 app.use(helmet());
@@ -2280,9 +2361,11 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+app.use(createTranscriptionRouter({ verifyIdToken, upload, checkRateLimit, uploadToProvider: uploadToGeminiFiles, initFirebase }));
+
 // Note: web-search and web-extract have full inline handlers below
 // with auth + rate limiting. Only mount legal-research router.
-app.use('/api', legalResearchRouter);
+// initLegalResearchRouter is called after initFirebase() below.
 
 // Document metadata resolution endpoint (auth required)
 app.get('/api/document-metadata', async (req, res) => {
@@ -2348,7 +2431,7 @@ async function verifyIdToken(req) {
     throw new Error('No Bearer token provided');
   }
   const idToken = match[1];
-  const decoded = await admin.auth().verifyIdToken(idToken);
+  const decoded = await getFirebaseAuth().verifyIdToken(idToken);
   return decoded;
 }
 
@@ -2365,69 +2448,17 @@ function getClientIp(req) {
   return req.ip || req.socket?.remoteAddress || '';
 }
 
-// Simple in-memory rate limit storage
-const ipLimits = new Map(); // ip -> { count, date }
-const userLimits = new Map(); // uid -> { count, date }
+const { rateLimiterInstance, getTodayString } = require('./middleware/rate-limit.middleware');
 
-function getTodayString() {
-  const d = new Date();
-  const localTime = new Date(d.getTime() + 7 * 60 * 60 * 1000); // Indochina time (GMT+7)
-  return `${localTime.getUTCFullYear()}-${localTime.getUTCMonth() + 1}-${localTime.getUTCDate()}`;
-}
-
-function checkRateLimit(req, decoded) {
-  const isAdminUser = decoded ? isAdmin(decoded) : false;
-  const today = getTodayString();
-  
-  // 1. IP Limit Check: 20 per day
-  const clientIp = getClientIp(req);
-  if (clientIp) {
-    let ipData = ipLimits.get(clientIp);
-    if (!ipData || ipData.date !== today) {
-      ipData = { count: 0, date: today };
-    }
-    
-    if (!isAdminUser) {
-      if (ipData.count >= 20) {
-        return {
-          allowed: false,
-          error: 'Too Many Requests',
-          message: 'IP của bạn đã vượt quá giới hạn 20 lượt truy cập hôm nay.',
-          status: 429
-        };
-      }
-      ipData.count += 1;
-      ipLimits.set(clientIp, ipData);
-    }
-  }
-
-  // 2. User Account Limit Check: 50 per day
-  if (decoded && decoded.uid) {
-    if (!isAdminUser) {
-      const uid = decoded.uid;
-      let userData = userLimits.get(uid);
-      if (!userData || userData.date !== today) {
-        userData = { count: 0, date: today };
-      }
-      if (userData.count >= 50) {
-        return {
-          allowed: false,
-          error: 'Too Many Requests',
-          message: 'Tài khoản của bạn đã vượt quá giới hạn 50 lượt truy cập hôm nay.',
-          status: 429
-        };
-      }
-      userData.count += 1;
-      userLimits.set(uid, userData);
-    }
-  }
-
-  return { allowed: true };
+async function checkRateLimit(req, decoded) {
+  // Bind modular Firestore dependencies to the distributed limiter.
+  rateLimiterInstance.setFirestore(getFirebaseFirestore(), FieldValue);
+  return await rateLimiterInstance.checkRateLimit(req, decoded, { ipLimit: 20, userLimit: 50 });
 }
 
 // Firestore collection/refs
 function getSystemConfigRef() {
-  return admin.firestore().doc('config/system');
+  return getFirebaseFirestore().doc('config/system');
 }
 
 // Bộ nhớ đệm (cache) cho cấu hình hệ thống để tối ưu tốc độ và giảm truy vấn Firestore liên tục
@@ -2455,7 +2486,7 @@ function invalidateSystemConfigCache() {
 }
 
 function getWebSearchHotIndexRef() {
-  return admin.firestore().doc('config/web_search_hot_index');
+  return getFirebaseFirestore().doc('config/web_search_hot_index');
 }
 
 // Health check
@@ -2471,7 +2502,7 @@ app.get('/api/stats/visits', async (req, res) => {
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const db = admin.firestore();
+    const db = getFirebaseFirestore();
     const snap = await db.collection('stats').doc('visits').get();
     const count = snap.exists ? Number(snap.data()?.count || 0) : 0;
     return res.json({ count });
@@ -2489,12 +2520,12 @@ app.post('/api/stats/visits/session', async (req, res) => {
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const db = admin.firestore();
+    const db = getFirebaseFirestore();
     const visitRef = db.collection('stats').doc('visits');
     await visitRef.set(
       {
-        count: admin.firestore.FieldValue.increment(1),
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        count: FieldValue.increment(1),
+        updated_at: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
@@ -2750,13 +2781,13 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     const updateData = {
-      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
       updated_by: decoded.email || decoded.uid,
-      nine_router_api_key: admin.firestore.FieldValue.delete(),
-      nine_router_endpoint: admin.firestore.FieldValue.delete(),
-      nine_router_model: admin.firestore.FieldValue.delete(),
-      nine_router_models: admin.firestore.FieldValue.delete(),
-      has_nine_router_key: admin.firestore.FieldValue.delete(),
+      nine_router_api_key: FieldValue.delete(),
+      nine_router_endpoint: FieldValue.delete(),
+      nine_router_model: FieldValue.delete(),
+      nine_router_models: FieldValue.delete(),
+      has_nine_router_key: FieldValue.delete(),
     };
 
     if (gemini_model !== undefined) {
@@ -2776,12 +2807,12 @@ app.post('/api/admin/system-config', async (req, res) => {
       const val = String(gemini_endpoint || '').trim();
       updateData.gemini_endpoint = val
         ? val
-        : admin.firestore.FieldValue.delete();
+        : FieldValue.delete();
     }
 
     // Update or clear Gemini API Key
     if (req.body.clear_gemini_api_key === true || req.body.clear_gemini_key === true || gemini_api_key === '__CLEAR__') {
-      updateData.gemini_api_key = admin.firestore.FieldValue.delete();
+      updateData.gemini_api_key = FieldValue.delete();
     } else if (gemini_api_key !== undefined) {
       const keyVal = String(gemini_api_key || '').trim();
       if (keyVal) {
@@ -2793,19 +2824,19 @@ app.post('/api/admin/system-config', async (req, res) => {
       const keyVal = String(google_search_key || '').trim();
       updateData.google_search_key = keyVal
         ? keyVal
-        : admin.firestore.FieldValue.delete();
+        : FieldValue.delete();
     }
     if (google_search_cx !== undefined) {
       const cxVal = String(google_search_cx || '').trim();
       updateData.google_search_cx = cxVal
         ? cxVal
-        : admin.firestore.FieldValue.delete();
+        : FieldValue.delete();
     }
     if (vertex_project_id !== undefined) {
       const val = String(vertex_project_id || '').trim();
       updateData.vertex_project_id = val
         ? val
-        : admin.firestore.FieldValue.delete();
+        : FieldValue.delete();
     }
     if (vertex_location !== undefined) {
       const val = String(vertex_location || '').trim();
@@ -2815,13 +2846,13 @@ app.post('/api/admin/system-config', async (req, res) => {
       const val = String(vertex_data_store_id || '').trim();
       updateData.vertex_data_store_id = val
         ? val
-        : admin.firestore.FieldValue.delete();
+        : FieldValue.delete();
     }
     if (vertex_serving_config !== undefined) {
       const val = String(vertex_serving_config || '').trim();
       updateData.vertex_serving_config = val
         ? val
-        : admin.firestore.FieldValue.delete();
+        : FieldValue.delete();
     }
     // Update model lists (always overwrite)
     if (Array.isArray(gemini_models)) {
@@ -2924,11 +2955,11 @@ app.post('/api/admin/delete-user', async (req, res) => {
       return res.status(400).json({ error: 'Bad Request', message: 'Cannot delete your own account' });
     }
 
-    const db = admin.firestore();
+    const db = getFirebaseFirestore();
     await db.collection('users').doc(uid).delete();
     
     try {
-      await admin.auth().deleteUser(uid);
+      await getFirebaseAuth().deleteUser(uid);
     } catch (authErr) {
       if (authErr.code === 'auth/user-not-found' || 
           String(authErr.message || '').includes('no user record') || 
@@ -2961,7 +2992,7 @@ app.post('/api/admin/update-user', async (req, res) => {
       return res.status(400).json({ error: 'Bad Request', message: 'Missing uid' });
     }
 
-    const db = admin.firestore();
+    const db = getFirebaseFirestore();
     const userRef = db.collection('users').doc(uid);
     const userSnap = await userRef.get();
     if (!userSnap.exists) {
@@ -2969,7 +3000,7 @@ app.post('/api/admin/update-user', async (req, res) => {
     }
 
     const updateData = {
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      updatedAt: FieldValue.serverTimestamp()
     };
     if (displayName !== undefined) updateData.displayName = String(displayName).trim();
     if (position !== undefined) updateData.position = String(position).trim();
@@ -2980,7 +3011,7 @@ app.post('/api/admin/update-user', async (req, res) => {
     if (role !== undefined) {
       const isNewAdmin = String(role).trim().toUpperCase() === 'ADMIN';
       try {
-        const user = await admin.auth().getUser(uid);
+        const user = await getFirebaseAuth().getUser(uid);
         const existingClaims = user.customClaims || {};
         
         let updatedClaims;
@@ -2991,7 +3022,7 @@ app.post('/api/admin/update-user', async (req, res) => {
           delete updatedClaims.admin;
         }
         
-        await admin.auth().setCustomUserClaims(uid, updatedClaims);
+        await getFirebaseAuth().setCustomUserClaims(uid, updatedClaims);
         console.log(`Admin ${decoded.email || decoded.uid} updated user ${uid} custom claims to:`, updatedClaims);
       } catch (authErr) {
         if (authErr.code === 'auth/user-not-found' || 
@@ -3019,7 +3050,7 @@ app.post('/api/chat', async (req, res) => {
     const decoded = await verifyIdToken(req);
 
     // Apply rate limit check
-    const rateCheck = checkRateLimit(req, decoded);
+    const rateCheck = await checkRateLimit(req, decoded);
     if (!rateCheck.allowed) {
       return res.status(rateCheck.status).json({ error: rateCheck.error, message: rateCheck.message });
     }
@@ -3090,6 +3121,20 @@ app.post('/api/chat', async (req, res) => {
           reason: 'LEGAL_EVIDENCE_UNAVAILABLE',
         };
       }
+    }
+
+    // Legal synthesis is fail-closed. The provider must never receive a legal
+    // question unless retrieval supplied a non-empty verified evidence bundle.
+    const evidenceDecision = evaluateLegalEvidence({ isLegalQuery, legalContext });
+    if (!evidenceDecision.allowed) {
+      return res.status(422).json({
+        error: evidenceDecision.code,
+        message: evidenceDecision.message,
+        legal: {
+          verification: { available: false },
+          reason: evidenceDecision.reason,
+        },
+      });
     }
 
     console.log('NORMALIZED:', {
@@ -3232,12 +3277,12 @@ app.post('/api/chat', async (req, res) => {
     if (!attempt?.ok) {
       // Record failed search attempt to search_logs
       try {
-        const db = admin.firestore();
+        const db = getFirebaseFirestore();
         await db.collection('search_logs').add({
           query: auditQuery,
           model: primaryModel || 'gemini-3.5-flash-lite',
           userEmail: decoded.email || decoded.uid || 'anonymous',
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          timestamp: FieldValue.serverTimestamp(),
           feature: auditFeature,
           mode: auditMode,
           effectiveDate: auditEffectiveDate,
@@ -3290,12 +3335,23 @@ app.post('/api/chat', async (req, res) => {
           verification: legalContext.verification || { available: true },
           citationValidation,
         };
+
+        if (hasUnsafeCitations(citationValidation)) {
+          return res.status(422).json({
+            error: 'LEGAL_CITATION_VALIDATION_FAILED',
+            message: 'Câu trả lời tạo sinh không vượt qua kiểm tra nguồn pháp lý.',
+            legal: {
+              verification: { available: false },
+              citationValidation,
+            },
+          });
+        }
       }
     }
 
     // Centralized Search Audit Trace logging to Firestore search_logs collection
     try {
-      const db = admin.firestore();
+      const db = getFirebaseFirestore();
       const verifiedCount = legalContext?.evidenceBundle?.verifiedCount ||
         (citationValidation?.validCitationsCount) || 0;
       const totalCount = legalContext?.evidenceBundle?.documents?.length ||
@@ -3308,8 +3364,8 @@ app.post('/api/chat', async (req, res) => {
         user_id: decoded.uid || null,
         user_email: decoded.email || decoded.uid || 'anonymous',
         userEmail: decoded.email || decoded.uid || 'anonymous',
-        created_at: admin.firestore.FieldValue.serverTimestamp(),
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        created_at: FieldValue.serverTimestamp(),
+        timestamp: FieldValue.serverTimestamp(),
         feature: auditFeature,
         mode: auditMode,
         effectiveDate: auditEffectiveDate,
@@ -3332,179 +3388,7 @@ app.post('/api/chat', async (req, res) => {
 });
 
 
-// POST: Audio transcription proxy
-app.post('/api/transcribe', (req, res, next) => {
-  upload.single('audio')(req, res, (err) => {
-    if (!err) return next();
-    if (err?.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({
-        error: 'Payload too large',
-        message: `Audio file vuot qua gioi han ${MAX_AUDIO_UPLOAD_MB}MB`,
-      });
-    }
-    return res.status(400).json({ error: 'Invalid upload', message: err.message || 'Upload failed' });
-  });
-}, async (req, res) => {
-  try {
-    initFirebase();
-    const decoded = await verifyIdToken(req);
 
-    // Apply rate limit check
-    const rateCheck = checkRateLimit(req, decoded);
-    if (!rateCheck.allowed) {
-      return res.status(rateCheck.status).json({ error: rateCheck.error, message: rateCheck.message });
-    }
-
-    const { filename, model, part, total, uploadId } = req.body || {};
-    const partNum = part ? parseInt(part, 10) : null;
-    const totalNum = total ? parseInt(total, 10) : null;
-
-    let audioBuffer = req.file?.buffer || null;
-    let detectedMimeType = req.file?.mimetype || 'application/octet-stream';
-    let effectiveFilename = req.file?.originalname || filename || 'audio';
-
-    // Backward compatibility for older clients that still send base64 JSON.
-    if (!audioBuffer && req.body?.audio_base64) {
-      audioBuffer = Buffer.from(req.body.audio_base64, 'base64');
-      detectedMimeType = 'audio/mpeg';
-      effectiveFilename = filename || 'audio';
-    }
-    if (!audioBuffer || audioBuffer.length === 0) {
-      return res.status(400).json({ error: 'audio file is required (multipart field: audio)' });
-    }
-
-    // Chunked upload handling
-    if (partNum && totalNum && uploadId) {
-      const path = require('path');
-      const fs = require('fs');
-      const os = require('os');
-      const tempDir = os.tmpdir();
-      const chunkPath = path.join(tempDir, `vbai_upload_${uploadId}.part_${partNum}`);
-      
-      // Save chunk to disk
-      await fs.promises.writeFile(chunkPath, audioBuffer);
-      
-      // Check if all chunks are received
-      let allPartsPresent = true;
-      const partPaths = [];
-      for (let i = 1; i <= totalNum; i++) {
-        const pPath = path.join(tempDir, `vbai_upload_${uploadId}.part_${i}`);
-        partPaths.push(pPath);
-        if (!fs.existsSync(pPath)) {
-          allPartsPresent = false;
-        }
-      }
-      
-      if (!allPartsPresent) {
-        // Return 200 with status uploading
-        return res.json({ status: 'uploading', part: partNum, total: totalNum });
-      }
-      
-      // All parts are present, concatenate them
-      console.log(`[Chunks] Concatenating ${totalNum} chunks for upload ID ${uploadId}...`);
-      const fullPath = path.join(tempDir, `vbai_upload_${uploadId}.full`);
-      const writeStream = fs.createWriteStream(fullPath);
-      for (const pPath of partPaths) {
-        const data = await fs.promises.readFile(pPath);
-        writeStream.write(data);
-      }
-      writeStream.end();
-      
-      await new Promise((resolve, reject) => {
-        writeStream.on('finish', resolve);
-        writeStream.on('error', reject);
-      });
-      
-      // Clean up part files immediately to free space
-      for (const pPath of partPaths) {
-        fs.unlink(pPath, () => {});
-      }
-      
-      // Read aggregated buffer and delete full file
-      audioBuffer = await fs.promises.readFile(fullPath);
-      fs.unlink(fullPath, () => {});
-      console.log(`[Chunks] Concatenation complete. Full file size is ${audioBuffer.length} bytes.`);
-    }
-
-    // Fetch system config (từ cache để tăng tốc độ bóc băng)
-    const config = await getCachedSystemConfig();
-
-    const endpoint = GEMINI_API_ENDPOINT;
-    const apiKey = process.env.GEMINI_API_KEY || config.gemini_api_key;
-    const effectiveModel = normalizeModelInput(model || config.transcribe_model || config.gemini_model || 'gemini-3.5-flash-lite');
-
-    if (!apiKey) {
-      console.warn('[Transcribe] API key is missing. Proceeding via Vertex AI fallback path.');
-    }
-
-    const attemptedModels = [];
-    const compatibleAudioMime = getCompatibleAudioMimeType(detectedMimeType, effectiveFilename);
-    const nativeCandidateModels = dedupeModelNames([
-      effectiveModel,
-      config.gemini_model,
-      ...GEMINI_TRANSCRIBE_SAFE_FALLBACK_MODELS,
-    ]);
-
-    let finalAttempt = null;
-    let finalModel = null;
-
-    // Đẩy thẳng cho mô hình Gemini phân tích (Bỏ hoàn toàn OpenAI compat theo yêu cầu)
-    for (const candidateModel of nativeCandidateModels) {
-      if (!attemptedModels.includes(candidateModel)) attemptedModels.push(candidateModel);
-      const nativeAttempt = await executeGeminiNativeAudioTranscription({
-        apiKey,
-        modelName: candidateModel,
-        audioBuffer,
-        audioBase64: null,
-        mimeType: compatibleAudioMime,
-        filename: effectiveFilename,
-        prompt: req.body.prompt,
-      });
-      if (nativeAttempt.ok && String(nativeAttempt.text || '').trim()) {
-        finalAttempt = {
-          ok: true,
-          status: nativeAttempt.status,
-          text: nativeAttempt.text,
-          data: { text: nativeAttempt.text },
-          via: 'gemini_native_generate_content',
-        };
-        finalModel = candidateModel;
-        break;
-      }
-      finalAttempt = nativeAttempt;
-      if (!shouldRetryWithinTranscriptionPath(nativeAttempt)) break;
-    }
-
-    if (!finalAttempt?.ok) {
-      return res.status(finalAttempt?.status || 500).json({
-        error: 'Transcription failed',
-        message: finalAttempt?.message || `Provider error ${finalAttempt?.status || 500}`,
-        meta: {
-          provider_status: finalAttempt?.status || null,
-          attempted_models: attemptedModels,
-          final_model: null,
-          provider_error_reason: finalAttempt?.reason || null,
-          retried: attemptedModels.length > 1,
-        }
-      });
-    }
-
-    return res.json({
-      text: String(finalAttempt.text || '').trim(),
-      meta: {
-        provider_status: 200,
-        attempted_models: attemptedModels,
-        final_model: finalModel || attemptedModels[attemptedModels.length - 1] || effectiveModel,
-        provider_error_reason: null,
-        retried: attemptedModels.length > 1,
-        transcription_path: 'gemini_native_generate_content',
-      },
-    });
-  } catch (err) {
-    console.error('POST /api/transcribe error:', err);
-    res.status(500).json({ error: 'Internal server error', message: err.message });
-  }
-});
 
 // POST: Web search proxy (uses Google Custom Search configured in system)
 app.post('/api/web-search', async (req, res) => {
@@ -3521,7 +3405,7 @@ app.post('/api/web-search', async (req, res) => {
     }
 
     // Apply rate limit check
-    const rateCheck = checkRateLimit(req, decoded);
+    const rateCheck = await checkRateLimit(req, decoded);
     if (!rateCheck.allowed) {
       return res.status(rateCheck.status).json({ error: rateCheck.error, message: rateCheck.message });
     }
@@ -3668,9 +3552,9 @@ app.post('/api/web-search', async (req, res) => {
         domainInference,
       });
         const finalHotItems = validation.ok ? validation.approvedItems : [];
-        const hotIndexStrongEnough = validation.ok === true
+        const hotIndexStrongEnough = finalHotItems.length > 0 && (validation.ok === true
           || hotIndexHit.exactMatch === true
-          || Number(validation.confidence || 0) >= 0.75;
+          || Number(validation.confidence || 0) >= 0.75);
         if (hotIndexStrongEnough) {
           return res.json({
             results: formatSearchResults(finalHotItems),
@@ -3828,32 +3712,15 @@ app.post('/api/web-search', async (req, res) => {
         knownDocument,
         domainInference,
       });
-      const typedItems = filterItemsByRequestedDocType(items, effectiveRequestedDocType);
       const knownDocumentOfficialCandidateItems = strategy === 'known_document_official_lookup'
         ? (Array.isArray(items) ? items : []).filter((item) => item?._knownDocumentOfficialCandidate === true)
         : [];
-      let finalItems = [];
-      if (validation.ok) {
-        finalItems = Array.isArray(validation.approvedItems) ? validation.approvedItems : [];
-      } else if (knownDocumentOfficialCandidateItems.length > 0) {
-        finalItems = knownDocumentOfficialCandidateItems;
-      } else if (typedItems.length > 0) {
-        finalItems = typedItems;
-      } else if (Array.isArray(items) && items.length > 0) {
-        // Best-effort mode: return available items even when strict validation does not pass.
-        finalItems = items;
-      }
-
-      if (knownDocument && knownDocument.ngay_hieu_luc) {
-        const localMetaItem = {
-          title: `VĂN BẢN CHÍNH THỨC: ${knownDocument.titleHint} (${knownDocument.documentNumber})`,
-          link: `https://vbpl.vn/tim-kiem-van-ban?so_hieu=${encodeURIComponent(knownDocument.documentNumber)}`,
-          snippet: `Số ký hiệu: ${knownDocument.documentNumber}. Cơ quan ban hành: ${knownDocument.issuer || 'Quốc hội'}. Ban hành: ${knownDocument.ngay_ban_hanh || ''} - Hiệu lực: ${knownDocument.ngay_hieu_luc || ''}. Tình trạng hiệu lực: ${knownDocument.tinh_trang_hieu_luc || 'Có hiệu lực'}.${knownDocument.thay_the_cho && knownDocument.thay_the_cho.length > 0 ? ` Thay thế cho: ${knownDocument.thay_the_cho.join(', ')}.` : ''}${knownDocument.tom_tat_chinh_sach ? ` Tóm tắt chính sách: ${knownDocument.tom_tat_chinh_sach}` : ''}`,
-          displayLink: 'vbpl.vn',
-          source: 'local_metadata',
-        };
-        finalItems = [localMetaItem, ...finalItems.filter(item => item.source !== 'local_metadata' && !isLegalIndexOrCategoryPage(item.link))];
-      }
+      // Strict validation is mandatory. The only exception is a narrowly scoped
+      // official-domain candidate with an exact number or title signal.
+      const finalItems = selectValidatedLegalItems({
+        validation,
+        officialCandidateItems: knownDocumentOfficialCandidateItems,
+      });
 
       const responseResults = formatSearchResults(finalItems);
       diagnostics.fallback_used = fallbackUsed === true;
@@ -4023,7 +3890,7 @@ app.post('/api/web-search', async (req, res) => {
           const isAllowedReference = isTimeSensitive && (detectSourceTier(item) === 'reference' || /thuvienphapluat\.vn|luatvietnam\.vn/i.test(item?.link || ''));
           if (!isOfficial && !isAllowedReference) return false;
           if (!siteConstrained && !exactQuery.includes(`"${docNumber}"`)) return false;
-          return isKnownDocumentOfficialCandidate(item, knownDocument, isTimeSensitive ? true : false);
+          return isKnownDocumentOfficialCandidate(item, knownDocument);
         });
         const exactOfficialItems = pickExactDocItems(candidateItems, docNumber);
         const officialCandidates = exactOfficialItems.length > 0 ? exactOfficialItems : candidateItems;
@@ -4054,7 +3921,7 @@ app.post('/api/web-search', async (req, res) => {
       for (const directQuery of directQueries) {
         const directItems = filterItemsByRequestedDocType(
           (await runDirectFallback(docNumber, directQuery))
-            .filter((item) => isKnownDocumentOfficialCandidate(item, knownDocument, isTimeSensitive ? true : false))
+            .filter((item) => isKnownDocumentOfficialCandidate(item, knownDocument))
             .map((item) => ({
               ...item,
               _knownDocumentOfficialCandidate: true,
@@ -5585,7 +5452,7 @@ function isLegalIndexOrCategoryPage(link = '') {
     || l.includes('dvid_old');
 }
 
-function isKnownDocumentOfficialCandidate(item = {}, knownDocument = null, allowReference = false) {
+function isKnownDocumentOfficialCandidate(item = {}, knownDocument = null) {
   const docNumber = String(knownDocument?.documentNumber || '').trim().toUpperCase();
   if (!docNumber) return false;
   if (isLegalIndexOrCategoryPage(item?.link)) return false;
@@ -5594,8 +5461,7 @@ function isKnownDocumentOfficialCandidate(item = {}, knownDocument = null, allow
   const hasDocNumber = hasExpectedDocNumber(hay, docNumber);
   const hasTitleHint = titleHint && normalizeVietnamese(hay).includes(normalizeVietnamese(titleHint));
   const hasOfficialSignal = isOfficialLegalSource(item?.link)
-    || detectSourceTier(item) === 'official'
-    || (allowReference && (detectSourceTier(item) === 'reference' || /thuvienphapluat\.vn|luatvietnam\.vn/i.test(item?.link || '')));
+    || detectSourceTier(item) === 'official';
   return hasOfficialSignal && (hasDocNumber || hasTitleHint);
 }
 
@@ -6266,10 +6132,10 @@ function resolveEffectiveWebSearchProvider({ requestedProvider, cseConfigured, v
 
 async function getGoogleAccessToken() {
   initFirebase();
-  let credential = admin.app().options?.credential;
+  let credential = getFirebaseApp().options?.credential;
   if (!credential || typeof credential.getAccessToken !== 'function') {
     try {
-      credential = admin.credential.applicationDefault();
+      credential = applicationDefault();
     } catch (err) {
       console.warn('Failed to load applicationDefault credential on-the-fly:', err.message);
     }
@@ -6320,12 +6186,17 @@ function normalizeVertexSearchItems(rawItems = []) {
           link = `https://vbpl.vn/tim-kiem-van-ban?so_hieu=${encodeURIComponent(struct.so_hieu)}`;
         }
         
-        const policySummary = struct.tom_tat_chinh_sach ? ` Tóm tắt chính sách: ${struct.tom_tat_chinh_sach}` : '';
-        const replacements = Array.isArray(struct.thay_the_cho) && struct.thay_the_cho.length > 0
+        const sourceUrls = Array.isArray(struct.official_source_urls) ? struct.official_source_urls : [];
+        const metadataVerified = struct.verified === true && sourceUrls.length > 0 && Boolean(struct.verified_at);
+        const policySummary = metadataVerified && struct.summary_verified === true && struct.tom_tat_chinh_sach
+          ? ` Tóm tắt chính sách: ${struct.tom_tat_chinh_sach}`
+          : '';
+        const replacements = metadataVerified && Array.isArray(struct.thay_the_cho) && struct.thay_the_cho.length > 0
           ? ` Thay thế cho: ${struct.thay_the_cho.join(', ')}.`
           : '';
         
-        snippet = `Số ký hiệu: ${struct.so_hieu}. Cơ quan ban hành: ${struct.co_quan_ban_hanh || 'Quốc hội'}. Ban hành: ${struct.ngay_ban_hanh || ''} - Hiệu lực: ${struct.ngay_hieu_luc || ''}.${replacements}${policySummary} ${snippet}`.trim();
+        const effectiveDate = metadataVerified ? (struct.ngay_hieu_luc || '') : 'chưa kiểm chứng';
+        snippet = `Số ký hiệu: ${struct.so_hieu}. Cơ quan ban hành: ${struct.co_quan_ban_hanh || 'Quốc hội'}. Ban hành: ${struct.ngay_ban_hanh || ''} - Hiệu lực: ${effectiveDate}.${replacements}${policySummary} ${snippet}`.trim();
       }
 
       return {
@@ -6812,33 +6683,61 @@ app.get('/api/search-history', async (req, res) => {
     }
 
     const requesterIsAdmin = isAdmin(decoded);
-    const db = admin.firestore();
-    let queryRef = db.collection('search_logs');
+    const db = getFirebaseFirestore();
+    const limitParam = parseInt(req.query.limit || '20', 10);
+    const pageSize = Math.min(Math.max(limitParam, 1), 100);
+    const cursorParam = req.query.cursor ? String(req.query.cursor).trim() : null;
 
-    if (!requesterIsAdmin) {
-      const userId = decoded.uid;
-      queryRef = queryRef.where('user_id', '==', userId);
+    // Validate versioned cursor
+    const cursorValidation = validateCursor(cursorParam);
+    if (!cursorValidation.valid) {
+      return res.status(400).json({ error: 'Bad Request', message: cursorValidation.error });
     }
 
-    const snapshot = await queryRef.orderBy('created_at', 'desc').limit(requesterIsAdmin ? 500 : 100).get();
+    let queryRef = db.collection('search_logs');
+    if (!requesterIsAdmin) {
+      queryRef = queryRef.where('user_id', '==', decoded.uid);
+    }
+    queryRef = queryRef.orderBy('created_at', 'desc').orderBy(FieldPath.documentId(), 'desc');
+
+    // Versioned cursor: startAfter(createdAt, docId)
+    if (cursorParam && cursorValidation.decoded) {
+      const { createdAt, docId } = cursorValidation.decoded;
+      const cursorTimestamp = Timestamp.fromDate(new Date(createdAt));
+      queryRef = queryRef.startAfter(cursorTimestamp, docId);
+    }
+
+    const snapshot = await queryRef.limit(pageSize + 1).get();
 
     const logs = [];
+    let hasMore = false;
+    let nextCursor = null;
+
+    let docCount = 0;
     snapshot.forEach(docSnap => {
+      docCount++;
+      if (docCount > pageSize) {
+        hasMore = true;
+        return;
+      }
       const data = docSnap.data();
-      logs.push({
-        id: docSnap.id,
-        query: data.query || data.prompt || data.q || '',
-        mode: data.mode || 'legal-search',
-        user: data.user_email || data.userEmail || data.user_id || 'Ẩn danh',
-        userId: data.user_id || null,
-        createdAt: data.created_at || data.timestamp || null,
-        evidenceCount: data.evidence_count || data.evidenceCount || 0,
-        verifiedCount: data.verified_count || data.verifiedCount || 0,
-        ...data
-      });
+      // Use safe field allowlist — no ...data spread
+      const sanitized = sanitizeHistoryDoc(Object.assign({ id: docSnap.id }, data));
+      logs.push(sanitized);
+      // Encode versioned cursor for last visible doc
+      nextCursor = encodeCursor({ id: docSnap.id, created_at: data.created_at });
     });
 
-    return res.json({ success: true, isAdmin: requesterIsAdmin, logs });
+    return res.json({
+      success: true,
+      isAdmin: requesterIsAdmin,
+      logs,
+      pagination: {
+        pageSize,
+        hasMore,
+        nextCursor: hasMore ? nextCursor : null
+      }
+    });
   } catch (err) {
     console.error('GET /api/search-history error:', err);
     return res.status(500).json({ error: 'Internal server error', message: err.message });
@@ -6858,7 +6757,7 @@ app.delete('/api/search-history/:id', async (req, res) => {
       return res.status(400).json({ error: 'Bad Request', message: 'Thiếu ID bản ghi.' });
     }
 
-    const db = admin.firestore();
+    const db = getFirebaseFirestore();
     const docRef = db.collection('search_logs').doc(logId);
     const docSnap = await docRef.get();
 
@@ -6868,8 +6767,8 @@ app.delete('/api/search-history/:id', async (req, res) => {
 
     const data = docSnap.data();
     const requesterIsAdmin = isAdmin(decoded);
-    const isOwner = (data.user_id && data.user_id === decoded.uid) ||
-                    (data.user_email && data.user_email.toLowerCase() === (decoded.email || '').toLowerCase());
+    // Ownership check: UID only — no email fallback
+    const isOwner = data.user_id && data.user_id === decoded.uid;
 
     if (!requesterIsAdmin && !isOwner) {
       return res.status(403).json({ error: 'Forbidden', message: 'Bạn không có quyền xóa bản ghi này.' });
@@ -6901,8 +6800,9 @@ app.get('/api/build-info', (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 8080;
+initFirebase();
+initLegalResearchRouter(getFirebaseAuth());
+app.use('/api', legalResearchRouter);
 app.listen(PORT, () => {
   console.log(`VBAI Proxy listening on port ${PORT}`);
 });
-
-

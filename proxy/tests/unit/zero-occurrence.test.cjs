@@ -48,7 +48,7 @@ const ALLOWED_LINE_PATTERNS = {
     "req.body.nine_router_model",
     "req.body.nine_router_models",
     "req.body.has_nine_router_key",
-    'admin.firestore.FieldValue.delete()',
+    'FieldValue.delete()',
     'UNSUPPORTED_AI_PROVIDER',
     'LEGACY_AI_CONFIG_NOT_SUPPORTED',
     "norm.includes('devgovietnam')",
@@ -125,7 +125,7 @@ function scanDirectory(dirPath) {
 }
 
 function runSelfTests() {
-  console.log('  [Self-Test] Running Zero-Gate Self Tests (A-F)...');
+  console.log('  [Self-Test] Running Zero-Gate Self Tests (A-G)...');
 
   // Test A: active_provider alone is not a violation
   const lineA = "const provider = config.active_provider || 'gemini';";
@@ -159,6 +159,11 @@ function runSelfTests() {
   assert.strictEqual(isAllowedMatch('server.js', lineF), false);
   assert.strictEqual(FORBIDDEN_PATTERNS.some(p => p.test(lineF)), true);
   console.log('    ✔ Test F PASS: DevGOVietnam model runtime correctly flagged as violation');
+
+  // Test G: modular Firestore deletion of a legacy field is cleanup, not usage
+  const lineG = 'nine_router_api_key: FieldValue.delete(),';
+  assert.strictEqual(isAllowedMatch('server.js', lineG), true);
+  console.log('    ✔ Test G PASS: Modular FieldValue legacy-field deletion allowed');
 }
 
 runSelfTests();

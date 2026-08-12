@@ -1,13 +1,15 @@
-const admin = require('firebase-admin');
 const serviceAccount = require('./service-account.json');
+const {
+  getFirebaseFirestore,
+  initializeFirebaseApp,
+} = require('./services/firebase-admin.service');
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-}
+initializeFirebaseApp({
+  serviceAccount,
+  projectId: serviceAccount.project_id,
+});
 
-const db = admin.firestore();
+const db = getFirebaseFirestore();
 
 async function updateModel() {
   try {

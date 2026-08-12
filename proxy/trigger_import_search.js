@@ -1,6 +1,6 @@
-const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+const { initializeFirebaseApp } = require('./services/firebase-admin.service');
 
 async function main() {
   console.log('==================================================');
@@ -18,15 +18,10 @@ async function main() {
   console.log(`[Info] Project ID active: ${projectId}`);
 
   // Initialize Firebase Admin
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: projectId,
-    });
-  }
+  const app = initializeFirebaseApp({ serviceAccount, projectId });
 
   // Get Access Token
-  const credential = admin.app().options?.credential;
+  const credential = app.options?.credential;
   const tokenObj = await credential.getAccessToken();
   const accessToken = tokenObj.access_token;
   if (!accessToken) {

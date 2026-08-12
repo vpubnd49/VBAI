@@ -1,14 +1,13 @@
-const admin = require('firebase-admin');
 const serviceAccount = require('./service-account.json');
+const { initializeFirebaseApp } = require('./services/firebase-admin.service');
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-}
+const app = initializeFirebaseApp({
+  serviceAccount,
+  projectId: serviceAccount.project_id,
+});
 
 async function getGoogleAccessToken() {
-  const credential = admin.app().options?.credential;
+  const credential = app.options?.credential;
   const token = await credential.getAccessToken();
   return token.access_token;
 }

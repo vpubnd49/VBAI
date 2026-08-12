@@ -1,12 +1,13 @@
-const admin = require('firebase-admin');
 const serviceAccount = require('./service-account.json');
+const { initializeFirebaseApp } = require('./services/firebase-admin.service');
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+const app = initializeFirebaseApp({
+  serviceAccount,
+  projectId: serviceAccount.project_id,
 });
 
 async function getGoogleAccessToken() {
-  const credential = admin.app().options?.credential;
+  const credential = app.options?.credential;
   if (!credential || typeof credential.getAccessToken !== 'function') {
     throw new Error('vertex_auth_not_available');
   }

@@ -134,24 +134,55 @@ assert(
   'CORS uses dynamic origin validation function'
 );
 
-// 5. Test: Route files should not be completely unprotected
+// 5. Test: Mounted route files must have auth
 console.log('\n--- Route File Auth Check ---');
 const routesDir = path.join(__dirname, '..', 'routes');
 const routeFiles = fs.readdirSync(routesDir).filter(f => f.endsWith('.js'));
+
+// Route files that are mounted in server.js must use auth middleware
+const MOUNTED_WITH_AUTH_REQUIRED = ['legal-research.routes.js'];
+const NOT_MOUNTED = ['web-search.routes.js', 'web-extract.routes.js'];
+
 for (const rf of routeFiles) {
   const rfPath = path.join(routesDir, rf);
   const content = fs.readFileSync(rfPath, 'utf8');
-  // Route files that are mounted under /api share the
-  // server-level middleware. For now, note their auth status.
-  const hasInlineAuth = content.includes('verifyIdToken') || content.includes('firebase-admin');
-  if (!hasInlineAuth) {
-    console.log(`  NOTE: ${rf} has no inline auth (relies on server middleware or is designed public)`);
+
+  if (MOUNTED_WITH_AUTH_REQUIRED.includes(rf)) {
+    // Must use the shared auth middleware or verifyIdToken
+    const hasAuth = content.includes('makeAuthMiddleware') ||
+                    content.includes('requireAuth') ||
+                    content.includes('verifyIdToken') ||
+                    content.includes('authGuard');
+    assert(hasAuth, `${rf} (mounted, auth-required) uses auth middleware`);
+  } else if (NOT_MOUNTED.includes(rf)) {
+    console.log(`  NOTE: ${rf} not mounted — inline handlers in server.js handle auth`);
   } else {
-    console.log(`  OK: ${rf} has inline auth`);
+    const hasInlineAuth = content.includes('verifyIdToken') || content.includes('firebase-admin') || content.includes('makeAuthMiddleware');
+    if (!hasInlineAuth) {
+      console.log(`  NOTE: ${rf} has no inline auth (verify it's intentionally public or unmounted)`);
+    } else {
+      console.log(`  OK: ${rf} has inline auth`);
+    }
   }
 }
 
-// 6. Test: maskApiKey exists and is used for sensitive config
+
+// 6. Legal research auth initialization must fail closed.
+console.log('\n--- Legal Research Auth Initialization ---');
+const legalResearchSource = fs.readFileSync(
+  path.join(routesDir, 'legal-research.routes.js'),
+  'utf8'
+);
+assert(
+  /if\s*\(!_requireAuth\)[\s\S]*?status\(503\)[\s\S]*?AUTH_SERVICE_UNAVAILABLE/.test(legalResearchSource),
+  'legal-research router fails closed with 503 when auth is not initialized'
+);
+assert(
+  !/if\s*\(!_requireAuth\)[\s\S]{0,180}?return\s+next\(\)/.test(legalResearchSource),
+  'legal-research router has no missing-auth pass-through'
+);
+
+// 7. Test: maskApiKey exists and is used for sensitive config
 console.log('\n--- API Key Masking ---');
 assert(
   serverContent.includes('maskApiKey'),

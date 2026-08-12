@@ -7,18 +7,21 @@
     "topic_aliases": ["luật tổ chức chính quyền địa phương", "tổ chức chính quyền địa phương", "chính quyền địa phương", "chinh quyen dia phuong"],
     "query_patterns": ["luat to chuc chinh quyen dia phuong", "to chuc chinh quyen dia phuong", "chinh quyen dia phuong", "luat 72", "72/2025/qh15"],
     "issuer": "Quốc hội",
-    "issue_date": null,
-    "effective_date": null,
-    "effective_status": "unknown",
-    "status_as_of": null,
-    "replaces": [],
+    "issue_date": "2025-06-16",
+    "effective_date": "2025-06-16",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-12",
+    "replaces": ["65/2025/QH15"],
     "amends": [],
     "superseded_by": [],
-    "official_source_urls": [],
-    "verification_status": "unverified",
-    "verified_at": null,
-    "review_state": "draft",
-    "data_version": 1
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/?classid=1&docid=214553&pageid=27160&typegroupid=3",
+      "https://xaydungchinhsach.chinhphu.vn/toan-van-luat-so-72-2025-qh15-to-chuc-chinh-quyen-dia-phuong-119250618161434371.htm"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-12T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2
   },
   {
     "id": "117-2025-qh15",

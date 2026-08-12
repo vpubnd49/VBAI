@@ -1,12 +1,41 @@
 /**
  * Express router for /api/legal-research endpoints.
+ * Auth enforced via shared middleware (Prompt 03).
  */
+'use strict';
 const express = require('express');
 const router = express.Router();
 const { processLegalQuery } = require('../legal/services/legal-query-engine');
 const { getDocumentMetadata } = require('../legal/services/answer-validator');
+const { makeAuthMiddleware } = require('../middleware/auth.middleware');
 
-router.post('/legal-research/query', async (req, res) => {
+let _requireAuth = null;
+
+/**
+ * Initialize router with a modular Firebase Auth client.
+ * Must be called before mounting the router.
+ * @param {{verifyIdToken: Function}} authClient
+ */
+function initRouter(authClient) {
+  const mw = makeAuthMiddleware(authClient);
+  _requireAuth = mw.requireAuth;
+  return router;
+}
+
+// Lazy middleware wrapper: resolves _requireAuth at request time.
+// Missing initialization is a service failure, never an authentication bypass.
+function authGuard(req, res, next) {
+  if (!_requireAuth) {
+    res.set('Retry-After', '30');
+    return res.status(503).json({
+      error: 'AUTH_SERVICE_UNAVAILABLE',
+      message: 'Authentication service is not initialized. Please retry later.',
+    });
+  }
+  return _requireAuth()(req, res, next);
+}
+
+router.post('/legal-research/query', authGuard, async (req, res) => {
   try {
     const { query, conversationContext, effectiveDate, mode } = req.body || {};
     if (!query || typeof query !== 'string' || !query.trim()) {
@@ -20,7 +49,7 @@ router.post('/legal-research/query', async (req, res) => {
   }
 });
 
-router.get('/legal-sources/:documentNumber', (req, res) => {
+router.get('/legal-sources/:documentNumber', authGuard, (req, res) => {
   try {
     const docNumber = decodeURIComponent(req.params.documentNumber || '').trim();
     if (!docNumber) return res.status(400).json({ success: false, error: 'Document number is required' });
@@ -32,4 +61,4 @@ router.get('/legal-sources/:documentNumber', (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = { router, initRouter, authGuard };

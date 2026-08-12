@@ -1,16 +1,27 @@
 {
-  "72_2025_QH15.pdf": {
+  "72_2025_QH15_45p.pdf": {
     "so_hieu": "72/2025/QH15",
     "loai_van_ban": "luat",
     "co_quan_ban_hanh": "Quốc hội",
     "ngay_ban_hanh": "16/06/2025",
-    "ngay_hieu_luc": "01/07/2025",
+    "ngay_hieu_luc": "16/06/2025",
     "tinh_trang_hieu_luc": "co_hieu_luc",
     "trich_yeu": "Luật Tổ chức chính quyền địa phương",
-    "thay_the_cho": [],
-    "tom_tat_chinh_sach": "Quy định về tổ chức và hoạt động của chính quyền địa phương các cấp, phân định thẩm quyền, nhiệm vụ, quyền hạn của HĐND và UBND.",
+    "thay_the_cho": [
+      "65/2025/QH15"
+    ],
+    "tom_tat_chinh_sach": "Tổ chức đơn vị hành chính thành 02 cấp gồm cấp tỉnh và cấp xã; quy định tổ chức, nhiệm vụ, quyền hạn của Hội đồng nhân dân, Ủy ban nhân dân, phân quyền, phân cấp và điều khoản chuyển tiếp.",
     "original_filename": "72_2025_QH15.pdf",
-    "num_pages": 45
+    "num_pages": 45,
+    "tom_tat_chuong_dieu": "",
+    "summary_verified": false,
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/?classid=1&docid=214553&pageid=27160&typegroupid=3",
+      "https://xaydungchinhsach.chinhphu.vn/toan-van-luat-so-72-2025-qh15-to-chuc-chinh-quyen-dia-phuong-119250618161434371.htm"
+    ],
+    "verified": true,
+    "verified_at": "2026-08-12T00:00:00+07:00",
+    "verification_basis": "Cổng TTĐT Chính phủ; Điều 1 và Điều 51 Luật 72/2025/QH15"
   },
   "530912.pdf": {
     "so_hieu": "74/2025/QH15",
@@ -136,16 +147,24 @@
     "loai_van_ban": "luat",
     "co_quan_ban_hanh": "Quốc hội",
     "ngay_ban_hanh": "16/06/2025",
-    "ngay_hieu_luc": "01/01/2026",
+    "ngay_hieu_luc": "16/06/2025",
     "tinh_trang_hieu_luc": "co_hieu_luc",
     "trich_yeu": "Luật Tổ chức chính quyền địa phương",
     "thay_the_cho": [
-      "77/2015/QH13"
+      "65/2025/QH15"
     ],
-    "tom_tat_chinh_sach": "1. Quy định toàn diện về tổ chức và hoạt động của chính quyền địa phương các cấp (tỉnh, huyện, xã và tương đương), bao gồm cơ cấu tổ chức, nhiệm vụ, quyền hạn của Hội đồng nhân dân và Ủy ban nhân dân. 2. Phân định rõ thẩm quyền, trách nhiệm giữa chính quyền trung ương và địa phương, đảm bảo phân cấp, phân quyền hiệu quả. 3. Quy định về mô hình chính quyền đô thị, chính quyền nông thôn, đơn vị hành chính - kinh tế đặc biệt. 4. Đổi mới tổ chức bộ máy chính quyền địa phương theo hướng tinh gọn, hiệu lực, hiệu quả. 5. Tăng cường giám sát, kiểm tra, thanh tra hoạt động của chính quyền địa phương.",
+    "tom_tat_chinh_sach": "Tổ chức đơn vị hành chính thành 02 cấp gồm cấp tỉnh và cấp xã; quy định tổ chức, nhiệm vụ, quyền hạn của Hội đồng nhân dân, Ủy ban nhân dân, phân quyền, phân cấp và điều khoản chuyển tiếp.",
     "original_filename": "72_2025_QH15.pdf",
     "num_pages": 0,
-    "tom_tat_chuong_dieu": ""
+    "tom_tat_chuong_dieu": "",
+    "summary_verified": false,
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/?classid=1&docid=214553&pageid=27160&typegroupid=3",
+      "https://xaydungchinhsach.chinhphu.vn/toan-van-luat-so-72-2025-qh15-to-chuc-chinh-quyen-dia-phuong-119250618161434371.htm"
+    ],
+    "verified": true,
+    "verified_at": "2026-08-12T00:00:00+07:00",
+    "verification_basis": "Cổng TTĐT Chính phủ; Điều 1 và Điều 51 Luật 72/2025/QH15"
   },
   "621345.pdf": {
     "so_hieu": "73/2025/QH15",
@@ -1453,13 +1472,24 @@
     "loai_van_ban": "luat",
     "co_quan_ban_hanh": "Quốc hội",
     "ngay_ban_hanh": "16/06/2025",
-    "ngay_hieu_luc": "01/01/2026",
+    "ngay_hieu_luc": "16/06/2025",
     "tinh_trang_hieu_luc": "co_hieu_luc",
     "trich_yeu": "Luật Tổ chức chính quyền địa phương",
-    "thay_the_cho": [],
-    "tom_tat_chinh_sach": "1. Luật này quy định về tổ chức chính quyền địa phương ở hai cấp chính: cấp tỉnh (tỉnh, thành phố trực thuộc trung ương) và cấp xã (xã, phường, đặc khu). 2. Giới thiệu khái niệm \"đặc khu\" là đơn vị hành chính ở một số hải đảo quan trọng và định nghĩa \"đơn vị hành chính - kinh tế đặc biệt\" do Quốc hội thành lập với cơ chế ưu đãi vượt trội. 3. Xác định việc phân loại đơn vị hành chính là cơ sở hoạch định chính sách, tổ chức bộ máy và chế độ cán bộ, công chức, dựa trên các tiêu chí về quy mô dân số, diện tích, điều kiện kinh tế - xã hội và yếu tố đặc thù. 4. Nêu rõ nguyên tắc tổ chức và hoạt động của chính quyền địa phương là tuân thủ Hiến pháp, pháp luật và thực hiện nguyên tắc tập trung dân chủ. 5. Quy định cơ chế cho phép cơ quan có thẩm quyền ban hành văn bản hành chính để kịp thời hướng dẫn giải quyết các vấn đề phát sinh, với các điều kiện và thời hạn hiệu lực cụ thể.",
+    "thay_the_cho": [
+      "65/2025/QH15"
+    ],
+    "tom_tat_chinh_sach": "Tổ chức đơn vị hành chính thành 02 cấp gồm cấp tỉnh và cấp xã; quy định tổ chức, nhiệm vụ, quyền hạn của Hội đồng nhân dân, Ủy ban nhân dân, phân quyền, phân cấp và điều khoản chuyển tiếp.",
     "original_filename": "72_2025_QH15_649675.docx",
-    "num_pages": 0
+    "num_pages": 0,
+    "tom_tat_chuong_dieu": "",
+    "summary_verified": false,
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/?classid=1&docid=214553&pageid=27160&typegroupid=3",
+      "https://xaydungchinhsach.chinhphu.vn/toan-van-luat-so-72-2025-qh15-to-chuc-chinh-quyen-dia-phuong-119250618161434371.htm"
+    ],
+    "verified": true,
+    "verified_at": "2026-08-12T00:00:00+07:00",
+    "verification_basis": "Cổng TTĐT Chính phủ; Điều 1 và Điều 51 Luật 72/2025/QH15"
   },
   "76_2025_QH15_659899.docx": {
     "so_hieu": "76/2025/QH15",

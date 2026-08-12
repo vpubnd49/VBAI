@@ -1,5 +1,8 @@
 /* eslint-disable no-console */
-const admin = require('firebase-admin');
+const {
+  getFirebaseAuth,
+  initializeFirebaseApp,
+} = require('../services/firebase-admin.service');
 
 async function main() {
   const serviceAccountJson = String(process.env.FIREBASE_SERVICE_ACCOUNT || '').trim();
@@ -20,12 +23,9 @@ async function main() {
     throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT JSON: ${err.message}`);
   }
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id,
-  });
+  initializeFirebaseApp({ serviceAccount, projectId: serviceAccount.project_id });
 
-  const customToken = await admin.auth().createCustomToken(uid, {
+  const customToken = await getFirebaseAuth().createCustomToken(uid, {
     canary: true,
     source: 'github-actions',
   });

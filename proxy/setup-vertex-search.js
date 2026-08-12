@@ -4,8 +4,8 @@
  * and imports the metadata.jsonl containing legal documents mapped with 'so_hieu'.
  */
 
-const admin = require('firebase-admin');
 const fs = require('fs');
+const { initializeFirebaseApp } = require('./services/firebase-admin.service');
 
 async function main() {
   console.log('==================================================');
@@ -31,14 +31,11 @@ async function main() {
   console.log(`[Info] Project ID active: ${projectId}`);
 
   // 2. Initialize Firebase Admin
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: projectId,
-  });
+  const app = initializeFirebaseApp({ serviceAccount, projectId });
 
   // 3. Get Google OAuth 2.0 Access Token
   console.log('[Info] Đang sinh mã truy cập Google Access Token...');
-  const credential = admin.app().options?.credential;
+  const credential = app.options?.credential;
   const tokenObj = await credential.getAccessToken();
   const accessToken = tokenObj.access_token;
   if (!accessToken) {

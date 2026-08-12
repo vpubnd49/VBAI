@@ -1,170 +1,420 @@
-name: Deploy to Google Cloud Run
+name: Production Release
 
 on:
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact 40-character commit on main to release
+        required: false
+        type: string
+      baseline_sha:
+        description: Exact currently deployed 40-character commit
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: vbai-production-release
+  cancel-in-progress: false
 
 env:
   PROJECT_ID: gen-lang-client-0462350485
-  SERVICE_NAME: vbai
+  EXPECTED_PROJECT_NUMBER: "419728335518"
   REGION: asia-southeast1
-  # Optional overrides. Leave empty to use Cloud Run defaults and avoid actAs IAM failures.
-  BUILD_SERVICE_ACCOUNT: ""
-  RUNTIME_SERVICE_ACCOUNT: ""
+  ARTIFACT_REPOSITORY: vbai
+  PROXY_SERVICE: vbai-proxy
+  WEBAPP_SERVICE: vbai
+  CANONICAL_PRODUCTION_URL: https://vbai-419728335518.asia-southeast1.run.app
+  MAX_AUDIO_UPLOAD_MB: "25"
 
 jobs:
-  deploy:
+  validate:
+    name: Clean source and 25 release gates
     runs-on: ubuntu-latest
-
+    outputs:
+      gate_artifact: ${{ steps.gates.outputs.artifact_name }}
+      source_tree_hash: ${{ steps.identity.outputs.source_tree_hash }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - name: Checkout exact release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha || github.sha }}
+          fetch-depth: 0
 
-      - name: Check mojibake in webapp strings
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            proxy/package-lock.json
+            webapp/package-lock.json
+
+      - name: Validate immutable release identity
+        id: identity
+        shell: bash
         run: |
-          set -e
-          node - <<'NODE'
-          const fs = require('fs');
-          const path = require('path');
-          const root = 'webapp';
-          const exts = new Set(['.js', '.css', '.html']);
-          const skip = new Set(['node_modules', 'dist', '.git']);
-          const suspectPair = /(?:[\u00C2\u00C3\u00C4\u00C6\u00D0\u00D1\u00E2\u00E3\u00F0\u00EF][\u0080-\u00BF])/u;
-          const suspectReplacement = /\uFFFD/u;
-          const hits = [];
+          set -euo pipefail
+          RELEASE_SHA="${{ inputs.release_sha }}"
+          if [ -z "$RELEASE_SHA" ]; then
+            RELEASE_SHA="${{ github.sha }}"
+          fi
+          BASELINE_SHA="${{ inputs.baseline_sha }}"
+          if [ -z "$BASELINE_SHA" ]; then
+            BASELINE_SHA="4bf438218174cf794b39e37fb667c8e2a075e122"
+          fi
 
-          function walk(dir) {
-            for (const name of fs.readdirSync(dir)) {
-              if (skip.has(name)) continue;
-              const p = path.join(dir, name);
-              const st = fs.statSync(p);
-              if (st.isDirectory()) {
-                walk(p);
-                continue;
-              }
-              if (!exts.has(path.extname(p))) continue;
-              const text = fs.readFileSync(p, 'utf8');
-              const lines = text.split(/\r?\n/);
-              lines.forEach((line, idx) => {
-                if (suspectPair.test(line) || suspectReplacement.test(line)) {
-                  hits.push(`${p}:${idx + 1}: ${line.slice(0, 180)}`);
-                }
-              });
-            }
-          }
+          [[ "${{ github.ref }}" == "refs/heads/main" ]] || { echo "NO_GO: dispatch must run from main"; exit 1; }
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "NO_GO: invalid release_sha"; exit 1; }
+          [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "NO_GO: invalid baseline_sha"; exit 1; }
+          [[ "$RELEASE_SHA" != "$BASELINE_SHA" ]] || { echo "NO_GO: release commit must differ from baseline"; exit 1; }
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$RELEASE_SHA"
+          test -z "$(git status --porcelain=v1)"
+          git diff --check
+          SOURCE_HASH=$(node -e "import('./webapp/vite.config.js').then(m=>console.log(m.computeSourceTreeHash()))")
+          [[ "$SOURCE_HASH" =~ ^[0-9a-f]{64}$ ]]
+          echo "source_tree_hash=$SOURCE_HASH" >> "$GITHUB_OUTPUT"
 
-          walk(root);
-          if (hits.length) {
-            console.error('Detected possible mojibake sequences in webapp files:');
-            for (const h of hits.slice(0, 60)) console.error(h);
-            process.exit(1);
-          }
-          console.log('Mojibake check passed.');
-          NODE
-
-      - name: Run proxy all offline tests (unit + golden)
-        working-directory: proxy
+      - name: Install locked dependencies
+        shell: bash
         run: |
-          npm ci
-          npm run test:all
+          set -euo pipefail
+          npm --prefix proxy ci
+          npm --prefix webapp ci
 
-      - name: Run webapp all tests (policy + legal)
+      - name: Install locked Playwright Chromium runtime
         working-directory: webapp
-        run: |
-          npm ci
-          npm run test:all
+        run: npx playwright install --with-deps chromium
 
-      # IMPORTANT:
-      # secrets.GCP_SA_KEY must contain credentials for a service account
-      # that has access to PROJECT_ID above.
-      # Example recommended service account:
-      # github-deployer@gen-lang-client-0462350485.iam.gserviceaccount.com
-      - name: Google Auth
-        id: auth
+      - name: Run deployed dependency audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .release-evidence/audits
+          npm --prefix proxy audit --omit=dev --omit=optional --json > .release-evidence/audits/proxy-deployed.json
+          npm --prefix proxy audit --json > .release-evidence/audits/proxy-complete.json
+          npm --prefix webapp audit --omit=dev --json > .release-evidence/audits/webapp-production.json
+          npm --prefix webapp audit --json > .release-evidence/audits/webapp-complete.json
+
+      - name: Validate optional storage residual boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -RIE --include='*.js' --include='*.cjs' --include='*.mjs' 'firebase-admin/storage|admin\.storage|getStorage\(|\.bucket\(|bucket\.file\(' proxy --exclude-dir=node_modules | wc -l)" -eq 0
+          grep -Fq 'npm ci --omit=dev --omit=optional' proxy/Dockerfile
+          node scripts/secret-scan.cjs
+
+      - name: Require reviewed deterministic legal metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/release/check-bosung-metadata.mjs --output .release-evidence/bosung-metadata-governance.json
+
+      - name: Execute master 25 gates
+        id: gates
+        env:
+          VBAI_EXPECTED_HEAD: ${{ inputs.release_sha || github.sha }}
+          VBAI_EXPECTED_BRANCH: main
+        shell: bash
+        run: |
+          set -euo pipefail
+          node run-all-gates-v4.cjs
+          GATE_FILE=$(find "$GITHUB_WORKSPACE/.." -path '*/VBAI-audit-artifacts/master-25-*/master-gate-results.json' -type f -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)
+          test -n "$GATE_FILE"
+          node - "$GATE_FILE" "${{ inputs.release_sha || github.sha }}" <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (data.totalGates !== 25 || data.passed !== 25 || data.failed !== 0 || data.blocked !== 0 || data.head !== process.argv[3]) process.exit(1);
+          NODE
+          ARTIFACT_NAME="master-gates-${{ github.run_id }}"
+          echo "artifact_name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+          cp -R "$(dirname "$GATE_FILE")" .release-evidence/master-gates
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: master-gates-${{ github.run_id }}
+          path: .release-evidence
+          if-no-files-found: error
+          retention-days: 30
+
+  build:
+    name: Build immutable images
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      proxy_digest: ${{ steps.images.outputs.proxy_digest }}
+      webapp_digest: ${{ steps.images.outputs.webapp_digest }}
+      proxy_image: ${{ steps.images.outputs.proxy_image }}
+      webapp_image: ${{ steps.images.outputs.webapp_image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha || github.sha }}
+
+      - name: Authenticate build identity with Workload Identity Federation
         uses: google-github-actions/auth@v3
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_BUILD_SERVICE_ACCOUNT }}
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v3
+      - uses: google-github-actions/setup-gcloud@v3
 
-      - name: Verify auth and project
-        run: |
-          echo "Expected project: ${{ env.PROJECT_ID }}"
-          gcloud auth list
-          gcloud config set project ${{ env.PROJECT_ID }}
-          gcloud config get-value project
-          gcloud projects describe ${{ env.PROJECT_ID }} --format='value(projectId)'
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Select GCP project
-        run: gcloud config set project ${{ env.PROJECT_ID }}
-
-
-
-      - name: Deploy backend proxy
-        id: deploy-proxy
+      - name: Validate project and registry
+        shell: bash
         run: |
           set -euo pipefail
-          BUILD_SA_FLAG=""
-          RUNTIME_SA_FLAG=""
-          if [ -n "${BUILD_SERVICE_ACCOUNT:-}" ]; then
-            BUILD_SA_FLAG="--build-service-account ${BUILD_SERVICE_ACCOUNT}"
-          fi
-          if [ -n "${RUNTIME_SERVICE_ACCOUNT:-}" ]; then
-            RUNTIME_SA_FLAG="--service-account ${RUNTIME_SERVICE_ACCOUNT}"
-          fi
+          test "$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')" = "$EXPECTED_PROJECT_NUMBER"
+          gcloud artifacts repositories describe "$ARTIFACT_REPOSITORY" --project "$PROJECT_ID" --location "$REGION" --format='value(name)' >/dev/null
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
-          gcloud run deploy vbai-proxy \
-            --quiet \
-            --project ${{ env.PROJECT_ID }} \
-            --source ./proxy \
-            --region ${{ env.REGION }} \
-            --allow-unauthenticated \
-            --port 8080 \
-            --memory 2Gi \
-            --max-instances 3 \
-            --set-env-vars MAX_AUDIO_UPLOAD_MB=500 \
-            ${BUILD_SA_FLAG} \
-            ${RUNTIME_SA_FLAG}
-          PROXY_URL=$(gcloud run services describe vbai-proxy --project ${{ env.PROJECT_ID }} --region ${{ env.REGION }} --format='value(status.url)')
-          echo "proxy_url=$PROXY_URL" >> $GITHUB_OUTPUT
-
-      - name: Deploy frontend
+      - name: Build once, push and resolve immutable digests
+        id: images
+        shell: bash
         run: |
           set -euo pipefail
-          BUILD_SA_FLAG=""
-          RUNTIME_SA_FLAG=""
-          if [ -n "${BUILD_SERVICE_ACCOUNT:-}" ]; then
-            BUILD_SA_FLAG="--build-service-account ${BUILD_SERVICE_ACCOUNT}"
-          fi
-          if [ -n "${RUNTIME_SERVICE_ACCOUNT:-}" ]; then
-            RUNTIME_SA_FLAG="--service-account ${RUNTIME_SERVICE_ACCOUNT}"
-          fi
+          REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}"
+          PROXY_IMAGE="${REGISTRY}/vbai-proxy:${{ inputs.release_sha }}"
+          WEBAPP_IMAGE="${REGISTRY}/vbai-webapp:${{ inputs.release_sha }}"
+          docker buildx build --platform linux/amd64 --push -t "$PROXY_IMAGE" ./proxy
+          docker buildx build --platform linux/amd64 --push -t "$WEBAPP_IMAGE" \
+            --build-arg "GIT_SHA=${{ inputs.release_sha }}" \
+            --build-arg "SOURCE_TREE_HASH=${{ needs.validate.outputs.source_tree_hash }}" \
+            --build-arg SOURCE_TREE_DIRTY=false \
+            --build-arg REQUIRE_CLEAN_BUILD=true ./webapp
+          PROXY_DIGEST=$(docker buildx imagetools inspect "$PROXY_IMAGE" --format '{{.Manifest.Digest}}')
+          WEBAPP_DIGEST=$(docker buildx imagetools inspect "$WEBAPP_IMAGE" --format '{{.Manifest.Digest}}')
+          [[ "$PROXY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$WEBAPP_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "proxy_image=$PROXY_IMAGE" >> "$GITHUB_OUTPUT"
+          echo "webapp_image=$WEBAPP_IMAGE" >> "$GITHUB_OUTPUT"
+          echo "proxy_digest=$PROXY_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "webapp_digest=$WEBAPP_DIGEST" >> "$GITHUB_OUTPUT"
 
-          ATTEMPTS=2
-          COUNT=1
-          until [ "$COUNT" -gt "$ATTEMPTS" ]; do
-            echo "Frontend deploy attempt $COUNT/$ATTEMPTS"
-            if gcloud run deploy ${{ env.SERVICE_NAME }} \
-              --quiet \
-              --project ${{ env.PROJECT_ID }} \
-              --source ./webapp \
-              --region ${{ env.REGION }} \
-              --allow-unauthenticated \
-              --port 8080 \
-              --memory 256Mi \
-              --max-instances 3 \
-              --set-env-vars API_BASE_URL=${{ steps.deploy-proxy.outputs.proxy_url }} \
-              ${BUILD_SA_FLAG} \
-              ${RUNTIME_SA_FLAG}; then
-              echo "Frontend deploy succeeded on attempt $COUNT"
-              break
-            fi
-            if [ "$COUNT" -eq "$ATTEMPTS" ]; then
-              echo "Frontend deploy failed after $ATTEMPTS attempts"
-              exit 1
-            fi
-            echo "Frontend deploy failed on attempt $COUNT, retrying in 15s..."
-            COUNT=$((COUNT + 1))
-            sleep 15
+      - name: Inspect production proxy image boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.images.outputs.proxy_image }}@${{ steps.images.outputs.proxy_digest }}"
+          docker pull "$IMAGE"
+          docker run --rm --entrypoint node "$IMAGE" -e "try{require.resolve('@google-cloud/storage');process.exit(1)}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}"
+          docker run --rm --entrypoint node "$IMAGE" -e "require('firebase-admin/app');require('firebase-admin/auth');require('firebase-admin/firestore')"
+
+      - name: Attest proxy image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.images.outputs.proxy_image }}
+          subject-digest: ${{ steps.images.outputs.proxy_digest }}
+          push-to-registry: true
+
+      - name: Attest webapp image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.images.outputs.webapp_image }}
+          subject-digest: ${{ steps.images.outputs.webapp_digest }}
+          push-to-registry: true
+
+      - name: Save immutable image manifest
+        shell: bash
+        run: |
+          mkdir -p .release-evidence
+          node - <<'NODE' > .release-evidence/image-manifest.json
+          console.log(JSON.stringify({
+            proxy: { image: process.env.PROXY_IMAGE, builtDigest: process.env.PROXY_DIGEST },
+            webapp: { image: process.env.WEBAPP_IMAGE, builtDigest: process.env.WEBAPP_DIGEST }
+          }, null, 2));
+          NODE
+        env:
+          PROXY_IMAGE: ${{ steps.images.outputs.proxy_image }}
+          PROXY_DIGEST: ${{ steps.images.outputs.proxy_digest }}
+          WEBAPP_IMAGE: ${{ steps.images.outputs.webapp_image }}
+          WEBAPP_DIGEST: ${{ steps.images.outputs.webapp_digest }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: immutable-images-${{ github.run_id }}
+          path: .release-evidence/image-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
+  deploy:
+    name: Candidate deploy and exact promotion
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      deployment_artifact: deployment-state-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+
+      - name: Authenticate deployer with Workload Identity Federation
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Record rollback targets and unique identities
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${{ inputs.release_sha }}"; SHORT_SHA="${SHORT_SHA:0:7}"
+          SUFFIX="${SHORT_SHA}-${{ github.run_id }}"
+          TAG="candidate-${SHORT_SHA}-${{ github.run_id }}"
+          for SERVICE in "$PROXY_SERVICE" "$WEBAPP_SERVICE"; do
+            gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > "${SERVICE}-before.json"
+            PREVIOUS=$(node - "${SERVICE}-before.json" <<'NODE'
+          const s=require(process.argv[2]); const t=s.status?.traffic||[];
+          const live=t.filter(x=>Number(x.percent||0)>0);
+          if(live.length!==1 || Number(live[0].percent)!==100 || !live[0].revisionName) process.exit(1);
+          process.stdout.write(live[0].revisionName);
+          NODE
+            )
+            echo "previous_${SERVICE//-/_}=$PREVIOUS" >> "$GITHUB_OUTPUT"
+          done
+          echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy both candidates with zero production traffic
+        id: candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROXY_REF="${{ needs.build.outputs.proxy_image }}@${{ needs.build.outputs.proxy_digest }}"
+          WEBAPP_REF="${{ needs.build.outputs.webapp_image }}@${{ needs.build.outputs.webapp_digest }}"
+          gcloud run deploy "$PROXY_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" \
+            --image "$PROXY_REF" --allow-unauthenticated --no-traffic --tag "${{ steps.release.outputs.tag }}" \
+            --revision-suffix "${{ steps.release.outputs.suffix }}" --port 8080 --memory 2Gi --max-instances 3 \
+            --set-env-vars "APP_ENV=production,MAX_AUDIO_UPLOAD_MB=25,FIREBASE_PROJECT_ID=${PROJECT_ID},GIT_SHA=${{ inputs.release_sha }}"
+          PROXY_MAIN_URL=$(gcloud run services describe "$PROXY_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')
+          gcloud run deploy "$WEBAPP_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" \
+            --image "$WEBAPP_REF" --allow-unauthenticated --no-traffic --tag "${{ steps.release.outputs.tag }}" \
+            --revision-suffix "${{ steps.release.outputs.suffix }}" --port 8080 --memory 256Mi --max-instances 3 \
+            --set-env-vars "^|^APP_ENV=production|API_BASE_URL=${PROXY_MAIN_URL}|GIT_SHA=${{ inputs.release_sha }}|FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}|FIREBASE_AUTH_DOMAIN=${PROJECT_ID}.firebaseapp.com|FIREBASE_AUTH_HOST=${PROJECT_ID}.firebaseapp.com|FIREBASE_PROJECT_ID=${PROJECT_ID}|FIREBASE_STORAGE_BUCKET=${PROJECT_ID}.firebasestorage.app|FIREBASE_MESSAGING_SENDER_ID=${EXPECTED_PROJECT_NUMBER}|FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}"
+          for SERVICE in "$PROXY_SERVICE" "$WEBAPP_SERVICE"; do
+            gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > "${SERVICE}-candidate.json"
+            node - "${SERVICE}-candidate.json" "${{ steps.release.outputs.tag }}" "$SERVICE" <<'NODE'
+          const fs=require('fs'); const s=JSON.parse(fs.readFileSync(process.argv[2]));
+          const row=(s.status?.traffic||[]).find(x=>x.tag===process.argv[3]);
+          if(!row?.revisionName || !row?.url || Number(row.percent||0)!==0) process.exit(1);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `${process.argv[4].replaceAll('-','_')}_revision=${row.revisionName}\n${process.argv[4].replaceAll('-','_')}_url=${row.url}\n`);
+          NODE
+          done
+
+      - name: Smoke exact tagged candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --retry 8 --retry-all-errors "${{ steps.candidates.outputs.vbai_proxy_url }}/health"
+          PROXY_INFO=$(curl --fail --show-error --silent "${{ steps.candidates.outputs.vbai_proxy_url }}/api/build-info")
+          WEBAPP_INFO=$(curl --fail --show-error --silent --retry 8 --retry-all-errors "${{ steps.candidates.outputs.vbai_url }}/build-info.json")
+          node - "${{ inputs.release_sha }}" "$PROXY_INFO" "$WEBAPP_INFO" <<'NODE'
+          const expected=process.argv[2];
+          for(const raw of process.argv.slice(3)){ const data=JSON.parse(raw); if(data.gitSha!==expected) process.exit(1); }
+          NODE
+
+      - name: Promote exact proxy and webapp revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud run services update-traffic "$PROXY_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" --to-revisions "${{ steps.candidates.outputs.vbai_proxy_revision }}=100"
+          gcloud run services update-traffic "$WEBAPP_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" --to-revisions "${{ steps.candidates.outputs.vbai_revision }}=100"
+          for SPEC in "$PROXY_SERVICE:${{ steps.candidates.outputs.vbai_proxy_revision }}" "$WEBAPP_SERVICE:${{ steps.candidates.outputs.vbai_revision }}"; do
+            SERVICE="${SPEC%%:*}"
+            EXPECTED_REVISION="${SPEC#*:}"
+            gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json | \
+              node -e '
+                let raw=""; process.stdin.on("data", chunk => raw += chunk); process.stdin.on("end", () => {
+                  const service=JSON.parse(raw), expected=process.argv[1], traffic=service.status?.traffic||[];
+                  const positive=traffic.filter(row => Number(row.percent||0)>0);
+                  const total=positive.reduce((sum,row)=>sum+Number(row.percent||0),0);
+                  if(total!==100 || positive.some(row => row.revisionName!==expected)) process.exit(1);
+                });
+              ' "$EXPECTED_REVISION"
+          done
+
+      - name: Final canonical smoke after promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --retry 8 --retry-all-errors "$CANONICAL_PRODUCTION_URL/" >/dev/null
+          WEBAPP_INFO=$(curl --fail --show-error --silent "$CANONICAL_PRODUCTION_URL/build-info.json")
+          PROXY_URL=$(gcloud run services describe "$PROXY_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')
+          curl --fail --show-error --silent --retry 8 --retry-all-errors "$PROXY_URL/health" >/dev/null
+          PROXY_INFO=$(curl --fail --show-error --silent "$PROXY_URL/api/build-info")
+          node - "${{ inputs.release_sha }}" "$PROXY_INFO" "$WEBAPP_INFO" <<'NODE'
+          const expected=process.argv[2];
+          for(const raw of process.argv.slice(3)){ const data=JSON.parse(raw); if(data.gitSha!==expected) process.exit(1); }
+          NODE
+
+      - name: Save deployment state for independent verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .release-evidence
+          for SERVICE in "$PROXY_SERVICE" "$WEBAPP_SERVICE"; do
+            gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > ".release-evidence/${SERVICE}-service.json"
+          done
+          node - <<'NODE' > .release-evidence/deployment-state.json
+          console.log(JSON.stringify({
+            baselineSha: process.env.BASELINE_SHA,
+            expectedSha: process.env.EXPECTED_SHA,
+            sourceWorkflowRunId: Number(process.env.SOURCE_RUN_ID),
+            proxy: { candidateRevision: process.env.PROXY_REV, previousRevision: process.env.PROXY_PREV },
+            webapp: { candidateRevision: process.env.WEBAPP_REV, previousRevision: process.env.WEBAPP_PREV }
+          }, null, 2));
+          NODE
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_sha }}
+          EXPECTED_SHA: ${{ inputs.release_sha }}
+          SOURCE_RUN_ID: ${{ github.run_id }}
+          PROXY_REV: ${{ steps.candidates.outputs.vbai_proxy_revision }}
+          PROXY_PREV: ${{ steps.release.outputs.previous_vbai_proxy }}
+          WEBAPP_REV: ${{ steps.candidates.outputs.vbai_revision }}
+          WEBAPP_PREV: ${{ steps.release.outputs.previous_vbai }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deployment-state-${{ github.run_id }}
+          path: .release-evidence
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Roll back both services if candidate deploy or smoke fails
+        if: ${{ failure() && steps.release.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROXY_PREVIOUS="${{ steps.release.outputs.previous_vbai_proxy }}"
+          WEBAPP_PREVIOUS="${{ steps.release.outputs.previous_vbai }}"
+          test -n "$PROXY_PREVIOUS"
+          test -n "$WEBAPP_PREVIOUS"
+          gcloud run services update-traffic "$PROXY_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" --to-revisions "${PROXY_PREVIOUS}=100"
+          gcloud run services update-traffic "$WEBAPP_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" --to-revisions "${WEBAPP_PREVIOUS}=100"
+          for SPEC in "$PROXY_SERVICE:$PROXY_PREVIOUS" "$WEBAPP_SERVICE:$WEBAPP_PREVIOUS"; do
+            SERVICE="${SPEC%%:*}"
+            EXPECTED_REVISION="${SPEC#*:}"
+            gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json | \
+              node -e '
+                let raw=""; process.stdin.on("data", chunk => raw += chunk); process.stdin.on("end", () => {
+                  const service=JSON.parse(raw), expected=process.argv[1], traffic=service.status?.traffic||[];
+                  const positive=traffic.filter(row => Number(row.percent||0)>0);
+                  const total=positive.reduce((sum,row)=>sum+Number(row.percent||0),0);
+                  if(total!==100 || positive.some(row => row.revisionName!==expected)) process.exit(1);
+                });
+              ' "$EXPECTED_REVISION"
           done
