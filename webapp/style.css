@@ -181,15 +181,9 @@ body {
 .sidebar-overlay.active { opacity: 1; pointer-events: auto; }
 
 
-.sidebar-header { padding: 14px 14px; border-bottom: 1px solid var(--border-subtle); }
-.logo { display: flex; align-items: center; gap: 10px; }
-.logo-icon {
-  width: 36px; height: 36px; border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--brand-primary), var(--brand-cyan));
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 140, 161, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
+.sidebar-header { padding: 16px 14px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; }
+.logo { display: flex; align-items: center; width: 100%; }
+.logo img, .legal-pro-main-logo { height: 38px; width: auto; max-width: 100%; object-fit: contain; display: block; }
 .logo-text { display: flex; flex-direction: column; }
 .logo-name { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); letter-spacing: 0.5px; }
 .logo-sub { font-size: 0.65rem; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
@@ -1231,7 +1225,7 @@ body {
   width: fit-content;
   max-width: min(92%, 980px);
   text-align: left;
-  background: linear-gradient(135deg, var(--pine-600), var(--pine-700));
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-cyan));
   color: white; border-bottom-right-radius: 4px; box-shadow: var(--shadow-sm);
 }
 .chat-msg.ai {
@@ -1241,16 +1235,17 @@ body {
 }
 .chat-msg.error { color: var(--danger); border-color: var(--danger); }
 .chat-msg-rich a {
-  color: #8fd3ff;
+  color: var(--brand-primary);
   text-decoration: underline;
 }
 .chat-msg-rich code {
-  background: rgba(15, 31, 56, 0.72);
-  border: 1px solid rgba(96, 165, 250, 0.24);
+  background: #F1F5F9;
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 0 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 0.82em;
+  color: var(--brand-primary);
 }
 .chat-msg-rich {
   line-height: 1.35;
@@ -1267,15 +1262,16 @@ body {
 }
 .chat-compare-card {
   margin: 10px 0;
-  border: 1px solid rgba(96, 165, 250, 0.22);
-  background: linear-gradient(145deg, rgba(15, 31, 56, 0.78), rgba(10, 20, 38, 0.82));
+  border: 1px solid var(--border-subtle);
+  background: #FFFFFF;
   border-radius: 10px;
   padding: 10px;
+  box-shadow: var(--shadow-sm);
 }
 .chat-compare-title {
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--daquy-300);
+  color: var(--brand-primary);
   margin-bottom: 8px;
 }
 .chat-table-wrap {
@@ -1290,19 +1286,19 @@ body {
 }
 .chat-compare-table th,
 .chat-compare-table td {
-  border: 1px solid rgba(82, 183, 136, 0.25);
+  border: 1px solid var(--border-subtle);
   padding: 8px 10px;
   text-align: left;
   vertical-align: top;
   line-height: 1.45;
 }
 .chat-compare-table th {
-  background: rgba(30, 64, 175, 0.34);
-  color: var(--text-primary);
+  background: #E7F7F9;
+  color: var(--brand-primary);
   font-weight: 700;
 }
 .chat-compare-table td {
-  background: rgba(15, 31, 56, 0.5);
+  background: #FFFFFF;
 }
 
 .chat-inline-actions {
@@ -1316,29 +1312,18 @@ body {
   padding: 6px 8px;
   font-size: 0.72rem;
   font-weight: 700;
-  border-radius: 9px;
-  border: 1px solid transparent;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
   justify-content: center;
 }
-.chat-inline-btn-dang {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(37, 99, 235, 0.16));
-  color: #dbeafe;
-  border-color: rgba(96, 165, 250, 0.22);
-  box-shadow: 0 0 0 rgba(96, 165, 250, 0);
+.chat-inline-btn-dang, .chat-inline-btn-nd30, .chat-inline-btn-docx {
+  background: #E7F7F9;
+  color: var(--brand-primary);
+  border-color: rgba(0, 119, 139, 0.22);
 }
-.chat-inline-btn-dang:hover {
-  background: linear-gradient(135deg, rgba(96, 165, 250, 0.24), rgba(37, 99, 235, 0.2));
-  box-shadow: 0 0 12px rgba(96, 165, 250, 0.12);
-}
-.chat-inline-btn-nd30 {
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(30, 64, 175, 0.16));
-  color: #bae6fd;
-  border-color: rgba(96, 165, 250, 0.22);
-}
-.chat-inline-btn-docx {
-  background: linear-gradient(135deg, rgba(28, 54, 102, 0.24), rgba(21, 42, 82, 0.2));
-  color: #bfdbfe;
-  border-color: rgba(96, 165, 250, 0.22);
+.chat-inline-btn-dang:hover, .chat-inline-btn-nd30:hover, .chat-inline-btn-docx:hover {
+  background: var(--brand-primary);
+  color: #FFFFFF;
 }
 
 .chat-input-wrapper {
