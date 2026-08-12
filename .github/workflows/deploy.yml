@@ -75,7 +75,33 @@ jobs:
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "NO_GO: invalid release_sha"; exit 1; }
           [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "NO_GO: invalid baseline_sha"; exit 1; }
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-          SOURCE_HASH=$(GIT_SHA="$RELEASE_SHA" node --input-type=module -e "import * as m from './webapp/vite.config.js'; const fn = m.computeSourceTreeHash || (typeof m.default === 'object' && m.default ? m.default.computeSourceTreeHash : null); console.log(typeof fn === 'function' ? fn() : '');")
+          SOURCE_HASH=$(node -e "
+            const { createHash } = require('crypto');
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+            const path = require('path');
+            const hash = createHash('sha256');
+            const lenBuf = Buffer.alloc(8);
+            function u(v) {
+              const b = Buffer.isBuffer(v) ? v : Buffer.from(String(v), 'utf8');
+              lenBuf.writeBigUInt64BE(BigInt(b.length));
+              hash.update(lenBuf); hash.update(b);
+            }
+            u('v1-tree-hash');
+            try {
+              const files = execSync('git ls-files -c -o --exclude-standard -z', { encoding: 'utf8', maxBuffer: 50*1024*1024 }).split('\0').filter(Boolean).sort();
+              for (const f of files) {
+                const norm = f.replace(/\\\\/g, '/');
+                if (!fs.existsSync(f)) { u('DELETED'); u(norm); u(Buffer.alloc(0)); }
+                else {
+                  const st = fs.lstatSync(f);
+                  if (st.isSymbolicLink()) { u('SYMLINK'); u(norm); u(fs.readlinkSync(f)); }
+                  else if (st.isFile()) { u('FILE'); u(norm); u(fs.readFileSync(f)); }
+                }
+              }
+            } catch (_) { u('fallback-empty'); }
+            console.log(hash.digest('hex'));
+          ")
           [[ "$SOURCE_HASH" =~ ^[0-9a-f]{64}$ ]]
           echo "source_tree_hash=$SOURCE_HASH" >> "$GITHUB_OUTPUT"
 
