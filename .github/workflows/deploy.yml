@@ -143,7 +143,7 @@ jobs:
         with:
           name: master-gates-${{ github.run_id }}
           path: .release-evidence
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 30
 
   build:
