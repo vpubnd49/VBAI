@@ -63,11 +63,11 @@ jobs:
         run: |
           set -euo pipefail
           RELEASE_SHA="${{ inputs.release_sha }}"
-          if [ -z "$RELEASE_SHA" ]; then
-            RELEASE_SHA="${{ github.sha }}"
+          if [ -z "$RELEASE_SHA" ] || [ "$RELEASE_SHA" = "undefined" ]; then
+            RELEASE_SHA=$(git rev-parse HEAD)
           fi
           BASELINE_SHA="${{ inputs.baseline_sha }}"
-          if [ -z "$BASELINE_SHA" ]; then
+          if [ -z "$BASELINE_SHA" ] || [ "$BASELINE_SHA" = "undefined" ]; then
             BASELINE_SHA="4bf438218174cf794b39e37fb667c8e2a075e122"
           fi
 
