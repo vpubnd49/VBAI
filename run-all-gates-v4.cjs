@@ -1013,6 +1013,7 @@ const gates = [
 ];
 
 async function main() {
+  fs.mkdirSync(LOGS_DIR, { recursive: true });
   console.log('=== VBAI Legal Pro V2 — Master 25 Gates Runner V4.7 ===\n');
   console.log(`Repository: ${REPO}`);
   console.log(`Audit Directory: ${AUDIT_DIR}`);
