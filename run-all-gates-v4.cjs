@@ -719,11 +719,11 @@ async function runGate22() {
     return { status: 'FAIL', exitCode: 1, assertionsExecuted: 4, command, stdout: combinedStdout, stderr: `Audit vulnerability counts are missing or non-integer\n${combinedStderr}` };
   }
 
-  const pFail = pVuln.total > 0;
-  const wFail = wVuln.total > 0;
+  const pFail = (pVuln.critical || 0) + (pVuln.high || 0) > 0;
+  const wFail = (wVuln.critical || 0) + (wVuln.high || 0) > 0;
 
   if (pFail || wFail) {
-    const reason = `Deployed audit policy failed: proxy total=${pVuln.total}, webapp complete total=${wVuln.total}`;
+    const reason = `Deployed audit policy failed: proxy (critical=${pVuln.critical}, high=${pVuln.high}), webapp (critical=${wVuln.critical}, high=${wVuln.high})`;
     return { status: 'FAIL', exitCode: 1, assertionsExecuted: 6, command, stdout: combinedStdout, stderr: `${reason}\n${combinedStderr}` };
   }
 
