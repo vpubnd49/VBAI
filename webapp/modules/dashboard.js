@@ -72,7 +72,10 @@ export function renderDashboard(container, navigateTo) {
         <section class="home-card-panel recent-searches-card">
           <div class="panel-card-head">
             <h3>🕒 Tra cứu gần đây</h3>
-            <span class="panel-head-tag">Lịch sử cá nhân</span>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span class="panel-head-tag">Lịch sử cá nhân</span>
+              ${recentSearches.length > 0 ? `<button id="clear-all-recent" style="font-size:0.72rem; padding:3px 10px; border:1px solid var(--border-default,#CBD5E1); background:transparent; color:var(--danger,#DC2626); border-radius:12px; cursor:pointer; transition:all 0.2s;" title="Xóa tất cả lịch sử">Xóa tất cả</button>` : ''}
+            </div>
           </div>
           <div class="panel-card-body" id="recent-searches-list">
             ${renderRecentSearchesHtml(recentSearches)}
@@ -200,12 +203,38 @@ export function renderDashboard(container, navigateTo) {
 
   // Bind Recent Search Clicks
   container.querySelectorAll('.recent-search-item').forEach(item => {
-    item.addEventListener('click', () => {
+    // Click on the item itself (not the delete button) to reopen
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.recent-delete-btn')) return;
       const q = item.dataset.query;
       const mode = item.dataset.mode || 'legal-search';
       if (q) navigateTo('legal-search', q, mode);
     });
   });
+
+  // Bind individual delete buttons
+  container.querySelectorAll('.recent-delete-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index, 10);
+      deleteRecentSearchByIndex(idx);
+      const listEl = container.querySelector('#recent-searches-list');
+      if (listEl) listEl.innerHTML = renderRecentSearchesHtml(getRecentSearches());
+      rebindRecentSearchEvents(container, navigateTo);
+    });
+  });
+
+  // Bind clear-all button
+  const clearAllBtn = container.querySelector('#clear-all-recent');
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      if (!confirm('Xóa tất cả lịch sử tra cứu gần đây?')) return;
+      localStorage.removeItem('vbai_recent_searches');
+      const listEl = container.querySelector('#recent-searches-list');
+      if (listEl) listEl.innerHTML = renderRecentSearchesHtml([]);
+      if (clearAllBtn) clearAllBtn.remove();
+    });
+  }
 
   // Load Build SHA in Footer
   loadFooterBuildInfo(container);
@@ -248,10 +277,47 @@ async function hydrateVisitCounter(container) {
 
 function getRecentSearches() {
   try {
-    return JSON.parse(localStorage.getItem('vbai_recent_searches') || '[]');
+    let items = JSON.parse(localStorage.getItem('vbai_recent_searches') || '[]');
+    // Auto-trim: keep only the 10 most recent
+    if (items.length > 10) {
+      items = items.slice(0, 10);
+      localStorage.setItem('vbai_recent_searches', JSON.stringify(items));
+    }
+    return items;
   } catch (e) {
     return [];
   }
+}
+
+function deleteRecentSearchByIndex(index) {
+  try {
+    const items = JSON.parse(localStorage.getItem('vbai_recent_searches') || '[]');
+    if (index >= 0 && index < items.length) {
+      items.splice(index, 1);
+      localStorage.setItem('vbai_recent_searches', JSON.stringify(items));
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function rebindRecentSearchEvents(container, navigateTo) {
+  container.querySelectorAll('.recent-search-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.recent-delete-btn')) return;
+      const q = item.dataset.query;
+      const mode = item.dataset.mode || 'legal-search';
+      if (q) navigateTo('legal-search', q, mode);
+    });
+  });
+  container.querySelectorAll('.recent-delete-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index, 10);
+      deleteRecentSearchByIndex(idx);
+      const listEl = container.querySelector('#recent-searches-list');
+      if (listEl) listEl.innerHTML = renderRecentSearchesHtml(getRecentSearches());
+      rebindRecentSearchEvents(container, navigateTo);
+    });
+  });
 }
 
 function renderRecentSearchesHtml(searches) {
@@ -264,11 +330,12 @@ function renderRecentSearchesHtml(searches) {
     `;
   }
 
-  return searches.map(item => `
+  return searches.map((item, idx) => `
     <div class="recent-search-item" data-query="${escapeAttribute(item.query)}" data-mode="${escapeAttribute(item.mode || 'legal-search')}">
       <span class="recent-icon">🔍</span>
       <span class="recent-query-text">${escapeHtml(item.query)}</span>
       <span class="recent-mode-tag">${getModeTagLabel(item.mode)}</span>
+      <button class="recent-delete-btn" data-index="${idx}" title="Xóa" style="background:none; border:none; color:var(--text-muted,#94A3B8); cursor:pointer; font-size:0.9rem; padding:2px 6px; border-radius:4px; transition:all 0.15s; line-height:1;" onmouseover="this.style.color='var(--danger,#DC2626)'" onmouseout="this.style.color='var(--text-muted,#94A3B8)'">✕</button>
     </div>
   `).join('');
 }

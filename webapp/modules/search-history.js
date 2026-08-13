@@ -28,9 +28,14 @@ export async function renderSearchHistory(container, navigateToCallback) {
           <h1 style="font-size:1.5rem; font-weight:700; color:var(--text-primary); margin:0 0 6px 0;">📜 Lịch sử Tra cứu Pháp luật</h1>
           <p style="font-size:0.9rem; color:var(--text-secondary); margin:0;">Nhật ký tra cứu và căn cứ pháp lý được lưu trữ realtime từ hệ thống.</p>
         </div>
-        <button id="refresh-history-btn" class="btn btn-secondary" style="display:flex; align-items:center; gap:6px;">
-          <span>🔄</span> <span>Làm mới</span>
-        </button>
+        <div style="display:flex; gap:8px;">
+          <button id="delete-all-history-btn" class="btn btn-secondary" style="display:flex; align-items:center; gap:6px; color:var(--danger,#DC2626); border-color:var(--danger,#DC2626);">
+            <span>🗑️</span> <span>Xóa tất cả</span>
+          </button>
+          <button id="refresh-history-btn" class="btn btn-secondary" style="display:flex; align-items:center; gap:6px;">
+            <span>🔄</span> <span>Làm mới</span>
+          </button>
+        </div>
       </div>
 
       <!-- Controls & Filter Bar -->
@@ -110,6 +115,31 @@ export async function renderSearchHistory(container, navigateToCallback) {
   refreshBtn.addEventListener('click', () => {
     fetchLogs(container, navigateToCallback);
   });
+
+  // Delete All button
+  const deleteAllBtn = container.querySelector('#delete-all-history-btn');
+  if (deleteAllBtn) {
+    deleteAllBtn.addEventListener('click', async () => {
+      if (!confirm('Bạn có chắc chắn muốn xóa TOÀN BỘ nhật ký tra cứu? Hành động này không thể hoàn tác.')) return;
+      deleteAllBtn.disabled = true;
+      deleteAllBtn.querySelector('span:last-child').textContent = 'Đang xóa...';
+      try {
+        const { backendFetch } = await import('./ai-proxy.js');
+        const res = await backendFetch('/search-history', { method: 'DELETE' });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `HTTP ${res.status}`);
+        }
+        showToast('Đã xóa toàn bộ nhật ký tra cứu!');
+        fetchLogs(container, navigateToCallback);
+      } catch (err) {
+        showToast('Lỗi xóa nhật ký: ' + err.message, 'error');
+      } finally {
+        deleteAllBtn.disabled = false;
+        deleteAllBtn.querySelector('span:last-child').textContent = 'Xóa tất cả';
+      }
+    });
+  }
 
   prevBtn.addEventListener('click', () => {
     if (historyState.currentPage > 1) {
