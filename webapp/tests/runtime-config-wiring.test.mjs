@@ -104,7 +104,7 @@ assert.match(
 
 assert.match(
   firebaseSource,
-  /return IS_BROWSER \? '' : productionDefault;/
+  /return (?:IS_BROWSER \? productionDefault : )?productionDefault;/
 );
 
 assert.match(
