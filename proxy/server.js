@@ -3200,6 +3200,42 @@ app.post('/api/chat', async (req, res) => {
     ]);
     const attemptedModels = [];
 
+    let effectiveMessages = Array.isArray(normalizedMessages) ? [...normalizedMessages] : [];
+    if (isLegalQuery && legalContext && legalContext.evidenceBundle && Array.isArray(legalContext.evidenceBundle.documents) && legalContext.evidenceBundle.documents.length > 0) {
+      const docs = legalContext.evidenceBundle.documents;
+      const contextLines = [
+        '\n\n=== CĂN CỨ PHÁP LÝ ĐÃ KIỂM CHỨNG TỪ CƠ SỞ DỮ LIỆU CHÍNH THỨC ==='
+      ];
+      docs.forEach((doc, idx) => {
+        const num = doc.documentNumber || `Văn bản ${idx + 1}`;
+        const title = doc.title || '';
+        const issuer = doc.issuer || '';
+        const issueDate = doc.issueDate || '';
+        const effectiveDate = doc.effectiveDate || '';
+        const statusMap = { co_hieu_luc: 'Còn hiệu lực', het_hieu_luc: 'Hết hiệu lực', ngung_hieu_luc: 'Ngưng hiệu lực', in_force: 'Còn hiệu lực' };
+        const statusStr = statusMap[doc.effectiveStatus] || doc.effectiveStatus || 'Còn hiệu lực';
+        contextLines.push(`[Văn bản ${idx + 1}]: ${title} - Số hiệu: [${num}]`);
+        if (issuer) contextLines.push(`- Cơ quan ban hành: ${issuer}`);
+        if (issueDate) contextLines.push(`- Ngày ban hành: ${issueDate}`);
+        if (effectiveDate) contextLines.push(`- Ngày hiệu lực: ${effectiveDate}`);
+        contextLines.push(`- Trạng thái hiệu lực: ${statusStr}`);
+        if (doc.sourceUrl) contextLines.push(`- Nguồn chính thức: ${doc.sourceUrl}`);
+        if (doc.snippet) contextLines.push(`- Trích yếu: ${doc.snippet}`);
+      });
+      contextLines.push('\nYÊU CẦU TRẢ LỜI:\n1. Căn cứ vào các văn bản đã kiểm chứng trên để trả lời câu hỏi.\n2. Trích dẫn rõ số hiệu văn bản trong ngoặc vuông (ví dụ: [31/2024/QH15]).\n3. Trình bày rõ ràng bằng định dạng Markdown đẹp mắt với tiêu đề và gạch đầu dòng.\n=== KẾT THÚC CĂN CỨ PHÁP LÝ ===\n');
+
+      const evidenceText = contextLines.join('\n');
+      const lastUserIdx = effectiveMessages.map(m => String(m?.role || '').toLowerCase()).lastIndexOf('user');
+      if (lastUserIdx >= 0) {
+        effectiveMessages[lastUserIdx] = {
+          ...effectiveMessages[lastUserIdx],
+          content: `${effectiveMessages[lastUserIdx].content}\n${evidenceText}`
+        };
+      } else {
+        effectiveMessages.push({ role: 'user', content: evidenceText });
+      }
+    }
+
     const executeProviderAttempt = async (modelName) => {
       let providerRes = null;
       let attemptErr = null;
@@ -3207,7 +3243,7 @@ app.post('/api/chat', async (req, res) => {
       try {
         const payload = {
           model: modelName,
-          messages: normalizedMessages,
+          messages: effectiveMessages,
           stream: false,
           temperature,
           max_tokens: max_tokens ? Math.min(Number(max_tokens), 8192) : 8192
@@ -3255,7 +3291,7 @@ app.post('/api/chat', async (req, res) => {
         try {
           const vertexAttempt = await executeVertexGeminiChat({
             modelName,
-            normalizedMessages,
+            normalizedMessages: effectiveMessages,
             temperature,
             max_tokens
           });

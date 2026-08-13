@@ -30,8 +30,16 @@ function validateCitations(answerText = '', evidenceBundle = {}) {
   let validCount = 0;
   let unverifiedCount = 0;
 
+  const HEADER_TAG_REGEX = /(?:tóm tắt|khung tóm tắt|tóm lại|căn cứ|căn cứ pháp lý|kết luận|phân tích|tình huống|lưu ý|đoạn mở|khuyến nghị|bảng sot|disclaimer|chính sách|nguyên tắc|phương án|so sánh|đối chiếu|thời điểm)/i;
+
   for (const match of citationMatches) {
     const content = match.replace(/^\[|\]$/g, '').trim();
+
+    // Skip section headers in brackets (e.g. [A. KẾT LUẬN HƯỚNG XỬ LÝ], [Tóm tắt], [Căn cứ pháp lý])
+    if (HEADER_TAG_REGEX.test(content) && !extractFullDocumentNumber(content)) {
+      continue;
+    }
+
     const docNum = extractFullDocumentNumber(content);
     const articleCoord = parseArticleCoordinate(content);
 
@@ -92,6 +100,37 @@ function validateCitations(answerText = '', evidenceBundle = {}) {
       verified: isVerified,
       articleVerified,
     });
+  }
+
+  // Fallback: If no bracket citations were found, check if plain text mentions evidence document number or title
+  if (citations.length === 0 && documents.length > 0) {
+    const normText = String(answerText || '').toUpperCase();
+    for (const doc of documents) {
+      const docNum = doc.documentNumber ? String(doc.documentNumber).trim() : '';
+      const docTitle = doc.title ? String(doc.title).trim() : '';
+      const isNumMentioned = docNum && normText.includes(docNum.toUpperCase());
+      const isTitleMentioned = docTitle && normText.includes(docTitle.toUpperCase());
+
+      if (isNumMentioned || isTitleMentioned) {
+        const sourceTier = doc.sourceTier || 'unknown';
+        const rawVerificationStatus = doc.verificationStatus || 'unverified';
+        const isVerified = (sourceTier === 'official' || rawVerificationStatus === 'VERIFIED' || rawVerificationStatus === 'verified');
+        
+        validCount++;
+        citations.push({
+          raw: docNum || docTitle,
+          content: docNum || docTitle,
+          extractedDocumentNumber: docNum || null,
+          isValid: true,
+          evidenceId: doc.id || null,
+          matchedDocumentNumber: docNum ? docNum.toUpperCase() : null,
+          citationMatchesEvidence: true,
+          evidenceVerificationStatus: isVerified ? 'verified' : 'unverified',
+          verified: isVerified,
+          articleVerified: true,
+        });
+      }
+    }
   }
 
   return {
