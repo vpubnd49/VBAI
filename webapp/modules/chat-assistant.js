@@ -497,7 +497,7 @@ function hasBroadComparisonIntent(text = '') {
 
 function isDraftRequest(text = '') {
   const t = normalizeVietnamese(text);
-  return /(soan|du thao|mau van ban|quyet dinh|to trinh|thong bao|cong van|bao cao|nghi quyet|ke hoach)/.test(t);
+  return /(soan|du thao|mau van ban|quyet dinh|to trinh|thong bao|cong van|bao cao|nghi quyet|ke hoach|hop dong|bien ban|noi quy|quy che|quy dinh)/.test(t);
 }
 
 function isTemplateExportRequest(text = '') {
@@ -3495,7 +3495,7 @@ export async function renderChatUI(container) {
   };
 
   const attachExportButtonIfNeeded = (query, answer, targetDiv) => {
-    if (!isDraftRequest(query) || !isTemplateExportRequest(query)) return;
+    if (!isDraftRequest(query)) return;
     const wrap = document.createElement('div');
     wrap.style.marginTop = '10px';
     const btn = document.createElement('button');
