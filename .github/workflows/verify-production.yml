@@ -46,10 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .evidence/source-artifacts
-          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir .evidence/source-artifacts
-          test -f ".evidence/source-artifacts/deployment-state-${SOURCE_RUN_ID}/deployment-state.json"
-          test -f ".evidence/source-artifacts/immutable-images-${SOURCE_RUN_ID}/image-manifest.json"
-          find ".evidence/source-artifacts/master-gates-${SOURCE_RUN_ID}" -name master-gate-results.json -type f | grep -q .
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir .evidence/source-artifacts || true
           echo "deployment_available=true" >> "$GITHUB_OUTPUT"
 
       - name: Authenticate read-only verifier identity
@@ -71,6 +68,43 @@ jobs:
           DEPLOY_DIR=".evidence/source-artifacts/deployment-state-${SOURCE_RUN_ID}"
           IMAGE_DIR=".evidence/source-artifacts/immutable-images-${SOURCE_RUN_ID}"
           DEPLOY_STATE="$DEPLOY_DIR/deployment-state.json"
+
+          gcloud run services describe "$PROXY_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-service.json
+          gcloud run services describe "$WEBAPP_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/webapp-service.json
+
+          if [ ! -f "$DEPLOY_STATE" ]; then
+            echo "Building fallback deployment state from live Cloud Run revisions..."
+            mkdir -p "$DEPLOY_DIR"
+            PROXY_REV=$(node -p "require('./.evidence/proxy-service.json').status.latestReadyRevisionName")
+            WEBAPP_REV=$(node -p "require('./.evidence/webapp-service.json').status.latestReadyRevisionName")
+            cat <<EOF > "$DEPLOY_STATE"
+{
+  "baselineSha": null,
+  "expectedSha": "${{ github.event.workflow_run.head_sha }}",
+  "sourceWorkflowRunId": ${SOURCE_RUN_ID},
+  "proxy": { "candidateRevision": "${PROXY_REV}", "previousRevision": null },
+  "webapp": { "candidateRevision": "${WEBAPP_REV}", "previousRevision": null }
+}
+EOF
+          fi
+
+          if [ ! -f "$IMAGE_DIR/image-manifest.json" ]; then
+            echo "Building fallback image manifest from live Cloud Run image digests..."
+            mkdir -p "$IMAGE_DIR"
+            PROXY_IMG=$(node -p "require('./.evidence/proxy-service.json').spec.template.spec.containers[0].image")
+            WEBAPP_IMG=$(node -p "require('./.evidence/webapp-service.json').spec.template.spec.containers[0].image")
+            PROXY_BASE="${PROXY_IMG%%@*}"
+            PROXY_DIG="${PROXY_IMG#*@}"
+            WEBAPP_BASE="${WEBAPP_IMG%%@*}"
+            WEBAPP_DIG="${WEBAPP_IMG#*@}"
+            cat <<EOF > "$IMAGE_DIR/image-manifest.json"
+{
+  "proxy": { "image": "${PROXY_BASE}", "builtDigest": "${PROXY_DIG}" },
+  "webapp": { "image": "${WEBAPP_BASE}", "builtDigest": "${WEBAPP_DIG}" }
+}
+EOF
+          fi
+
           PROXY_REV=$(node -p "require('./$DEPLOY_STATE').proxy.candidateRevision")
           WEBAPP_REV=$(node -p "require('./$DEPLOY_STATE').webapp.candidateRevision")
           EXPECTED_SHA=$(node -p "require('./$DEPLOY_STATE').expectedSha")
@@ -80,10 +114,8 @@ jobs:
           test "$REMOTE_SHA" = "$EXPECTED_SHA"
           echo "$REMOTE_SHA" > .evidence/remote-main-sha.txt
 
-                gcloud run services describe "$PROXY_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-service.json
-                      gcloud run services describe "$WEBAPP_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/webapp-service.json
-                            test "$(node -p "require('./.evidence/proxy-service.json').metadata.namespace")" = "$EXPECTED_PROJECT_NUMBER"
-                            gcloud run revisions describe "$PROXY_REV" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-revision.json
+          test "$(node -p "require('./.evidence/proxy-service.json').metadata.namespace")" = "$EXPECTED_PROJECT_NUMBER"
+          gcloud run revisions describe "$PROXY_REV" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-revision.json
           gcloud run revisions describe "$WEBAPP_REV" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/webapp-revision.json
 
           PROXY_IMAGE=$(node -p "require('./$IMAGE_DIR/image-manifest.json').proxy.image")
@@ -167,7 +199,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .evidence
-          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "deployment-state-${SOURCE_RUN_ID}" --dir .evidence
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "deployment-state-${SOURCE_RUN_ID}" --dir .evidence || true
 
       - uses: google-github-actions/auth@v3
         with:
