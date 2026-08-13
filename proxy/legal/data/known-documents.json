@@ -156,5 +156,29 @@
     "verified_at": "2026-08-13T00:00:00+07:00",
     "review_state": "published",
     "data_version": 2
+  },
+  {
+    "id": "45-2019-qh14",
+    "document_number": "45/2019/QH14",
+    "document_type": "luat",
+    "title": "Bộ luật Lao động 2019",
+    "topic_aliases": ["bộ luật lao động", "luật lao động", "hợp đồng lao động", "thử việc", "bo luat lao dong", "luat lao dong", "hop dong lao dong", "soan hop dong lao dong"],
+    "query_patterns": ["bo luat lao dong", "45/2019/qh14", "luat lao dong 2019", "hop dong lao dong"],
+    "issuer": "Quốc hội",
+    "issue_date": "2019-11-20",
+    "effective_date": "2021-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-13",
+    "replaces": ["10/2012/QH13"],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/?classid=1&docid=198540",
+      "https://vbpl.vn/bocongthuong/Pages/vbpq-toanvan.aspx?ItemID=139264"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-13T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2
   }
 ]
