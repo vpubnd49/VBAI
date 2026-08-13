@@ -244,10 +244,16 @@ export function renderLogin(container) {
         await updateAdminState(result.user);
         showToast('Dang nhap thanh cong!');
       }
+      if (typeof window !== 'undefined' && (window.location.search || window.location.hash)) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     })
     .catch((error) => {
       if (error?.code) {
         showToast('Loi dang nhap Google: ' + (error?.message || error.code), 'error');
+      }
+      if (typeof window !== 'undefined' && (window.location.search || window.location.hash)) {
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
     });
 
