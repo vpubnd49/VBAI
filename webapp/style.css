@@ -3087,4 +3087,171 @@ input:checked + .slider-round:before {
   font-weight: 700;
 }
 
+/* ============================================
+   CITATION POPOVER - Prevent right-edge clipping
+   ============================================ */
+.citation-popover {
+  left: 0;
+  transform: none;
+  max-width: min(280px, 85vw);
+}
 
+/* If chip is near the right edge, shift popover left */
+.legal-citation-chip:last-child .citation-popover,
+.legal-citation-chip:nth-last-child(2) .citation-popover {
+  left: auto;
+  right: 0;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE FIXES
+   ============================================ */
+@media (max-width: 768px) {
+  /* Prevent horizontal overflow globally */
+  html, body {
+    overflow-x: hidden;
+  }
+
+  .legal-home-wrapper {
+    padding: 0 8px;
+    overflow-x: hidden;
+  }
+
+  .legal-home-hero {
+    padding: 16px 4px;
+  }
+
+  /* Hero titles */
+  .hero-main-title {
+    font-size: 1.4rem;
+  }
+
+  .hero-sub-title {
+    font-size: 0.9rem;
+  }
+
+  /* Search box: stack input and button vertically */
+  .search-box-inner {
+    flex-wrap: wrap;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .home-search-input {
+    font-size: 0.92rem;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .home-search-btn {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+
+  .search-box-icon {
+    display: none;
+  }
+
+  /* Quick action cards: 2 columns on mobile */
+  .legal-quick-actions {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .quick-action-card {
+    padding: 12px 8px;
+  }
+
+  .action-title {
+    font-size: 0.78rem;
+  }
+
+  .action-sub {
+    font-size: 0.65rem;
+  }
+
+  /* Info columns */
+  .home-info-columns {
+    gap: 12px;
+  }
+
+  .home-card-panel {
+    padding: 14px;
+  }
+
+  /* Ancillary grid: single column */
+  .ancillary-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .ancillary-card {
+    padding: 12px;
+  }
+
+  /* Section heads */
+  .section-head-row h2 {
+    font-size: 1rem;
+  }
+
+  /* Legal principles list */
+  .legal-principles-list li {
+    font-size: 0.82rem;
+  }
+
+  /* Footer */
+  .legal-pro-footer {
+    padding: 16px 8px;
+    font-size: 0.78rem;
+  }
+
+  /* Citation popover on mobile */
+  .citation-popover {
+    position: fixed;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: auto;
+    top: auto;
+    width: auto;
+    max-width: none;
+    transform: none;
+    z-index: 9999;
+  }
+
+  /* Top bar breadcrumb */
+  .breadcrumb-item {
+    font-size: 0.82rem;
+  }
+
+  /* Hero brand header */
+  .hero-brand-header {
+    gap: 8px;
+  }
+
+  .hero-tagline-badge {
+    font-size: 0.68rem;
+    padding: 4px 10px;
+  }
+
+  .legal-pro-main-logo {
+    height: 48px;
+  }
+}
+
+/* Extra small screens (< 400px) */
+@media (max-width: 400px) {
+  .legal-quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-main-title {
+    font-size: 1.2rem;
+  }
+
+  .panel-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
