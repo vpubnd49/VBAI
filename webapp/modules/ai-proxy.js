@@ -173,12 +173,14 @@ export async function backendFetch(path, { method = 'GET', headers = {}, body, t
   const token = await getIdToken();
   if (!token) throw new Error('Bạn cần đăng nhập để sử dụng tính năng AI.');
   const base = getBackendBase();
+  const requestHeaders = {
+    Authorization: `Bearer ${token}`,
+    'x-request-id': headers['x-request-id'] || `trc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    ...headers,
+  };
   const response = await fetchWithTimeout(`${base}${path}`, {
     method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...headers,
-    },
+    headers: requestHeaders,
     body,
   }, timeoutMs);
   return response;
@@ -226,7 +228,7 @@ export async function recordVisitSession() {
 export async function sendChatRequest(messages, model, options = {}) {
   const requestOptions = { ...options };
   const timeoutMs = requestOptions.timeoutMs;
-  const trace = requestOptions.trace;
+  const trace = requestOptions.trace || { feature: 'chat-assistant', mode: 'chat' };
   delete requestOptions.timeoutMs;
   delete requestOptions.context;
   delete requestOptions.onDelta;

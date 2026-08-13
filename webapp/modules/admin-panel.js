@@ -842,6 +842,7 @@ async function loadLogs(container) {
         status: item.status || 'success',
         verifiedEvidenceCount: typeof item.verified_count === 'number' ? item.verified_count : item.verifiedEvidenceCount,
         totalEvidenceCount: typeof item.evidence_count === 'number' ? item.evidence_count : item.totalEvidenceCount,
+        requestId: item.requestId || item.request_id || null,
       }
     }));
 

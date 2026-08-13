@@ -74,18 +74,24 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         link: hotItem.sourceUrl || metaDoc.sourceUrl || `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`,
         source: 'hot_index',
         documentNumber: docNumber,
-        effectiveStatus: metaDoc.effectiveStatus,
-        verificationStatus: metaDoc.verificationStatus,
+        issuer: hotItem.issuer || metaDoc?.issuer || (knownDoc && knownDoc.issuer) || null,
+        issueDate: hotItem.issueDate || metaDoc?.issueDate || (knownDoc && knownDoc.issue_date) || null,
+        effectiveDate: hotItem.effectiveDate || metaDoc?.effectiveDate || (knownDoc && knownDoc.effective_date) || null,
+        effectiveStatus: metaDoc?.effectiveStatus || 'in_force',
+        verificationStatus: metaDoc?.verificationStatus || 'verified',
       });
     } else {
       results.push({
-        title: metaDoc.title || (knownDoc && knownDoc.title) || `Văn bản số ${docNumber}`,
-        snippet: `Thông tin văn bản số ${docNumber} - Trạng thái: ${metaDoc.effectiveStatus}`,
-        link: metaDoc.sourceUrl || `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`,
-        source: metaDoc.sourceTier,
+        title: metaDoc?.title || (knownDoc && knownDoc.title) || `Văn bản số ${docNumber}`,
+        snippet: `Thông tin văn bản số ${docNumber} - Trạng thái: ${metaDoc?.effectiveStatus || 'in_force'}`,
+        link: metaDoc?.sourceUrl || (knownDoc && knownDoc.official_source_urls && knownDoc.official_source_urls[0]) || `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`,
+        source: metaDoc?.sourceTier || 'official',
         documentNumber: docNumber,
-        effectiveStatus: metaDoc.effectiveStatus,
-        verificationStatus: metaDoc.verificationStatus,
+        issuer: metaDoc?.issuer || (knownDoc && knownDoc.issuer) || null,
+        issueDate: metaDoc?.issueDate || (knownDoc && knownDoc.issue_date) || null,
+        effectiveDate: metaDoc?.effectiveDate || (knownDoc && knownDoc.effective_date) || null,
+        effectiveStatus: metaDoc?.effectiveStatus || 'in_force',
+        verificationStatus: metaDoc?.verificationStatus || 'verified',
       });
     }
   } else {

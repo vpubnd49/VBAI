@@ -2361,6 +2361,15 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Request-ID middleware for end-to-end audit traceability
+app.use((req, res, next) => {
+  const reqId = String(req.headers['x-request-id'] || req.headers['x-trace-id'] || '').trim()
+    || `trc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  req.requestId = reqId;
+  res.setHeader('x-request-id', reqId);
+  next();
+});
+
 app.use(createTranscriptionRouter({ verifyIdToken, upload, checkRateLimit, uploadToProvider: uploadToGeminiFiles, initFirebase }));
 
 // Note: web-search and web-extract have full inline handlers below
@@ -3089,8 +3098,8 @@ app.post('/api/chat', async (req, res) => {
       : '';
 
     const auditQuery = String(traceMeta?.query || userMessage || '').trim();
-    const auditFeature = String(traceMeta?.feature || 'legal-search').trim();
-    const auditMode = String(traceMeta?.mode || 'legal-search').trim();
+    const auditFeature = String(traceMeta?.feature || 'chat-assistant').trim();
+    const auditMode = String(traceMeta?.mode || 'chat').trim();
     const auditEffectiveDate = traceMeta?.effectiveDate ? String(traceMeta.effectiveDate).trim() : null;
 
     console.log('USER QUERY:', userMessage, 'AUDIT QUERY:', auditQuery);
@@ -3098,7 +3107,7 @@ app.post('/api/chat', async (req, res) => {
     // Legal query detection & server-side evidence retrieval
     let legalContext = null;
     const intentResult = userMessage ? detectQueryIntent(userMessage) : null;
-    const isLegalQuery = Boolean(
+    const isLegalQuery = (auditFeature === 'legal-search' || traceMeta?.feature === 'legal-search') && Boolean(
       intentResult?.isLegalQuery ||
       (userMessage && /(?:luật|nghị định|thông tư|nghị quyết|quyết định|điều|khoản|điểm|hiệu lực|bãi bỏ|sửa đổi|thay thế|\d+\/\d+\/[A-Za-z0-9-]+)/i.test(userMessage))
     );
@@ -3149,7 +3158,7 @@ app.post('/api/chat', async (req, res) => {
           verifiedEvidenceCount: 0,
           totalEvidenceCount: 0,
           errorMessage: evidenceDecision.message || null,
-          requestId: String(req.headers['x-request-id'] || '').trim() || null
+          requestId: req.requestId || String(req.headers['x-request-id'] || '').trim() || null
         });
       } catch (logErr) {
         console.warn('[search_logs] Failed to write unverified audit trace:', logErr.message);
@@ -3402,10 +3411,14 @@ app.post('/api/chat', async (req, res) => {
         evidence_count: totalCount,
         verifiedEvidenceCount: verifiedCount,
         totalEvidenceCount: totalCount,
-        requestId: String(req.headers['x-request-id'] || '').trim() || null
+        requestId: req.requestId || String(req.headers['x-request-id'] || '').trim() || null
       });
     } catch (logErr) {
       console.warn('[search_logs] Failed to write audit trace:', logErr.message);
+    }
+
+    if (data && typeof data === 'object') {
+      data.requestId = req.requestId || null;
     }
 
     res.json(data);

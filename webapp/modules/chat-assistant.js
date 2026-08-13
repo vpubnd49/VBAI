@@ -2448,6 +2448,7 @@ export async function sendMessage(text, onChunk) {
         context: "chat",
         stream: true,
         temperature: drafting ? 0.35 : 0.2,
+        trace: { feature: 'chat-assistant', mode: 'file-chat', query: rawUserText },
         onDelta: (partial) => {
           if (onChunk) onChunk(partial);
         }
@@ -2953,6 +2954,7 @@ export async function sendMessage(text, onChunk) {
       context: "chat",
       stream: true,
       temperature: drafting ? 0.35 : 0.2,
+      trace: { feature: 'chat-assistant', mode: 'chat', query: rawUserText },
       onDelta: (partial) => {
         if (onChunk) {
           onChunk(partial);
