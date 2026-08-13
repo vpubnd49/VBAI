@@ -67,7 +67,7 @@ export function renderDashboard(container, navigateTo) {
       </section>
 
       <!-- TWO COLUMN INFO REGION: Recent Searches + Legal Sources -->
-      <div class="home-info-columns">
+      <div class="home-info-columns" style="grid-template-columns: 1fr;">
         <!-- RECENT SEARCHES REGION -->
         <section class="home-card-panel recent-searches-card">
           <div class="panel-card-head">
@@ -76,30 +76,6 @@ export function renderDashboard(container, navigateTo) {
           </div>
           <div class="panel-card-body" id="recent-searches-list">
             ${renderRecentSearchesHtml(recentSearches)}
-          </div>
-        </section>
-
-        <!-- LEGAL SOURCES TRUST REGION -->
-        <section class="home-card-panel legal-sources-card">
-          <div class="panel-card-head">
-            <h3>🏛️ Nguyên tắc Nguồn Pháp Lý</h3>
-            <span class="panel-head-tag verified-tag">Đã kiểm chứng</span>
-          </div>
-          <div class="panel-card-body">
-            <ul class="legal-principles-list">
-              <li>
-                <strong class="principle-title">🏛️ Nguồn chính thức:</strong>
-                <span class="principle-desc">Ưu tiên Cổng VBPL (vbpl.vn), Công báo, Báo Chính phủ, Cổng QH.</span>
-              </li>
-              <li>
-                <strong class="principle-title">✓ Trạng thái kiểm chứng:</strong>
-                <span class="principle-desc">Chỉ gắn mác "Đã kiểm chứng" khi hệ thống xác minh được điều khoản thật.</span>
-              </li>
-              <li>
-                <strong class="principle-title">📅 Ngày hiệu lực thực tế:</strong>
-                <span class="principle-desc">Tự động phân biệt văn bản Hiện hành, Hết hiệu lực, Bị bãi bỏ, Sửa đổi.</span>
-              </li>
-            </ul>
           </div>
         </section>
       </div>
