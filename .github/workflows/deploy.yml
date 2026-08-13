@@ -347,7 +347,7 @@ jobs:
           gcloud run deploy "$WEBAPP_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" \
             --image "$WEBAPP_REF" --allow-unauthenticated --no-traffic --tag "${{ steps.release.outputs.tag }}" \
             --revision-suffix "${{ steps.release.outputs.suffix }}" --port 8080 --memory 256Mi --max-instances 3 \
-            --set-env-vars "^|^APP_ENV=production|API_BASE_URL=${PROXY_MAIN_URL}|GIT_SHA=${{ inputs.release_sha || github.sha }}|FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}|FIREBASE_AUTH_DOMAIN=${PROJECT_ID}.firebaseapp.com|FIREBASE_AUTH_HOST=${PROJECT_ID}.firebaseapp.com|FIREBASE_PROJECT_ID=${PROJECT_ID}|FIREBASE_STORAGE_BUCKET=${PROJECT_ID}.firebasestorage.app|FIREBASE_MESSAGING_SENDER_ID=${EXPECTED_PROJECT_NUMBER}|FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}"
+            --set-env-vars "^|^APP_ENV=production|API_BASE_URL=${PROXY_MAIN_URL}|GIT_SHA=${{ inputs.release_sha || github.sha }}|FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}|FIREBASE_AUTH_DOMAIN=vbai.tracuu.lamdong.vn|FIREBASE_AUTH_HOST=${PROJECT_ID}.firebaseapp.com|FIREBASE_PROJECT_ID=${PROJECT_ID}|FIREBASE_STORAGE_BUCKET=${PROJECT_ID}.firebasestorage.app|FIREBASE_MESSAGING_SENDER_ID=${EXPECTED_PROJECT_NUMBER}|FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}"
           for SERVICE in "$PROXY_SERVICE" "$WEBAPP_SERVICE"; do
             gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > "${SERVICE}-candidate.json"
             node - "${SERVICE}-candidate.json" "${{ steps.release.outputs.tag }}" "$SERVICE" <<'NODE'

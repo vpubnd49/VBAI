@@ -76,7 +76,7 @@ fi
 
 if [ "$APP_ENV" = "production" ]; then
   [ "$FIREBASE_PROJECT_ID" = "gen-lang-client-0462350485" ] || fail "Production Firebase project mismatch."
-  [ "$FIREBASE_AUTH_DOMAIN" = "gen-lang-client-0462350485.firebaseapp.com" ] || fail "Production Firebase auth domain mismatch."
+  [ "$FIREBASE_AUTH_DOMAIN" = "vbai.tracuu.lamdong.vn" ] || fail "Production Firebase auth domain mismatch."
   [ "$FIREBASE_AUTH_HOST" = "gen-lang-client-0462350485.firebaseapp.com" ] || fail "Production Firebase auth proxy host mismatch."
   [ "$FIREBASE_STORAGE_BUCKET" = "gen-lang-client-0462350485.firebasestorage.app" ] || fail "Production Firebase storage bucket mismatch."
   [ "$FIREBASE_MESSAGING_SENDER_ID" = "419728335518" ] || fail "Production Firebase sender ID mismatch."
