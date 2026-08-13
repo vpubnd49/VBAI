@@ -167,24 +167,11 @@ export function renderDashboard(container, navigateTo) {
           <h3>📞 Liên hệ hỗ trợ</h3>
           <span class="panel-head-tag">Hỗ trợ kỹ thuật</span>
         </div>
-        <div class="panel-card-body" style="display: flex; flex-wrap: wrap; gap: 20px; padding: 16px 0;">
-          <div style="flex: 1; min-width: 220px;">
-            <div style="font-weight: 600; color: var(--text-primary, #0F172A); margin-bottom: 8px;">Người phụ trách</div>
-            <div style="color: var(--text-secondary, #475569); font-size: 0.9rem; line-height: 1.7;">
-              <strong>Trương Hải Châu</strong><br>
-              Văn phòng UBND tỉnh Lâm Đồng
-            </div>
-          </div>
-          <div style="flex: 1; min-width: 220px;">
-            <div style="font-weight: 600; color: var(--text-primary, #0F172A); margin-bottom: 8px;">Thông tin liên hệ</div>
-            <div style="color: var(--text-secondary, #475569); font-size: 0.9rem; line-height: 1.7;">
-              📧 Email: <a href="mailto:chauth@lamdong.gov.vn" style="color: var(--brand-primary, #00778B); text-decoration: none;">chauth@lamdong.gov.vn</a><br>
-              📱 Điện thoại: <a href="tel:0985559988" style="color: var(--brand-primary, #00778B); text-decoration: none;">0985 559 988</a><br>
-              💬 Messenger: <a href="https://m.me/haichau2404" target="_blank" style="color: var(--brand-primary, #00778B); text-decoration: none;">@haichau2404</a><br>
-              💬 Zalo: <a href="https://zalo.me/0911677209" target="_blank" style="color: var(--brand-primary, #00778B); text-decoration: none;">0911 677 209</a><br>
-              🏛️ Địa chỉ: Số 04, Trần Hưng Đạo, P.3, TP. Đà Lạt, Lâm Đồng
-            </div>
-          </div>
+        <div class="panel-card-body" style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 0;">
+          <span style="color: var(--text-secondary, #475569); font-size: 0.88rem;"><strong>Trương Hải Châu</strong> · VP UBND tỉnh Lâm Đồng</span>
+          <span style="color: var(--border-default, #CBD5E1);">|</span>
+          <a href="https://m.me/haichau2404" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: var(--accent-soft, #E7F7F9); color: var(--brand-primary, #00778B); border-radius: 20px; font-size: 0.84rem; font-weight: 600; text-decoration: none; transition: all 0.2s;">💬 Messenger</a>
+          <a href="https://zalo.me/0911677209" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #E8F5E9; color: #2E7D32; border-radius: 20px; font-size: 0.84rem; font-weight: 600; text-decoration: none; transition: all 0.2s;">💬 Zalo</a>
         </div>
       </section>
 

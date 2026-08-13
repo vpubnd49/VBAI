@@ -3088,19 +3088,20 @@ input:checked + .slider-round:before {
 }
 
 /* ============================================
-   CITATION POPOVER - Prevent right-edge clipping
+   CITATION POPOVER - Prevent edge clipping
    ============================================ */
 .citation-popover {
-  left: 0;
+  left: auto;
+  right: 0;
   transform: none;
   max-width: min(280px, 85vw);
 }
 
-/* If chip is near the right edge, shift popover left */
-.legal-citation-chip:last-child .citation-popover,
-.legal-citation-chip:nth-last-child(2) .citation-popover {
-  left: auto;
-  right: 0;
+/* First chips align popover to the left instead */
+.legal-citation-chip:first-child .citation-popover,
+.legal-citation-chip:nth-child(2) .citation-popover {
+  left: 0;
+  right: auto;
 }
 
 /* ============================================
