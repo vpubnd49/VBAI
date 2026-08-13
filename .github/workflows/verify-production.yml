@@ -80,10 +80,10 @@ jobs:
           test "$REMOTE_SHA" = "$EXPECTED_SHA"
           echo "$REMOTE_SHA" > .evidence/remote-main-sha.txt
 
-          test "$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')" = "$EXPECTED_PROJECT_NUMBER"
-          gcloud run services describe "$PROXY_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-service.json
-          gcloud run services describe "$WEBAPP_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/webapp-service.json
-          gcloud run revisions describe "$PROXY_REV" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-revision.json
+                gcloud run services describe "$PROXY_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-service.json
+                      gcloud run services describe "$WEBAPP_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/webapp-service.json
+                            test "$(node -p "require('./.evidence/proxy-service.json').metadata.namespace")" = "$EXPECTED_PROJECT_NUMBER"
+                            gcloud run revisions describe "$PROXY_REV" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/proxy-revision.json
           gcloud run revisions describe "$WEBAPP_REV" --project "$PROJECT_ID" --region "$REGION" --format=json > .evidence/webapp-revision.json
 
           PROXY_IMAGE=$(node -p "require('./$IMAGE_DIR/image-manifest.json').proxy.image")
