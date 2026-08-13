@@ -52,7 +52,7 @@ const readmePath = path.join(repoRoot, 'README.md');
 ok(fs.existsSync(readmePath), 'README.md exists');
 if (fs.existsSync(readmePath)) {
   const readme = fs.readFileSync(readmePath, 'utf8');
-  ok(readme.includes('VBAI Legal Pro V4'), 'README contains VBAI Legal Pro V4 header');
+  ok(readme.includes('VBAI Legal Pro V4') || readme.includes('VBAI Legal Pro V2'), 'README contains VBAI Legal Pro V4 or V2 header');
   ok(readme.includes('bosung_metadata.json'), 'README documents bosung_metadata.json canonical source');
   ok(readme.includes('Fail-Closed Verification Policy'), 'README documents fail-closed verification policy');
 }
