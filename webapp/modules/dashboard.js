@@ -166,8 +166,6 @@ export function renderDashboard(container, navigateTo) {
         <div class="footer-build-badge">
           <span>VBAI Legal Pro V2</span>
           <span class="dot-sep">•</span>
-          <span id="footer-build-sha">Build: loading...</span>
-          <span class="dot-sep">•</span>
           <span>Văn phòng UBND tỉnh Lâm Đồng</span>
         </div>
         <div class="footer-credit">Phát triển bởi: Trương Hải Châu</div>
@@ -295,24 +293,8 @@ function getModeTagLabel(mode) {
   }
 }
 
-function loadFooterBuildInfo(container) {
-  const el = container.querySelector('#footer-build-sha');
-  if (!el) return;
-
-  const gitSha = typeof __VBAI_GIT_SHA__ !== 'undefined' ? __VBAI_GIT_SHA__ : 'dev';
-  el.textContent = `Build: ${gitSha}`;
-
-  // Try fetching public/build-info.json dynamically
-  fetch('/build-info.json')
-    .then(r => r.json())
-    .then(data => {
-      if (data && data.shortSha) {
-        el.textContent = `Build: ${data.shortSha}`;
-      } else if (data && data.gitSha) {
-        el.textContent = `Build: ${data.gitSha.substring(0, 7)}`;
-      }
-    })
-    .catch(() => {});
+function loadFooterBuildInfo() {
+  // Build SHA display removed per user directive
 }
 
 function escapeHtml(str) {

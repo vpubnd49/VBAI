@@ -91,9 +91,7 @@ function resolveConfigValue(runtimeKey, viteKey, productionDefault) {
     return viteValue;
   }
 
-  // Browser deployments must provide runtime/Vite values.
-  // Production defaults are retained only for non-browser tests.
-  return IS_BROWSER ? '' : productionDefault;
+  return productionDefault;
 }
 
 export const firebaseConfig = Object.freeze({
