@@ -26,6 +26,7 @@ const {
   hasUnsafeCitations,
 } = require('./services/legal-evidence-policy');
 const { validateCitations } = require('./legal/services/citation-validation.service');
+const { detectContractSkill, buildContractSkillPrompt } = require('./legal/services/contract-skill-engine');
 const path = require('path');
 const { validateMagicBytes, VALID_AUDIO_EXTS, readFileHeader, registerCleanup, cleanupTempFile: cleanupTempFileUtil } = require('./middleware/upload-security');
 const { encodeCursor, decodeCursor, validateCursor, sanitizeHistoryDoc, SAFE_HISTORY_FIELDS } = require('./utils/pagination');
@@ -3233,6 +3234,21 @@ app.post('/api/chat', async (req, res) => {
         };
       } else {
         effectiveMessages.push({ role: 'user', content: evidenceText });
+      }
+    }
+
+    // Contract Skill Auto-Inclusion: Detect contract skill intent and inject 3-tier template rules
+    const matchedContractSkill = detectContractSkill(auditQuery || userMessage);
+    if (matchedContractSkill) {
+      const contractSkillPrompt = buildContractSkillPrompt(matchedContractSkill, auditQuery || userMessage);
+      const lastUserIdx = effectiveMessages.map(m => String(m?.role || '').toLowerCase()).lastIndexOf('user');
+      if (lastUserIdx >= 0) {
+        effectiveMessages[lastUserIdx] = {
+          ...effectiveMessages[lastUserIdx],
+          content: `${effectiveMessages[lastUserIdx].content}\n${contractSkillPrompt}`
+        };
+      } else {
+        effectiveMessages.push({ role: 'user', content: contractSkillPrompt });
       }
     }
 
