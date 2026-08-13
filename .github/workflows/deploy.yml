@@ -220,11 +220,12 @@ jobs:
         run: |
           set -euo pipefail
           REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}"
-          PROXY_IMAGE="${REGISTRY}/vbai-proxy:${{ inputs.release_sha }}"
-          WEBAPP_IMAGE="${REGISTRY}/vbai-webapp:${{ inputs.release_sha }}"
+          TAG="${{ inputs.release_sha || github.sha }}"
+          PROXY_IMAGE="${REGISTRY}/vbai-proxy:${TAG}"
+          WEBAPP_IMAGE="${REGISTRY}/vbai-webapp:${TAG}"
           docker buildx build --platform linux/amd64 --push -t "$PROXY_IMAGE" ./proxy
           docker buildx build --platform linux/amd64 --push -t "$WEBAPP_IMAGE" \
-            --build-arg "GIT_SHA=${{ inputs.release_sha }}" \
+            --build-arg "GIT_SHA=${TAG}" \
             --build-arg "SOURCE_TREE_HASH=${{ needs.validate.outputs.source_tree_hash }}" \
             --build-arg SOURCE_TREE_DIRTY=false \
             --build-arg REQUIRE_CLEAN_BUILD=true ./webapp
