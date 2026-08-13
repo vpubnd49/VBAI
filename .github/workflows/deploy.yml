@@ -113,11 +113,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release-evidence/audits
-          npm --prefix proxy audit --omit=dev --omit=optional --json > release-evidence/audits/proxy-deployed.json
-          npm --prefix proxy audit --json > release-evidence/audits/proxy-complete.json
-          npm --prefix webapp audit --omit=dev --json > release-evidence/audits/webapp-production.json
-          npm --prefix webapp audit --json > release-evidence/audits/webapp-complete.json
+          mkdir -p .release-evidence/audits
+          npm --prefix proxy audit --omit=dev --omit=optional --json > .release-evidence/audits/proxy-deployed.json
+          npm --prefix proxy audit --json > .release-evidence/audits/proxy-complete.json
+          npm --prefix webapp audit --omit=dev --json > .release-evidence/audits/webapp-production.json
+          npm --prefix webapp audit --json > .release-evidence/audits/webapp-complete.json
 
       - name: Validate optional storage residual boundary
         shell: bash
@@ -131,7 +131,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node tools/release/check-bosung-metadata.mjs --output release-evidence/bosung-metadata-governance.json
+          node tools/release/check-bosung-metadata.mjs --output .release-evidence/bosung-metadata-governance.json
 
       - name: Execute master 25 gates
         id: gates
@@ -165,14 +165,14 @@ jobs:
           NODE
           ARTIFACT_NAME="master-gates-${{ github.run_id }}"
           echo "artifact_name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
-          cp -R "$(dirname "$GATE_FILE")" release-evidence/master-gates
+          cp -R "$(dirname "$GATE_FILE")" .release-evidence/master-gates
 
       - name: Upload validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: master-gates-${{ github.run_id }}
-          path: release-evidence
+          path: .release-evidence
           if-no-files-found: ignore
           retention-days: 30
 
@@ -266,8 +266,8 @@ jobs:
       - name: Save immutable image manifest
         shell: bash
         run: |
-          mkdir -p release-evidence
-          node - <<'NODE' > release-evidence/image-manifest.json
+          mkdir -p .release-evidence
+          node - <<'NODE' > .release-evidence/image-manifest.json
           console.log(JSON.stringify({
             proxy: { image: process.env.PROXY_IMAGE, builtDigest: process.env.PROXY_DIGEST },
             webapp: { image: process.env.WEBAPP_IMAGE, builtDigest: process.env.WEBAPP_DIGEST }
@@ -282,7 +282,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: immutable-images-${{ github.run_id }}
-          path: release-evidence/image-manifest.json
+          path: .release-evidence/image-manifest.json
           if-no-files-found: error
           retention-days: 30
 
@@ -408,11 +408,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release-evidence
+          mkdir -p .release-evidence
           for SERVICE in "$PROXY_SERVICE" "$WEBAPP_SERVICE"; do
-            gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > "release-evidence/${SERVICE}-service.json"
+            gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format=json > ".release-evidence/${SERVICE}-service.json"
           done
-          node - <<'NODE' > release-evidence/deployment-state.json
+          node - <<'NODE' > .release-evidence/deployment-state.json
           console.log(JSON.stringify({
             baselineSha: process.env.BASELINE_SHA,
             expectedSha: process.env.EXPECTED_SHA,
@@ -431,10 +431,11 @@ jobs:
           WEBAPP_PREV: ${{ steps.release.outputs.previous_vbai }}
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: deployment-state-${{ github.run_id }}
-          path: release-evidence
-          if-no-files-found: error
+          path: .release-evidence
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Roll back both services if candidate deploy or smoke fails
