@@ -21,7 +21,7 @@ const DOCUMENT_TYPE_ALIASES = Object.freeze({
   'nghi dinh': DOCUMENT_TYPES.NGHI_DINH,
   'thông tư': DOCUMENT_TYPES.THONG_TU,
   'thong tu': DOCUMENT_TYPES.THONG_TU,
-  'quuyết định': DOCUMENT_TYPES.QUYET_DINH,
+  'quyết định': DOCUMENT_TYPES.QUYET_DINH,
   'quyet dinh': DOCUMENT_TYPES.QUYET_DINH,
   'nghị quyết': DOCUMENT_TYPES.NGHI_QUYET,
   'nghi quyet': DOCUMENT_TYPES.NGHI_QUYET,

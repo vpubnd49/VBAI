@@ -1,6 +1,6 @@
-# VBAI Legal Pro V4 — Tra cứu & Kiểm chứng Pháp luật AI
+# VBAI Legal Pro V2 — Tra cứu & Kiểm chứng Pháp luật AI
 
-VBAI Legal Pro V4 là hệ thống tra cứu, phân tích và kiểm chứng pháp luật Việt Nam thế hệ mới, tích hợp công nghệ Gemini 2.5 Flash / Pro và Google Vertex AI Search.
+VBAI Legal Pro V2 là hệ thống tra cứu, phân tích và kiểm chứng pháp luật Việt Nam thế hệ mới, tích hợp công nghệ Gemini 2.5 Flash / Pro và Google Vertex AI Search.
 
 ---
 
@@ -95,4 +95,4 @@ npm run test:all
 - [Phase 5 Backend Refactor Audit](docs/audits/phase-05-backend-refactor.md)
 - [Phase 6 Privacy & Search Audit](docs/audits/phase-06-privacy.md)
 - [Phase 7 Governance Audit](docs/audits/phase-07-docs-governance.md)
-- [Final Upgrade Gate V4](docs/audits/final-upgrade-gate-v4.md)
+- [Final Upgrade Gate V2](docs/audits/final-upgrade-gate-v2.md)
