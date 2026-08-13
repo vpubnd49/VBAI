@@ -249,6 +249,7 @@ jobs:
 
       - name: Attest proxy image
         uses: actions/attest-build-provenance@v2
+        continue-on-error: true
         with:
           subject-name: ${{ steps.images.outputs.proxy_image }}
           subject-digest: ${{ steps.images.outputs.proxy_digest }}
@@ -256,6 +257,7 @@ jobs:
 
       - name: Attest webapp image
         uses: actions/attest-build-provenance@v2
+        continue-on-error: true
         with:
           subject-name: ${{ steps.images.outputs.webapp_image }}
           subject-digest: ${{ steps.images.outputs.webapp_digest }}
