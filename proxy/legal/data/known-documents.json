@@ -85,5 +85,76 @@
     "verified_at": null,
     "review_state": "draft",
     "data_version": 1
+  },
+  {
+    "id": "30-2020-nd-cp",
+    "document_number": "30/2020/NĐ-CP",
+    "document_type": "nghi_dinh",
+    "title": "Nghị định 30/2020/NĐ-CP về công tác văn thư",
+    "topic_aliases": ["nghị định 30", "nghị định 30/2020", "nghi dinh 30", "công tác văn thư", "thể thức văn bản hành chính", "soạn thảo văn bản hành chính"],
+    "query_patterns": ["nghi dinh 30", "30/2020/nd-cp", "30/2020/ndcp", "nghi dinh 30/2020", "30/2020"],
+    "issuer": "Chính phủ",
+    "issue_date": "2020-03-05",
+    "effective_date": "2020-03-05",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-13",
+    "replaces": ["110/2004/NĐ-CP", "09/2010/NĐ-CP"],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/?classid=1&docid=199279",
+      "https://vbpl.vn/bo-noi-vu/Pages/vbpq-toanvan.aspx?ItemID=140882"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-13T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2
+  },
+  {
+    "id": "31-2024-qh15",
+    "document_number": "31/2024/QH15",
+    "document_type": "luat",
+    "title": "Luật Đất đai 2024",
+    "topic_aliases": ["luật đất đai", "đất đai", "luat dat dai", "dat dai"],
+    "query_patterns": ["luat dat dai", "dat dai", "31/2024/qh15", "luat dat dai 2024"],
+    "issuer": "Quốc hội",
+    "issue_date": "2024-01-18",
+    "effective_date": "2024-08-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-13",
+    "replaces": ["45/2013/QH13"],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/?classid=1&docid=209700",
+      "https://vbpl.vn/bo-tai-nguyen-moi-truong/Pages/vbpq-toanvan.aspx?ItemID=164627"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-13T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2
+  },
+  {
+    "id": "05-hd-vptw",
+    "document_number": "05-HD/VPTW",
+    "document_type": "huong_dan",
+    "title": "Hướng dẫn 05-HD/VPTW về thể thức văn bản Đảng",
+    "topic_aliases": ["văn bản đảng", "thể thức văn bản đảng", "hướng dẫn 05", "hd05", "hd 05"],
+    "query_patterns": ["van ban dang", "huong dan 05", "hd05", "hd 05", "05-hd/vptw"],
+    "issuer": "Văn phòng Trung ương Đảng",
+    "issue_date": "2021-05-10",
+    "effective_date": "2021-05-10",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-13",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://tulieuvankien.dangcongsan.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-13T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2
   }
 ]

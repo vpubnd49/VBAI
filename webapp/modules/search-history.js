@@ -141,7 +141,23 @@ async function fetchLogs(container, navigateToCallback) {
     }
 
     const data = await response.json();
-    historyState.logs = Array.isArray(data.logs) ? data.logs : [];
+    historyState.logs = (Array.isArray(data.logs) ? data.logs : []).map(raw => ({
+      id: raw.id,
+      query: raw.query || raw.prompt || '',
+      user: raw.user_email || raw.userEmail || raw.user_id || 'anonymous',
+      userId: raw.user_id || null,
+      mode: raw.mode || 'legal-search',
+      feature: raw.feature || 'legal-search',
+      model: raw.model || 'gemini-3.5-flash-lite',
+      effectiveDate: raw.effectiveDate || null,
+      status: raw.status || 'success',
+      createdAt: raw.created_at || raw.timestamp,
+      verifiedCount: typeof raw.verified_count === 'number' ? raw.verified_count : (typeof raw.verifiedEvidenceCount === 'number' ? raw.verifiedEvidenceCount : 0),
+      totalCount: typeof raw.evidence_count === 'number' ? raw.evidence_count : (typeof raw.totalEvidenceCount === 'number' ? raw.totalEvidenceCount : 0),
+      requestId: raw.requestId || null,
+      errorMessage: raw.errorMessage || null
+    }));
+
     historyState.isAdmin = data.isAdmin === true;
     applyFilterAndRender(container, navigateToCallback);
   } catch (err) {
@@ -212,9 +228,17 @@ function renderTablePage(container, navigateToCallback) {
   tbody.innerHTML = pageItems.map(item => {
     const formattedTime = formatTimestamp(item.createdAt);
     const modeBadge = getModeBadgeHtml(item.mode);
-    const resultBadge = item.verifiedCount > 0
-      ? `<span class="verify-chip verified-true" style="font-size:0.75rem;">${item.verifiedCount} đã kiểm chứng</span>`
-      : `<span class="verify-chip verified-false" style="font-size:0.75rem;">Chưa xác minh</span>`;
+    const effectiveTag = item.effectiveDate ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Rà soát ngày: ${escapeHtml(item.effectiveDate)}</div>` : '';
+    
+    let resultBadge = `<span class="verify-chip verified-true" style="font-size:0.75rem;">✓ Đã kiểm chứng (${item.verifiedCount}/${item.totalCount || 1})</span>`;
+    if (item.status === 'unverified_evidence' || item.verifiedCount === 0) {
+      resultBadge = `<span class="verify-chip" style="background:rgba(234,179,8,0.15); color:#d97706; font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:600;">⚠️ Chưa có căn cứ</span>`;
+    } else if (item.status === 'error') {
+      resultBadge = `<span class="verify-chip" style="background:rgba(239,68,68,0.15); color:#dc2626; font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:600;">❌ Lỗi thực thi</span>`;
+    }
+
+    const modelTag = `<span style="font-size:0.72rem; background:var(--bg-secondary); padding:2px 6px; border-radius:4px; margin-left:4px; font-family:monospace;">${escapeHtml(item.model)}</span>`;
+    const traceIdTag = item.requestId ? `<div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">TraceID: ${escapeHtml(item.requestId.substring(0, 14))}...</div>` : '';
 
     const canDelete = historyState.isAdmin || (window.currentUser && item.userId === window.currentUser.uid);
     const deleteBtnHtml = canDelete
@@ -225,9 +249,18 @@ function renderTablePage(container, navigateToCallback) {
 
     return `
       <tr style="border-bottom:1px solid var(--border-color); transition:background 0.2s;" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
-        <td style="padding:12px 16px; color:var(--text-secondary); white-space:nowrap;">${formattedTime}</td>
-        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; max-width:180px; white-space:nowrap;" title="${escapeHtml(item.user)}">${escapeHtml(item.user)}</td>
-        <td style="padding:12px 16px;">${modeBadge}</td>
+        <td style="padding:12px 16px; color:var(--text-secondary); white-space:nowrap;">
+          <div>${formattedTime}</div>
+          ${effectiveTag}
+        </td>
+        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; max-width:180px; white-space:nowrap;" title="${escapeHtml(item.user)}">
+          <div>${escapeHtml(item.user)}</div>
+          ${traceIdTag}
+        </td>
+        <td style="padding:12px 16px;">
+          <div>${modeBadge}</div>
+          <div style="margin-top:2px;">${modelTag}</div>
+        </td>
         <td style="padding:12px 16px; font-weight:500; color:var(--text-primary);">
           <div style="max-height:48px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
             ${escapeHtml(item.query)}

@@ -190,7 +190,7 @@ export function renderDashboard(container, navigateTo) {
   };
 
   mainBtn.addEventListener('click', executeHomeSearch);
-  mainInput.addEventListener('keypress', (e) => {
+  mainInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') executeHomeSearch();
   });
 

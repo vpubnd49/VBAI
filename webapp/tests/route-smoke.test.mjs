@@ -127,8 +127,8 @@ global.fetch = async (input) => {
     };
   }
   else if (
-    url === '/search-history' ||
-    url === '/api/search-history'
+    url.startsWith('/search-history') ||
+    url.startsWith('/api/search-history')
   ) {
     payload = {
       logs: [],

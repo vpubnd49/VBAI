@@ -817,20 +817,34 @@ function renderModelChips(listEl, models, type, onChange = null) {
 async function loadLogs(container) {
   const tbody = container.querySelector('#logs-table-body');
   try {
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const db = getFirestore(app);
-    const q = query(collection(db, 'search_logs'), limit(500));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu (Snapshot trả về 0 bản ghi)</td></tr>`;
+    const { backendFetch } = await import('./ai-proxy.js');
+    const response = await backendFetch('/search-history?limit=100', { method: 'GET' });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const resData = await response.json();
+    const logsList = Array.isArray(resData.logs) ? resData.logs : [];
+    
+    if (logsList.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Chưa có vết tra cứu nào được ghi nhận.</td></tr>`;
       return;
     }
-    allLogs = snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() }));
-    allLogs.sort((a, b) => {
-      const tA = a.data.timestamp?.toMillis ? a.data.timestamp.toMillis() : 0;
-      const tB = b.data.timestamp?.toMillis ? b.data.timestamp.toMillis() : 0;
-      return tB - tA;
-    });
+
+    allLogs = logsList.map((item) => ({
+      id: item.id,
+      data: {
+        timestamp: item.created_at || item.timestamp,
+        userEmail: item.user_email || item.userEmail || item.user_id || 'anonymous',
+        query: item.query || item.prompt || '',
+        action: item.query || item.prompt || '',
+        model: item.model || 'gemini-3.5-flash-lite',
+        mode: item.mode || 'legal-search',
+        status: item.status || 'success',
+        verifiedEvidenceCount: typeof item.verified_count === 'number' ? item.verified_count : item.verifiedEvidenceCount,
+        totalEvidenceCount: typeof item.evidence_count === 'number' ? item.evidence_count : item.totalEvidenceCount,
+      }
+    }));
+
     currentPage = 1;
     renderPage(container);
   } catch (error) {
@@ -847,22 +861,29 @@ function renderPage(container) {
   const start = (currentPage - 1) * ITEMS_PER_PAGE;
   const pageLogs = allLogs.slice(start, start + ITEMS_PER_PAGE);
   tbody.innerHTML = pageLogs.length > 0 ? pageLogs.map((item) => {
-    const userDisplay = item.data.userEmail || item.data.user || 'Unknown';
+    const userDisplay = item.data.userEmail || item.data.user || 'anonymous';
     const queryDisplay = item.data.query || item.data.action || '';
     const modeBadge = item.data.mode ? `<span class="recent-mode-tag" style="font-size:0.68rem; margin-left:6px;">${escapeHtml(item.data.mode)}</span>` : '';
-    const evidenceMeta = (typeof item.data.verifiedEvidenceCount === 'number')
-      ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Xác minh: ${item.data.verifiedEvidenceCount}/${item.data.totalEvidenceCount || 0} căn cứ</div>`
-      : '';
+    const verifiedCount = typeof item.data.verifiedEvidenceCount === 'number' ? item.data.verifiedEvidenceCount : 0;
+    const totalCount = typeof item.data.totalEvidenceCount === 'number' ? item.data.totalEvidenceCount : 0;
+    const traceId = item.data.requestId ? `<div style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">TraceID: ${escapeHtml(item.data.requestId)}</div>` : '';
+    const statusTag = item.data.status === 'unverified_evidence' || verifiedCount === 0
+      ? `<span style="font-size:0.7rem; color:#d97706; font-weight:600;">⚠️ Chưa có căn cứ</span>`
+      : `<span style="font-size:0.7rem; color:var(--success, #059669); font-weight:600;">✓ Đã kiểm chứng (${verifiedCount}/${totalCount || 1})</span>`;
+
     return `
       <tr style="border-bottom:1px solid var(--border-color)">
         <td style="padding:12px;">${formatDate(item.data.timestamp)}</td>
-        <td style="padding:12px;">${escapeHtml(userDisplay)}</td>
+        <td style="padding:12px;">
+          <div>${escapeHtml(userDisplay)}</div>
+          ${traceId}
+        </td>
         <td style="padding:12px;">
           <div>${escapeHtml(queryDisplay)} ${modeBadge}</div>
-          ${evidenceMeta}
+          <div style="margin-top:2px;">${statusTag}</div>
         </td>
-        <td style="padding:12px;">${escapeHtml(item.data.model || '')}</td>
-        <td style="padding:12px;"><button class="btn-delete" data-id="${item.id}">Xóa</button></td>
+        <td style="padding:12px;"><span style="font-family:monospace; font-size:0.78rem;">${escapeHtml(item.data.model || 'gemini-3.5-flash-lite')}</span></td>
+        <td style="padding:12px; text-align:right;"><button class="btn-delete" data-id="${item.id}" style="padding:4px 8px; font-size:0.8rem; background:var(--btn-danger-bg, #b91c1c); color:white; border:none; border-radius:4px; cursor:pointer;">Xóa</button></td>
       </tr>
     `;
   }).join('') : '<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';

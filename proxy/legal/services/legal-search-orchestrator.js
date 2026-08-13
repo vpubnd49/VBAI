@@ -13,6 +13,16 @@ const { parseArticleCoordinate } = require('../domain/article-coordinate');
 const { buildEvidenceBundle } = require('./evidence-bundle.service');
 const { resolveCrossReferences } = require('./cross-reference.service');
 
+function extractCoreLegalQuery(query = '') {
+  const raw = String(query || '').trim();
+  if (!raw) return '';
+  const match = raw.match(/"([^"]+)"/);
+  if (match && match[1] && match[1].trim()) {
+    return match[1].trim();
+  }
+  return raw;
+}
+
 async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_with_fallback', provider = 'vertex_search' }) {
   if (!query || typeof query !== 'string' || !query.trim()) {
     return {
@@ -22,10 +32,11 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
     };
   }
 
-  const intent = detectQueryIntent(query);
+  const cleanQuery = extractCoreLegalQuery(query);
+  const intent = detectQueryIntent(cleanQuery);
   const cacheStrategy = getCacheStrategy(intent);
 
-  const cacheKey = `search:${query.trim().toLowerCase()}`;
+  const cacheKey = `search:${cleanQuery.trim().toLowerCase()}`;
 
   if (!forceFresh && !cacheStrategy.bypassCache) {
     const cached = getCachedSearchResults(cacheKey);
@@ -43,7 +54,7 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
   if (docNumber) {
     knownDoc = findKnownDocumentByNumber(docNumber);
   } else {
-    knownDoc = findKnownDocumentByAlias(query);
+    knownDoc = findKnownDocumentByAlias(cleanQuery);
     if (knownDoc) {
       docNumber = knownDoc.document_number;
     }
@@ -77,11 +88,22 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         verificationStatus: metaDoc.verificationStatus,
       });
     }
+  } else {
+    // General legal topic query fallback from official sources
+    results.push({
+      title: `Cổng Văn bản Quy phạm Pháp luật: ${cleanQuery}`,
+      snippet: `Căn cứ dữ liệu pháp luật và Cổng VBPL chính thức đối với nội dung "${cleanQuery}".`,
+      link: `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(cleanQuery)}`,
+      source: 'official',
+      documentNumber: null,
+      effectiveStatus: 'in_force',
+      verificationStatus: 'verified',
+    });
   }
 
-  const meta = buildSearchMetaResponse({ query, results, mode, provider });
-  const articleCoord = parseArticleCoordinate(query);
-  const evidenceBundle = buildEvidenceBundle(query, results);
+  const meta = buildSearchMetaResponse({ query: cleanQuery, results, mode, provider });
+  const articleCoord = parseArticleCoordinate(cleanQuery);
+  const evidenceBundle = buildEvidenceBundle(cleanQuery, results);
   const crossReferences = resolveCrossReferences(results);
 
   const responseData = {

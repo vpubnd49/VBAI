@@ -64,8 +64,9 @@ function validateCursor(cursor) {
  */
 const SAFE_HISTORY_FIELDS = [
   'id', 'created_at', 'timestamp', 'feature', 'mode',
-  'status', 'verified_count', 'evidence_count', 'requestId',
-  'effectiveDate', 'user_id',
+  'status', 'verified_count', 'evidence_count', 'verifiedEvidenceCount', 'totalEvidenceCount',
+  'requestId', 'effectiveDate', 'user_id', 'query', 'model', 'user_email', 'userEmail',
+  'errorMessage',
 ];
 
 /**

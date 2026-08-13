@@ -3105,8 +3105,9 @@ app.post('/api/chat', async (req, res) => {
 
     if (isLegalQuery) {
       try {
+        const cleanLegalQuery = String(traceMeta?.query || auditQuery || userMessage).trim();
         const legalSearchResult = await orchestrateLegalSearch({
-          query: userMessage,
+          query: cleanLegalQuery,
           forceFresh: false,
           mode: 'cse_with_fallback',
           provider: 'vertex_search',
@@ -3127,6 +3128,33 @@ app.post('/api/chat', async (req, res) => {
     // question unless retrieval supplied a non-empty verified evidence bundle.
     const evidenceDecision = evaluateLegalEvidence({ isLegalQuery, legalContext });
     if (!evidenceDecision.allowed) {
+      // Record search attempt to search_logs for full audit trace
+      try {
+        const db = getFirebaseFirestore();
+        await db.collection('search_logs').add({
+          query: auditQuery,
+          prompt: auditQuery,
+          model: effectiveModel || 'gemini-3.5-flash-lite',
+          user_id: decoded?.uid || null,
+          user_email: decoded?.email || decoded?.uid || 'anonymous',
+          userEmail: decoded?.email || decoded?.uid || 'anonymous',
+          created_at: FieldValue.serverTimestamp(),
+          timestamp: FieldValue.serverTimestamp(),
+          feature: auditFeature,
+          mode: auditMode,
+          effectiveDate: auditEffectiveDate,
+          status: 'unverified_evidence',
+          verified_count: 0,
+          evidence_count: 0,
+          verifiedEvidenceCount: 0,
+          totalEvidenceCount: 0,
+          errorMessage: evidenceDecision.message || null,
+          requestId: String(req.headers['x-request-id'] || '').trim() || null
+        });
+      } catch (logErr) {
+        console.warn('[search_logs] Failed to write unverified audit trace:', logErr.message);
+      }
+
       return res.status(422).json({
         error: evidenceDecision.code,
         message: evidenceDecision.message,
@@ -6694,20 +6722,29 @@ app.get('/api/search-history', async (req, res) => {
       return res.status(400).json({ error: 'Bad Request', message: cursorValidation.error });
     }
 
-    let queryRef = db.collection('search_logs');
-    if (!requesterIsAdmin) {
-      queryRef = queryRef.where('user_id', '==', decoded.uid);
-    }
-    queryRef = queryRef.orderBy('created_at', 'desc').orderBy(FieldPath.documentId(), 'desc');
+    let snapshot;
+    try {
+      let queryRef = db.collection('search_logs');
+      if (!requesterIsAdmin) {
+        queryRef = queryRef.where('user_id', '==', decoded.uid);
+      }
+      queryRef = queryRef.orderBy('created_at', 'desc').orderBy(FieldPath.documentId(), 'desc');
 
-    // Versioned cursor: startAfter(createdAt, docId)
-    if (cursorParam && cursorValidation.decoded) {
-      const { createdAt, docId } = cursorValidation.decoded;
-      const cursorTimestamp = Timestamp.fromDate(new Date(createdAt));
-      queryRef = queryRef.startAfter(cursorTimestamp, docId);
-    }
+      if (cursorParam && cursorValidation.decoded) {
+        const { createdAt, docId } = cursorValidation.decoded;
+        const cursorTimestamp = Timestamp.fromDate(new Date(createdAt));
+        queryRef = queryRef.startAfter(cursorTimestamp, docId);
+      }
 
-    const snapshot = await queryRef.limit(pageSize + 1).get();
+      snapshot = await queryRef.limit(pageSize + 1).get();
+    } catch (queryErr) {
+      console.warn('[search-history] Ordered query failed, falling back to base fetch:', queryErr.message);
+      let baseRef = db.collection('search_logs');
+      if (!requesterIsAdmin) {
+        baseRef = baseRef.where('user_id', '==', decoded.uid);
+      }
+      snapshot = await baseRef.limit(pageSize + 1).get();
+    }
 
     const logs = [];
     let hasMore = false;
