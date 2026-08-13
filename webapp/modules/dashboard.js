@@ -171,7 +171,7 @@ export function renderDashboard(container, navigateTo) {
           <span style="color: var(--text-secondary, #475569); font-size: 0.88rem;"><strong>Trương Hải Châu</strong> · VP UBND tỉnh Lâm Đồng</span>
           <span style="color: var(--border-default, #CBD5E1);">|</span>
           <a href="https://m.me/haichau2404" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: var(--accent-soft, #E7F7F9); color: var(--brand-primary, #00778B); border-radius: 20px; font-size: 0.84rem; font-weight: 600; text-decoration: none; transition: all 0.2s;">💬 Messenger</a>
-          <a href="https://zalo.me/0911677209" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #E8F5E9; color: #2E7D32; border-radius: 20px; font-size: 0.84rem; font-weight: 600; text-decoration: none; transition: all 0.2s;">💬 Zalo</a>
+          <a href="https://zalo.me/0911667209" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #E8F5E9; color: #2E7D32; border-radius: 20px; font-size: 0.84rem; font-weight: 600; text-decoration: none; transition: all 0.2s;">💬 Zalo</a>
         </div>
       </section>
 
