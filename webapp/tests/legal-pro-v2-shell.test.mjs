@@ -11,12 +11,12 @@ console.log('[TEST] Running Legal Pro V2 App Shell Tests...');
 
 // 1. Title & Product Identity
 assert.ok(
-  indexHtml.includes('VBAI Legal Pro V2'),
-  'index.html title must contain VBAI Legal Pro V2'
+  indexHtml.includes('Trợ lý Tra cứu Pháp luật'),
+  'index.html title must contain Trợ lý Tra cứu Pháp luật'
 );
 
 // 2. Navigation Section Labels (I through VI)
-assert.ok(indexHtml.includes('I. VBAI LEGAL PRO'), 'Must have section I. VBAI LEGAL PRO');
+assert.ok(indexHtml.includes('I. VBAI'), 'Must have section I. VBAI');
 assert.ok(indexHtml.includes('II. TRA CỨU PHÁP LUẬT'), 'Must have section II. TRA CỨU PHÁP LUẬT');
 assert.ok(indexHtml.includes('III. CÔNG CỤ PHÁP LÝ'), 'Must have section III. CÔNG CỤ PHÁP LÝ');
 assert.ok(indexHtml.includes('IV. SOẠN THẢO'), 'Must have section IV. SOẠN THẢO');

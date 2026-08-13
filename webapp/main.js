@@ -31,7 +31,7 @@ const gitSha = typeof __VBAI_GIT_SHA__ !== 'undefined' ? __VBAI_GIT_SHA__ : 'dev
 const state = {
   currentPage: 'dashboard',
   sidebarOpen: false,
-  version: `VBAI Legal Pro V2 · Build: ${gitSha}`
+  version: `Trợ lý Tra cứu Pháp luật`
 };
 
 // ============ CLOCK ============
@@ -61,20 +61,20 @@ export function showToast(msg, type = 'success') {
 
 // ============ NAVIGATION ============
 const PAGE_TITLES = {
-  dashboard: 'VBAI Legal Pro V2 - Tổng quan',
+  dashboard: 'Trợ lý Tra cứu Pháp luật - Tổng quan',
   'legal-search': 'Tra cứu Pháp luật',
   'document-lookup': 'Tra cứu Văn bản',
   'situation-analysis': 'Phân tích Tình huống',
   'compare-regulations': 'So sánh Quy định',
   'effective-date': 'Hiệu lực & Sửa đổi',
-  'chat-assistant': 'Trợ lý Chat AI',
+  'chat-assistant': 'Trợ lý Pháp luật AI',
   'vb-dang': 'Văn bản Đảng (HD05)',
   'vb-nd30': 'Văn bản Hành chính (NĐ30)',
-  'pdf-tool': 'OCR / Đọc tài liệu',
-  'docx-tool': 'Tạo DOCX / PDF',
+  'pdf-tool': 'Nhận dạng & Đọc tài liệu',
+  'docx-tool': 'Tạo & Xuất văn bản',
   'spell-check': 'Kiểm tra Văn bản & Thể thức',
   'meeting-minutes': 'Xử lý Ghi âm & Biên bản',
-  'pdf-publisher': 'Tóm tắt Hồ sơ & Xuất PDF',
+  'pdf-publisher': 'Tóm tắt Hồ sơ & Xuất bản',
   'search-history': 'Lịch sử Tra cứu',
   'admin-panel': 'Quản trị Hệ thống',
 };
@@ -83,7 +83,7 @@ function showPageLoading(container) {
   container.innerHTML = `
     <div class="page-loading-wrapper">
       <div class="page-loading-spinner"></div>
-      <div class="page-loading-text">Đang tải mô-đun VBAI Legal Pro...</div>
+      <div class="page-loading-text">Đang tải chức năng...</div>
     </div>
   `;
 }

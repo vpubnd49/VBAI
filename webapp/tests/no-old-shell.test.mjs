@@ -25,6 +25,6 @@ assert.ok(!dashboardJs.includes('v1.2.6'), 'dashboard.js must not contain legacy
 assert.ok(!indexHtml.includes('<title>Trợ lý hành chính</title>'), 'index.html title must not be legacy Trợ lý hành chính');
 
 // 3. Assert Legal Pro V2 branding presence
-assert.ok(indexHtml.includes('VBAI Legal Pro V2'), 'index.html must contain VBAI Legal Pro V2 badge');
+assert.ok(indexHtml.includes('Trợ lý Tra cứu Pháp luật'), 'index.html must contain Trợ lý Tra cứu Pháp luật badge');
 
 console.log('PASS: Legacy shell v1.2.6 successfully purged.');

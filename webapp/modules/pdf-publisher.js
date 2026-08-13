@@ -411,7 +411,7 @@ async function exportDocx(mdContent, meta) {
               }),
               new Paragraph({
                 children: [
-                  new TextRun({ text: "Trợ lý hành chính số chuyên nghiệp", font, size: 18, italic: true, color: "718096" }),
+                  new TextRun({ text: "Trợ lý Tra cứu Pháp luật chuyên nghiệp", font, size: 18, italic: true, color: "718096" }),
                 ],
               }),
             ],
@@ -896,7 +896,7 @@ CẤU TRÚC BẮT BUỘC:
   async function getLogoBase64() {
     if (cachedLogoBase64) return cachedLogoBase64;
     try {
-      const res = await fetch(window.location.origin + '/admin-assistant-logo.svg');
+      const res = await fetch(window.location.origin + '/legal-pro-logo.svg');
       const blob = await res.blob();
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -905,7 +905,7 @@ CẤU TRÚC BẮT BUỘC:
       });
     } catch(e) {
       console.warn("Lỗi load logo:", e);
-      return window.location.origin + '/admin-assistant-logo.svg';
+      return window.location.origin + '/legal-pro-logo.svg';
     }
   }
 

@@ -51,8 +51,8 @@ export function renderLogin(container) {
     <div class="login-wrapper">
       <div class="login-card">
         <div class="login-logo">
-          <img src="/admin-assistant-logo.svg" alt="Logo Trợ lý hành chính" style="width: 80px; height: 80px; margin: 0 auto 15px auto; display: block; border-radius: 12px;">
-          <h2>Đăng nhập vào Trợ lý hành chính</h2>
+          <img src="/legal-pro-logo.svg" alt="Trợ lý Tra cứu Pháp luật" style="width: 80px; height: 80px; margin: 0 auto 15px auto; display: block; border-radius: 12px;">
+          <h2>Đăng nhập Trợ lý Tra cứu Pháp luật</h2>
         </div>
         
         <button id="btn-google-login" class="btn-google">
@@ -242,7 +242,7 @@ export function renderLogin(container) {
       if (result?.user) {
         await saveUserToDb(db, result.user);
         await updateAdminState(result.user);
-        showToast('Dang nhap thanh cong!');
+        showToast('Đăng nhập thành công!');
       }
       if (typeof window !== 'undefined' && (window.location.search || window.location.hash)) {
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -250,7 +250,7 @@ export function renderLogin(container) {
     })
     .catch((error) => {
       if (error?.code) {
-        showToast('Loi dang nhap Google: ' + (error?.message || error.code), 'error');
+        showToast('Lỗi đăng nhập Google: ' + (error?.message || error.code), 'error');
       }
       if (typeof window !== 'undefined' && (window.location.search || window.location.hash)) {
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -283,7 +283,7 @@ export function renderLogin(container) {
     provider.setCustomParameters({ prompt: 'select_account' });
     const oldLabel = btnGoogle.innerHTML;
     btnGoogle.disabled = true;
-    btnGoogle.textContent = 'Dang mo Google...';
+    btnGoogle.textContent = 'Đang mở Google...';
     try {
       if (shouldPreferRedirectLogin()) {
         await signInWithRedirect(auth, provider);
@@ -292,21 +292,21 @@ export function renderLogin(container) {
 
       const result = await signInWithPopup(auth, provider);
       await saveUserToDb(db, result.user);
-      showToast('Dang nhap thanh cong!');
+      showToast('Đăng nhập thành công!');
     } catch (error) {
       const code = error?.code || '';
       const shouldFallbackToRedirect = canFallbackToRedirect(code);
 
       if (shouldFallbackToRedirect) {
         try {
-          showToast('Popup bi chan, chuyen sang dang nhap redirect...');
+          showToast('Cửa sổ đăng nhập bị chặn, đang chuyển hướng...');
           await signInWithRedirect(auth, provider);
           return;
         } catch (redirectError) {
-          showToast('Loi dang nhap Google: ' + (redirectError?.message || 'Khong the redirect dang nhap'), 'error');
+          showToast('Lỗi đăng nhập Google: ' + (redirectError?.message || 'Không thể chuyển hướng đăng nhập'), 'error');
         }
       } else {
-        showToast('Loi dang nhap Google: ' + (error?.message || 'Khong xac dinh'), 'error');
+        showToast('Lỗi đăng nhập Google: ' + (error?.message || 'Không xác định'), 'error');
       }
     } finally {
       btnGoogle.disabled = false;

@@ -10,7 +10,7 @@ export function renderDashboard(container, navigateTo) {
       <section class="legal-home-hero">
         <div class="hero-brand-header">
           <img src="/legal-pro-logo.svg" alt="VBAI Legal Pro" class="legal-pro-main-logo">
-          <div class="hero-tagline-badge">VBAI LEGAL PRO V2 · KHÔNG SPECULATION</div>
+          <div class="hero-tagline-badge">VBAI · Tra cứu chính xác, không suy đoán</div>
         </div>
 
         <h1 class="hero-main-title">Tra cứu pháp luật có kiểm chứng</h1>
@@ -93,7 +93,7 @@ export function renderDashboard(container, navigateTo) {
               </li>
               <li>
                 <strong class="principle-title">✓ Trạng thái kiểm chứng:</strong>
-                <span class="principle-desc">Chỉ gắn mác "Đã kiểm chứng" khi backend xác minh được điều khoản thật.</span>
+                <span class="principle-desc">Chỉ gắn mác "Đã kiểm chứng" khi hệ thống xác minh được điều khoản thật.</span>
               </li>
               <li>
                 <strong class="principle-title">📅 Ngày hiệu lực thực tế:</strong>
@@ -138,7 +138,7 @@ export function renderDashboard(container, navigateTo) {
           <div class="ancillary-card" data-page="pdf-tool">
             <div class="card-icon sunset">⚙️</div>
             <div class="card-info">
-              <div class="card-title">OCR & Xử lý PDF</div>
+              <div class="card-title">Nhận dạng & Xử lý tài liệu</div>
               <div class="card-desc">Trích xuất văn bản, gộp/tách trang và quét tài liệu PDF</div>
             </div>
           </div>
@@ -154,7 +154,7 @@ export function renderDashboard(container, navigateTo) {
           <div class="ancillary-card" data-page="docx-tool">
             <div class="card-icon pine">📝</div>
             <div class="card-info">
-              <div class="card-title">Tạo & Xuất DOCX / PDF</div>
+              <div class="card-title">Tạo & Xuất văn bản</div>
               <div class="card-desc">Biên tập tài liệu Word chuyên nghiệp và xuất file chuẩn</div>
             </div>
           </div>
@@ -164,7 +164,7 @@ export function renderDashboard(container, navigateTo) {
       <!-- SUPPORT & FOOTER SECTION -->
       <footer class="legal-pro-footer">
         <div class="footer-build-badge">
-          <span>VBAI Legal Pro V2</span>
+          <span>Trợ lý Tra cứu Pháp luật</span>
           <span class="dot-sep">•</span>
           <span>Văn phòng UBND tỉnh Lâm Đồng</span>
         </div>
