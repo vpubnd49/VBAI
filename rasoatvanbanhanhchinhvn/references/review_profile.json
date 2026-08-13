@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "severity": [
+    "must_fix",
+    "verify",
+    "should_fix",
+    "editorial"
+  ],
+  "categories": [
+    "citation",
+    "chronology",
+    "spelling",
+    "grammar",
+    "punctuation",
+    "terminology",
+    "task_assignment",
+    "reporting_logic",
+    "authority",
+    "cross_document",
+    "nd30_format",
+    "layout"
+  ],
+  "common_typos": {
+    "thầm quyền": "thẩm quyền",
+    "chiệu trách nhiệm": "chịu trách nhiệm",
+    "triễn khai": "triển khai",
+    "xữ lý": "xử lý"
+  },
+  "logic_signals": [
+    {
+      "id": "report_without_data",
+      "all_terms": [
+        "tổng hợp",
+        "báo cáo"
+      ],
+      "conflict_terms": [
+        "không yêu cầu",
+        "báo cáo riêng"
+      ],
+      "default_severity": "should_fix"
+    },
+    {
+      "id": "periodic_reporting",
+      "all_terms": [
+        "định kỳ",
+        "báo cáo"
+      ],
+      "default_severity": "verify"
+    },
+    {
+      "id": "direct_vs_advise_report",
+      "terms": [
+        "báo cáo trực tiếp",
+        "tham mưu",
+        "báo cáo"
+      ],
+      "default_severity": "verify"
+    }
+  ]
+}

@@ -27,6 +27,8 @@ const {
 } = require('./services/legal-evidence-policy');
 const { validateCitations } = require('./legal/services/citation-validation.service');
 const { detectContractSkill, buildContractSkillPrompt } = require('./legal/services/contract-skill-engine');
+const { detectAdminSearchContext, buildAdminSearchPrompt } = require('./legal/services/administrative-search-engine');
+const { detectAdminReviewIntent, buildAdminReviewPrompt } = require('./legal/services/administrative-review-engine');
 const path = require('path');
 const { validateMagicBytes, VALID_AUDIO_EXTS, readFileHeader, registerCleanup, cleanupTempFile: cleanupTempFileUtil } = require('./middleware/upload-security');
 const { encodeCursor, decodeCursor, validateCursor, sanitizeHistoryDoc, SAFE_HISTORY_FIELDS } = require('./utils/pagination');
@@ -3249,6 +3251,35 @@ app.post('/api/chat', async (req, res) => {
         };
       } else {
         effectiveMessages.push({ role: 'user', content: contractSkillPrompt });
+      }
+    }
+
+    // Administrative Search Skill Auto-Inclusion (Lâm Đồng 6 Departments NQ 390-395 / Geography 34 / CCHC indicators)
+    const adminSearchCtx = detectAdminSearchContext(auditQuery || userMessage);
+    if (adminSearchCtx) {
+      const adminSearchPrompt = buildAdminSearchPrompt(adminSearchCtx, auditQuery || userMessage);
+      const lastUserIdx = effectiveMessages.map(m => String(m?.role || '').toLowerCase()).lastIndexOf('user');
+      if (lastUserIdx >= 0) {
+        effectiveMessages[lastUserIdx] = {
+          ...effectiveMessages[lastUserIdx],
+          content: `${effectiveMessages[lastUserIdx].content}\n${adminSearchPrompt}`
+        };
+      } else {
+        effectiveMessages.push({ role: 'user', content: adminSearchPrompt });
+      }
+    }
+
+    // Administrative Document Review Skill Auto-Inclusion (7-Layer Review & NĐ30 4-Tier Error Classification)
+    if (detectAdminReviewIntent(auditQuery || userMessage)) {
+      const adminReviewPrompt = buildAdminReviewPrompt(auditQuery || userMessage);
+      const lastUserIdx = effectiveMessages.map(m => String(m?.role || '').toLowerCase()).lastIndexOf('user');
+      if (lastUserIdx >= 0) {
+        effectiveMessages[lastUserIdx] = {
+          ...effectiveMessages[lastUserIdx],
+          content: `${effectiveMessages[lastUserIdx].content}\n${adminReviewPrompt}`
+        };
+      } else {
+        effectiveMessages.push({ role: 'user', content: adminReviewPrompt });
       }
     }
 

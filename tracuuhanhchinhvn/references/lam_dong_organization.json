@@ -1,0 +1,96 @@
+{
+  "dataset": "lam_dong_provincial_departments_2025",
+  "provenance": "user_provided_resolutions_390_to_395_NQ_HDND",
+  "scope_note": "Các bản ghi phản ánh cơ cấu theo các Nghị quyết HĐND tỉnh Lâm Đồng khóa X, Kỳ họp thứ 22 ngày 18/02/2025. Phân biệt ngày nghị quyết có hiệu lực với ngày cơ quan đi vào hoạt động.",
+  "records": [
+    {
+      "canonical_name": "Sở Nông nghiệp và Môi trường tỉnh Lâm Đồng",
+      "short_name": "Sở Nông nghiệp và Môi trường",
+      "old_entities": [
+        "Sở Nông nghiệp và Phát triển nông thôn tỉnh Lâm Đồng",
+        "Sở Tài nguyên và Môi trường tỉnh Lâm Đồng"
+      ],
+      "change_type": "hợp nhất",
+      "resolution_number": "390/NQ-HĐND",
+      "resolution_date": "2025-02-18",
+      "resolution_effective_from": "2025-02-18",
+      "organization_operational_from": "2025-03-01",
+      "note": "Thành lập trên cơ sở hợp nhất hai Sở cũ."
+    },
+    {
+      "canonical_name": "Sở Khoa học và Công nghệ tỉnh Lâm Đồng",
+      "short_name": "Sở Khoa học và Công nghệ",
+      "old_entities": [
+        "Sở Khoa học và Công nghệ tỉnh Lâm Đồng",
+        "Sở Thông tin và Truyền thông tỉnh Lâm Đồng"
+      ],
+      "change_type": "hợp nhất",
+      "resolution_number": "391/NQ-HĐND",
+      "resolution_date": "2025-02-18",
+      "resolution_effective_from": "2025-02-18",
+      "organization_operational_from": "2025-03-01",
+      "note": "Tên Sở Khoa học và Công nghệ được giữ cho cơ quan mới sau hợp nhất."
+    },
+    {
+      "canonical_name": "Sở Nội vụ tỉnh Lâm Đồng",
+      "short_name": "Sở Nội vụ",
+      "old_entities": [
+        "Sở Lao động - Thương binh và Xã hội tỉnh Lâm Đồng",
+        "Sở Nội vụ tỉnh Lâm Đồng"
+      ],
+      "change_type": "hợp nhất",
+      "resolution_number": "392/NQ-HĐND",
+      "resolution_date": "2025-02-18",
+      "resolution_effective_from": "2025-02-18",
+      "organization_operational_from": "2025-03-01",
+      "note": "Nghị quyết 395/NQ-HĐND đồng thời chuyển chức năng, nhiệm vụ, tổ chức bộ máy quản lý nhà nước về tôn giáo từ Sở Nội vụ sang Sở Dân tộc và Tôn giáo."
+    },
+    {
+      "canonical_name": "Sở Xây dựng tỉnh Lâm Đồng",
+      "short_name": "Sở Xây dựng",
+      "old_entities": [
+        "Sở Xây dựng tỉnh Lâm Đồng",
+        "Sở Giao thông vận tải tỉnh Lâm Đồng"
+      ],
+      "change_type": "hợp nhất",
+      "resolution_number": "393/NQ-HĐND",
+      "resolution_date": "2025-02-18",
+      "resolution_effective_from": "2025-02-18",
+      "organization_operational_from": "2025-03-01",
+      "note": "Tên Sở Xây dựng được giữ cho cơ quan mới sau hợp nhất."
+    },
+    {
+      "canonical_name": "Sở Tài chính tỉnh Lâm Đồng",
+      "short_name": "Sở Tài chính",
+      "old_entities": [
+        "Sở Kế hoạch và Đầu tư tỉnh Lâm Đồng",
+        "Sở Tài chính tỉnh Lâm Đồng"
+      ],
+      "change_type": "hợp nhất",
+      "resolution_number": "394/NQ-HĐND",
+      "resolution_date": "2025-02-18",
+      "resolution_effective_from": "2025-02-18",
+      "organization_operational_from": "2025-03-01",
+      "note": "Tên Sở Tài chính được giữ cho cơ quan mới sau hợp nhất."
+    },
+    {
+      "canonical_name": "Sở Dân tộc và Tôn giáo tỉnh Lâm Đồng",
+      "short_name": "Sở Dân tộc và Tôn giáo",
+      "old_entities": [
+        "Ban Dân tộc tỉnh Lâm Đồng"
+      ],
+      "received_functions_from": [
+        {
+          "source": "Sở Nội vụ tỉnh Lâm Đồng",
+          "functions": "chức năng, nhiệm vụ, tổ chức bộ máy quản lý nhà nước về tôn giáo"
+        }
+      ],
+      "change_type": "thành lập trên cơ sở tiếp nhận chức năng",
+      "resolution_number": "395/NQ-HĐND",
+      "resolution_date": "2025-02-18",
+      "resolution_effective_from": "2025-02-18",
+      "organization_operational_from": "2025-03-01",
+      "note": "Ban Dân tộc tiếp nhận chức năng quản lý nhà nước về tôn giáo từ Sở Nội vụ."
+    }
+  ]
+}

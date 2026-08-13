@@ -1,0 +1,76 @@
+{
+  "sources": [
+    {
+      "id": "BASE-GUIDANCE-ND30-NQ60",
+      "type": "user_reference",
+      "title": "Hướng dẫn chuẩn hóa NĐ30 + NQ60",
+      "file": "Hướng dẫn chuẩn hóa NĐ30 + NQ60.md.md",
+      "bundled_as": "Không sao chép nguyên văn; các quy tắc cần thiết được tóm tắt trong SKILL.md và data_model.md",
+      "freshness": "snapshot",
+      "notes": "Tài liệu người dùng nêu mô hình chính quyền địa phương 2 cấp, mốc 01/07/2025, đối chiếu danh mục 34 tỉnh/thành và yêu cầu validation."
+    },
+    {
+      "id": "GEO-34",
+      "type": "user_dataset",
+      "title": "Danh sách địa giới 34 tỉnh/thành",
+      "file": "danh_sach_dia_gioi.csv",
+      "bundled_as": "references/dia_gioi_34.csv",
+      "freshness": "snapshot"
+    },
+    {
+      "id": "LD-390",
+      "type": "resolution",
+      "number": "390/NQ-HĐND",
+      "date": "2025-02-18",
+      "subject": "Thành lập Sở Nông nghiệp và Môi trường tỉnh Lâm Đồng",
+      "bundled_as": "references/lam_dong_organization.json"
+    },
+    {
+      "id": "LD-391",
+      "type": "resolution",
+      "number": "391/NQ-HĐND",
+      "date": "2025-02-18",
+      "subject": "Thành lập Sở Khoa học và Công nghệ tỉnh Lâm Đồng",
+      "bundled_as": "references/lam_dong_organization.json"
+    },
+    {
+      "id": "LD-392",
+      "type": "resolution",
+      "number": "392/NQ-HĐND",
+      "date": "2025-02-18",
+      "subject": "Thành lập Sở Nội vụ tỉnh Lâm Đồng",
+      "bundled_as": "references/lam_dong_organization.json"
+    },
+    {
+      "id": "LD-393",
+      "type": "resolution",
+      "number": "393/NQ-HĐND",
+      "date": "2025-02-18",
+      "subject": "Thành lập Sở Xây dựng tỉnh Lâm Đồng",
+      "bundled_as": "references/lam_dong_organization.json"
+    },
+    {
+      "id": "LD-394",
+      "type": "resolution",
+      "number": "394/NQ-HĐND",
+      "date": "2025-02-18",
+      "subject": "Thành lập Sở Tài chính tỉnh Lâm Đồng",
+      "bundled_as": "references/lam_dong_organization.json"
+    },
+    {
+      "id": "LD-395",
+      "type": "resolution",
+      "number": "395/NQ-HĐND",
+      "date": "2025-02-18",
+      "subject": "Thành lập Sở Dân tộc và Tôn giáo tỉnh Lâm Đồng",
+      "bundled_as": "references/lam_dong_organization.json"
+    },
+    {
+      "id": "CCHC-2025-11-27",
+      "type": "report_snapshot",
+      "title": "Báo cáo tình hình thực hiện các chỉ số PAR Index, SIPAS, PAPI, PCI, Bộ chỉ số phục vụ người dân, doanh nghiệp năm 2025",
+      "as_of": "2025-11-27",
+      "bundled_as": "references/cchc_snapshot_2025.json"
+    }
+  ]
+}

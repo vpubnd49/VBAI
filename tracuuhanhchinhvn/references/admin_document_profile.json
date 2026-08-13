@@ -1,0 +1,50 @@
+{
+  "dataset": "administrative_document_user_rules",
+  "provenance": "user_provided_guidance_and_configured_requirements",
+  "status": "configured_validation_profile_not_full_legal_text",
+  "records": {
+    "document_standard": "Nghị định 30/2020/NĐ-CP (theo hồ sơ hướng dẫn người dùng cung cấp)",
+    "margins_mm": {
+      "left": [
+        30,
+        35
+      ],
+      "right": [
+        15,
+        20
+      ],
+      "top": [
+        20,
+        25
+      ],
+      "bottom": [
+        20,
+        25
+      ]
+    },
+    "font": "Times New Roman",
+    "font_sizes_pt": {
+      "body": 14,
+      "number_symbol": 13,
+      "note": 12
+    },
+    "line_spacing": 1.5,
+    "alignment": "justify",
+    "two_tier_government": {
+      "model": "tỉnh - xã",
+      "default_operational_milestone": "2025-07-01"
+    },
+    "legal_aliases": [
+      {
+        "number": "60-NQ/TW",
+        "date": "2025-04-12",
+        "verification": "verify_official_source_when_current_validity_matters"
+      },
+      {
+        "number": "141/KH-BCĐTKNQ18",
+        "date": "2024-12-06",
+        "verification": "verify_official_source_when_current_validity_matters"
+      }
+    ]
+  }
+}

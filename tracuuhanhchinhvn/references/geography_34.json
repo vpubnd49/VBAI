@@ -1,0 +1,387 @@
+{
+  "dataset": "dia_gioi_34_structured",
+  "provenance": "derived_from_references/dia_gioi_34.csv",
+  "records": [
+    {
+      "source_order": null,
+      "canonical_name": "Thành phố Hà Nội",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Thành phố Hà Nội.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Thành phố Huế",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Thành phố Huế.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Tỉnh Lai Châu",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Tỉnh Lai Châu.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Tỉnh Điện Biên",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Tỉnh Điện Biên.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Tỉnh Sơn La",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Tỉnh Sơn La.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Tỉnh Lạng Sơn",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Tỉnh Lạng Sơn.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Tỉnh Quảng Ninh",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Tỉnh Quảng Ninh.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Tỉnh Thanh Hoá",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Tỉnh Thanh Hoá.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Tỉnh Nghệ An",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Tỉnh Nghệ An.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Tỉnh Hà Tĩnh",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Tỉnh Hà Tĩnh.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": null,
+      "canonical_name": "Tỉnh Cao Bằng",
+      "former_entities": [],
+      "administrative_center": null,
+      "change_type": "không nêu hợp nhất trong dòng nguồn",
+      "source_text": "Tỉnh Cao Bằng.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 1,
+      "canonical_name": "tỉnh Tuyên Quang",
+      "former_entities": [
+        "tỉnh Tuyên Quang",
+        "tỉnh Hà Giang"
+      ],
+      "administrative_center": "tỉnh Tuyên Quang hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "1. Hợp nhất tỉnh Tuyên Quang và tỉnh Hà Giang, lấy tên là tỉnh Tuyên Quang, trung tâm chính trị - hành chính đặt tại tỉnh Tuyên Quang hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 2,
+      "canonical_name": "tỉnh Lào Cai",
+      "former_entities": [
+        "tỉnh Lào Cai",
+        "tỉnh Yên Bái"
+      ],
+      "administrative_center": "tỉnh Yên Bái hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "2. Hợp nhất tỉnh Lào Cai và tỉnh Yên Bái, lấy tên là tỉnh Lào Cai, trung tâm chính trị - hành chính đặt tại tỉnh Yên Bái hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 3,
+      "canonical_name": "tỉnh Thái Nguyên",
+      "former_entities": [
+        "tỉnh Bắc Kạn",
+        "tỉnh Thái Nguyên"
+      ],
+      "administrative_center": "tỉnh Thái Nguyên hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "3. Hợp nhất tỉnh Bắc Kạn và tỉnh Thái Nguyên, lấy tên là tỉnh Thái Nguyên, trung tâm chính trị - hành chính đặt tại tỉnh Thái Nguyên hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 4,
+      "canonical_name": "tỉnh Phú Thọ",
+      "former_entities": [
+        "tỉnh Vĩnh Phúc",
+        "tỉnh Phú Thọ",
+        "tỉnh Hoà Bình"
+      ],
+      "administrative_center": "tỉnh Phú Thọ hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "4. Hợp nhất tỉnh Vĩnh Phúc, tỉnh Phú Thọ và tỉnh Hoà Bình; lấy tên là tỉnh Phú Thọ, trung tâm chính trị - hành chính đặt tại tỉnh Phú Thọ hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 5,
+      "canonical_name": "tỉnh Bắc Ninh",
+      "former_entities": [
+        "tỉnh Bắc Ninh",
+        "tỉnh Bắc Giang"
+      ],
+      "administrative_center": "tỉnh Bắc Giang hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "5. Hợp nhất tỉnh Bắc Ninh và tỉnh Bắc Giang, lấy tên là tỉnh Bắc Ninh, trung tâm chính trị - hành chính đặt tại tỉnh Bắc Giang hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 6,
+      "canonical_name": "tỉnh Hưng Yên",
+      "former_entities": [
+        "tỉnh Hưng Yên",
+        "tỉnh Thái Bình"
+      ],
+      "administrative_center": "tỉnh Hưng Yên hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "6. Hợp nhất tỉnh Hưng Yên và tỉnh Thái Bình, lấy tên là tỉnh Hưng Yên, trung tâm chính trị - hành chính đặt tại tỉnh Hưng Yên hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 7,
+      "canonical_name": "thành phố Hải Phòng",
+      "former_entities": [
+        "tỉnh Hải Dương",
+        "thành phố Hải Phòng"
+      ],
+      "administrative_center": "thành phố Hải Phòng hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "7. Hợp nhất tỉnh Hải Dương và thành phố Hải Phòng, lấy tên là thành phố Hải Phòng, trung tâm chính trị - hành chính đặt tại thành phố Hải Phòng hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 8,
+      "canonical_name": "tỉnh Ninh Bình",
+      "former_entities": [
+        "tỉnh Hà Nam",
+        "tỉnh Ninh Bình",
+        "tỉnh Nam Định"
+      ],
+      "administrative_center": "tỉnh Ninh Bình hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "8. Hợp nhất tỉnh Hà Nam, tỉnh Ninh Bình và tỉnh Nam Định; lấy tên là tỉnh Ninh Bình, trung tâm chính trị - hành chính đặt tại tỉnh Ninh Bình hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 9,
+      "canonical_name": "tỉnh Quảng Trị",
+      "former_entities": [
+        "tỉnh Quảng Bình",
+        "tỉnh Quảng Trị"
+      ],
+      "administrative_center": "tỉnh Quảng Bình hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "9. Hợp nhất tỉnh Quảng Bình và tỉnh Quảng Trị, lấy tên là tỉnh Quảng Trị, trung tâm chính trị - hành chính đặt tại tỉnh Quảng Bình hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 10,
+      "canonical_name": "thành phố Đà Nẵng",
+      "former_entities": [
+        "tỉnh Quảng Nam",
+        "thành phố Đà Nẵng"
+      ],
+      "administrative_center": "thành phố Đà Nẵng hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "10. Hợp nhất tỉnh Quảng Nam và thành phố Đà Nẵng, lấy tên là thành phố Đà Nẵng, trung tâm chính trị - hành chính đặt tại thành phố Đà Nẵng hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 11,
+      "canonical_name": "tỉnh Quảng Ngãi",
+      "former_entities": [
+        "tỉnh Kon Tum",
+        "tỉnh Quảng Ngãi"
+      ],
+      "administrative_center": "tỉnh Quảng Ngãi hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "11. Hợp nhất tỉnh Kon Tum và tỉnh Quảng Ngãi, lấy tên là tỉnh Quảng Ngãi, trung tâm chính trị - hành chính đặt tại tỉnh Quảng Ngãi hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 12,
+      "canonical_name": "tỉnh Gia Lai",
+      "former_entities": [
+        "tỉnh Gia Lai",
+        "tỉnh Bình Định"
+      ],
+      "administrative_center": "tỉnh Bình Định",
+      "change_type": "hợp nhất",
+      "source_text": "12. Hợp nhất tỉnh Gia Lai và tỉnh Bình Định, lấy tên là tỉnh Gia Lai, trung tâm chính trị - hành chính đặt tại tỉnh Bình Định.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 13,
+      "canonical_name": "tỉnh Khánh Hoà",
+      "former_entities": [
+        "tỉnh Ninh Thuận",
+        "tỉnh Khánh Hoà"
+      ],
+      "administrative_center": "tỉnh Khánh Hoà hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "13. Hợp nhất tỉnh Ninh Thuận và tỉnh Khánh Hoà, lấy tên là tỉnh Khánh Hoà, trung tâm chính trị - hành chính đặt tại tỉnh Khánh Hoà hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 14,
+      "canonical_name": "tỉnh Lâm Đồng",
+      "former_entities": [
+        "tỉnh Lâm Đồng",
+        "tỉnh Đắk Nông",
+        "tỉnh Bình Thuận"
+      ],
+      "administrative_center": "tỉnh Lâm Đồng hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "14. Hợp nhất tỉnh Lâm Đồng, tỉnh Đắk Nông và tỉnh Bình Thuận; lấy tên là tỉnh Lâm Đồng, trung tâm chính trị - hành chính đặt tại tỉnh Lâm Đồng hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 15,
+      "canonical_name": "tỉnh Đắk Lắk",
+      "former_entities": [
+        "tỉnh Đắk Lắk",
+        "tỉnh Phú Yên"
+      ],
+      "administrative_center": "tỉnh Đắk Lắk hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "15. Hợp nhất tỉnh Đắk Lắk và tỉnh Phú Yên, lấy tên là tỉnh Đắk Lắk, trung tâm chính trị - hành chính đặt tại tỉnh Đắk Lắk hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 16,
+      "canonical_name": "Thành phố Hồ Chí Minh",
+      "former_entities": [
+        "tỉnh Bà Rịa - Vũng Tàu",
+        "tỉnh Bình Dương",
+        "Thành phố Hồ Chí Minh"
+      ],
+      "administrative_center": "Thành phố Hồ Chí Minh hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "16. Hợp nhất tỉnh Bà Rịa - Vũng Tàu, tỉnh Bình Dương và Thành phố Hồ Chí Minh; lấy tên là Thành phố Hồ Chí Minh, trung tâm chính trị - hành chính đặt tại Thành phố Hồ Chí Minh hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 17,
+      "canonical_name": "tỉnh Đồng Nai",
+      "former_entities": [
+        "tỉnh Đồng Nai",
+        "tỉnh Bình Phước"
+      ],
+      "administrative_center": "tỉnh Đồng Nai hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "17. Hợp nhất tỉnh Đồng Nai và tỉnh Bình Phước, lấy tên là tỉnh Đồng Nai, trung tâm chính trị - hành chính đặt tại tỉnh Đồng Nai hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 18,
+      "canonical_name": "tỉnh Tây Ninh",
+      "former_entities": [
+        "tỉnh Tây Ninh",
+        "tỉnh Long An"
+      ],
+      "administrative_center": "tỉnh Long An",
+      "change_type": "hợp nhất",
+      "source_text": "18. Hợp nhất tỉnh Tây Ninh và tỉnh Long An, lấy tên là tỉnh Tây Ninh, trung tâm chính trị - hành chính đặt tại tỉnh Long An.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 19,
+      "canonical_name": "thành phố Cần Thơ",
+      "former_entities": [
+        "thành phố cần Thơ",
+        "tỉnh Sóc Trăng",
+        "tỉnh Hậu Giang"
+      ],
+      "administrative_center": "thành phố Cần Thơ hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "19. Hợp nhất thành phố cần Thơ, tỉnh Sóc Trăng và tỉnh Hậu Giang; lấy tên là thành phố Cần Thơ, trung tâm chính trị - hành chính đặt tại thành phố Cần Thơ hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 20,
+      "canonical_name": "tỉnh Vĩnh Long",
+      "former_entities": [
+        "tỉnh Bến Tre",
+        "tỉnh Vĩnh Long",
+        "tỉnh Trà Vinh"
+      ],
+      "administrative_center": "tỉnh Vĩnh Long hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "20. Hợp nhất tỉnh Bến Tre, tỉnh Vĩnh Long và tỉnh Trà Vinh; lấy tên là tỉnh Vĩnh Long, trung tâm chính trị - hành chính đặt tại tỉnh Vĩnh Long hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 21,
+      "canonical_name": "tỉnh Đồng Tháp",
+      "former_entities": [
+        "tỉnh Tiền Giang",
+        "tỉnh Đồng Tháp"
+      ],
+      "administrative_center": "tỉnh Tiền Giang",
+      "change_type": "hợp nhất",
+      "source_text": "21. Hợp nhất tỉnh Tiền Giang và tỉnh Đồng Tháp, lấy tên là tỉnh Đồng Tháp, trung tâm chính trị - hành chính đặt tại tỉnh Tiền Giang.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 22,
+      "canonical_name": "tỉnh Cà Mau",
+      "former_entities": [
+        "tỉnh Bạc Liêu",
+        "tỉnh Cà Mau"
+      ],
+      "administrative_center": "tỉnh Cà Mau hiện nay",
+      "change_type": "hợp nhất",
+      "source_text": "22. Hợp nhất tỉnh Bạc Liêu và tỉnh Cà Mau, lấy tên là tỉnh Cà Mau, trung tâm chính trị - hành chính đặt tại tỉnh Cà Mau hiện nay.",
+      "source_id": "GEO-34"
+    },
+    {
+      "source_order": 23,
+      "canonical_name": "tỉnh An Giang",
+      "former_entities": [
+        "tỉnh An Giang",
+        "tỉnh Kiên Giang"
+      ],
+      "administrative_center": "tỉnh Kiên Giang",
+      "change_type": "hợp nhất",
+      "source_text": "23. Hợp nhất tỉnh An Giang và tỉnh Kiên Giang, lấy tên là tỉnh An Giang, trung tâm chính trị - hành chính đặt tại tỉnh Kiên Giang.",
+      "source_id": "GEO-34"
+    }
+  ]
+}

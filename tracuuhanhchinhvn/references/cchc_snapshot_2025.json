@@ -1,0 +1,102 @@
+{
+  "dataset": "lam_dong_cchc_snapshot",
+  "provenance": "user_provided_report_Bao_cao_cac_chi_so_cua_tinh_28.11.pdf",
+  "as_of": "2025-11-27",
+  "records": [
+    {
+      "metric": "Bộ chỉ số 766",
+      "period": "2025",
+      "value": 90.09,
+      "unit": "điểm/100",
+      "rank": "11/34",
+      "as_of": "2025-11-27"
+    },
+    {
+      "metric": "Tỷ lệ hồ sơ giải quyết đúng hẹn",
+      "period": "2025",
+      "value": 97.28,
+      "unit": "%",
+      "target": "tối thiểu 98%",
+      "as_of": "2025-11-27"
+    },
+    {
+      "metric": "Tỷ lệ giải ngân kế hoạch đầu tư vốn ngân sách nhà nước",
+      "period": "2025",
+      "value": 32.23,
+      "unit": "%",
+      "as_of": "2025-11-27"
+    },
+    {
+      "metric": "Tỷ lệ số hóa hồ sơ, kết quả giải quyết TTHC",
+      "period": "2025",
+      "value": 82.0,
+      "unit": "%",
+      "target": "tối thiểu 80%",
+      "as_of": "2025-11-27"
+    },
+    {
+      "metric": "Tỷ lệ khai thác, sử dụng lại thông tin, dữ liệu số hóa",
+      "period": "2025",
+      "value": 83.76,
+      "unit": "%",
+      "target": "tối thiểu 50%",
+      "as_of": "2025-11-27"
+    },
+    {
+      "metric": "Tỷ lệ hồ sơ trực tuyến toàn trình",
+      "period": "2025",
+      "value": 51.79,
+      "unit": "%",
+      "target": "tối thiểu 70%",
+      "as_of": "2025-11-27"
+    },
+    {
+      "metric": "Tỷ lệ hồ sơ thanh toán trực tuyến",
+      "period": "2025",
+      "value": 78.61,
+      "unit": "%",
+      "target": "tối thiểu 60%",
+      "as_of": "2025-11-27"
+    },
+    {
+      "metric": "Tỷ lệ xử lý văn bản, hồ sơ công việc toàn trình trên môi trường điện tử",
+      "period": "2025",
+      "value": 100.0,
+      "unit": "%",
+      "as_of": "2025-11-27"
+    },
+    {
+      "metric": "PAR Index",
+      "period": "2024",
+      "value": 83.1,
+      "unit": "điểm/100",
+      "rank": "62/63",
+      "entity": "Lâm Đồng (trước sắp xếp)"
+    },
+    {
+      "metric": "SIPAS",
+      "period": "2024",
+      "value": 83.0,
+      "unit": "%",
+      "rank": "39/63",
+      "entity": "Lâm Đồng (trước sắp xếp)"
+    },
+    {
+      "metric": "PAPI",
+      "period": "2024",
+      "value": 41.02,
+      "unit": "điểm/80",
+      "rank": "54/63",
+      "entity": "Lâm Đồng (trước sắp xếp)"
+    },
+    {
+      "metric": "PCI",
+      "period": "2024",
+      "value": 65.08,
+      "unit": "điểm/100",
+      "rank": "54/63",
+      "entity": "Lâm Đồng (trước sắp xếp)"
+    }
+  ],
+  "freshness_rule": "Mọi số liệu chỉ số phải trả kèm mốc dữ liệu. Không gọi đây là số liệu hiện tại nếu yêu cầu nằm sau mốc as_of mà chưa có nguồn mới."
+}
