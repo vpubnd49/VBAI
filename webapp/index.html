@@ -3,6 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    // Immediately strip sensitive Firebase/OAuth parameters from the address bar
+    // before any module loads. Runs synchronously at page parse time.
+    (function() {
+      var s = location.search, h = location.hash;
+      if (s && /[?&](apiKey|authError|code|state)=/.test(s)) {
+        history.replaceState(null, '', location.pathname + (h || ''));
+      }
+    })();
+  </script>
   <title>VBAI Legal Pro V2 - Tra cứu & Kiểm chứng Pháp luật</title>
   <meta name="description" content="Nền tảng AI tra cứu, kiểm chứng và phân tích pháp luật Việt Nam dành cho công tác tham mưu, hành chính và pháp chế." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
