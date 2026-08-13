@@ -23,7 +23,7 @@ const DEFAULT_ENVIRONMENT = IS_BROWSER
 
 const PRODUCTION_CONFIG = Object.freeze({
   apiKey: "AIzaSyC_abC-4uR72rFd8SXnaHFYY_kJ2R0CFcA",
-  authDomain: "vbai.tracuu.lamdong.vn",
+  authDomain: "gen-lang-client-0462350485.firebaseapp.com",
   projectId: "gen-lang-client-0462350485",
   storageBucket: "gen-lang-client-0462350485.firebasestorage.app",
   messagingSenderId: "419728335518",
