@@ -161,6 +161,33 @@ export function renderDashboard(container, navigateTo) {
         </div>
       </section>
 
+      <!-- LIÊN HỆ HỖ TRỢ -->
+      <section id="contact-section" class="home-card-panel" style="margin-top: 24px; border-left: 4px solid var(--brand-primary, #00778B);">
+        <div class="panel-card-head">
+          <h3>📞 Liên hệ hỗ trợ</h3>
+          <span class="panel-head-tag">Hỗ trợ kỹ thuật</span>
+        </div>
+        <div class="panel-card-body" style="display: flex; flex-wrap: wrap; gap: 20px; padding: 16px 0;">
+          <div style="flex: 1; min-width: 220px;">
+            <div style="font-weight: 600; color: var(--text-primary, #0F172A); margin-bottom: 8px;">Người phụ trách</div>
+            <div style="color: var(--text-secondary, #475569); font-size: 0.9rem; line-height: 1.7;">
+              <strong>Trương Hải Châu</strong><br>
+              Văn phòng UBND tỉnh Lâm Đồng
+            </div>
+          </div>
+          <div style="flex: 1; min-width: 220px;">
+            <div style="font-weight: 600; color: var(--text-primary, #0F172A); margin-bottom: 8px;">Thông tin liên hệ</div>
+            <div style="color: var(--text-secondary, #475569); font-size: 0.9rem; line-height: 1.7;">
+              📧 Email: <a href="mailto:chauth@lamdong.gov.vn" style="color: var(--brand-primary, #00778B); text-decoration: none;">chauth@lamdong.gov.vn</a><br>
+              📱 Điện thoại: <a href="tel:0985559988" style="color: var(--brand-primary, #00778B); text-decoration: none;">0985 559 988</a><br>
+              💬 Messenger: <a href="https://m.me/haichau2404" target="_blank" style="color: var(--brand-primary, #00778B); text-decoration: none;">@haichau2404</a><br>
+              💬 Zalo: <a href="https://zalo.me/0911677209" target="_blank" style="color: var(--brand-primary, #00778B); text-decoration: none;">0911 677 209</a><br>
+              🏛️ Địa chỉ: Số 04, Trần Hưng Đạo, P.3, TP. Đà Lạt, Lâm Đồng
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- SUPPORT & FOOTER SECTION -->
       <footer class="legal-pro-footer">
         <div class="footer-build-badge">
