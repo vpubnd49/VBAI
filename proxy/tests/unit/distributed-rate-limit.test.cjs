@@ -109,10 +109,14 @@ console.log('\n--- 2. Fail-Close: Firestore Not Initialized ---');
   ok(res3.error === 'Too Many Requests', '429: error is Too Many Requests');
 
   // 5. Admin user bypasses limits
-  console.log('\n--- 5. Admin Bypass ---');
+  console.log('\n--- 5. Admin & Canary Bypass ---');
   const adminDecoded = { uid: 'admin_123', admin: true };
   const resAdmin = await limiter.checkRateLimit(req, adminDecoded, { ipLimit: 1, userLimit: 1 });
   ok(resAdmin.allowed === true, 'Admin user bypasses rate limits even with no Firestore');
+
+  const canaryDecoded = { uid: 'canary-bot', canary: true };
+  const resCanary = await limiter.checkRateLimit(req, canaryDecoded, { ipLimit: 1, userLimit: 1 });
+  ok(resCanary.allowed === true, 'Canary token bypasses rate limits even with no Firestore');
 
   // 6. PII hashing verification
   console.log('\n--- 6. PII Hashing ---');

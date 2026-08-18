@@ -26,6 +26,7 @@ async function main() {
   initializeFirebaseApp({ serviceAccount, projectId: serviceAccount.project_id });
 
   const customToken = await getFirebaseAuth().createCustomToken(uid, {
+    admin: true,
     canary: true,
     source: 'github-actions',
   });
