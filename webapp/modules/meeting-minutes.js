@@ -31,15 +31,26 @@ async function ensureSystemConfig() {
 }
 
 const GEMINI_MEETING_MODEL_FALLBACK_ORDER = [
-  "gemini-3.5-flash-lite",
+  "gemini-3.7-flash-high",
   "gemini-2.5-flash",
-  "gemini-2.5-pro",
-  "gemini-2.0-flash-exp",
-  "gemini-2.0-flash-lite-preview",
-  "gemini-3-flash-preview",
+  "gemini-1.5-flash",
 ];
 
 function getMeetingModelFallbackOrder() {
+  let preferred = '';
+  try {
+    const cached = localStorage.getItem('vbai_system_config_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      preferred = parsed?.config?.meeting_model || parsed?.config?.transcribe_model || parsed?.config?.gemini_model || '';
+    }
+  } catch (_) {}
+  if (!preferred) {
+    preferred = localStorage.getItem('vbai_gemini_model_meeting') || localStorage.getItem('vbai_gemini_model') || '';
+  }
+  if (preferred) {
+    return [preferred, ...GEMINI_MEETING_MODEL_FALLBACK_ORDER.filter(m => m !== preferred)];
+  }
   return GEMINI_MEETING_MODEL_FALLBACK_ORDER;
 }
 

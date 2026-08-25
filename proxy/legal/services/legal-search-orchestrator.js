@@ -80,18 +80,40 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         effectiveStatus: metaDoc?.effectiveStatus || 'in_force',
         verificationStatus: metaDoc?.verificationStatus || 'verified',
       });
-    } else {
+    } else if (knownDoc || (metaDoc && metaDoc.title)) {
+      const detailedSnippet = [
+        knownDoc?.tom_tat_chinh_sach || metaDoc?.summary || '',
+        knownDoc?.tom_tat_chuong_dieu || metaDoc?.chapterArticleSummary ? `Cấu trúc chương điều: ${knownDoc?.tom_tat_chuong_dieu || metaDoc?.chapterArticleSummary}` : '',
+        knownDoc?.can_cu_phap_ly && knownDoc.can_cu_phap_ly.length > 0 ? `Căn cứ pháp lý: ${knownDoc.can_cu_phap_ly.join('; ')}` : ''
+      ].filter(Boolean).join('\n\n') || `Thông tin văn bản số ${docNumber} - Trạng thái: ${metaDoc?.effectiveStatus || 'in_force'}`;
+
       results.push({
         title: metaDoc?.title || (knownDoc && knownDoc.title) || `Văn bản số ${docNumber}`,
-        snippet: `Thông tin văn bản số ${docNumber} - Trạng thái: ${metaDoc?.effectiveStatus || 'in_force'}`,
-        link: metaDoc?.sourceUrl || (knownDoc && knownDoc.official_source_urls && knownDoc.official_source_urls[0]) || `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`,
+        snippet: detailedSnippet,
+        link: metaDoc?.sourceUrl || (knownDoc && knownDoc.official_source_urls && knownDoc.official_source_urls[0]) || `https://vanban.chinhphu.vn/`,
         source: metaDoc?.sourceTier || 'official',
         documentNumber: docNumber,
-        issuer: metaDoc?.issuer || (knownDoc && knownDoc.issuer) || null,
+        issuer: metaDoc?.issuer || (knownDoc && knownDoc.issuer) || 'Chính phủ',
         issueDate: metaDoc?.issueDate || (knownDoc && knownDoc.issue_date) || null,
         effectiveDate: metaDoc?.effectiveDate || (knownDoc && knownDoc.effective_date) || null,
         effectiveStatus: metaDoc?.effectiveStatus || 'in_force',
         verificationStatus: metaDoc?.verificationStatus || 'verified',
+        summary: knownDoc?.tom_tat_chinh_sach || metaDoc?.summary || '',
+        chapterArticleSummary: knownDoc?.tom_tat_chuong_dieu || metaDoc?.chapterArticleSummary || ''
+      });
+    } else {
+      // Document NOT FOUND in official national legal databases
+      results.push({
+        title: `Không tìm thấy văn bản số ${docNumber}`,
+        snippet: `Hệ thống cơ sở dữ liệu văn bản pháp luật quốc gia không ghi nhận văn bản số ${docNumber}. Số hiệu văn bản này không tồn tại trong hệ thống pháp luật Việt Nam hoặc chưa được ban hành.`,
+        link: `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`,
+        source: 'reference',
+        documentNumber: docNumber,
+        issuer: null,
+        issueDate: null,
+        effectiveDate: null,
+        effectiveStatus: 'not_found',
+        verificationStatus: 'unverified',
       });
     }
   } else {

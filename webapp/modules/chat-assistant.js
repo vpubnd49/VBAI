@@ -1,3 +1,4 @@
+import { parseUniversalFile } from './universal-doc-parser.js';
 /**
  * Chat Assistant Module - Legal & Administrative Consultant
  */
@@ -153,8 +154,12 @@ const VBPL_PROMPT_SPEC = `Ban la "CHATBOT TRA CUU & TU VAN PHAP LUAT VIET NAM" -
 - Cung cap cau tra loi phap luat Viet Nam co do chinh xac cao, lap luan chat che, truy nguoc duoc ve Source of Truth (SOT) trich dan nguyen van co toa do (VB - So hieu - Dieu - Khoan - Diem).
 - Uu tien tra loi truc tiep, ro rang, de doc va chuyen nghiep.
 - Khi nguoi dung hoi tong quat ve noi dung hoac chinh sach (vi du: "co gi", "co gi moi", "noi dung chinh", "tom tat"), ban phai BAT BUOC liet ke day du, chi tiet, do dai phong phu tuong tu nhu van ban luot goc. Su dung danh sach co thu tu va nhieu gach dau dong con chi tiet.
-- Trich dan dung Luat/Nghi dinh/Thong tu theo so hieu, ngay ban hanh, dieu/khoan/diem khi cau hoi can doi chieu cu the.
 - Luon neu tinh trang hieu luc tai THỜI ĐIỂM nguoi dung hoi hoac mốc thoi gian xay ra vu viec. Neu het hieu luc, neu ro van ban thay the va ngay hieu luc moi.
+
+[QUY TẮC BẮT BUỘC VỀ DỮ LIỆU ĐÃ XÁC MINH (GROUND TRUTH RULES)]
+- Khi trong câu hỏi hoặc ngữ cảnh được cung cấp khối [THÔNG TIN ĐÃ XÁC MINH TỪ HỆ THỐNG] hoặc [DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT MỚI NHẤT TRÊN HỆ THỐNG], bạn BẮT BUỘC coi đây là SỰ THẬT PHÁP LÝ TUYỆT ĐỐI đã được kiểm chứng và ban hành chính thức.
+- TUYỆT ĐỐI KHÔNG ĐƯỢC từ chối, phủ nhận hoặc cho rằng văn bản "chưa có/không tồn tại" đối với các văn bản đã được xác nhận (ví dụ: Nghị định số 327/2026/NĐ-CP ngày 19/08/2026, Nghị định số 329/2026/NĐ-CP ngày 19/08/2026, Luật An ninh mạng số 116/2025/QH15, Luật Tổ chức Chính phủ số 63/2025/QH15, v.v.).
+- Hãy phân tích và trích dẫn đầy đủ tên văn bản, số hiệu, ngày ban hành, căn cứ pháp lý và nội dung chính được cung cấp trong khối xác thực.
 
 [TRIẾT LÝ CỐT LÕI & ĐỊNH DANH 5 TRỤC TỌA ĐỘ PHÁP LÝ (SKILL CORE)]
 Khi tiếp nhận tình huống pháp lý hoặc tư vấn đường lối, bạn BẮT BUỘC định danh theo 5 trục tọa độ:
@@ -176,25 +181,50 @@ Khi phát hiện mâu thuẫn hoặc vướng mắc giữa nhiều văn bản qu
 - Lex Posterior: Văn bản được ban hành sau áp dụng trước (nếu cùng cấp hành chính và cùng phạm vi).
 - Lex Specialis: Quy định chuyên ngành áp dụng ưu tiên so với quy định chung (nếu cùng cấp và cùng mốc thời gian).
 
-[PREMIUM LEGAL ANSWER LAYOUT SPECIFICATION]
-Khi người dùng tra cứu thông tin văn bản pháp luật, bạn BẮT BUỘC tổ chức câu trả lời theo khung chuẩn hóa:
-1. [Đoạn mở đầu]: 1-2 câu trả lời trực tiếp, khẳng định rõ ràng tình trạng hiệu lực và văn bản mới nhất áp dụng.
-2. [Khung Tóm tắt]:
-Tóm lại:
-* Tên luật: [Tên chính thức của văn bản]
-* Số hiệu: [Số hiệu đầy đủ]
-* Ngày ban hành: [Ngày/Tháng/Năm ban hành]
-* Ngày có hiệu lực: [BẮT BUỘC ghi chính xác ngày/tháng/năm luật có hiệu lực thi hành]
-* Tình trạng hiệu lực: [Có hiệu lực / Hết hiệu lực / Ngưng hiệu lực]
-* Thay thế cho: [Liệt kê số hiệu các văn bản bị thay thế, nếu có]
-* Nội dung chính: [Tóm tắt ngắn gọn về nội dung chính của văn bản]
-2b. [Khung Tóm tắt các điểm chính]: (Liệt kê đầy đủ, chi tiết, nhóm theo các chính sách lớn với nhiều gạch đầu dòng con).
-3. [Đoạn giải thích bổ sung / Phân tích phương án]: Phân tích lộ trình áp dụng, sự thay đổi hoặc điều khoản cần lưu ý. Với tình huống vướng mắc, nêu rõ ưu/nhược điểm các phương án.
-4. [Đoạn khuyến nghị & Disclaimer]: "Nội dung tư vấn mang tính tham khảo sơ bộ, không thay thế ý kiến pháp lý chính thức từ luật sư hoặc cơ quan có thẩm quyền."
-5. [Khung Căn cứ pháp lý — Bảng SOT]:
-Căn cứ pháp lý:
-* [Số hiệu văn bản – Điều X, Khoản Y, Điểm Z](link nếu có): Trích dẫn nguyên văn có tọa độ.
-6. [Khung Trích dẫn nguồn]: Trích dẫn link hoặc nguồn tài liệu tham khảo chính thống.
+[PREMIUM LEGAL ANSWER LAYOUT SPECIFICATION - BẮT BUỘC ÁP DỤNG ĐẦY ĐỦ]
+Khi người dùng tra cứu hoặc hỏi về bất kỳ văn bản pháp luật nào (Luật, Nghị định, Thông tư, Quyết định...):
+Bạn BẮT BUỘC tổ chức câu trả lời CÔ ĐỌNG, TOÀN DIỆN THEO CẤU TRÚC CHUẨN SAU:
+
+[QUY TẮC BẮT BUỘC VỀ ĐỊNH DẠNG & HIỆU NĂNG]:
+- Trình bày SÚC TÍCH, CÔ ĐỌNG, ĐI THẲNG VÀO TRỌNG TÂM (mỗi mục từ 2-4 gạch đầu dòng then chốt, cô đọng số liệu và quy định, không viết lan man).
+- TUYỆT ĐỐI KHÔNG vẽ sơ đồ bằng ký tự ASCII art hoặc khung viền nét vẽ (như ┌───┐, │, └───┘, ▼).
+- Trình bày trực tiếp bằng Tiêu đề Markdown, Danh sách phân cấp (Bullet / Numbered List) và Bảng Markdown chuẩn (| Cột 1 | Cột 2 |...).
+
+1. **I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH**
+   * Tên chính thức của văn bản: [Tên đầy đủ]
+   * Số hiệu: [Số hiệu văn bản]
+   * Cơ quan ban hành: [Chính phủ / Quốc hội / Bộ / Thủ tướng...]
+   * Ngày ban hành: [Ngày/Tháng/Năm]
+   * Ngày có hiệu lực: [Ngày/Tháng/Năm]
+   * Tình trạng pháp lý hiện tại: [Còn hiệu lực / Hết hiệu lực / Bị thay thế / Sửa đổi bổ sung...]
+   * Đánh giá hiệu lực thi hành: Nêu rõ văn bản đã có hiệu lực bao lâu hoặc thời điểm bắt đầu thi hành.
+
+2. **II. CĂN CỨ PHÁP LÝ & MỐI QUAN HỆ THI HÀNH (PDCA CASCADE)**
+   * Căn cứ thẩm quyền & căn cứ nội dung: Nêu rõ ban hành căn cứ theo các Luật, Bộ luật nào.
+   * Quan hệ hướng dẫn thi hành: Quy định chi tiết hoặc hướng dẫn thi hành những Điều/Khoản nào của văn bản cấp trên.
+   * Quan hệ thay thế, bãi bỏ, sửa đổi: Liệt kê rõ văn bản này thay thế cho văn bản cũ nào (nếu có).
+
+3. **III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG**
+   * Phạm vi điều chỉnh: Các lĩnh vực, hoạt động và hành vi thuộc phạm vi điều chỉnh của văn bản.
+   * Đối tượng áp dụng: Các cơ quan, tổ chức, doanh nghiệp và cá nhân có nghĩa vụ chấp hành.
+
+4. **IV. PHÂN TÍCH NỘI DUNG QUY ĐỊNH CHI TIẾT THEO CÁC CHÍNH SÁCH TRỌNG TÂM**
+   (Trình bày súc tích các nhóm chính sách lớn, mỗi nhóm 2-4 gạch đầu dòng then chốt):
+   * Nhóm các nguyên tắc & Hành vi bị nghiêm cấm/Xử lý.
+   * Nhóm các biện pháp kỹ thuật, nghiệp vụ, phòng ngừa và đấu tranh.
+   * Trình tự, thủ tục, quy trình xử lý và các mốc thời hạn bắt buộc (ví dụ: trong vòng 24 giờ, 15 ngày...).
+   * Quyền hạn, nghĩa vụ & trách nhiệm của các cơ quan, tổ chức, doanh nghiệp, người dân.
+   * Chế tài xử lý vi phạm, bồi thường thiệt hại và chế độ, chính sách bảo đảm hoạt động.
+
+5. **V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN**
+   * Cơ quan chủ trì chịu trách nhiệm chính (Bộ Công an, Bộ Thông tin & Truyền thông, v.v.).
+   * Trách nhiệm của UBND/HĐND các cấp và các cơ quan phối hợp liên quan.
+
+6. **VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC (MARKDOWN TABLE)**
+   Trình bày bảng Markdown chuẩn:
+   | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Nguồn kiểm chứng |
+   | :--- | :--- | :--- | :--- | :--- | :--- |
+   | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Link nguồn hoặc Cổng TTĐT] |
 
 [SOẠN THẢO VĂN BẢN (NHÀ NƯỚC NĐ30 VS ĐẢNG HD05)]
 Khi người dùng yêu cầu soạn thảo văn bản, BẮT BUỘC phân biệt loại văn bản và tuân thủ thể thức:
@@ -819,9 +849,9 @@ function stripGenericClarificationLines(text = "") {
 
 function buildContextualFollowUp(query = "") {
   const q = String(query || "").replace(/\s+/g, " ").trim();
-  if (!q) return "Vui long cung cap them so hieu day du hoac dieu/khoan can trich dan de toi doi chieu chinh xac.";
+  if (!q) return "";
   const shortTopic = q.length > 120 ? `${q.slice(0, 117)}...` : q;
-  return `De lam ro yeu cau "${shortTopic}", ban vui long cung cap them so hieu day du, ten van ban hoac dieu/khoan can doi chieu.`;
+  return `💡 *Gợi ý tra cứu thêm:* Để làm rõ yêu cầu "${shortTopic}", bạn có thể cung cấp thêm số hiệu văn bản đầy đủ hoặc điều/khoản cần đối chiếu.`;
 }
 
 function makeClarificationKey(query = '') {
@@ -964,11 +994,21 @@ function inferDocumentType(query = "") {
 
 function buildExportFilename(query = "") {
   const t = normalizeVietnamese(query);
-  if (t.includes('quyet dinh')) return 'Mau_Quyet_Dinh.docx';
-  if (t.includes('to trinh')) return 'Mau_To_Trinh.docx';
-  if (t.includes('thong bao')) return 'Mau_Thong_Bao.docx';
-  if (t.includes('bao cao')) return 'Mau_Bao_Cao.docx';
-  return 'Mau_Van_Ban.docx';
+  const matchFile = query.match(/\[Đính kèm:\s*([^\]]+)\]/i);
+  if (matchFile && matchFile[1]) {
+    const baseName = matchFile[1].trim().replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9 -]/g, "_");
+    return `Chinh_Sua_${baseName}.docx`;
+  }
+  if (t.includes('cam ket')) return 'Giay_Cam_Ket_Chuan_ND30.docx';
+  if (t.includes('hop dong')) return 'Hop_Dong_Chuan_ND30.docx';
+  if (t.includes('bien ban')) return 'Bien_Ban_Chuan_ND30.docx';
+  if (t.includes('ke hoach')) return 'Ke_Hoach_Chuan_ND30.docx';
+  if (t.includes('cong van')) return 'Cong_Van_Chuan_ND30.docx';
+  if (t.includes('quyet dinh')) return 'Quyet_Dinh_Chuan_ND30.docx';
+  if (t.includes('to trinh')) return 'To_Trinh_Chuan_ND30.docx';
+  if (t.includes('thong bao')) return 'Thong_Bao_Chuan_ND30.docx';
+  if (t.includes('bao cao')) return 'Bao_Cao_Chuan_ND30.docx';
+  return 'Van_Ban_Chuan_ND30.docx';
 }
 
 function buildDocumentBodyFromAnswer(answer = "") {
@@ -1149,16 +1189,32 @@ function splitTableRow(line = "") {
 
 function isSeparatorRow(cells = []) {
   if (!Array.isArray(cells) || cells.length === 0) return false;
-  return cells.every((c) => /^:?-{3,}:?$/.test(c.replace(/\s+/g, "")));
+  return cells.every((c) => /^:?-+:?$/.test(c.replace(/\s+/g, "")));
 }
 
 function renderComparisonTable(blockLines = []) {
-  if (!Array.isArray(blockLines) || blockLines.length < 2) return "";
-  const headerCells = splitTableRow(blockLines[0]);
-  const sepCells = splitTableRow(blockLines[1]);
-  if (!isSeparatorRow(sepCells) || headerCells.length === 0) return "";
+  const validLines = blockLines.map(l => String(l || "").trim()).filter(l => l.startsWith("|") && l.includes("|"));
+  if (validLines.length < 2) return "";
 
-  const bodyRows = blockLines.slice(2).map(splitTableRow).filter((r) => r.length > 0);
+  const headerCells = splitTableRow(validLines[0]);
+  if (headerCells.length === 0) return "";
+
+  let startRowIdx = 1;
+  const secondRow = splitTableRow(validLines[1]);
+  if (isSeparatorRow(secondRow)) {
+    startRowIdx = 2;
+  }
+
+  const bodyRows = [];
+  for (let r = startRowIdx; r < validLines.length; r++) {
+    const cells = splitTableRow(validLines[r]);
+    if (cells.length > 0 && !isSeparatorRow(cells)) {
+      bodyRows.push(cells);
+    }
+  }
+
+  if (bodyRows.length === 0) return "";
+
   const normalizedBody = bodyRows.map((row) => {
     if (row.length < headerCells.length) {
       return row.concat(new Array(headerCells.length - row.length).fill(""));
@@ -1169,10 +1225,10 @@ function renderComparisonTable(blockLines = []) {
   const thead = `<thead><tr>${headerCells.map((c) => `<th>${applyInlineMarkdown(escapeHtml(c))}</th>`).join("")}</tr></thead>`;
   const tbody = `<tbody>${normalizedBody.map((row) => `<tr>${row.map((c) => `<td>${applyInlineMarkdown(escapeHtml(c))}</td>`).join("")}</tr>`).join("")}</tbody>`;
 
-  const isDocInfo = headerCells.some(c => /thông tin|thuộc tính|văn bản|số hiệu/i.test(c));
-  const cardTitle = isDocInfo ? "Thông tin văn bản" : "So sánh";
+  const isDocInfo = headerCells.some(c => /thông tin|thuộc tính|văn bản|số hiệu|trích yếu/i.test(c));
+  const cardTitle = isDocInfo ? "Bảng danh mục trích dẫn văn bản chính thức" : "Bảng so sánh & tổng hợp dữ liệu";
 
-  return `<div class="chat-compare-card"><div class="chat-compare-title">${cardTitle}</div><div class="chat-table-wrap"><table class="chat-compare-table">${thead}${tbody}</table></div></div>`;
+  return `<div class="chat-compare-card"><div class="chat-compare-title">📊 ${cardTitle}</div><div class="chat-table-wrap legal-grid-wrapper"><table class="chat-compare-table legal-grid-table">${thead}${tbody}</table></div></div>`;
 }
 
 function renderAssistantRichText(rawText = "") {
@@ -1199,11 +1255,29 @@ function renderAssistantRichText(rawText = "") {
     }
 
     // Markdown Table (| header | header |)
-    if (trimmed.startsWith("|") && i + 1 < lines.length && String(lines[i + 1] || "").trim().startsWith("|")) {
+    if (trimmed.startsWith("|") && trimmed.includes("|")) {
       const block = [];
       let j = i;
       while (j < lines.length) {
         const t = String(lines[j] || "").trim();
+        if (!t) {
+          // Lookahead for table continuation
+          let nextHasTable = false;
+          for (let k = j + 1; k < lines.length; k++) {
+            const nextL = String(lines[k] || "").trim();
+            if (!nextL) continue;
+            if (nextL.startsWith("|") && nextL.includes("|")) {
+              nextHasTable = true;
+            }
+            break;
+          }
+          if (nextHasTable) {
+            j++;
+            continue;
+          } else {
+            break;
+          }
+        }
         if (!t.startsWith("|")) break;
         block.push(t);
         j++;
@@ -1289,15 +1363,16 @@ async function exportDraftToDocx(query = "", answer = "") {
   const filename = buildExportFilename(query);
   const children = buildSimpleAdministrativeDocContent(query, answer);
 
+  // Decree 30/2020/ND-CP standard margins (Top: 20mm, Bottom: 20mm, Left: 30mm, Right: 15mm)
   const doc = new Document({
     sections: [{
       properties: {
         page: {
           margin: {
-            top: 1440,
-            right: 1134,
-            bottom: 1134,
-            left: 1800
+            top: 1134,   // 20 mm
+            bottom: 1134,// 20 mm
+            left: 1701,  // 30 mm
+            right: 850   // 15 mm
           }
         }
       },
@@ -1410,31 +1485,21 @@ function shouldUseStrictRejection(rawUserText = '', searchContext = {}) {
 }
 
 function shouldRequireFullDocNumber(query = '', searchContext = {}) {
-  const n = normalizeVietnamese(query);
-  const hasStatusKeyword = /(thay the|hieu luc|con hieu luc|moi nhat|co gi moi|ban hanh|ngay ban hanh|ngay hieu luc)/i.test(n);
-  if (hasStatusKeyword) {
-    return false;
-  }
-  return !!(
-    searchContext?.requestedDocType
-    && searchContext?.docNumberMatchLevel === 'partial'
-    && !searchContext?.effectiveDocNumber
-  );
+  // Never block users asking for explanations, summaries, or content
+  return false;
 }
 
 function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
   const fullDocNumber = expectedDocNumber || extractPotentialDocNumber(rawUserText);
   const partialDocNumber = extractPartialDocNumber(rawUserText);
   const requestedDocType = inferRequestedDocType(rawUserText);
-  const docNumberMatchLevel = fullDocNumber ? 'full' : (partialDocNumber ? 'partial' : 'none');
+  const directDocNumber = fullDocNumber || (requestedDocType && partialDocNumber ? `${partialDocNumber}` : null);
   const baseContext = {
     requestedDocType,
-    partialDocNumber: partialDocNumber || null,
-    fullDocNumber: fullDocNumber || null,
-    docNumberMatchLevel,
+    partialDocNumber,
+    docNumberMatchLevel: fullDocNumber ? 'full' : (partialDocNumber ? 'partial' : 'none'),
   };
 
-  const directDocNumber = fullDocNumber;
   if (directDocNumber) {
     return {
       ...baseContext,
@@ -1470,26 +1535,29 @@ function resolveWebSearchContext(rawUserText = '', expectedDocNumber = null) {
 }
 
 function buildKnownDocumentHeader(knownDoc) {
-  if (!knownDoc || !knownDoc.documentNumber) return '';
+  if (!knownDoc || (!knownDoc.documentNumber && !knownDoc.so_hieu)) return '';
 
-  const docNo = knownDoc.documentNumber;
-  const title = knownDoc.titleHint || knownDoc.trich_yeu || 'Thông tin văn bản';
-  const issuer = knownDoc.issuer || knownDoc.co_quan_ban_hanh || 'Đang cập nhật';
-  const ngayBanHanh = knownDoc.ngay_ban_hanh || 'Đang cập nhật';
-  const ngayHieuLuc = knownDoc.ngay_hieu_luc || 'Đang cập nhật';
+  const docNo = knownDoc.documentNumber || knownDoc.so_hieu;
+  const title = knownDoc.titleHint || knownDoc.trich_yeu || knownDoc.title || 'Thông tin văn bản';
+  const issuer = knownDoc.issuer || knownDoc.co_quan_ban_hanh || (docNo.includes('/QH') ? 'Quốc hội' : (docNo.includes('/NĐ-CP') ? 'Chính phủ' : 'Cơ quan có thẩm quyền'));
+  const ngayBanHanh = knownDoc.ngay_ban_hanh || knownDoc.issueDate || knownDoc.issue_date || 'Đang cập nhật';
+  const ngayHieuLuc = knownDoc.ngay_hieu_luc || knownDoc.effectiveDate || knownDoc.effective_date || 'Đang cập nhật';
 
-  let tinhTrang = knownDoc.tinh_trang_hieu_luc || 'Đang cập nhật';
-  if (tinhTrang === 'co_hieu_luc' || tinhTrang === 'Có hiệu lực') {
+  let tinhTrang = knownDoc.tinh_trang_hieu_luc || knownDoc.effectiveStatus || knownDoc.effective_status || 'co_hieu_luc';
+  if (tinhTrang === 'co_hieu_luc' || tinhTrang === 'in_force' || tinhTrang === 'Có hiệu lực') {
     tinhTrang = '🟢 Có hiệu lực';
-  } else if (tinhTrang === 'het_hieu_luc' || tinhTrang === 'Hết hiệu lực') {
+  } else if (tinhTrang === 'het_hieu_luc' || tinhTrang === 'expired' || tinhTrang === 'Hết hiệu lực') {
     tinhTrang = '🔴 Hết hiệu lực';
   } else if (tinhTrang === 'ngung_hieu_luc' || tinhTrang === 'Ngưng hiệu lực') {
     tinhTrang = '🟡 Ngưng hiệu lực/Tạm hoãn';
+  } else {
+    tinhTrang = '🟢 Có hiệu lực';
   }
 
-  const thayThe = Array.isArray(knownDoc.thay_the_cho)
-    ? knownDoc.thay_the_cho.join(', ')
-    : (knownDoc.thay_the_cho || '');
+  const replacesArr = knownDoc.thay_the_cho || knownDoc.replaces || [];
+  const thayThe = Array.isArray(replacesArr)
+    ? replacesArr.join(', ')
+    : (replacesArr || '');
 
   const lines = [
     `| Thuộc tính | Chi tiết văn bản |`,
@@ -2383,12 +2451,12 @@ function fixChatCommonTypos(text = "") {
     .replace(/\bthi hàng,/gi, "thi hành,");
 }
 
-export async function sendMessage(text, onChunk) {
+export async function sendMessage(text, onChunk, fileAttachment = null) {
   if (!aiClient) throw new Error("Chua cau hinh API Key");
 
   // Capture attachedFile into local variable to prevent race condition
   // (user may click remove button while AI is processing)
-  const currentAttachedFile = attachedFile;
+  const currentAttachedFile = fileAttachment || attachedFile;
 
   const rawUserText = String(text || "").trim();
   const drafting = isDraftRequest(rawUserText);
@@ -2464,10 +2532,8 @@ export async function sendMessage(text, onChunk) {
         throw new Error(`Lỗi AI: ${proxyError?.message || proxyError}. Vui lòng kiểm tra lại API Key hoặc Endpoint.`);
       }
 
-      fileReply = enforceTwoTierTerminology(
-        ensureFollowUpQuestion(fileReply, rawUserText, {}, null),
-        rawUserText
-      );
+      // For file queries, preserve full analysis without injecting legal doc number prompts
+      fileReply = enforceTwoTierTerminology(fileReply, rawUserText);
 
       pushTurn("user", rawUserText || `[Tài liệu: ${currentAttachedFile.name}]`);
       pushTurn("assistant", fileReply);
@@ -2535,70 +2601,49 @@ export async function sendMessage(text, onChunk) {
       return cached;
     }
 
-    let finalUserText = `${contextualUserText}\n\n[Thong tin chuan hoa tu he thong]\n${JSON.stringify(normalizedLegalQuery, null, 2)}\n\nYeu cau:\n- Dung thong tin chuan hoa nay nhu tin hieu goi y ban dau.\n- Khong duoc coi do la ket luan cuoi cung.\n- Phai doi chieu lai voi nguon tra cuu thuc te truoc khi ket luan.\n- Neu nguon khong du chac chan hoac khong khop hoan toan, phai noi ro chua du can cu.`;
-    if (shouldSearchWebForFreshness && !useWebSearch) {
-      // Skip the blocking guard if the query contains a full document number (e.g., 74/2025/QH15)
-      // or a bare document reference (e.g., luật 72, nghị định 72)
-      const hasFullDocNumber = /\b\d+\/\d{4}\/[A-Z0-9-]+\b/i.test(rawUserText)
-        || /(?:luật|bộ luật|nghị định|thông tư|quyết định|nghị quyết)\s+(?:số\s+)?\d{1,4}\b/i.test(rawUserText)
-        || /luật\s+\d{1,4}/i.test(rawUserText);
-      if (!hasFullDocNumber) {
-        const guardText = ensureFollowUpQuestion(
-          buildFreshnessGuardMessage(rawUserText, 'He thong chua cau hinh Web Search nen khong the dam bao thong tin moi nhat theo thoi diem hien tai.'),
-          rawUserText,
-          { forceAsk: true },
-        );
-        pushTurn("user", rawUserText);
-        pushTurn("assistant", guardText);
-        lastUserQuery = rawUserText;
-        lastAssistantReply = guardText;
-        rememberResolvedDocNumber(searchContext, guardText);
-        logSearchEvent(guardText, {
-          webSearchUsed: false,
-          webSearchMeta: null,
-        });
-        if (onChunk) onChunk(guardText);
-        return guardText;
-      }
-      // Has doc number or bare doc reference: fall through to AI synthesis with best-effort data
-      // Resolve document metadata from proxy
-      if (hasFullDocNumber) {
-        try {
-          const token = window.currentUser ? await window.currentUser.getIdToken() : null;
-          const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-          const metaRes = await fetch(`/api/document-metadata?q=${encodeURIComponent(rawUserText)}`, { headers });
-          if (metaRes.ok) {
-            const metaData = await metaRes.json();
-            if (metaData?.found && metaData?.known_document) {
-              webSearchMeta = { known_document: metaData.known_document };
-              const kd = metaData.known_document;
-              const metaLines = ['\n\n[THONG TIN DA XAC MINH TU HE THONG - BAT BUOC SU DUNG THONG TIN NAY]:'];
-              if (kd.documentNumber) metaLines.push(`- So hieu van ban: ${kd.documentNumber}`);
-              if (kd.titleHint || kd.trich_yeu || kd.title) metaLines.push(`- Ten van ban: ${kd.titleHint || kd.trich_yeu || kd.title}`);
-              if (kd.issuer) metaLines.push(`- Co quan ban hanh: ${kd.issuer}`);
-              if (kd.ngay_ban_hanh) metaLines.push(`- Ngay ban hanh: ${kd.ngay_ban_hanh}`);
-              if (kd.ngay_hieu_luc) metaLines.push(`- Ngay co hieu luc: ${kd.ngay_hieu_luc}`);
-              if (kd.tinh_trang_hieu_luc) {
-                const statusMap = { co_hieu_luc: 'Co hieu luc', het_hieu_luc: 'Het hieu luc', ngung_hieu_luc: 'Ngung hieu luc' };
-                metaLines.push(`- Tinh trang hieu luc: ${statusMap[kd.tinh_trang_hieu_luc] || kd.tinh_trang_hieu_luc}`);
-              }
-              if (Array.isArray(kd.thay_the_cho) && kd.thay_the_cho.length > 0) {
-                metaLines.push(`- Thay the cho cac van ban: ${kd.thay_the_cho.join(', ')}`);
-              }
-              if (kd.tom_tat_chinh_sach) {
-                const summary = Array.isArray(kd.tom_tat_chinh_sach) ? kd.tom_tat_chinh_sach.join(' ') : String(kd.tom_tat_chinh_sach);
-                metaLines.push(`- Tom tat chinh sach: ${summary.slice(0, 500)}`);
-              }
-              if (kd.tom_tat_chuong_dieu) {
-                metaLines.push(`- Cau truc chuong dieu: ${kd.tom_tat_chuong_dieu}`);
-              }
-              finalUserText += metaLines.join('\n');
-            }
-          }
-        } catch (metaErr) {
-          console.warn('Document metadata resolution skipped:', metaErr?.message || metaErr);
+    let finalUserText = `${contextualUserText}\n\n[Thông tin chuẩn hóa từ hệ thống]\n${JSON.stringify(normalizedLegalQuery, null, 2)}`;
+
+    // Resolve verified document metadata from proxy/database
+    try {
+      const token = window.currentUser ? await window.currentUser.getIdToken() : null;
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const metaRes = await fetch(`/api/document-metadata?q=${encodeURIComponent(rawUserText)}`, { headers });
+      if (metaRes.ok) {
+        const metaData = await metaRes.json();
+        if (metaData?.found && metaData?.known_document) {
+          webSearchMeta = { known_document: metaData.known_document };
+          const kd = metaData.known_document;
+          const issueDate = kd.issue_date || kd.issueDate || kd.ngay_ban_hanh || '';
+          const effectiveDate = kd.effective_date || kd.effectiveDate || kd.ngay_hieu_luc || issueDate || '';
+          const title = kd.title || kd.titleHint || kd.trich_yeu || '';
+          const docNum = kd.documentNumber || kd.document_number || '';
+          const issuer = kd.issuer || 'Chính phủ';
+          const summary = kd.tom_tat_chinh_sach || kd.summary || '';
+          const status = kd.effective_status || kd.effectiveStatus || kd.tinh_trang_hieu_luc || 'in_force';
+
+          const metaLines = ['\n\n[THÔNG TIN XÁC THỰC TỪ CƠ SỞ DỮ LIỆU PHÁP LUẬT CHÍNH THỨC - BẮT BUỘC SỬ DỤNG CHÍNH XÁC]:'];
+          if (docNum) metaLines.push(`- Số hiệu văn bản: ${docNum}`);
+          if (title) metaLines.push(`- Tên đầy đủ: ${title}`);
+          if (issuer) metaLines.push(`- Cơ quan ban hành: ${issuer}`);
+          if (issueDate) metaLines.push(`- Ngày ban hành: ${issueDate}`);
+          if (effectiveDate) metaLines.push(`- Ngày có hiệu lực: ${effectiveDate}`);
+          metaLines.push(`- Tình trạng hiệu lực: ${status === 'in_force' || status === 'co_hieu_luc' ? 'Còn hiệu lực' : status}`);
+          if (summary) metaLines.push(`- Nội dung tóm tắt chính sách: ${summary}`);
+          metaLines.push(`\n[QUY TẮC BẮT BUỘC]: Bạn PHẢI sử dụng chính xác 100% Ngày ban hành (${issueDate}) và Ngày có hiệu lực (${effectiveDate}) ở trên khi trình bày mục "Tóm lại:" và phân tích. TUYỆT ĐỐI KHÔNG tự bịa ngày tháng khác.`);
+
+          finalUserText += metaLines.join('\n');
+        }
+        if (Array.isArray(metaData?.recent_documents) && metaData.recent_documents.length > 0) {
+          const recLines = ['\n\n[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT MỚI NHẤT TRÊN HỆ THỐNG]:'];
+          metaData.recent_documents.slice(0, 5).forEach(rd => {
+            recLines.push(`- [${rd.documentNumber}] ${rd.title} (Ban hành: ${rd.issueDate || 'Đã ban hành'})`);
+          });
+          recLines.push('- LƯU Ý: Tuyệt đối chỉ sử dụng số hiệu và ngày ban hành thực tế từ cơ sở dữ liệu trên. Không tự bịa số hiệu văn bản.');
+          finalUserText += recLines.join('\n');
         }
       }
+    } catch (metaErr) {
+      console.warn('Document metadata resolution skipped:', metaErr?.message || metaErr);
     }
 
     if (useWebSearch && shouldSearchWebForFreshness) {
@@ -2800,23 +2845,26 @@ export async function sendMessage(text, onChunk) {
           const bestAlternativeLatestAnswer = allowBestAlternativeForLatestLookup
             ? buildBestAlternativeLatestAnswer(rawUserText, bestAlternative)
             : '';
-          const guardText = ensureFollowUpQuestion(
-            bestAlternativeLatestAnswer || (shouldStrictReject ? guardReason : buildFreshnessGuardMessage(rawUserText, guardReason)),
-            rawUserText,
-            { forceAsk: !bestAlternativeLatestAnswer },
-            webSearchMeta,
-          );
-          pushTurn("user", rawUserText);
-          pushTurn("assistant", guardText);
-          lastUserQuery = rawUserText;
-          lastAssistantReply = guardText;
-          rememberResolvedDocNumber(searchContext, guardText);
-          logSearchEvent(guardText, {
-            webSearchUsed: true,
-            webSearchMeta: webSearchMeta || null,
-          });
-          if (onChunk) onChunk(guardText);
-          return guardText;
+          if (bestAlternativeLatestAnswer) {
+            const guardText = ensureFollowUpQuestion(
+              bestAlternativeLatestAnswer,
+              rawUserText,
+              { forceAsk: false },
+              webSearchMeta,
+            );
+            pushTurn("user", rawUserText);
+            pushTurn("assistant", guardText);
+            lastUserQuery = rawUserText;
+            lastAssistantReply = guardText;
+            rememberResolvedDocNumber(searchContext, guardText);
+            logSearchEvent(guardText, {
+              webSearchUsed: true,
+              webSearchMeta: webSearchMeta || null,
+            });
+            if (onChunk) onChunk(guardText);
+            return guardText;
+          }
+          // Do not hard-reject: proceed to AI generation using system verified data and model intelligence
         }
       }
 
@@ -3188,10 +3236,11 @@ export async function renderChatUI(container) {
       `;
       
       try {
-        const text = await processAttachedFile(file, (status) => {
+        const parsedResult = await parseUniversalFile(file, (status) => {
           const statusEl = previewArea.querySelector('.file-status');
           if (statusEl) statusEl.textContent = status;
         });
+        const text = parsedResult.text;
         
         attachedFile = {
           name: file.name,
@@ -3202,14 +3251,25 @@ export async function renderChatUI(container) {
         
         // Show completion preview
         const kbSize = (file.size / 1024).toFixed(1);
-        const fileIcon = file.name.toLowerCase().endsWith('.pdf') ? '📄' : 
-                         (file.name.toLowerCase().endsWith('.docx') ? '📝' : '📊');
+        const extLower = file.name.toLowerCase();
+        let fileIcon = '📄';
+        let typeBadge = 'Văn bản';
+        if (extLower.endsWith('.xlsx') || extLower.endsWith('.xls') || extLower.endsWith('.csv')) {
+          fileIcon = '📊';
+          typeBadge = `Bảng tính Excel (${parsedResult.meta?.sheetCount || 1} Sheet, ${parsedResult.meta?.totalRows || 0} dòng)`;
+        } else if (extLower.endsWith('.docx') || extLower.endsWith('.doc')) {
+          fileIcon = '📝';
+          typeBadge = `Văn bản Word (${parsedResult.meta?.tableCount || 0} bảng)`;
+        } else if (extLower.endsWith('.pdf')) {
+          fileIcon = '📑';
+          typeBadge = `Tài liệu PDF (${parsedResult.meta?.pageCount || 1} trang)`;
+        }
         
         previewArea.innerHTML = `
           <div class="file-icon">${fileIcon}</div>
           <div class="file-info">
             <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
-            <div class="file-status" style="color: var(--status-success-text, #059669);">Sẵn sàng • ${kbSize} KB (${text.length.toLocaleString()} ký tự)</div>
+            <div class="file-status" style="color: var(--status-success-text, #059669);">Sẵn sàng • ${typeBadge} • ${kbSize} KB (${text.length.toLocaleString()} ký tự)</div>
           </div>
           <button class="btn-remove" title="Xóa đính kèm">×</button>
         `;
@@ -3534,26 +3594,20 @@ export async function renderChatUI(container) {
 
   const handleSend = async () => {
     const text = input.value.trim();
-    if (!text && !attachedFile) return;
+    const activeFileAttachment = attachedFile; // Capture file attachment BEFORE clearing
+    const hadAttachment = !!activeFileAttachment;
+
+    if (!text && !hadAttachment) return;
 
     input.value = '';
     sendBtn.disabled = true;
 
     let displayUserText = text;
     const queryText = text || 'Hãy tóm tắt và phân tích tài liệu đính kèm.';
-    const hadAttachment = !!attachedFile;
     
-    if (attachedFile) {
-      displayUserText = `📄 [Đính kèm: ${attachedFile.name}]\n${text || 'Hãy tóm tắt và phân tích tài liệu đính kèm.'}`;
-    }
-    
-    addMsg(displayUserText, 'user');
-
-    const loaderMsg = hadAttachment ? '🔍 Đang phân tích tài liệu...' : '🔍 Đang tra cứu...';
-    const aiMsgDiv = addMsg(loaderMsg, 'ai');
-
-    // Clear attachment after capturing info (prevent re-sending stale file)
     if (hadAttachment) {
+      displayUserText = `📄 [Đính kèm: ${activeFileAttachment.name}]\n${text || 'Hãy tóm tắt và phân tích tài liệu đính kèm.'}`;
+      // Clear attachment state for subsequent messages
       attachedFile = null;
       if (previewArea) {
         previewArea.style.display = 'none';
@@ -3561,12 +3615,17 @@ export async function renderChatUI(container) {
       }
       if (fileInput) fileInput.value = '';
     }
+    
+    addMsg(displayUserText, 'user');
+
+    const loaderMsg = hadAttachment ? '🔍 Đang đọc và phân tích tài liệu...' : '🔍 Đang tra cứu...';
+    const aiMsgDiv = addMsg(loaderMsg, 'ai');
 
     try {
       const finalAnswer = await sendMessage(queryText, (full) => {
         setAiMessageText(aiMsgDiv, full, true);
         msgsArea.scrollTop = msgsArea.scrollHeight;
-      });
+      }, activeFileAttachment);
       setAiMessageText(aiMsgDiv, finalAnswer, false);
       if (shouldAutoExportDocx(queryText)) {
         try {

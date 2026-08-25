@@ -44,4 +44,6 @@ vbai_deploy.zip
 *.zip
 *.rar
 *.tar.gz
+*.mp4
+backup_database/
 

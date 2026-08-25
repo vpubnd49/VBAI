@@ -6,9 +6,9 @@
 // VBAI Main Entry - Last Update: 2026-05-20 (Performance Optimized)
 import { firebaseConfig } from './firebase-config.js';
 
-const GLOBAL_AI_MODEL = 'gemini-3.5-flash-lite';
-const GLOBAL_MEETING_MODEL = 'gemini-3.5-flash-lite';
-const GLOBAL_TRANSCRIBE_MODEL = 'gemini-3.5-flash-lite';
+const GLOBAL_AI_MODEL = 'gemini-3.7-flash-high';
+const GLOBAL_MEETING_MODEL = 'gemini-3.7-flash-high';
+const GLOBAL_TRANSCRIBE_MODEL = 'gemini-3.7-flash-high';
 
 function applyGlobalModelDefaults() {
   const currentSaved = localStorage.getItem('vbai_gemini_model');
@@ -258,93 +258,104 @@ async function init() {
     }
   }, 8000);
 
-  console.log('Main: Loading Firebase SDKs...');
-  try {
-    const [firebaseApp, firebaseAuth] = await Promise.all([
-      import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"),
-      import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js")
-    ]);
+  // Unified Local & Google Authentication Handler
+  const loginOverlay = document.getElementById('login-overlay');
+  const mainApp = document.getElementById('app');
 
-    const { initializeApp, getApps, getApp } = firebaseApp;
-    const { getAuth, onAuthStateChanged, signOut } = firebaseAuth;
+  async function handleUserLoggedIn(user) {
+    if (!user || !loginOverlay || !mainApp) return;
+    window.currentUser = user;
+    window.isAdmin = user.isAdmin === true || user.role === 'admin';
+    localStorage.setItem('vbai_is_admin', window.isAdmin ? 'true' : 'false');
 
-    console.log('Main: Firebase initializing...');
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const auth = getAuth(app);
-    authInstance = auth;
+    loginOverlay.style.display = 'none';
+    mainApp.style.display = 'flex';
 
-    console.log('Main: Setting up onAuthStateChanged...');
-    onAuthStateChanged(auth, async (user) => {
-      console.log('Main: Auth state changed, user:', user ? user.email : 'null');
-      const loginOverlay = document.getElementById('login-overlay');
-      const mainApp = document.getElementById('app');
-      if (!loginOverlay || !mainApp) return;
+    // Update top bar with user info
+    const topBar = document.querySelector('.top-bar-actions');
+    if (topBar) {
+      topBar.innerHTML = `
+        <div style="font-size:0.85rem; font-weight:500; color:var(--text-secondary); margin-right:16px;">
+          ${user.email || user.displayName || 'Thành viên'}
+        </div>
+        <div class="dalat-time" id="dalat-clock"></div>
+      `;
+      updateClock();
+    }
 
-      if (user) {
-        window.currentUser = user;
-        try {
-          const tokenResult = await user.getIdTokenResult(true);
-          window.isAdmin = tokenResult?.claims?.admin === true;
-          localStorage.setItem('vbai_is_admin', window.isAdmin ? 'true' : 'false');
-        } catch (e) {
-          window.isAdmin = false;
-          localStorage.setItem('vbai_is_admin', 'false');
-        }
-        loginOverlay.style.display = 'none';
-        mainApp.style.display = 'flex';
+    const adminBtn = document.getElementById('nav-admin-panel');
+    if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
 
-        // Update breadcrumb with user info
-        document.querySelector('.top-bar-actions').innerHTML = `
-          <div style="font-size:0.85rem; font-weight:500; color:var(--text-secondary); margin-right:16px;">
-            ${user.email}
-          </div>
-          <div class="dalat-time" id="dalat-clock"></div>
-        `;
-        updateClock();
-
-        const adminBtn = document.getElementById('nav-admin-panel');
-        if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
-
-        // Always land on dashboard right after login/auth restore.
-        state.currentPage = 'dashboard';
-        try {
-          await renderPage(state.currentPage);
-          // Trigger preloading of all other modules in background to eliminate latency
-          preloadModules();
-
-          // Update breadcrumb and nav active state for the auto-redirected page
-          document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[state.currentPage]}</span>`;
-          document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.page === state.currentPage);
-          });
-        } catch (err) {
-          console.error('Render page failed after login:', err);
-          const container = document.getElementById('page-content');
-          if (container) {
-            container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Có lỗi khi tải trang chủ. Vui lòng tải lại trang.</div></div>';
-          }
-        }
-      } else {
-        window.currentUser = null;
-        window.isAdmin = false;
-        localStorage.setItem('vbai_is_admin', 'false');
-        mainApp.style.display = 'none';
-        loginOverlay.style.display = 'block';
-        
-        const { renderLogin } = await import('./modules/login.js');
-        renderLogin(loginOverlay);
-      }
-    });
-
-    document.getElementById('btn-logout').addEventListener('click', () => {
-      signOut(authInstance).then(() => {
-        showToast('Đã đăng xuất');
+    state.currentPage = 'dashboard';
+    try {
+      await renderPage(state.currentPage);
+      preloadModules();
+      const breadcrumb = document.getElementById('breadcrumb');
+      if (breadcrumb) breadcrumb.innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[state.currentPage]}</span>`;
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.page === state.currentPage);
       });
-    });
+    } catch (err) {
+      console.error('Render page failed after login:', err);
+    }
+  }
 
-  } catch (err) {
-    console.error('Lỗi khởi động ứng dụng (Firebase SDK):', err);
-    showToast('Lỗi kết nối Firebase SDK', 'error');
+  async function handleUserLoggedOut() {
+    window.currentUser = null;
+    window.isAdmin = false;
+    localStorage.removeItem('vbai_token');
+    localStorage.removeItem('vbai_user');
+    localStorage.setItem('vbai_is_admin', 'false');
+    if (mainApp) mainApp.style.display = 'none';
+    if (loginOverlay) {
+      loginOverlay.style.display = 'block';
+      const { renderLogin } = await import('./modules/login.js');
+      renderLogin(loginOverlay);
+    }
+  }
+
+  // Listen to custom auth events
+  window.addEventListener('auth-changed', (e) => {
+    if (e.detail) {
+      handleUserLoggedIn(e.detail);
+    } else {
+      handleUserLoggedOut();
+    }
+  });
+
+  // Check existing session
+  const savedToken = localStorage.getItem('vbai_token');
+  const savedUserStr = localStorage.getItem('vbai_user');
+
+  if (savedToken && savedUserStr) {
+    try {
+      const savedUser = JSON.parse(savedUserStr);
+      const userObj = {
+        uid: savedUser.uid || savedUser._id,
+        user_id: savedUser.uid || savedUser._id,
+        email: savedUser.email,
+        displayName: savedUser.displayName || savedUser.name,
+        role: savedUser.role,
+        isAdmin: savedUser.role === 'admin' || savedUser.isAdmin === true,
+        getIdToken: async () => localStorage.getItem('vbai_token') || '',
+        getIdTokenResult: async () => ({ claims: { admin: savedUser.role === 'admin' || savedUser.isAdmin === true } })
+      };
+      await handleUserLoggedIn(userObj);
+    } catch (err) {
+      console.warn('Session restore failed:', err);
+      handleUserLoggedOut();
+    }
+  } else {
+    // Show login page
+    handleUserLoggedOut();
+  }
+
+  // Setup logout button
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      handleUserLoggedOut();
+    });
   }
 
   // Sidebar toggle logic

@@ -1,3 +1,4 @@
+import { parseUniversalFile } from './universal-doc-parser.js';
 /**
  * VBAI Legal Pro V2 — Central Legal Search Experience
  * Two-panel layout: Left (Query & Structured Answer) / Right (Evidence Panel)
@@ -64,11 +65,16 @@ export async function renderLegalSearchUI(container, initialMode = 'legal-search
                 placeholder="${getPlaceholderForMode(currentSearchState.mode)}"
                 value="${escapeAttribute(currentSearchState.query)}"
               >
+              <button type="button" id="legal-file-btn" class="btn btn-secondary" title="Đính kèm file Word, Excel, PDF để đối chiếu quy định pháp luật" style="display:flex; align-items:center; gap:4px; font-size:0.82rem; padding:0 12px; white-space:nowrap;">
+                <span>📎 Đính kèm tệp</span>
+              </button>
+              <input type="file" id="legal-file-input" accept=".docx,.doc,.xlsx,.xls,.csv,.pdf,.txt,.json" style="display:none;">
               <button id="legal-search-btn" class="btn btn-primary legal-search-submit-btn">
                 <span class="btn-icon">🔍</span>
                 <span>Tra cứu</span>
               </button>
             </div>
+            <div id="legal-file-preview" style="display:none; margin: 8px 0; padding: 6px 12px; background: var(--surface-soft, #f1f5f9); border-radius: 8px; border: 1px dashed var(--border-default, #cbd5e1); font-size: 0.8rem; align-items: center; justify-content: space-between;"></div>
 
             <!-- Quick Modes Chips -->
             <div class="legal-mode-chips">
@@ -143,12 +149,45 @@ export async function renderLegalSearchUI(container, initialMode = 'legal-search
   }
 }
 
+const legalSearchMemoryCache = new Map();
+const metadataCache = new Map();
+
+async function getCachedMetadata(q) {
+  const k = String(q || '').trim().toLowerCase();
+  if (!k) return null;
+  if (metadataCache.has(k)) return metadataCache.get(k);
+  try {
+    const token = window.currentUser ? await window.currentUser.getIdToken() : null;
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(`/api/document-metadata?q=${encodeURIComponent(q)}`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      metadataCache.set(k, data);
+      return data;
+    }
+  } catch (_) {}
+  return null;
+}
+
 async function executeLegalSearch(container, query) {
   const answerArea = container.querySelector('#legal-answer-area');
   const evidenceContainer = container.querySelector('#legal-evidence-panel');
   const searchBtn = container.querySelector('#legal-search-btn');
 
   if (!answerArea || !evidenceContainer) return;
+
+  const cleanQ = String(query || '').trim();
+  const cacheKey = `${currentSearchState.mode}:${cleanQ.toLowerCase()}:${currentSearchState.effectiveDate}`;
+
+  // Instant Cache Check (< 10ms response)
+  const cached = legalSearchMemoryCache.get(cacheKey);
+  if (cached) {
+    answerArea.innerHTML = cached.formattedAnswerHtml;
+    renderEvidencePanel(evidenceContainer, cached.response);
+    bindCitationInteractions(container);
+    searchBtn.disabled = false;
+    return;
+  }
 
   searchBtn.disabled = true;
   answerArea.innerHTML = `
@@ -159,18 +198,57 @@ async function executeLegalSearch(container, query) {
     </div>
   `;
 
-  saveRecentSearch(query, currentSearchState.mode);
+  saveRecentSearch(cleanQ, currentSearchState.mode);
 
   try {
-    const fullPrompt = buildModePrompt(query, currentSearchState.mode, currentSearchState.effectiveDate);
+    let fullPrompt = buildModePrompt(cleanQ, currentSearchState.mode, currentSearchState.effectiveDate);
+
+    // Resolve verified document metadata & recent legal database context (using fast cache)
+    try {
+      const metaData = await getCachedMetadata(cleanQ);
+      if (metaData?.found && metaData?.known_document) {
+        const kd = metaData.known_document;
+        const issueDate = kd.issue_date || kd.issueDate || kd.ngay_ban_hanh || '';
+        const effectiveDate = kd.effective_date || kd.effectiveDate || kd.ngay_hieu_luc || issueDate || '';
+        const title = kd.title || kd.titleHint || kd.trich_yeu || '';
+        const docNum = kd.documentNumber || kd.document_number || '';
+        const issuer = kd.issuer || 'Chính phủ';
+        const summary = kd.tom_tat_chinh_sach || kd.summary || '';
+        const chapters = kd.tom_tat_chuong_dieu || kd.chapterArticleSummary || '';
+        const status = kd.effective_status || kd.effectiveStatus || kd.tinh_trang_hieu_luc || 'in_force';
+
+        const metaLines = ['\n\n[THÔNG TIN XÁC THỰC TỪ CƠ SỞ DỮ LIỆU PHÁP LUẬT CHÍNH THỨC - BẮT BUỘC SỬ DỤNG ĐỂ PHÂN TÍCH CHI TIẾT]:'];
+        if (docNum) metaLines.push(`- Số hiệu văn bản: ${docNum}`);
+        if (title) metaLines.push(`- Tên đầy đủ: ${title}`);
+        if (issuer) metaLines.push(`- Cơ quan ban hành: ${issuer}`);
+        if (issueDate) metaLines.push(`- Ngày ban hành: ${issueDate}`);
+        if (effectiveDate) metaLines.push(`- Ngày có hiệu lực: ${effectiveDate}`);
+        metaLines.push(`- Tình trạng hiệu lực: ${status === 'in_force' || status === 'co_hieu_luc' ? 'Còn hiệu lực' : status}`);
+        if (summary) metaLines.push(`- Nội dung chính sách trọng tâm: ${summary}`);
+        if (chapters) metaLines.push(`- Cấu trúc chương điều & quy định chi tiết: ${chapters}`);
+        if (Array.isArray(kd.can_cu_phap_ly) && kd.can_cu_phap_ly.length > 0) {
+          metaLines.push(`- Căn cứ pháp lý: ${kd.can_cu_phap_ly.join('; ')}`);
+        }
+        metaLines.push(`\n[QUY TẮC PHÂN TÍCH CHUYÊN SÂU]: Bạn BẮT BUỘC trình bày bài phân tích đầy đủ, phong phú, chi tiết từng nhóm chính sách, biện pháp kỹ thuật và trách nhiệm thực thi. Tuyệt đối không trả lời sơ sài.`);
+
+        fullPrompt += metaLines.join('\n');
+      }
+      if (Array.isArray(metaData?.recent_documents) && metaData.recent_documents.length > 0) {
+        const recLines = ['\n\n[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT MỚI NHẤT TRÊN HỆ THỐNG]:'];
+        metaData.recent_documents.slice(0, 5).forEach(rd => {
+          recLines.push(`- [${rd.documentNumber}] ${rd.title} (Ban hành: ${rd.issueDate || 'Đã ban hành'})`);
+        });
+        fullPrompt += recLines.join('\n');
+      }
+    } catch (_) {}
+
     const trace = {
       feature: 'legal-search',
-      query: query,
+      query: cleanQ,
       mode: currentSearchState.mode,
       effectiveDate: currentSearchState.effectiveDate,
     };
-    const response = await sendStructuredChatRequest([{ role: 'user', content: fullPrompt }], null, { trace });
-
+    const response = await sendStructuredChatRequest([{ role: 'user', content: fullPrompt }], 'gemini-2.5-flash', { trace });
 
     let rawText = '';
     let evidenceBundle = null;
@@ -187,6 +265,9 @@ async function executeLegalSearch(container, query) {
     // Format Structured Legal Answer
     const formattedAnswerHtml = buildStructuredAnswerHtml(rawText, evidenceBundle, currentSearchState.mode, currentSearchState.effectiveDate);
     answerArea.innerHTML = formattedAnswerHtml;
+
+    // Cache successful search for instant next-time retrieval
+    legalSearchMemoryCache.set(cacheKey, { formattedAnswerHtml, response });
 
     // Render Evidence Panel on Right Panel
     renderEvidencePanel(evidenceContainer, response);
@@ -264,21 +345,32 @@ function bindCitationInteractions(container) {
 function buildModePrompt(query, mode, effectiveDate) {
   const dateContext = `Thời điểm kiểm tra hiệu lực bắt buộc: ${effectiveDate}.`;
 
+  const detailGuidelines = `
+YÊU CẦU BẮT BUỘC VỀ ĐỘ CHI TIẾT & CẤU TRÚC PHÂN TÍCH:
+1. Trình bày TOÀN DIỆN, CHI TIẾT, ĐẦY ĐỦ NỘI DUNG, TUYỆT ĐỐI KHÔNG TÓM TẮT SƠ SÀI.
+2. TUYỆT ĐỐI CẤM vẽ sơ đồ bằng ký tự ASCII art hoặc khung viền nét vẽ (như ┌───┐, │, └───┘, ▼, ├───┤). Thay vào đó, BẮT BUỘC dùng danh sách phân cấp (Bullet / Numbered list) và Bảng Markdown chuẩn.
+3. Cấu trúc bài phân tích bắt buộc gồm:
+   - I. KẾT LUẬN HIỆU LỰC & THẨM QUYỀN BAN HÀNH: Khẳng định rõ tình trạng hiệu lực tại ${effectiveDate}, ngày ban hành, ngày bắt đầu có hiệu lực và cơ quan ban hành.
+   - II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN: Nêu rõ căn cứ các Luật/Bộ luật nào, văn bản này quy định chi tiết hoặc hướng dẫn thi hành Điều khoản nào.
+   - III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG: Liệt kê rõ các cơ quan, tổ chức, doanh nghiệp và cá nhân thuộc phạm vi điều chỉnh.
+   - IV. NỘI DUNG QUY ĐỊNH CHI TIẾT & CÁC BIỆN PHÁP TRỌNG TÂM: Phân tích sâu theo từng nhóm chính sách, quy trình thực hiện, các biện pháp kỹ thuật/nghiệp vụ, thời hạn thi hành, quyền hạn và nghĩa vụ của các bên liên quan.
+   - V. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN CHÍNH THỨC: Trình bày dạng bảng Markdown (| Số hiệu | Tên văn bản | Cơ quan ban hành | Ngày ban hành/Hiệu lực | Trạng thái | Nguồn |).`;
+
   switch (mode) {
     case 'document-lookup':
-      return `${dateContext} Tra cứu văn bản quy phạm pháp luật theo số hiệu/tên: "${query}". Yêu cầu cung cấp chính xác Số hiệu, Tên văn bản, Cơ quan ban hành, Ngày ban hành, Ngày hiệu lực, Trạng thái hiệu lực hiện tại, Văn bản sửa đổi/thay thế (nếu có).`;
+      return `${dateContext} Tra cứu và phân tích chuyên sâu văn bản quy phạm pháp luật: "${query}".\n${detailGuidelines}`;
 
     case 'situation-analysis':
-      return `${dateContext} Phân tích tình huống pháp lý sau: "${query}". Yêu cầu trình bày theo cấu trúc: A. KẾT LUẬN HƯỚNG XỬ LÝ, B. PHÂN TÍCH TÌNH HUỐNG DỰA TRÊN QUY ĐỊNH, C. CĂN CỨ PHÁP LÝ CHÍNH THỨC, D. LƯU Ý VỀ THỜI ĐIỂM HIỆU LỰC VÀ RỦI RO.`;
+      return `${dateContext} Phân tích tình huống pháp lý sau: "${query}". Yêu cầu trình bày theo cấu trúc: I. KẾT LUẬN HƯỚNG XỬ LÝ, II. PHÂN TÍCH TÌNH HUỐNG DỰA TRÊN QUY ĐỊNH PHÁP LUẬT CHI TIẾT, III. CĂN CỨ PHÁP LÝ CHÍNH THỨC, IV. LƯU Ý VỀ THỜI ĐIỂM HIỆU LỰC VÀ RỦI RO PHÁP LÝ.\n${detailGuidelines}`;
 
     case 'compare-regulations':
-      return `${dateContext} So sánh quy định pháp luật về: "${query}". Trình bày sự khác biệt giữa các văn bản, điểm mới sửa đổi bổ sung và văn bản hiện hành đang áp dụng.`;
+      return `${dateContext} So sánh quy định pháp luật về: "${query}". Trình bày sự khác biệt giữa các văn bản, điểm mới sửa đổi bổ sung và văn bản hiện hành đang áp dụng.\n${detailGuidelines}`;
 
     case 'effective-date':
-      return `Tra cứu và xác định hiệu lực tại thời điểm ${effectiveDate} đối với: "${query}". Phân biệt rõ: HIỆN HÀNH / HẾT HIỆU LỰC / CHƯA CÓ HIỆU LỰC / BỊ THAY THẾ / BỊ SỬA ĐỔI.`;
+      return `Tra cứu và xác định hiệu lực tại thời điểm ${effectiveDate} đối với: "${query}". Phân biệt rõ: HIỆN HÀNH / HẾT HIỆU LỰC / CHƯA CÓ HIỆU LỰC / BỊ THAY THẾ / BỊ SỬA ĐỔI.\n${detailGuidelines}`;
 
     default:
-      return `${dateContext} Câu hỏi tra cứu pháp luật: "${query}". Trình bày kết luận rõ ràng, phân tích từng điều khoản căn cứ và liệt kê danh sách trích dẫn văn bản chính thức.`;
+      return `${dateContext} Câu hỏi tra cứu pháp luật: "${query}".\n${detailGuidelines}`;
   }
 }
 

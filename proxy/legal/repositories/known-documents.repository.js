@@ -162,22 +162,52 @@ function findKnownDocumentByAlias(query = '') {
   const qNorm = normalizeVietnamese(query);
   const docs = loadKnownDocuments();
 
+  const matches = [];
+
   for (const doc of docs) {
+    let matched = false;
+    let matchScore = 0;
+
     if (doc.topic_aliases && Array.isArray(doc.topic_aliases)) {
       for (const alias of doc.topic_aliases) {
-        if (qNorm.includes(normalizeVietnamese(alias))) {
-          return doc;
+        const aliasNorm = normalizeVietnamese(alias);
+        if (qNorm.includes(aliasNorm)) {
+          matched = true;
+          matchScore = Math.max(matchScore, aliasNorm.length);
         }
       }
     }
     if (doc.query_patterns && Array.isArray(doc.query_patterns)) {
       for (const pat of doc.query_patterns) {
-        if (qNorm.includes(normalizeVietnamese(pat))) {
-          return doc;
+        const patNorm = normalizeVietnamese(pat);
+        if (qNorm.includes(patNorm)) {
+          matched = true;
+          matchScore = Math.max(matchScore, patNorm.length);
         }
       }
     }
+    if (doc.title) {
+      const titleNorm = normalizeVietnamese(doc.title);
+      if (qNorm.includes(titleNorm) || (titleNorm.length > 8 && titleNorm.includes(qNorm))) {
+        matched = true;
+        matchScore = Math.max(matchScore, 10);
+      }
+    }
+    if (matched) {
+      matches.push({ doc, matchScore, year: doc.issue_date || doc.effective_date || '' });
+    }
   }
+
+  if (matches.length > 0) {
+    const wantsLatest = /(moi nhat|hien hanh|vua ban hanh|moi)/.test(qNorm);
+    if (wantsLatest) {
+      matches.sort((a, b) => (b.year || '').localeCompare(a.year || '') || b.matchScore - a.matchScore);
+    } else {
+      matches.sort((a, b) => b.matchScore - a.matchScore || (b.year || '').localeCompare(a.year || ''));
+    }
+    return matches[0].doc;
+  }
+
   return null;
 }
 

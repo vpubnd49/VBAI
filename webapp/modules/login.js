@@ -1,49 +1,13 @@
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { showToast } from './ui-utils.js';
 
-import { firebaseConfig } from '../firebase-config.js';
-
 let isRegistering = false;
-
-async function updateAdminState(user) {
-  try {
-    if (!user) {
-      window.isAdmin = false;
-      localStorage.setItem('vbai_is_admin', 'false');
-      return false;
-    }
-    const tokenResult = await user.getIdTokenResult(true);
-    const admin = tokenResult?.claims?.admin === true;
-    window.isAdmin = admin;
-    localStorage.setItem('vbai_is_admin', admin ? 'true' : 'false');
-    return admin;
-  } catch (e) {
-    console.warn('Khong the doc custom claims admin:', e);
-    window.isAdmin = false;
-    localStorage.setItem('vbai_is_admin', 'false');
-    return false;
-  }
-}
 
 function shouldPreferRedirectLogin() {
   const ua = String(navigator.userAgent || "").toLowerCase();
   const isMobile = /android|iphone|ipad|ipod|mobile/.test(ua);
   const isSafari = /safari/.test(ua) && !/chrome|chromium|edg|opr/.test(ua);
-  const isFirefox = /firefox|fxios/.test(ua);
   const isInAppBrowser = /fbav|fban|instagram|zalo|line|webview|wv/.test(ua);
-  return isMobile || isSafari || isFirefox || isInAppBrowser;
-}
-
-function canFallbackToRedirect(errorCode = "") {
-  return [
-    "auth/popup-blocked",
-    "auth/popup-closed-by-user",
-    "auth/cancelled-popup-request",
-    "auth/web-storage-unsupported",
-    "auth/operation-not-supported-in-this-environment",
-  ].includes(errorCode);
+  return isMobile || isSafari || isInAppBrowser;
 }
 
 export function renderLogin(container) {
@@ -65,18 +29,23 @@ export function renderLogin(container) {
         </div>
         
         <form id="login-form">
+          <div class="form-group" id="group-name" style="display: none;">
+            <label>HỌ VÀ TÊN</label>
+            <input type="text" id="login-name" placeholder="Nhập họ và tên">
+          </div>
+
           <div class="form-group">
-            <label>EMAIL / TÊN ĐĂNG NHẬP</label>
-            <input type="email" id="login-email" placeholder="Nhập email hoặc tên đăng nhập" required>
+            <label>EMAIL</label>
+            <input type="email" id="login-email" placeholder="Nhập địa chỉ email" required>
           </div>
           
           <div class="form-group">
             <label>MẬT KHẨU</label>
-            <input type="password" id="login-pwd" placeholder="Nhập mật khẩu" required>
+            <input type="password" id="login-pwd" placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)" required>
           </div>
           
-          <div class="forgot-pwd">
-            <a href="#">Quên mật khẩu?</a>
+          <div class="forgot-pwd" id="forgot-pwd-box">
+            <a href="#" id="btn-forgot-pwd">Quên mật khẩu?</a>
           </div>
           
           <button type="submit" id="btn-submit" class="btn-submit">Đăng nhập</button>
@@ -178,15 +147,14 @@ export function renderLogin(container) {
         padding: 10px 12px;
         border: 1px solid #CBD5E1;
         border-radius: 8px;
-        background: #FFFFFF;
+        font-size: 0.9rem;
         color: #0F172A;
-        font-size: 0.88rem;
-        transition: border 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
       }
       .form-group input:focus {
         outline: none;
         border-color: #008CA1;
-        box-shadow: 0 0 0 3px rgba(0, 140, 161, 0.15);
+        box-shadow: 0 0 0 2px rgba(0, 140, 161, 0.15);
       }
       .forgot-pwd {
         text-align: right;
@@ -196,27 +164,31 @@ export function renderLogin(container) {
         font-size: 0.78rem;
         color: #008CA1;
         text-decoration: none;
-        font-weight: 500;
+      }
+      .forgot-pwd a:hover {
+        text-decoration: underline;
       }
       .btn-submit {
         width: 100%;
-        padding: 11px;
-        background: linear-gradient(135deg, #008CA1 0%, #00A6B8 100%);
+        padding: 12px;
+        background: #008CA1;
+        color: white;
         border: none;
         border-radius: 8px;
-        color: #FFFFFF;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(0, 140, 161, 0.25);
+        transition: background 0.2s ease;
       }
       .btn-submit:hover {
-        background: linear-gradient(135deg, #007486 0%, #008CA1 100%);
-        box-shadow: 0 6px 16px rgba(0, 140, 161, 0.3);
+        background: #007385;
+      }
+      .btn-submit:disabled {
+        background: #94A3B8;
+        cursor: not-allowed;
       }
       .login-footer {
-        margin-top: 20px;
+        margin-top: 24px;
         font-size: 0.82rem;
         color: #64748B;
       }
@@ -233,35 +205,39 @@ export function renderLogin(container) {
     document.head.appendChild(style);
   }
 
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  getRedirectResult(auth)
-    .then(async (result) => {
-      if (result?.user) {
-        await saveUserToDb(db, result.user);
-        await updateAdminState(result.user);
-        showToast('Đăng nhập thành công!');
-      }
-      if (typeof window !== 'undefined' && (window.location.search || window.location.hash)) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    })
-    .catch((error) => {
-      if (error?.code) {
-        showToast('Lỗi đăng nhập Google: ' + (error?.message || error.code), 'error');
-      }
-      if (typeof window !== 'undefined' && (window.location.search || window.location.hash)) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    });
-
   const form = container.querySelector('#login-form');
   const btnGoogle = container.querySelector('#btn-google-login');
   const btnSubmit = container.querySelector('#btn-submit');
   const btnToggle = container.querySelector('#btn-toggle-mode');
   const toggleText = container.querySelector('#toggle-mode-text');
+  const groupName = container.querySelector('#group-name');
+  const forgotBox = container.querySelector('#forgot-pwd-box');
+
+  // Check redirect result on mount
+  (async () => {
+    try {
+      const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
+      const { getAuth, getRedirectResult } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js");
+      const { firebaseConfig } = await import('../firebase-config.js');
+
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const auth = getAuth(app);
+      const redirectRes = await getRedirectResult(auth);
+      if (redirectRes?.user) {
+        const idToken = await redirectRes.user.getIdToken();
+        const resp = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          setAuthSession(data.token, data.user);
+          showToast('Đăng nhập Google thành công!');
+        }
+      }
+    } catch (_) {}
+  })();
 
   btnToggle.addEventListener('click', (e) => {
     e.preventDefault();
@@ -270,77 +246,92 @@ export function renderLogin(container) {
       btnSubmit.textContent = 'Đăng ký';
       toggleText.textContent = 'Đã có tài khoản?';
       btnToggle.textContent = 'Đăng nhập';
+      groupName.style.display = 'block';
+      forgotBox.style.display = 'none';
     } else {
       btnSubmit.textContent = 'Đăng nhập';
       toggleText.textContent = 'Chưa có tài khoản?';
       btnToggle.textContent = 'Đăng ký miễn phí';
+      groupName.style.display = 'none';
+      forgotBox.style.display = 'block';
     }
   });
 
   // Handle Google Login
   btnGoogle.addEventListener('click', async () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
     const oldLabel = btnGoogle.innerHTML;
     btnGoogle.disabled = true;
     btnGoogle.textContent = 'Đang mở Google...';
     try {
+      const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
+      const { getAuth, signInWithPopup, signInWithRedirect, GoogleAuthProvider } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js");
+      const { firebaseConfig } = await import('../firebase-config.js');
+
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+
       if (shouldPreferRedirectLogin()) {
         await signInWithRedirect(auth, provider);
         return;
       }
 
       const result = await signInWithPopup(auth, provider);
-      await saveUserToDb(db, result.user);
-      showToast('Đăng nhập thành công!');
-    } catch (error) {
-      const code = error?.code || '';
-      const shouldFallbackToRedirect = canFallbackToRedirect(code);
+      const idToken = await result.user.getIdToken();
 
-      if (shouldFallbackToRedirect) {
-        try {
-          showToast('Cửa sổ đăng nhập bị chặn, đang chuyển hướng...');
-          await signInWithRedirect(auth, provider);
-          return;
-        } catch (redirectError) {
-          showToast('Lỗi đăng nhập Google: ' + (redirectError?.message || 'Không thể chuyển hướng đăng nhập'), 'error');
-        }
-      } else {
-        showToast('Lỗi đăng nhập Google: ' + (error?.message || 'Không xác định'), 'error');
+      // Send to local VPS backend
+      const resp = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.message || 'Xác thực Google thất bại');
       }
+
+      setAuthSession(data.token, data.user);
+      showToast('Đăng nhập Google thành công!');
+    } catch (err) {
+      console.error('Google Sign-in error:', err);
+      showToast('Lỗi đăng nhập Google: ' + (err.message || 'Không xác định'), 'error');
     } finally {
       btnGoogle.disabled = false;
       btnGoogle.innerHTML = oldLabel;
     }
   });
 
-  // Handle Email Login/Register
+  // Handle Email Login / Register
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('login-email').value;
-    const pwd = document.getElementById('login-pwd').value;
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-pwd').value;
+    const nameInput = document.getElementById('login-name');
+    const displayName = nameInput ? nameInput.value.trim() : '';
 
     btnSubmit.disabled = true;
     btnSubmit.textContent = 'Đang xử lý...';
 
     try {
-      if (isRegistering) {
-        const result = await createUserWithEmailAndPassword(auth, email, pwd);
-        await saveUserToDb(db, result.user);
-        await updateAdminState(result.user);
-        showToast('Đăng ký thành công!');
-      } else {
-        const result = await signInWithEmailAndPassword(auth, email, pwd);
-        await updateAdminState(result.user);
-        showToast('Đăng nhập thành công!');
+      const endpoint = isRegistering ? '/api/auth/register' : '/api/auth/login';
+      const payload = isRegistering ? { email, password, displayName } : { email, password };
+
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+
+      if (!resp.ok || !data.success) {
+        throw new Error(data.message || 'Đăng nhập thất bại');
       }
-    } catch (error) {
-      // Human readable errors
-      let msg = error.message;
-      if (msg.includes('invalid-credential')) msg = 'Sai email hoặc mật khẩu';
-      if (msg.includes('email-already-in-use')) msg = 'Email này đã được đăng ký';
-      if (msg.includes('weak-password')) msg = 'Mật khẩu quá yếu (cần tối thiểu 6 ký tự)';
-      showToast('Lỗi: ' + msg, 'error');
+
+      setAuthSession(data.token, data.user);
+      showToast(isRegistering ? 'Đăng ký thành công!' : 'Đăng nhập thành công!');
+    } catch (err) {
+      showToast('Lỗi: ' + (err.message || 'Không thể kết nối máy chủ'), 'error');
     } finally {
       btnSubmit.disabled = false;
       btnSubmit.textContent = isRegistering ? 'Đăng ký' : 'Đăng nhập';
@@ -348,18 +339,32 @@ export function renderLogin(container) {
   });
 }
 
-async function saveUserToDb(db, user) {
-  try {
-    await setDoc(doc(db, "users", user.uid), {
-      email: user.email,
-      displayName: user.displayName || user.email.split('@')[0],
-      photoURL: user.photoURL || '',
-      lastLogin: serverTimestamp(),
-      createdAt: user.metadata.creationTime ? new Date(user.metadata.creationTime) : serverTimestamp()
-    }, { merge: true });
-  } catch (e) {
-    console.error("Lỗi lưu user:", e);
-  }
+export function setAuthSession(token, user) {
+  localStorage.setItem('vbai_token', token);
+  localStorage.setItem('vbai_user', JSON.stringify(user));
+  const isAdmin = user.role === 'admin' || user.isAdmin === true;
+  localStorage.setItem('vbai_is_admin', isAdmin ? 'true' : 'false');
+  window.isAdmin = isAdmin;
+
+  window.currentUser = {
+    uid: user.uid || user._id,
+    user_id: user.uid || user._id,
+    email: user.email,
+    displayName: user.displayName || user.name || user.email?.split('@')[0],
+    role: user.role || (isAdmin ? 'admin' : 'user'),
+    isAdmin: isAdmin,
+    getIdToken: async () => localStorage.getItem('vbai_token') || '',
+    getIdTokenResult: async () => ({ claims: { admin: isAdmin } })
+  };
+
+  window.dispatchEvent(new CustomEvent('auth-changed', { detail: window.currentUser }));
 }
 
-
+export function clearAuthSession() {
+  localStorage.removeItem('vbai_token');
+  localStorage.removeItem('vbai_user');
+  localStorage.removeItem('vbai_is_admin');
+  window.currentUser = null;
+  window.isAdmin = false;
+  window.dispatchEvent(new CustomEvent('auth-changed', { detail: null }));
+}

@@ -1,17 +1,157 @@
 [
   {
+    "id": "327-2026-nd-cp",
+    "document_number": "327/2026/NĐ-CP",
+    "document_type": "nghi_dinh",
+    "title": "Nghị định quy định về phòng ngừa, xử lý thông tin và hành vi sử dụng công nghệ thông tin, mạng máy tính, mạng viễn thông, phương tiện điện tử xâm phạm an ninh quốc gia, trật tự, an toàn xã hội trên không gian mạng",
+    "topic_aliases": [
+      "phòng ngừa xử lý thông tin xâm phạm an ninh quốc gia",
+      "xử lý hành vi vi phạm trên không gian mạng",
+      "hành vi xâm phạm an ninh quốc gia trên không gian mạng",
+      "chi tiết điều 14 luật an ninh mạng",
+      "327/2026/NĐ-CP",
+      "nghị định 327",
+      "nghị định 327/2026",
+      "nghi dinh 327",
+      "nghi dinh so 327/2026",
+      "nghị định số 327/2026"
+    ],
+    "query_patterns": [
+      "nghi dinh 327",
+      "327/2026/nd-cp",
+      "nghi dinh 327/2026",
+      "nghi dinh so 327",
+      "nghi dinh so 327/2026",
+      "phong ngua xu ly thong tin khong gian mang",
+      "dieu 14 luat an ninh mang"
+    ],
+    "issuer": "Chính phủ",
+    "issue_date": "2026-08-19",
+    "effective_date": "2026-08-19",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-23",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/",
+      "https://xaydungchinhsach.chinhphu.vn/"
+    ],
+    "tom_tat_chinh_sach": "Quy định chi tiết thi hành Điều 14 Luật An ninh mạng số 116/2025/QH15. Văn bản thiết lập khung pháp lý toàn diện bao gồm: 1. Phạm vi điều chỉnh & Đối tượng áp dụng: Các cơ quan, tổ chức, doanh nghiệp cung cấp dịch vụ mạng, viễn thông và cá nhân tham gia hoạt động trên không gian mạng tại Việt Nam. 2. Các nhóm hành vi bị nghiêm cấm và xử lý: Sử dụng công nghệ thông tin, viễn thông, phương tiện điện tử để tuyên truyền chống phá Nhà nước, kích động bạo loạn, phá rối trật tự an toàn xã hội, vu khống, xúc phạm uy tín tổ chức cá nhân, lừa đảo chiếm đoạt tài sản. 3. Các biện pháp phòng ngừa và đấu tranh: Giám sát an toàn thông tin, thẩm định an ninh mạng, rà soát phát hiện sớm các nguy cơ đe dọa an ninh quốc gia. 4. Quy trình xử lý thông tin vi phạm và biện pháp kỹ thuật: Quy định cụ thể thời hạn yêu cầu doanh nghiệp viễn thông/nền tảng số ngăn chặn, gỡ bỏ thông tin vi phạm (trong vòng 24 giờ, trường hợp khẩn cấp xử lý ngay); tạm ngừng, đình chỉ hoặc thu hồi dịch vụ mạng đối với cá nhân/tổ chức vi phạm nghiêm trọng. 5. Trách nhiệm của doanh nghiệp dịch vụ số & viễn thông: Lưu trữ dữ liệu nhật ký hệ thống, thiết lập kênh tiếp nhận 24/7, cung cấp thông tin phục vụ điều tra của cơ quan chuyên trách an ninh mạng Bộ Công an.",
+    "tom_tat_chuong_dieu": "Chương I: Những quy định chung (Điều 1-5: Phạm vi, đối tượng, giải thích từ ngữ, nguyên tắc phòng ngừa xử lý); Chương II: Phòng ngừa hành vi sử dụng CNTT, phương tiện điện tử xâm phạm ANQG (Điều 6-12: Giám sát, bảo vệ hạ tầng, rà soát rủi ro); Chương III: Trình tự, thủ tục xử lý thông tin và hành vi vi phạm pháp luật trên không gian mạng (Điều 13-20: Yêu cầu gỡ bỏ, phong tỏa tài khoản, chặn truy cập, thu giữ chứng cứ điện tử); Chương IV: Trách nhiệm của cơ quan, tổ chức, doanh nghiệp viễn thông/Internet (Điều 21-26); Chương V: Điều khoản thi hành (Điều 27-28).",
+    "can_cu_phap_ly": [
+      "Luật Tổ chức Chính phủ số 63/2025/QH15",
+      "Luật An ninh mạng số 116/2025/QH15 (Quy định chi tiết Điều 14)"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-23T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2
+  },
+  {
+    "id": "63-2025-qh15",
+    "document_number": "63/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Tổ chức Chính phủ",
+    "topic_aliases": [
+      "luật tổ chức chính phủ",
+      "tổ chức chính phủ",
+      "63/2025/QH15",
+      "luật 63"
+    ],
+    "query_patterns": [
+      "luat to chuc chinh phu",
+      "63/2025/qh15",
+      "luat 63"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-25",
+    "effective_date": "2025-06-25",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-23",
+    "replaces": [
+      "76/2015/QH13"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://quochoi.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-23T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 1
+  },
+  {
+    "id": "329-2026-nd-cp",
+    "document_number": "329/2026/NĐ-CP",
+    "document_type": "nghi_dinh",
+    "title": "Nghị định quy định về lực lượng bảo vệ an ninh mạng",
+    "topic_aliases": [
+      "lực lượng bảo vệ an ninh mạng",
+      "bảo vệ an ninh mạng",
+      "chế độ đãi ngộ an ninh mạng",
+      "tiêu chuẩn lực lượng an ninh mạng",
+      "329/2026/NĐ-CP",
+      "nghị định 329"
+    ],
+    "query_patterns": [
+      "nghi dinh 329",
+      "329/2026/nd-cp",
+      "luc luong bao ve an ninh mang",
+      "an ninh mang 329",
+      "nghi dinh 329/2026"
+    ],
+    "issuer": "Chính phủ",
+    "issue_date": "2026-08-19",
+    "effective_date": "2026-08-19",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/",
+      "https://xaydungchinhsach.chinhphu.vn/",
+      "https://chinhphu.vn/"
+    ],
+    "tom_tat_chinh_sach": "Quy định chi tiết thi hành Luật An ninh mạng số 116/2025/QH15 (Điều 30, 31, 32) về tổ chức, nhiệm vụ, quyền hạn, tiêu chuẩn, chế độ chính sách và bảo đảm điều kiện hoạt động của Lực lượng bảo vệ an ninh mạng. Văn bản bao gồm: 1. Cơ cấu lực lượng: Gồm lực lượng chuyên trách (Cục A05 - Bộ Công an, Bộ Tư lệnh 86 - Bộ Quốc phòng), lực lượng bảo vệ an ninh mạng tại các Bộ, ngành, địa phương và lực lượng quần chúng tham gia bảo vệ an ninh mạng. 2. Tiêu chuẩn và tuyển chọn: Tiêu chuẩn chính trị, trình độ chuyên môn công nghệ thông tin/an toàn thông tin, chính sách thu hút chuyên gia giỏi và nhân tài công nghệ. 3. Chế độ chính sách đặc thù: Phụ cấp trách nhiệm, ưu đãi nghề nghiệp đặc thù, bảo vệ tính mạng sức khỏe và chế độ tôn vinh khen thưởng khi thực hiện nhiệm vụ bảo vệ chủ quyền không gian mạng. 4. Trang bị phương tiện & kinh phí: Đảm bảo cơ sở vật chất, vũ khí, khí tài, phương tiện kỹ thuật nghiệp vụ hiện đại từ nguồn ngân sách nhà nước.",
+    "tom_tat_chuong_dieu": "Chương I: Những quy định chung (Điều 1-4: Phạm vi, đối tượng, nguyên tắc tổ chức hoạt động); Chương II: Cơ cấu tổ chức, chức năng và nhiệm vụ của Lực lượng bảo vệ an ninh mạng (Điều 5-11: Phân định rõ trách nhiệm của lực lượng chuyên trách Bộ Công an, Bộ Quốc phòng và các cơ quan, địa phương); Chương III: Tiêu chuẩn, tuyển chọn, đào tạo và bồi dưỡng (Điều 12-16: Cơ chế thu hút nhân tài và đào tạo chuyên sâu); Chương IV: Chế độ chính sách và bảo đảm điều kiện hoạt động (Điều 17-22: Phụ cấp ưu đãi nghề, trang thiết bị chuyên dụng, bảo vệ an toàn); Chương V: Điều khoản thi hành (Điều 23-24).",
+    "can_cu_phap_ly": [
+      "Luật Tổ chức Chính phủ số 63/2025/QH15",
+      "Luật An ninh mạng số 116/2025/QH15 (Quy định chi tiết Điều 30, Điều 31, Điều 32)"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-23T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2
+  },
+  {
     "id": "72-2025-qh15",
     "document_number": "72/2025/QH15",
     "document_type": "luat",
     "title": "Luật Tổ chức chính quyền địa phương",
-    "topic_aliases": ["luật tổ chức chính quyền địa phương", "tổ chức chính quyền địa phương", "chính quyền địa phương", "chinh quyen dia phuong"],
-    "query_patterns": ["luat to chuc chinh quyen dia phuong", "to chuc chinh quyen dia phuong", "chinh quyen dia phuong", "luat 72", "72/2025/qh15"],
+    "topic_aliases": [
+      "luật tổ chức chính quyền địa phương",
+      "tổ chức chính quyền địa phương",
+      "chính quyền địa phương",
+      "chinh quyen dia phuong"
+    ],
+    "query_patterns": [
+      "luat to chuc chinh quyen dia phuong",
+      "to chuc chinh quyen dia phuong",
+      "chinh quyen dia phuong",
+      "luat 72",
+      "72/2025/qh15"
+    ],
     "issuer": "Quốc hội",
     "issue_date": "2025-06-16",
     "effective_date": "2025-06-16",
     "effective_status": "in_force",
     "status_as_of": "2026-08-12",
-    "replaces": ["65/2025/QH15"],
+    "replaces": [
+      "65/2025/QH15"
+    ],
     "amends": [],
     "superseded_by": [],
     "official_source_urls": [
@@ -28,8 +168,14 @@
     "document_number": "117/2025/QH15",
     "document_type": "luat",
     "title": "Luật Bảo vệ bí mật nhà nước",
-    "topic_aliases": ["bảo vệ bí mật nhà nước", "bi mat nha nuoc"],
-    "query_patterns": ["bao ve bi mat nha nuoc", "bi mat nha nuoc"],
+    "topic_aliases": [
+      "bảo vệ bí mật nhà nước",
+      "bi mat nha nuoc"
+    ],
+    "query_patterns": [
+      "bao ve bi mat nha nuoc",
+      "bi mat nha nuoc"
+    ],
     "issuer": "Quốc hội",
     "issue_date": null,
     "effective_date": null,
@@ -49,8 +195,13 @@
     "document_number": "74/2025/QH15",
     "document_type": "luat",
     "title": "Quy định về chính sách hỗ trợ tạo việc làm, đăng ký lao động...",
-    "topic_aliases": ["quy định về chính sách hỗ trợ tạo việc làm đăng ký lao động"],
-    "query_patterns": ["quy dinh ve chinh sach ho tro tao viec lam", "74/2025/qh15"],
+    "topic_aliases": [
+      "quy định về chính sách hỗ trợ tạo việc làm đăng ký lao động"
+    ],
+    "query_patterns": [
+      "quy dinh ve chinh sach ho tro tao viec lam",
+      "74/2025/qh15"
+    ],
     "issuer": "Quốc hội",
     "issue_date": null,
     "effective_date": null,
@@ -70,8 +221,14 @@
     "document_number": "75/2025/QH15",
     "document_type": "luat",
     "title": "Luật sửa đổi, bổ sung một số điều của Luật Quảng cáo",
-    "topic_aliases": ["luật quảng cáo", "quảng cáo"],
-    "query_patterns": ["luat quang cao", "75/2025/qh15"],
+    "topic_aliases": [
+      "luật quảng cáo",
+      "quảng cáo"
+    ],
+    "query_patterns": [
+      "luat quang cao",
+      "75/2025/qh15"
+    ],
     "issuer": "Quốc hội",
     "issue_date": null,
     "effective_date": null,
@@ -91,14 +248,30 @@
     "document_number": "30/2020/NĐ-CP",
     "document_type": "nghi_dinh",
     "title": "Nghị định 30/2020/NĐ-CP về công tác văn thư",
-    "topic_aliases": ["nghị định 30", "nghị định 30/2020", "nghi dinh 30", "công tác văn thư", "thể thức văn bản hành chính", "soạn thảo văn bản hành chính"],
-    "query_patterns": ["nghi dinh 30", "30/2020/nd-cp", "30/2020/ndcp", "nghi dinh 30/2020", "30/2020"],
+    "topic_aliases": [
+      "nghị định 30",
+      "nghị định 30/2020",
+      "nghi dinh 30",
+      "công tác văn thư",
+      "thể thức văn bản hành chính",
+      "soạn thảo văn bản hành chính"
+    ],
+    "query_patterns": [
+      "nghi dinh 30",
+      "30/2020/nd-cp",
+      "30/2020/ndcp",
+      "nghi dinh 30/2020",
+      "30/2020"
+    ],
     "issuer": "Chính phủ",
     "issue_date": "2020-03-05",
     "effective_date": "2020-03-05",
     "effective_status": "in_force",
     "status_as_of": "2026-08-13",
-    "replaces": ["110/2004/NĐ-CP", "09/2010/NĐ-CP"],
+    "replaces": [
+      "110/2004/NĐ-CP",
+      "09/2010/NĐ-CP"
+    ],
     "amends": [],
     "superseded_by": [],
     "official_source_urls": [
@@ -115,14 +288,26 @@
     "document_number": "31/2024/QH15",
     "document_type": "luat",
     "title": "Luật Đất đai 2024",
-    "topic_aliases": ["luật đất đai", "đất đai", "luat dat dai", "dat dai"],
-    "query_patterns": ["luat dat dai", "dat dai", "31/2024/qh15", "luat dat dai 2024"],
+    "topic_aliases": [
+      "luật đất đai",
+      "đất đai",
+      "luat dat dai",
+      "dat dai"
+    ],
+    "query_patterns": [
+      "luat dat dai",
+      "dat dai",
+      "31/2024/qh15",
+      "luat dat dai 2024"
+    ],
     "issuer": "Quốc hội",
     "issue_date": "2024-01-18",
     "effective_date": "2024-08-01",
     "effective_status": "in_force",
     "status_as_of": "2026-08-13",
-    "replaces": ["45/2013/QH13"],
+    "replaces": [
+      "45/2013/QH13"
+    ],
     "amends": [],
     "superseded_by": [],
     "official_source_urls": [
@@ -139,8 +324,20 @@
     "document_number": "05-HD/VPTW",
     "document_type": "huong_dan",
     "title": "Hướng dẫn 05-HD/VPTW về thể thức văn bản Đảng",
-    "topic_aliases": ["văn bản đảng", "thể thức văn bản đảng", "hướng dẫn 05", "hd05", "hd 05"],
-    "query_patterns": ["van ban dang", "huong dan 05", "hd05", "hd 05", "05-hd/vptw"],
+    "topic_aliases": [
+      "văn bản đảng",
+      "thể thức văn bản đảng",
+      "hướng dẫn 05",
+      "hd05",
+      "hd 05"
+    ],
+    "query_patterns": [
+      "van ban dang",
+      "huong dan 05",
+      "hd05",
+      "hd 05",
+      "05-hd/vptw"
+    ],
     "issuer": "Văn phòng Trung ương Đảng",
     "issue_date": "2021-05-10",
     "effective_date": "2021-05-10",
@@ -162,14 +359,30 @@
     "document_number": "45/2019/QH14",
     "document_type": "luat",
     "title": "Bộ luật Lao động 2019",
-    "topic_aliases": ["bộ luật lao động", "luật lao động", "hợp đồng lao động", "thử việc", "bo luat lao dong", "luat lao dong", "hop dong lao dong", "soan hop dong lao dong"],
-    "query_patterns": ["bo luat lao dong", "45/2019/qh14", "luat lao dong 2019", "hop dong lao dong"],
+    "topic_aliases": [
+      "bộ luật lao động",
+      "luật lao động",
+      "hợp đồng lao động",
+      "thử việc",
+      "bo luat lao dong",
+      "luat lao dong",
+      "hop dong lao dong",
+      "soan hop dong lao dong"
+    ],
+    "query_patterns": [
+      "bo luat lao dong",
+      "45/2019/qh14",
+      "luat lao dong 2019",
+      "hop dong lao dong"
+    ],
     "issuer": "Quốc hội",
     "issue_date": "2019-11-20",
     "effective_date": "2021-01-01",
     "effective_status": "in_force",
     "status_as_of": "2026-08-13",
-    "replaces": ["10/2012/QH13"],
+    "replaces": [
+      "10/2012/QH13"
+    ],
     "amends": [],
     "superseded_by": [],
     "official_source_urls": [
@@ -180,5 +393,2114 @@
     "verified_at": "2026-08-13T00:00:00+07:00",
     "review_state": "published",
     "data_version": 2
+  },
+  {
+    "id": "116-2025-qh15",
+    "document_number": "116/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật An ninh mạng 2025",
+    "topic_aliases": [
+      "luật an ninh mạng",
+      "luật an ninh mạng mới nhất",
+      "an ninh mạng",
+      "luật an toàn an ninh mạng",
+      "luat an ninh mang",
+      "an ninh mang 2025",
+      "luat an ninh mang 2025"
+    ],
+    "query_patterns": [
+      "luat an ninh mang",
+      "an ninh mang",
+      "luat an ninh mang moi nhat",
+      "116/2025/qh15",
+      "luat an ninh mang 2025",
+      "luat an toan an ninh mang"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "86/2015/QH13",
+      "24/2018/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/",
+      "https://quochoi.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "tom_tat_chinh_sach": "1. Ban hành Luật An ninh mạng 2025, thay thế và hợp nhất Luật An toàn thông tin mạng 86/2015/QH13 và Luật An ninh mạng 24/2018/QH14. 2. Mở rộng phạm vi điều chỉnh và bảo vệ hệ thống thông tin quan trọng về an ninh quốc gia. 3. Thống nhất cơ chế bảo vệ an ninh mạng và quy định chế độ đãi ngộ đối với lực lượng chuyên trách.",
+    "data_version": 2
+  },
+  {
+    "id": "24-2018-qh14",
+    "document_number": "24/2018/QH14",
+    "document_type": "luat",
+    "title": "Luật An ninh mạng 2018",
+    "topic_aliases": [
+      "luật an ninh mạng 2018",
+      "luat an ninh mang 2018",
+      "24/2018/qh14"
+    ],
+    "query_patterns": [
+      "24/2018/qh14",
+      "luat an ninh mang 2018",
+      "luat 24/2018"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2018-06-12",
+    "effective_date": "2019-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [
+      "116/2025/QH15"
+    ],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/?classid=1&docid=194038"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "tom_tat_chinh_sach": "1. Quy định về hoạt động bảo vệ an ninh quốc gia và bảo đảm trật tự, an toàn xã hội trên không gian mạng. 2. Bảo vệ hệ thống thông tin quan trọng về an ninh quốc gia. 3. Phòng ngừa, xử lý hành vi xâm phạm an ninh mạng.",
+    "data_version": 2
+  },
+  {
+    "id": "86-2015-qh13",
+    "document_number": "86/2015/QH13",
+    "document_type": "luat",
+    "title": "Luật An toàn thông tin mạng",
+    "topic_aliases": [
+      "luật an toàn thông tin mạng",
+      "an toàn thông tin mạng",
+      "luat an toan thong tin mang",
+      "86/2015/qh13"
+    ],
+    "query_patterns": [
+      "86/2015/qh13",
+      "luat an toan thong tin mang",
+      "an toan thong tin mang"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2015-11-19",
+    "effective_date": "2016-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [
+      "116/2025/QH15"
+    ],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/?classid=1&docid=182747"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "tom_tat_chinh_sach": "1. Quy định về hoạt động an toàn thông tin mạng, quyền và trách nhiệm của cơ quan, tổ chức, cá nhân. 2. Bảo vệ thông tin cá nhân trên môi trường mạng và mật mã dân sự.",
+    "data_version": 2
+  },
+  {
+    "id": "70-2025-qh15",
+    "document_number": "70/2025/QH15",
+    "document_type": "luat",
+    "title": "Sửa đổi, bổ sung một số điều của Luật Tiêu chuẩn và quy chuẩn kỹ thuật",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật tiêu chuẩn và quy chuẩn kỹ thuật",
+      "70/2025/qh15"
+    ],
+    "query_patterns": [
+      "70/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật tiêu chuẩn và quy chuẩn kỹ thuật"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-14",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "68/2006/QH11",
+      "35/2018/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Sửa đổi, bổ sung Điều 3 về giải thích từ ngữ, làm rõ các khái niệm về tiêu chuẩn, quy chuẩn kỹ thuật, các hoạt động trong lĩnh vực này và các hình thức đánh giá sự phù hợp (thử nghiệm, giám định, chứng nhận...). 2. Bổ sung các quy định về thỏa thuận thừa nhận lẫn nhau và thừa nhận đơn phương kết quả đánh giá sự phù hợp với các tổ chức quốc tế (ILAC, IAF, APAC) nhằm thúc đẩy hội nhập và giảm rào cản thương mại. 3. Thực hiện thay thế, bãi bỏ một số từ, cụm từ tại nhiều điều khoản và bãi bỏ các điều 13, 15, 22, 23, 24, 30, 31, 38, 42, 43, 69 và Chương VI của Luật gốc, nhằm tinh gọn và cập nhật khung pháp lý."
+  },
+  {
+    "id": "69-2025-qh15",
+    "document_number": "69/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Hóa chất quy định về hóa chất, quản lý hoạt động hóa chất; phát triển ngành công nghiệp hóa chất; thông tin hóa chất; hóa chất nguy hiểm trong sản phẩm, hàng hóa; an toàn, an ninh trong hoạt động hóa chất.",
+    "topic_aliases": [
+      "luật hóa chất quy định về hóa chất, quản lý hoạt động hóa chất; phát triển ngành công nghiệp hóa chất; thông tin hóa chất; hóa chất nguy hiểm trong sản phẩm, hàng hóa; an toàn, an ninh trong hoạt động hóa chất.",
+      "69/2025/qh15"
+    ],
+    "query_patterns": [
+      "69/2025/qh15",
+      "luật hóa chất quy định về hóa chất, quản lý hoạt động hóa chất; phát triển ngành công nghiệp hóa chất; thông tin hóa chất; hóa chất nguy hiểm trong sản phẩm, hàng hóa; an toàn, an ninh trong hoạt động hóa chất."
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-14",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "06/2007/QH12",
+      "28/2018/QH14",
+      "18/2023/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Xây dựng khung pháp lý toàn diện mới cho hoạt động hóa chất, thay thế Luật Hóa chất 2007 và các luật sửa đổi liên quan. 2. Quy định rõ ràng về quản lý hoạt động hóa chất, thúc đẩy phát triển ngành công nghiệp hóa chất bền vững. 3. Tăng cường kiểm soát thông tin, an toàn và an ninh đối với hóa chất, đặc biệt là hóa chất nguy hiểm trong sản phẩm, hàng hóa. 4. Cung cấp định nghĩa chi tiết cho các khái niệm liên quan đến hóa chất và các loại hoạt động hóa chất. 5. Đưa ra các quy định chuyển tiếp để đảm bảo sự liên tục và ổn định trong hoạt động quản lý và kinh doanh hóa chất khi luật mới có hiệu lực."
+  },
+  {
+    "id": "66-2025-qh15",
+    "document_number": "66/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Thuế tiêu thụ đặc biệt",
+    "topic_aliases": [
+      "luật thuế tiêu thụ đặc biệt",
+      "66/2025/qh15"
+    ],
+    "query_patterns": [
+      "66/2025/qh15",
+      "luật thuế tiêu thụ đặc biệt"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-14",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "27/2008/QH12",
+      "70/2014/QH13",
+      "71/2014/QH13",
+      "106/2016/QH13",
+      "03/2022/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định rõ ràng các đối tượng chịu thuế tiêu thụ đặc biệt bao gồm cả hàng hóa (thuốc lá, rượu, bia, các loại xe cơ giới, máy bay, du thuyền, xăng, điều hòa, nước giải khát có đường trên 5g/100ml) và dịch vụ (vũ trường, massage, karaoke, casino, cá cược, golf, xổ số).\n2. Nêu cụ thể các trường hợp hàng hóa không thuộc đối tượng chịu thuế tiêu thụ đặc biệt, đặc biệt là hàng hóa xuất khẩu hoặc nguyên liệu nhập khẩu để sản xuất hàng xuất khẩu.\n3. Quy định về việc khấu trừ thuế đã nộp đối với nguyên liệu đã chịu thuế tiêu thụ đặc biệt khi sản xuất ra hàng hóa chịu thuế.\n4. Đề cập đến việc hoàn thuế tiêu thụ đặc biệt trong các trường hợp như giải thể, phá sản hoặc theo điều ước quốc tế mà Việt Nam là thành viên.\n5. Thiết lập cơ chế giảm thuế cho người nộp thuế gặp khó khăn do thiên tai, tai nạn bất ngờ, với mức giảm không quá 30% số thuế phải nộp trong năm thiệt hại."
+  },
+  {
+    "id": "71-2025-qh15",
+    "document_number": "71/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Công nghiệp công nghệ số",
+    "topic_aliases": [
+      "luật công nghiệp công nghệ số",
+      "71/2025/qh15"
+    ],
+    "query_patterns": [
+      "71/2025/qh15",
+      "luật công nghiệp công nghệ số"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-14",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "04/2007/QH12",
+      "45/2019/QH14",
+      "31/2024/QH15",
+      "39/2024/QH15",
+      "47/2024/QH15",
+      "61/2020/QH14",
+      "81/2023/QH15",
+      "98/2023/QH15",
+      "136/2024/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định toàn diện về phát triển công nghiệp công nghệ số, bao gồm công nghiệp bán dẫn, trí tuệ nhân tạo và tài sản số. 2. Tập trung đào tạo, thu hút nhân lực chất lượng cao, đặc biệt miễn thuế thu nhập cá nhân trong 5 năm cho nhân lực công nghệ số chất lượng cao tham gia các dự án trọng điểm. 3. Khuyến khích nghiên cứu, phát triển, sản xuất và ứng dụng thông qua các cơ chế ưu đãi về đất đai, tín dụng, thuế. 4. Thiết lập cơ chế thử nghiệm có kiểm soát (regulatory sandbox) cho sản phẩm, dịch vụ công nghệ số, đi kèm với việc loại trừ trách nhiệm. 5. Chuyển đổi các 'khu công nghệ thông tin tập trung' thành 'khu công nghệ số tập trung' để phù hợp với định hướng phát triển mới."
+  },
+  {
+    "id": "73-2025-qh15",
+    "document_number": "73/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật này quy định về hoạt động nghề nghiệp, quyền và nghĩa vụ của nhà giáo; chức danh, chuẩn nghề nghiệp nhà giáo; tuyển dụng, sử dụng nhà giáo; chính sách tiền lương, đãi ngộ đối với nhà giáo; đào tạo, bồi dưỡng và hợp tác quốc tế đối với nhà giáo; tôn vinh, khen thưởng và xử lý vi phạm đối với nhà giáo; quản lý nhà giáo.",
+    "topic_aliases": [
+      "luật này quy định về hoạt động nghề nghiệp, quyền và nghĩa vụ của nhà giáo; chức danh, chuẩn nghề nghiệp nhà giáo; tuyển dụng, sử dụng nhà giáo; chính sách tiền lương, đãi ngộ đối với nhà giáo; đào tạo, bồi dưỡng và hợp tác quốc tế đối với nhà giáo; tôn vinh, khen thưởng và xử lý vi phạm đối với nhà giáo; quản lý nhà giáo.",
+      "73/2025/qh15"
+    ],
+    "query_patterns": [
+      "73/2025/qh15",
+      "luật này quy định về hoạt động nghề nghiệp, quyền và nghĩa vụ của nhà giáo; chức danh, chuẩn nghề nghiệp nhà giáo; tuyển dụng, sử dụng nhà giáo; chính sách tiền lương, đãi ngộ đối với nhà giáo; đào tạo, bồi dưỡng và hợp tác quốc tế đối với nhà giáo; tôn vinh, khen thưởng và xử lý vi phạm đối với nhà giáo; quản lý nhà giáo."
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-16",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "41/2024/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Phạm vi điều chỉnh toàn diện, quy định chi tiết về hoạt động nghề nghiệp, quyền, nghĩa vụ, chức danh, chính sách tiền lương, đào tạo, bồi dưỡng và quản lý nhà giáo. \n2. Đề cao vị thế và vai trò của nhà giáo, khẳng định đây là lực lượng nòng cốt, có vị thế quan trọng, được tôn trọng, bảo vệ, tôn vinh và có vai trò quyết định chất lượng giáo dục. \n3. Quy định các nội dung quản lý nhà giáo trong cơ sở giáo dục, bao gồm tuyển dụng, bổ nhiệm, đánh giá, sử dụng, khen thưởng, kỷ luật, cùng với các chế độ về tiền lương, đãi ngộ, hỗ trợ, thu hút và đào tạo, bồi dưỡng. \n4. Sửa đổi, bổ sung quy định về mức lương hưu hằng tháng cho nhà giáo trong Luật Bảo hiểm xã hội, đảm bảo không giảm tỷ lệ phần trăm hưởng lương hưu khi về hưu ở tuổi thấp hơn. \n5. Đặt ra các nguyên tắc quản lý và phát triển nhà giáo, nhấn mạnh chuẩn hóa, nâng cao chất lượng, bình đẳng giới, tôn trọng quyền tự chủ sáng tạo, phân quyền và trách nhiệm giải trình."
+  },
+  {
+    "id": "95-2025-qh15",
+    "document_number": "95/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Đường sắt quy định về hoạt động đường sắt; quyền, nghĩa vụ và trách nhiệm của tổ chức, cá nhân liên quan đến hoạt động đường sắt.",
+    "topic_aliases": [
+      "luật đường sắt quy định về hoạt động đường sắt; quyền, nghĩa vụ và trách nhiệm của tổ chức, cá nhân liên quan đến hoạt động đường sắt.",
+      "95/2025/qh15"
+    ],
+    "query_patterns": [
+      "95/2025/qh15",
+      "luật đường sắt quy định về hoạt động đường sắt; quyền, nghĩa vụ và trách nhiệm của tổ chức, cá nhân liên quan đến hoạt động đường sắt."
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-27",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "06/2017/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định toàn diện về hoạt động đường sắt, quyền, nghĩa vụ, trách nhiệm của các bên liên quan tại Việt Nam.\n2. Áp dụng cho cả tổ chức, cá nhân trong nước và nước ngoài có hoạt động đường sắt trên lãnh thổ Việt Nam.\n3. Giới thiệu và định nghĩa các khái niệm mới như Phát triển đô thị theo định hướng giao thông công cộng (TOD) và Dự án đường sắt địa phương theo mô hình TOD.\n4. Thay thế Luật Đường sắt số 06/2017/QH14 và các luật sửa đổi, bổ sung liên quan, thể hiện sự cập nhật và hoàn thiện khuôn khổ pháp lý về đường sắt.\n5. Nhấn mạnh nguyên tắc đảm bảo hoạt động giao thông vận tải đường sắt thông suốt, trật tự và an toàn."
+  },
+  {
+    "id": "78-2025-qh15",
+    "document_number": "78/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Sửa đổi, bổ sung một số điều của Luật Chất lượng sản phẩm, hàng hóa",
+    "topic_aliases": [
+      "luật sửa đổi, bổ sung một số điều của luật chất lượng sản phẩm, hàng hóa",
+      "78/2025/qh15"
+    ],
+    "query_patterns": [
+      "78/2025/qh15",
+      "luật sửa đổi, bổ sung một số điều của luật chất lượng sản phẩm, hàng hóa"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-18",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "05/2007/QH12",
+      "35/2018/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Mở rộng và làm rõ phạm vi điều chỉnh, đối tượng áp dụng, và giải thích các thuật ngữ liên quan đến chất lượng sản phẩm, hàng hóa. 2. Bổ sung các định nghĩa mới quan trọng như rủi ro, mức độ rủi ro, kiểm tra chất lượng và hộ chiếu số của sản phẩm. 3. Quy định hệ thống phân loại sản phẩm, hàng hóa dựa trên mức độ rủi ro (thấp, trung bình, cao) và các tiêu chí đánh giá rủi ro. 4. Sửa đổi quy định về trách nhiệm bồi thường thiệt hại và xử phạt vi phạm hành chính trong lĩnh vực chất lượng sản phẩm, hàng hóa. 5. Bãi bỏ nhiều điều và mục trong các Chương II, III, V, VI của Luật Chất lượng sản phẩm, hàng hóa hiện hành, cho thấy sự tái cấu trúc và đơn giản hóa quy định."
+  },
+  {
+    "id": "91-2025-qh15",
+    "document_number": "91/2025/QH15",
+    "document_type": "luat",
+    "title": "Bảo vệ dữ liệu cá nhân",
+    "topic_aliases": [
+      "bảo vệ dữ liệu cá nhân",
+      "91/2025/qh15"
+    ],
+    "query_patterns": [
+      "91/2025/qh15",
+      "bảo vệ dữ liệu cá nhân"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-26",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "13/2023/NĐ-CP"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định về dữ liệu cá nhân, bảo vệ dữ liệu cá nhân và quyền, nghĩa vụ, trách nhiệm của cơ quan, tổ chức, cá nhân có liên quan, áp dụng rộng rãi cho cả Việt Nam và nước ngoài. 2. Định nghĩa rõ ràng các khái niệm như dữ liệu cá nhân, dữ liệu cá nhân cơ bản và dữ liệu cá nhân nhạy cảm. 3. Đặt ra 6 nguyên tắc cốt lõi trong bảo vệ dữ liệu cá nhân, bao gồm tuân thủ pháp luật, thu thập đúng mục đích, bảo đảm tính chính xác, thực hiện đồng bộ biện pháp, chủ động phòng ngừa, và hài hòa lợi ích quốc gia với quyền cá nhân. 4. Quy định ngày có hiệu lực từ 01/01/2026 và các quy định chuyển tiếp cho các hoạt động xử lý dữ liệu đã thực hiện theo Nghị định số 13/2023/NĐ-CP. 5. Tạo điều kiện linh hoạt cho doanh nghiệp nhỏ, doanh nghiệp khởi nghiệp, hộ kinh doanh và doanh nghiệp siêu nhỏ được lựa chọn không thực hiện một số quy định trong 05 năm đầu, trừ các trường hợp kinh doanh dịch vụ xử lý dữ liệu cá nhân hoặc xử lý dữ liệu nhạy cảm/số lượng lớn."
+  },
+  {
+    "id": "77-2025-qh15",
+    "document_number": "77/2025/QH15",
+    "document_type": "luat",
+    "title": "SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT SỬ DỤNG NĂNG LƯỢNG TIẾT KIỆM VÀ HIỆU QUẢ",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật sử dụng năng lượng tiết kiệm và hiệu quả",
+      "77/2025/qh15"
+    ],
+    "query_patterns": [
+      "77/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật sử dụng năng lượng tiết kiệm và hiệu quả"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-18",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "50/2010/QH12",
+      "28/2018/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Bổ sung các định nghĩa mới quan trọng liên quan đến năng lượng như \"Mức hiệu suất năng lượng cao\", \"Sản phẩm tiết kiệm năng lượng\", \"Tổ chức dịch vụ năng lượng\", \"Hợp đồng hiệu quả năng lượng\", \"Chứng chỉ quản lý năng lượng\".\n2. Tăng cường thu hút đầu tư, đa dạng hóa nguồn lực cho nghiên cứu khoa học, phát triển và ứng dụng công nghệ tiên tiến, đổi mới sáng tạo trong sử dụng năng lượng tiết kiệm và hiệu quả, đồng thời kiểm soát ngành nghề tiêu thụ năng lượng cao.\n3. Khuyến khích và hỗ trợ phát triển dịch vụ năng lượng; tăng cường đào tạo, nâng cao nhận thức cộng đồng về sử dụng năng lượng tiết kiệm và hiệu quả; quy định sử dụng năng lượng tiết kiệm và hiệu quả là một chỉ tiêu trong kế hoạch phát triển kinh tế - xã hội.\n4. Bổ sung quy định về Quỹ thúc đẩy sử dụng năng lượng tiết kiệm và hiệu quả là quỹ tài chính nhà nước ngoài ngân sách, hoạt động không vì lợi nhuận, có mục tiêu hỗ trợ, tài trợ cho các dự án và hoạt động liên quan.\n5. Mở rộng phạm vi hoạt động của các tổ chức dịch vụ năng lượng, bao gồm kiểm toán năng lượng, chuyển giao công nghệ, đào tạo, tư vấn, đầu tư thực hiện các biện pháp tiết kiệm năng lượng và cung cấp thông tin, quảng bá."
+  },
+  {
+    "id": "94-2025-qh15",
+    "document_number": "94/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Năng lượng nguyên tử",
+    "topic_aliases": [
+      "luật năng lượng nguyên tử",
+      "94/2025/qh15"
+    ],
+    "query_patterns": [
+      "94/2025/qh15",
+      "luật năng lượng nguyên tử"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-27",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "18/2008/QH12",
+      "35/2018/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "Luật quy định toàn diện về phát triển, ứng dụng năng lượng nguyên tử, bao gồm các khía cạnh về an toàn bức xạ, an toàn hạt nhân, an ninh hạt nhân, nhà máy điện hạt nhân, lò phản ứng hạt nhân nghiên cứu và ứng phó sự cố.\nLuật áp dụng cho mọi tổ chức, cá nhân trong nước và quốc tế có hoạt động liên quan đến năng lượng nguyên tử tại Việt Nam.\nLuật đặt trọng tâm vào việc bảo đảm an toàn bức xạ, an toàn hạt nhân và an ninh hạt nhân là nguyên tắc cốt lõi trong mọi hoạt động.\nLuật định nghĩa rõ ràng các khái niệm quan trọng như an toàn bức xạ, an toàn hạt nhân, an ninh hạt nhân, chất phóng xạ, chất thải phóng xạ và chu trình nhiên liệu hạt nhân, làm cơ sở cho việc thực thi pháp luật.\nLuật này thay thế Luật Năng lượng nguyên tử số 18/2008/QH12 và các sửa đổi liên quan (Luật số 35/2018/QH14), đồng thời có các quy định chuyển tiếp để đảm bảo quá trình áp dụng liên tục và thống nhất."
+  },
+  {
+    "id": "89-2025-qh15",
+    "document_number": "89/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật quy định về lập, chấp hành, kiểm toán, quyết toán, công khai, giám sát ngân sách nhà nước; nhiệm vụ, quyền hạn của các cơ quan, tổ chức, đơn vị, cá nhân có liên quan trong lĩnh vực ngân sách nhà nước.",
+    "topic_aliases": [
+      "luật quy định về lập, chấp hành, kiểm toán, quyết toán, công khai, giám sát ngân sách nhà nước; nhiệm vụ, quyền hạn của các cơ quan, tổ chức, đơn vị, cá nhân có liên quan trong lĩnh vực ngân sách nhà nước.",
+      "89/2025/qh15"
+    ],
+    "query_patterns": [
+      "89/2025/qh15",
+      "luật quy định về lập, chấp hành, kiểm toán, quyết toán, công khai, giám sát ngân sách nhà nước; nhiệm vụ, quyền hạn của các cơ quan, tổ chức, đơn vị, cá nhân có liên quan trong lĩnh vực ngân sách nhà nước."
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-25",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "83/2015/QH13"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Luật này quy định toàn diện về quản lý ngân sách nhà nước, bao gồm lập, chấp hành, kiểm toán, quyết toán, công khai và giám sát ngân sách. 2. Làm rõ các khái niệm quan trọng như bội chi ngân sách nhà nước, chi dự trữ quốc gia, chi đầu tư phát triển, chi thường xuyên và các loại chi khác. 3. Đề ra các mốc thời gian hiệu lực khác nhau: có hiệu lực chung từ năm ngân sách 2026, nhưng một số nội dung về phân cấp nhiệm vụ chi, lập dự toán ngân sách cho khoa học, công nghệ, đổi mới sáng tạo và chuyển đổi số có hiệu lực từ ngày 01/07/2025. 4. Thay thế Luật Ngân sách nhà nước số 83/2015/QH13 và các luật sửa đổi, bổ sung của nó. 5. Sửa đổi một số quy định của Luật Phí và lệ phí, đặc biệt liên quan đến việc khấu trừ chi phí hoạt động từ nguồn thu phí của cơ quan nhà nước."
+  },
+  {
+    "id": "123-2025-qh15",
+    "document_number": "123/2025/QH15",
+    "document_type": "luat",
+    "title": "SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁO DỤC",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật giáo dục",
+      "123/2025/qh15"
+    ],
+    "query_patterns": [
+      "123/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật giáo dục"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "43/2019/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Sửa đổi, bổ sung định nghĩa về giáo dục nghề nghiệp và giáo dục đại học, đồng thời giao Thủ tướng Chính phủ quyết định Khung cơ cấu hệ thống giáo dục quốc dân và Khung trình độ quốc gia Việt Nam. 2. Làm rõ hơn khái niệm phân luồng trong giáo dục, nhấn mạnh định hướng nghề nghiệp và giao Bộ trưởng Bộ Giáo dục và Đào tạo quy định chi tiết. 3. Cập nhật quy định về văn bằng, chứng chỉ của hệ thống giáo dục quốc dân, cho phép cả dạng giấy và số, xác định giá trị pháp lý như nhau. 4. Quy định giáo dục tiểu học và trung học cơ sở là giáo dục bắt buộc, đồng thời thực hiện phổ cập giáo dục mầm non cho trẻ em từ 03 tuổi đến 06 tuổi. 5. Bổ sung và nhấn mạnh hoạt động khoa học, công nghệ và đổi mới sáng tạo là nhiệm vụ của các cơ sở giáo dục."
+  },
+  {
+    "id": "92-2025-qh15",
+    "document_number": "92/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Tham gia lực lượng gìn giữ hòa bình của Liên hợp quốc",
+    "topic_aliases": [
+      "luật tham gia lực lượng gìn giữ hòa bình của liên hợp quốc",
+      "92/2025/qh15"
+    ],
+    "query_patterns": [
+      "92/2025/qh15",
+      "luật tham gia lực lượng gìn giữ hòa bình của liên hợp quốc"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-26",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "130/2020/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Luật này quy định toàn diện các nguyên tắc, chức năng, đối tượng, hình thức, lĩnh vực, hợp tác quốc tế, xây dựng, triển khai lực lượng, bảo đảm nguồn lực, chế độ, chính sách và trách nhiệm trong việc Việt Nam tham gia lực lượng gìn giữ hòa bình của Liên hợp quốc.\n2. Mở rộng đối tượng áp dụng bao gồm sĩ quan, quân nhân, công nhân quốc phòng, hạ sĩ quan, binh sĩ, sĩ quan, hạ sĩ quan nghiệp vụ, chuyên môn kỹ thuật, công nhân công an, chiến sĩ, cán bộ, công chức, viên chức và các đơn vị liên quan.\n3. Quy định về kinh phí bảo đảm từ ngân sách nhà nước và các nguồn hợp pháp khác, đồng thời quản lý tiền bồi hoàn từ Liên hợp quốc ưu tiên cho việc xây dựng lực lượng tham gia.\n4. Đảm bảo chế độ, chính sách ưu đãi về tiền lương, phụ cấp, khen thưởng, bảo hiểm xã hội, bảo hiểm y tế cho lực lượng tham gia, cũng như chế độ cho cá nhân bị ốm đau, bị thương, tai nạn hoặc hy sinh.\n5. Luật này có hiệu lực thi hành từ ngày 01 tháng 01 năm 2026, đồng thời bãi bỏ Nghị quyết số 130/2020/QH14."
+  },
+  {
+    "id": "125-2025-qh15",
+    "document_number": "125/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Giáo dục đại học",
+    "topic_aliases": [
+      "luật giáo dục đại học",
+      "125/2025/qh15"
+    ],
+    "query_patterns": [
+      "125/2025/qh15",
+      "luật giáo dục đại học"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Luật này quy định toàn diện về hoạt động, tổ chức, quyền hạn và trách nhiệm của các bên liên quan trong giáo dục đại học, bao gồm cả trách nhiệm của Nhà nước.\n2. Nhấn mạnh các nguyên tắc cốt lõi như quyền tự chủ, tự chịu trách nhiệm và trách nhiệm giải trình của cơ sở giáo dục đại học; đảm bảo chất lượng, hiệu quả, công bằng trong tiếp cận giáo dục đại học và thúc đẩy học tập suốt đời.\n3. Quy định về tự do học thuật gắn với liêm chính học thuật và trách nhiệm đối với cộng đồng.\n4. Chính sách của Nhà nước xác định giáo dục đại học là nòng cốt trong phát triển nhân lực trình độ cao, bồi dưỡng nhân tài, thúc đẩy khoa học, công nghệ và đổi mới sáng tạo.\n5. Nhà nước giữ vai trò chủ đạo, hỗ trợ kinh phí cho các cơ sở giáo dục đại học công lập và có chính sách hỗ trợ phát triển các cơ sở tư thục, đồng thời khuyến khích huy động nguồn lực xã hội để hiện đại hóa giáo dục đại học."
+  },
+  {
+    "id": "146-2025-qh15",
+    "document_number": "146/2025/QH15",
+    "document_type": "luat",
+    "title": "SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA 15 LUẬT TRONG LĨNH VỰC NÔNG NGHIỆP VÀ MÔI TRƯỜNG",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của 15 luật trong lĩnh vực nông nghiệp và môi trường",
+      "146/2025/qh15"
+    ],
+    "query_patterns": [
+      "146/2025/qh15",
+      "sửa đổi, bổ sung một số điều của 15 luật trong lĩnh vực nông nghiệp và môi trường"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-11",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "72/2020/QH14",
+      "41/2013/QH13",
+      "32/2018/QH14",
+      "20/2008/QH12",
+      "79/2006/QH11",
+      "27/2018/QH14",
+      "90/2015/QH13",
+      "16/2017/QH14",
+      "33/2013/QH13",
+      "28/2023/QH15",
+      "82/2015/QH13",
+      "79/2015/QH13",
+      "08/2017/QH14",
+      "18/2017/QH14",
+      "31/2018/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Sửa đổi các quy định về bảo vệ môi trường, bao gồm mở rộng khái niệm \"Khu sản xuất, kinh doanh, dịch vụ tập trung\" và \"Yếu tố nhạy cảm về môi trường\", tăng cường trách nhiệm của UBND cấp tỉnh trong quản lý ô nhiễm đất.\n2. Quy định rõ ràng hơn về đánh giá tác động môi trường (ĐTM), bao gồm các trường hợp miễn trừ ĐTM, thời điểm thực hiện và thẩm quyền thẩm định báo cáo ĐTM.\n3. Điều chỉnh các quy định liên quan đến quản lý rừng, bảo tồn biển, lưu hành giống cây trồng nhằm đảm bảo tính liên tục và chuyển tiếp khi áp dụng các luật mới.\n4. Thay đổi quy trình và phân cấp trách nhiệm kiểm tra chất lượng thuốc thú y nhập khẩu, với sự chuyển giao từ cơ quan trung ương sang UBND cấp tỉnh từ năm 2027."
+  },
+  {
+    "id": "144-2025-qh15",
+    "document_number": "144/2025/QH15",
+    "document_type": "luat",
+    "title": "SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT QUY HOẠCH ĐÔ THỊ VÀ NÔNG THÔN",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật quy hoạch đô thị và nông thôn",
+      "144/2025/qh15"
+    ],
+    "query_patterns": [
+      "144/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật quy hoạch đô thị và nông thôn"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-11",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "47/2024/QH15",
+      "97/2015/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Cập nhật, sửa đổi định nghĩa về đô thị, đô thị mới, khu chức năng, quy hoạch đô thị và nông thôn, quy hoạch chung, và hạ tầng kỹ thuật khung để phù hợp với tình hình phát triển mới. 2. Điều chỉnh phân loại và phạm vi áp dụng của các loại quy hoạch, đặc biệt là quy hoạch chung, mở rộng đối tượng áp dụng cho các khu kinh tế, khu du lịch quốc gia và đặc khu. 3. Sửa đổi quy định về phí thẩm định nhiệm vụ quy hoạch, quy hoạch đô thị và nông thôn, thuộc danh mục phí, lệ phí. 4. Thiết lập các điều khoản chuyển tiếp chi tiết cho các quy hoạch đã, đang hoặc sẽ được lập, thẩm định, phê duyệt để đảm bảo tính liên tục và thống nhất trong quá trình chuyển đổi thực hiện Luật mới."
+  },
+  {
+    "id": "140-2025-qh15",
+    "document_number": "140/2025/QH15",
+    "document_type": "luat",
+    "title": "SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT GIÁ",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật giá",
+      "140/2025/qh15"
+    ],
+    "query_patterns": [
+      "140/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật giá"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "16/2023/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Thay đổi cơ quan chịu trách nhiệm định giá cho nhiều nhóm hàng hóa, dịch vụ thuộc Danh mục do Nhà nước định giá (Phụ lục số 02), chuyển giao thẩm quyền từ một số Bộ (như Giao thông vận tải, Lao động - Thương binh và Xã hội) sang các Bộ khác (như Xây dựng, Nội vụ).\n2. Bổ sung các loại hình dịch vụ mới vào danh mục hàng hóa, dịch vụ do Nhà nước định giá, bao gồm dịch vụ sử dụng hạ tầng trong khu công nghiệp, khu kinh tế và dịch vụ giám định ngoài tố tụng tư pháp.\n3. Sửa đổi một số cụm từ và điều khoản liên quan đến công tác thanh tra trong lĩnh vực giá, thẩm quyền của Ủy ban nhân dân cấp xã, và quy định cụ thể về việc thực hiện thanh tra giá theo pháp luật về thanh tra.\n4. Bãi bỏ khoản 13 Điều 14 và một phần quy định tại điểm b khoản 1 Điều 49 liên quan đến điều kiện hành nghề thẩm định giá.\n5. Quy định các mốc hiệu lực thi hành khác nhau cho các nội dung sửa đổi, bổ sung cụ thể trong văn bản."
+  },
+  {
+    "id": "147-2025-qh15",
+    "document_number": "147/2025/QH15",
+    "document_type": "luat",
+    "title": "Sửa đổi, bổ sung một số điều của Luật Địa chất và Khoáng sản",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật địa chất và khoáng sản",
+      "147/2025/qh15"
+    ],
+    "query_patterns": [
+      "147/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật địa chất và khoáng sản"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-11",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "54/2024/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Sửa đổi và bổ sung định nghĩa “Khai thác khoáng sản” làm rõ các hoạt động liên quan. 2. Bổ sung quy định cụ thể cho hoạt động điều tra, đánh giá, thăm dò, khai thác đất hiếm theo quy định đối với khoáng sản nhóm I. 3. Ưu tiên cho các tổ chức, cá nhân đang khai thác khoáng sản hợp pháp được thăm dò xuống sâu, mở rộng mà không phải đấu giá quyền khai thác. 4. Quy định miễn thủ tục cấp giấy phép đối với khai thác, thu hồi khoáng sản nhóm III, IV trong tình trạng khẩn cấp và không phụ thuộc thời kỳ quy hoạch khi gia hạn, cấp lại, điều chỉnh giấy phép. 5. Phân loại lại khoáng sản thành nhóm I (gồm kim loại, năng lượng, đá quý, đá bán quý, khoáng chất công nghiệp không thuộc nhóm II) và nhóm II (gồm các khoáng sản làm vật liệu xây dựng và khoáng chất công nghiệp dùng làm vật liệu xây dựng)."
+  },
+  {
+    "id": "149-2025-qh15",
+    "document_number": "149/2025/QH15",
+    "document_type": "luat",
+    "title": "Sửa đổi, bổ sung một số điều của Luật Thuế giá trị gia tăng",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật thuế giá trị gia tăng",
+      "149/2025/qh15"
+    ],
+    "query_patterns": [
+      "149/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật thuế giá trị gia tăng"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-11",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "48/2024/QH15",
+      "90/2025/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Mở rộng và làm rõ đối tượng sản phẩm nông, lâm, thủy sản tự sản xuất, đánh bắt chưa chế biến hoặc sơ chế thông thường không chịu thuế GTGT, đồng thời cho phép khấu trừ thuế GTGT đầu vào cho các tổ chức mua các sản phẩm này. 2. Nâng ngưỡng doanh thu chịu thuế GTGT đối với hộ, cá nhân kinh doanh lên 500 triệu đồng/năm và bổ sung một số hàng hóa, dịch vụ không chịu thuế khác. 3. Quy định mức thuế suất áp dụng đối với phế phẩm, phụ phẩm, phế liệu thu hồi trong quá trình sản xuất theo mức thuế suất của mặt hàng đó. 4. Bãi bỏ khoản 3 Điều 12 và điểm c khoản 9 Điều 15 của Luật Thuế giá trị gia tăng hiện hành."
+  },
+  {
+    "id": "139-2025-qh15",
+    "document_number": "139/2025/QH15",
+    "document_type": "luat",
+    "title": "Sửa đổi, bổ sung một số điều của Luật Kinh doanh bảo hiểm",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật kinh doanh bảo hiểm",
+      "139/2025/qh15"
+    ],
+    "query_patterns": [
+      "139/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật kinh doanh bảo hiểm"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-08",
+    "effective_date": "2028-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "08/2022/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": [
+      "Bổ sung quy định về quyền của tổ chức, cá nhân tham gia góp vốn, quản lý, kiểm soát doanh nghiệp bảo hiểm, tái bảo hiểm, môi giới bảo hiểm, và các tổ chức tương tự.",
+      "Sửa đổi các quy định liên quan đến sản phẩm bảo hiểm sức khỏe và bảo hiểm tử kỳ mà doanh nghiệp bảo hiểm phi nhân thọ và doanh nghiệp bảo hiểm sức khỏe được phép kinh doanh.",
+      "Quy định chi tiết hơn về thời hạn chính thức hoạt động của doanh nghiệp bảo hiểm, tái bảo hiểm, chi nhánh nước ngoài tại Việt Nam (12 tháng và khả năng gia hạn 12 tháng trong trường hợp bất khả kháng hoặc trở ngại khách quan).",
+      "Cập nhật các điều kiện và tiêu chuẩn về bằng cấp, kinh nghiệm làm việc đối với người quản lý, người kiểm soát của doanh nghiệp bảo hiểm, tái bảo hiểm, chi nhánh nước ngoài tại Việt Nam.",
+      "Bãi bỏ một số điểm, khoản và thay thế một số cụm từ trong Luật Kinh doanh bảo hiểm nhằm cập nhật và tinh gọn các quy định."
+    ]
+  },
+  {
+    "id": "150-2025-qh15",
+    "document_number": "150/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Tòa án chuyên biệt tại Trung tâm tài chính quốc tế",
+    "topic_aliases": [
+      "luật tòa án chuyên biệt tại trung tâm tài chính quốc tế",
+      "150/2025/qh15"
+    ],
+    "query_patterns": [
+      "150/2025/qh15",
+      "luật tòa án chuyên biệt tại trung tâm tài chính quốc tế"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-11",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "34/2024/QH15",
+      "81/2025/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Thiết lập Tòa án chuyên biệt thuộc hệ thống Tòa án nhân dân để xét xử và giải quyết các vụ việc tại Trung tâm tài chính quốc tế.\n2. Quy định các nguyên tắc hoạt động đặc thù bao gồm độc lập xét xử, thẩm phán tuân thủ pháp luật, bình đẳng, xét xử công khai (trừ trường hợp đặc biệt), giải quyết vụ việc công bằng, minh bạch, linh hoạt theo chuẩn mực quốc tế.\n3. Ưu tiên áp dụng Luật này và điều ước quốc tế có liên quan. Thủ tục tố tụng được thiết kế linh hoạt, rút gọn, đặc thù theo chuẩn mực và thông lệ quốc tế.\n4. Ban hành chính sách ưu đãi đặc thù về thù lao, tiền lương, phụ cấp cho Thẩm phán, Thư ký Tòa án và các cán bộ khác. Nhà nước đầu tư cơ sở vật chất và kinh phí hoạt động, có sự hỗ trợ từ ngân sách địa phương và Trung tâm tài chính quốc tế.\n5. Bãi bỏ khoản 2 Điều 62 của Luật Tổ chức Tòa án nhân dân số 34/2024/QH15 (đã được sửa đổi, bổ sung bởi Luật số 81/2025/QH15)."
+  },
+  {
+    "id": "119-2025-qh15",
+    "document_number": "119/2025/QH15",
+    "document_type": "luat",
+    "title": "SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT CÔNG NGHIỆP QUỐC PHÒNG, AN NINH VÀ ĐỘNG VIÊN CÔNG NGHIỆP",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật công nghiệp quốc phòng, an ninh và động viên công nghiệp",
+      "119/2025/qh15"
+    ],
+    "query_patterns": [
+      "119/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật công nghiệp quốc phòng, an ninh và động viên công nghiệp"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "38/2024/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "Hoàn thiện quy định về quy hoạch công nghiệp quốc phòng, an ninh, xác định đây là quy hoạch ngành và quy trình lập, thẩm định, phê duyệt. Chi tiết hóa nguồn hình thành, nguyên tắc hoạt động của Quỹ công nghiệp quốc phòng và Quỹ đầu tư phát triển công nghiệp an ninh, đồng thời ưu tiên phân bổ nguồn lực cho các nhiệm vụ trọng yếu. Bổ sung các chính sách của Nhà nước đối với tổ hợp công nghiệp an ninh quốc gia, bao gồm ưu đãi, hỗ trợ nghiên cứu, phát triển công nghệ và sản xuất sản phẩm. Cập nhật quy định về chức năng, nhiệm vụ của Tổ hợp công nghiệp quốc phòng và cơ chế quản lý, điều phối hoạt động phát triển công nghiệp an ninh. Thay thế cụm từ \"an toàn thông tin\" bằng \"an ninh mạng\" để phù hợp với tình hình và các quy định pháp luật hiện hành."
+  },
+  {
+    "id": "138-2025-qh15",
+    "document_number": "138/2025/QH15",
+    "document_type": "luat",
+    "title": "Sửa đổi, bổ sung một số điều của Luật Thống kê",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật thống kê",
+      "138/2025/qh15"
+    ],
+    "query_patterns": [
+      "138/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật thống kê"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "89/2015/QH13",
+      "01/2021/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Định nghĩa lại các khái niệm cơ bản về thống kê như cơ sở dữ liệu thống kê, điều tra thống kê, hoạt động thống kê. 2. Bổ sung quy định về kiểm tra chuyên ngành thống kê và hệ thống thông tin thống kê cấp xã. 3. Thiết lập và quy định về Cơ sở dữ liệu thống kê quốc gia nhằm quản lý dữ liệu thống kê tập trung, kết nối và chia sẻ. 4. Quy định rõ hơn về trách nhiệm của Ủy ban nhân dân cấp xã trong công tác thống kê. 5. Chuyển giao vai trò tham mưu quản lý nhà nước về thống kê từ Bộ Kế hoạch và Đầu tư sang Bộ Tài chính."
+  },
+  {
+    "id": "137-2025-qh15",
+    "document_number": "137/2025/QH15",
+    "document_type": "luat",
+    "title": "SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA LUẬT ĐIỀU ƯỚC QUỐC TẾ",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật điều ước quốc tế",
+      "137/2025/qh15"
+    ],
+    "query_patterns": [
+      "137/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật điều ước quốc tế"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "108/2016/QH13"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Sửa đổi các quy định về thẩm quyền, quy trình đề xuất, đàm phán, kiểm tra, thẩm định điều ước quốc tế, bao gồm rút ngắn thời hạn trả lời ý kiến và quy định về hồ sơ điện tử. 2. Bổ sung Điều 72a về ủy quyền đặc biệt cho Thủ tướng Chính phủ trong việc đàm phán, ký, sửa đổi, bổ sung điều ước quốc tế nhân danh Nhà nước trong trường hợp cần thiết, cấp bách về đối ngoại. 3. Quy định trình tự, thủ tục rút gọn khi sửa đổi, bổ sung, gia hạn điều ước quốc tế đối với nội dung mang tính kỹ thuật hoặc không làm thay đổi quyền và nghĩa vụ cơ bản của Việt Nam. 4. Thay thế tên cơ quan “Ủy ban đối ngoại của Quốc hội” bằng “Ủy ban Quốc phòng, An ninh và Đối ngoại của Quốc hội” tại Điều 33. 5. Bãi bỏ Điều 19 và Điều 74 của Luật Điều ước quốc tế số 108/2016/QH13."
+  },
+  {
+    "id": "141-2025-qh15",
+    "document_number": "141/2025/QH15",
+    "document_type": "luat",
+    "title": "Sửa đổi, bổ sung một số điều của Luật Quản lý nợ công",
+    "topic_aliases": [
+      "sửa đổi, bổ sung một số điều của luật quản lý nợ công",
+      "141/2025/qh15"
+    ],
+    "query_patterns": [
+      "141/2025/qh15",
+      "sửa đổi, bổ sung một số điều của luật quản lý nợ công"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "20/2017/QH14",
+      "90/2025/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Mở rộng và định nghĩa rõ ràng hơn về vay ODA, vay ưu đãi nước ngoài, bao gồm các hình thức và cơ chế vay, cũng như phân biệt giữa \"Điều ước quốc tế về vay ODA, vay ưu đãi nước ngoài\" và \"Thỏa thuận vay ODA, vay ưu đãi nước ngoài\".\n2. Bổ sung nguyên tắc đối xử bình đẳng đối với mọi nghĩa vụ nợ của Chính phủ, quy định rõ rằng \"Mọi nghĩa vụ nợ của Chính phủ được đối xử bình đẳng\", nhằm tăng cường minh bạch và niềm tin trong quản lý nợ công.\n3. Phân định rõ hơn nhiệm vụ, quyền hạn của Chủ tịch nước và Chính phủ trong quản lý nợ công, đặc biệt trong việc quyết định đàm phán, ký, phê chuẩn, sửa đổi điều ước quốc tế về vay ODA, vay ưu đãi nước ngoài.\n4. Bổ sung quy định miễn thuế thu nhập liên quan đến nợ công, miễn thuế thu nhập của nhà đầu tư từ lãi trái phiếu Chính phủ Việt Nam và thu nhập của bên cho vay nước ngoài từ lãi, phí phát sinh từ khoản cho vay đối với Nhà nước, Chính phủ Việt Nam.\n5. Cập nhật quy định về công bố thông tin nợ công và điều khoản chuyển tiếp, bao gồm nội dung, thời gian công bố thông tin nợ công và các quy định chuyển tiếp linh hoạt cho các chương trình, dự án và thỏa thuận vay đã có trước ngày Luật có hiệu lực."
+  },
+  {
+    "id": "124-2025-qh15",
+    "document_number": "124/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Giáo dục nghề nghiệp",
+    "topic_aliases": [
+      "luật giáo dục nghề nghiệp",
+      "124/2025/qh15"
+    ],
+    "query_patterns": [
+      "124/2025/qh15",
+      "luật giáo dục nghề nghiệp"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định về hoạt động giáo dục nghề nghiệp trong hệ thống giáo dục quốc dân; tổ chức, hoạt động của cơ sở giáo dục nghề nghiệp; quyền hạn, trách nhiệm của các bên liên quan và quản lý nhà nước về lĩnh vực này. 2. Nhà nước giữ vai trò chủ đạo, định hướng chiến lược và ưu tiên đầu tư ngân sách cho phát triển giáo dục nghề nghiệp, đặc biệt chú trọng chuẩn hóa cơ sở, hiện đại hóa trường trọng điểm và đào tạo nhân lực kỹ năng cao. 3. Phát triển hệ thống giáo dục nghề nghiệp theo hướng mở, linh hoạt, đa dạng, liên thông, chuẩn hóa, hiện đại hóa, xã hội hóa và hội nhập quốc tế; tập trung vào chất lượng cao. 4. Thực hiện đặt hàng, giao nhiệm vụ cho các cơ sở giáo dục nghề nghiệp, đặc biệt với các ngành, nghề đặc thù, mũi nhọn hoặc khó xã hội hóa. 5. Khuyến khích nghiên cứu, ứng dụng khoa học, công nghệ và đổi mới sáng tạo trong giáo dục nghề nghiệp; kết hợp đào tạo với sản xuất, kinh doanh và dịch vụ; thu hút nhân tài, chuyên gia tham gia."
+  },
+  {
+    "id": "59-2024-qh15",
+    "document_number": "59/2024/QH15",
+    "document_type": "luat",
+    "title": "Luật Tư pháp người chưa thành niên",
+    "topic_aliases": [
+      "luật tư pháp người chưa thành niên",
+      "59/2024/qh15"
+    ],
+    "query_patterns": [
+      "59/2024/qh15",
+      "luật tư pháp người chưa thành niên"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2024-11-30",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định về xử lý chuyển hướng và hình phạt đối với người chưa thành niên phạm tội, ưu tiên các biện pháp xử lý chuyển hướng. 2. Thiết lập thủ tục tố tụng đặc thù cho người chưa thành niên là người bị tố giác, bị buộc tội, bị hại và người làm chứng, đảm bảo tính nhạy cảm và bảo vệ quyền lợi của người chưa thành niên. 3. Quy định chi tiết về thi hành án phạt tù và hỗ trợ tái hòa nhập cộng đồng cho người chưa thành niên, nhấn mạnh việc giáo dục và phục hồi. 4. Xác định rõ nhiệm vụ, quyền hạn và trách nhiệm của cơ quan, tổ chức, cá nhân, gia đình trong hệ thống tư pháp người chưa thành niên. 5. Có các quy định chuyển tiếp mang tính nhân đạo, cho phép miễn, giảm hình phạt tù hoặc rút ngắn thời gian thử thách đối với người chưa thành niên bị xử phạt trước ngày Luật này được công bố."
+  },
+  {
+    "id": "100-2025-qh15",
+    "document_number": "100/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Dẫn độ",
+    "topic_aliases": [
+      "luật dẫn độ",
+      "100/2025/qh15"
+    ],
+    "query_patterns": [
+      "100/2025/qh15",
+      "luật dẫn độ"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-11-26",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "08/2007/QH12"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định về nguyên tắc, thẩm quyền, điều kiện, trình tự, thủ tục thực hiện dẫn độ giữa Việt Nam và nước ngoài. 2. Xác định dẫn độ là việc chuyển giao người có hành vi phạm tội hoặc người bị kết án hình sự giữa các quốc gia để truy cứu trách nhiệm hình sự hoặc thi hành án. 3. Áp dụng dẫn độ dựa trên nguyên tắc tôn trọng độc lập, chủ quyền, bình đẳng, cùng có lợi và phù hợp với Hiến pháp, pháp luật Việt Nam, điều ước quốc tế. 4. Quy định các trường hợp bắt buộc từ chối dẫn độ, đặc biệt đối với công dân Việt Nam và người đang bị truy cứu trách nhiệm hình sự ở Việt Nam. 5. Xử lý trường hợp Việt Nam từ chối dẫn độ, bao gồm việc xem xét truy cứu trách nhiệm hình sự hoặc công nhận, cho thi hành bản án hình sự nước ngoài tại Việt Nam."
+  },
+  {
+    "id": "104-2025-qh15",
+    "document_number": "104/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Tình trạng khẩn cấp",
+    "topic_aliases": [
+      "luật tình trạng khẩn cấp",
+      "104/2025/qh15"
+    ],
+    "query_patterns": [
+      "104/2025/qh15",
+      "luật tình trạng khẩn cấp"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-03",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "20/2000/PL-UBTVQH10"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Định nghĩa và phân loại tình trạng khẩn cấp thành 3 loại: thảm họa, an ninh quốc gia/trật tự/an toàn xã hội, và quốc phòng.\n2. Quy định chi tiết về nguyên tắc, trình tự, thủ tục và thẩm quyền ban bố, công bố, bãi bỏ tình trạng khẩn cấp.\n3. Đề cao nguyên tắc bảo vệ lợi ích quốc gia, dân tộc, tính mạng, sức khỏe người dân và huy động sức mạnh đại đoàn kết toàn dân tộc trong ứng phó.\n4. Xác định rõ trách nhiệm quản lý nhà nước, trong đó Chính phủ thống nhất quản lý và Bộ Quốc phòng là đầu mối chịu trách nhiệm chính.\n5. Đảm bảo các biện pháp hạn chế quyền con người, quyền công dân phải thật sự cần thiết, có căn cứ, tương xứng và không phân biệt đối xử."
+  },
+  {
+    "id": "105-2025-qh15",
+    "document_number": "105/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Giám định tư pháp",
+    "topic_aliases": [
+      "luật giám định tư pháp",
+      "105/2025/qh15"
+    ],
+    "query_patterns": [
+      "105/2025/qh15",
+      "luật giám định tư pháp"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-05",
+    "effective_date": "2026-05-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "13/2012/QH13"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Thiết lập khung pháp lý toàn diện quy định về người, tổ chức, trình tự, thủ tục và chi phí giám định tư pháp. 2. Thay thế Luật Giám định tư pháp số 13/2012/QH13 và các luật sửa đổi, bổ sung liên quan. 3. Làm rõ các khái niệm cơ bản và đối tượng áp dụng trong hoạt động giám định tư pháp. 4. Quy định về chế độ, chính sách, quản lý nhà nước và trách nhiệm của các cơ quan liên quan đến giám định tư pháp. 5. Bao gồm các quy định chuyển tiếp để đảm bảo sự liên tục trong hoạt động giám định tư pháp."
+  },
+  {
+    "id": "106-2025-qh15",
+    "document_number": "106/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Thi hành án dân sự",
+    "topic_aliases": [
+      "luật thi hành án dân sự",
+      "106/2025/qh15"
+    ],
+    "query_patterns": [
+      "106/2025/qh15",
+      "luật thi hành án dân sự"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-05",
+    "effective_date": "2025-12-05",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "26/2008/QH12"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Luật mới thay thế Luật Thi hành án dân sự số 26/2008/QH12, cập nhật các quy định về thi hành án dân sự. 2. Mở rộng phạm vi các loại bản án, quyết định được thi hành, bao gồm cả quyết định xử lý vụ việc cạnh tranh, phán quyết trọng tài thương mại và quyết định xử lý chuyển hướng. 3. Chuyển đổi chức danh Thừa phát lại thành Thừa hành viên và Văn phòng thừa phát lại thành Văn phòng thi hành án dân sự. 4. Quy định việc chuyển giao và quản lý kho vật chứng từ cơ quan thi hành án dân sự sang Bộ Công an trước ngày 01 tháng 7 năm 2028."
+  },
+  {
+    "id": "108-2025-qh15",
+    "document_number": "108/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Quản lý thuế",
+    "topic_aliases": [
+      "luật quản lý thuế",
+      "108/2025/qh15"
+    ],
+    "query_patterns": [
+      "108/2025/qh15",
+      "luật quản lý thuế"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "38/2019/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Mở rộng đối tượng người nộp thuế sang các tổ chức, cá nhân nước ngoài có hoạt động kinh doanh trên nền tảng thương mại điện tử, nền tảng số tại Việt Nam. 2. Quy định về phân nhóm người nộp thuế dựa trên nhiều tiêu chí để tối ưu hóa quản lý, áp dụng phương pháp phân tích rủi ro và giám sát nghĩa vụ thuế phù hợp. 3. Cho phép các tổ chức kinh doanh dịch vụ làm thủ tục về thuế được cung cấp dịch vụ kế toán cho doanh nghiệp siêu nhỏ, hộ kinh doanh, cá nhân kinh doanh nếu đáp ứng điều kiện. 4. Đẩy mạnh chuyển đổi số trong quản lý thuế thông qua việc hoàn thiện hệ thống thông tin và áp dụng đầy đủ các giao dịch điện tử trước ngày 01/01/2027. 5. Quy định rõ ràng về hiệu lực thi hành và các điều khoản chuyển tiếp, trong đó có việc hóa đơn điện tử cho hộ kinh doanh, cá nhân kinh doanh có hiệu lực sớm từ 01/01/2026."
+  },
+  {
+    "id": "109-2025-qh15",
+    "document_number": "109/2025/QH15",
+    "document_type": "luat",
+    "title": "LUẬT THUẾ THU NHẬP CÁ NHÂN",
+    "topic_aliases": [
+      "luật thuế thu nhập cá nhân",
+      "109/2025/qh15"
+    ],
+    "query_patterns": [
+      "109/2025/qh15",
+      "luật thuế thu nhập cá nhân"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "04/2007/QH12",
+      "26/2012/QH13",
+      "71/2014/QH13",
+      "31/2024/QH15",
+      "48/2024/QH15",
+      "56/2025/QH15",
+      "71/2025/QH15",
+      "93/2025/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Mở rộng phạm vi thu nhập từ kinh doanh, bao gồm cả thu nhập từ thương mại điện tử và kinh doanh trên nền tảng số. 2. Làm rõ định nghĩa về cá nhân cư trú và không cư trú với các tiêu chí cụ thể về thời gian và nơi ở tại Việt Nam. 3. Liệt kê chi tiết các loại thu nhập chịu thuế, bao gồm tiền lương, tiền công và các khoản phụ cấp, trợ cấp. 4. Thay thế và hợp nhất nhiều Luật Thuế thu nhập cá nhân và các văn bản sửa đổi, bổ sung trước đó. 5. Quy định về hiệu lực thi hành riêng biệt: hiệu lực chung từ 01/07/2026, nhưng các quy định liên quan đến thu nhập từ kinh doanh, tiền lương, tiền công của cá nhân cư trú áp dụng từ kỳ tính thuế năm 2026."
+  },
+  {
+    "id": "112-2025-qh15",
+    "document_number": "112/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Quy hoạch",
+    "topic_aliases": [
+      "luật quy hoạch",
+      "112/2025/qh15"
+    ],
+    "query_patterns": [
+      "112/2025/qh15",
+      "luật quy hoạch"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Thiết lập một hệ thống quy hoạch quốc gia toàn diện, phân cấp rõ ràng từ quy hoạch tổng thể quốc gia đến quy hoạch không gian biển, quy hoạch sử dụng đất và các quy hoạch chuyên ngành, địa phương. 2. Quy định chi tiết các bước trong chu trình quy hoạch, bao gồm lập, thẩm định, quyết định hoặc phê duyệt, công bố, cung cấp thông tin, thực hiện, đánh giá và điều chỉnh quy hoạch. 3. Nhấn mạnh mục tiêu định hướng phát triển, sắp xếp, phân bố không gian các hoạt động kinh tế, xã hội, quốc phòng, an ninh nhằm sử dụng hiệu quả nguồn lực và đảm bảo phát triển bền vững. 4. Cụ thể hóa các loại quy hoạch chi tiết ngành, liên kết với các văn bản pháp luật chuyên ngành hiện hành, tạo khung pháp lý đồng bộ cho hoạt động quy hoạch."
+  },
+  {
+    "id": "113-2025-qh15",
+    "document_number": "113/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Dân số",
+    "topic_aliases": [
+      "luật dân số",
+      "113/2025/qh15"
+    ],
+    "query_patterns": [
+      "113/2025/qh15",
+      "luật dân số"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "06/2003/PL-UBTVQH11",
+      "07/2025/UBTVQH15",
+      "90/2025/QH15",
+      "93/2025/QH15",
+      "15/2023/QH15",
+      "73/2006/QH11",
+      "21-LCT/HĐNN8"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định toàn diện về công tác dân số, bao gồm truyền thông, duy trì mức sinh thay thế, giảm mất cân bằng giới tính khi sinh, thích ứng già hóa dân số và nâng cao chất lượng dân số. 2. Thay đổi chính sách dân số từ khuyến khích \"một đến hai con\" sang duy trì mức sinh thay thế và khuyến khích sinh đủ con. 3. Bổ sung chính sách hỗ trợ cho người có từ 02 con đẻ trở lên. 4. Nghiêm cấm hành vi thông báo, tiết lộ giới tính thai nhi để phá thai, nhằm giảm thiểu mất cân bằng giới tính khi sinh. 5. Bãi bỏ Pháp lệnh Dân số 06/2003/PL-UBTVQH11 và sửa đổi một số điều liên quan trong các luật khác như Luật Bình đẳng giới, Luật Khám bệnh, chữa bệnh, Luật Hỗ trợ doanh nghiệp nhỏ và vừa, Luật Bảo vệ sức khỏe nhân dân."
+  },
+  {
+    "id": "114-2025-qh15",
+    "document_number": "114/2025/QH15",
+    "document_type": "luat",
+    "title": "LUẬT PHÒNG BỆNH",
+    "topic_aliases": [
+      "luật phòng bệnh",
+      "114/2025/qh15"
+    ],
+    "query_patterns": [
+      "114/2025/qh15",
+      "luật phòng bệnh"
+    ],
+    "issuer": "QUỐC HỘI",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "03/2007/QH12",
+      "09/2012/QH13"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Ban hành Luật Phòng bệnh mới, thay thế Luật Phòng, chống bệnh truyền nhiễm số 03/2007/QH12. 2. Quy định toàn diện về phòng, chống bệnh truyền nhiễm, bệnh không lây nhiễm, rối loạn tâm thần; dinh dưỡng trong phòng bệnh và các điều kiện bảo đảm phòng bệnh. 3. Mở rộng phạm vi chi trả của Bảo hiểm y tế cho các dịch vụ phòng bệnh, quản lý bệnh mạn tính, khám sức khỏe định kỳ và khám sàng lọc miễn phí cho đối tượng ưu tiên phù hợp với khả năng cân đối của Quỹ. 4. Bãi bỏ các điều 28, 29 và 30 của Luật Phòng, chống tác hại của thuốc lá số 09/2012/QH13. 5. Sửa đổi các quy định liên quan đến thông tin dịch bệnh trong Luật Dược và các luật khác."
+  },
+  {
+    "id": "118-2025-qh15",
+    "document_number": "118/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật sửa đổi, bổ sung một số điều của 10 Luật có liên quan đến an ninh, trật tự",
+    "topic_aliases": [
+      "luật sửa đổi, bổ sung một số điều của 10 luật có liên quan đến an ninh, trật tự",
+      "118/2025/qh15"
+    ],
+    "query_patterns": [
+      "118/2025/qh15",
+      "luật sửa đổi, bổ sung một số điều của 10 luật có liên quan đến an ninh, trật tự"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "13/2017/QH14",
+      "47/2014/QH13",
+      "49/2019/QH14",
+      "68/2020/QH14",
+      "26/2023/QH15",
+      "30/2023/QH15",
+      "36/2024/QH15",
+      "35/2024/QH15",
+      "42/2024/QH15",
+      "55/2024/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": [
+      "Mở rộng và chi tiết hóa đối tượng được cảnh vệ, bao gồm các chức danh lãnh đạo chủ chốt của Đảng, Nhà nước và Mặt trận Tổ quốc Việt Nam.",
+      "Tăng cường phân cấp quản lý nhà nước về phòng cháy, chữa cháy, cứu nạn, cứu hộ cho Ủy ban nhân dân các cấp và điều chỉnh thẩm quyền của một số bộ, ngành.",
+      "Thực hiện rà soát, thay thế và loại bỏ nhiều cụm từ, điều khoản không còn phù hợp hoặc cần được chuẩn hóa trong các luật liên quan đến an ninh, trật tự, nhằm đơn giản hóa thủ tục và làm rõ trách nhiệm.",
+      "Sửa đổi, bổ sung các quy định về nhập cảnh, xuất cảnh, cư trú, căn cước, quản lý vũ khí, vật liệu nổ và công cụ hỗ trợ, góp phần hoàn thiện hệ thống pháp luật về an ninh, trật tự.",
+      "Quy định hai thời điểm có hiệu lực thi hành khác nhau cho các điều khoản, với hiệu lực chung từ 01/07/2026 và một số quy định có hiệu lực sớm hơn từ 01/01/2026."
+    ]
+  },
+  {
+    "id": "120-2025-qh15",
+    "document_number": "120/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Phòng, chống ma túy",
+    "topic_aliases": [
+      "luật phòng, chống ma túy",
+      "120/2025/qh15"
+    ],
+    "query_patterns": [
+      "120/2025/qh15",
+      "luật phòng, chống ma túy"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "73/2021/QH14",
+      "100/2015/QH13",
+      "15/2012/QH13"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Cập nhật và mở rộng phạm vi điều chỉnh các hoạt động phòng, chống ma túy, quản lý người sử dụng trái phép chất ma túy và cai nghiện ma túy. 2. Cung cấp các định nghĩa chi tiết, rõ ràng hơn về chất ma túy, tiền chất, người sử dụng và người nghiện ma túy. 3. Thay thế toàn bộ Luật Phòng, chống ma túy số 73/2021/QH14 đã được sửa đổi, bổ sung. 4. Sửa đổi, bổ sung một số điều của Bộ luật hình sự và Luật Xử lý vi phạm hành chính để đảm bảo tính đồng bộ của hệ thống pháp luật. 5. Quy định các điều khoản chuyển tiếp cụ thể cho người đang cai nghiện, các hoạt động và cơ sở đã được cấp phép để đảm bảo quá trình chuyển đổi pháp lý diễn ra suôn sẻ."
+  },
+  {
+    "id": "122-2025-qh15",
+    "document_number": "122/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Thương mại điện tử",
+    "topic_aliases": [
+      "luật thương mại điện tử",
+      "122/2025/qh15"
+    ],
+    "query_patterns": [
+      "122/2025/qh15",
+      "luật thương mại điện tử"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định toàn diện về chính sách phát triển, quản lý nền tảng thương mại điện tử và hoạt động thương mại điện tử có yếu tố nước ngoài. 2. Làm rõ định nghĩa và phân loại các nền tảng thương mại điện tử, bao gồm nền tảng kinh doanh trực tiếp, trung gian, mạng xã hội có chức năng thương mại điện tử và nền tảng tích hợp. 3. Tăng cường ứng dụng công nghệ trong quản lý, đặc biệt là việc thiết lập và kết nối liên thông cơ sở dữ liệu quốc gia về thương mại điện tử. 4. Đa dạng hóa các biện pháp xử lý vi phạm trong thương mại điện tử, từ xử phạt hành chính đến các biện pháp công nghệ như chặn truy cập, gỡ bỏ nội dung, và khả năng xử lý hình sự."
+  },
+  {
+    "id": "127-2025-qh15",
+    "document_number": "127/2025/QH15",
+    "document_type": "luat",
+    "title": "LUẬT THI HÀNH ÁN HÌNH SỰ",
+    "topic_aliases": [
+      "luật thi hành án hình sự",
+      "127/2025/qh15"
+    ],
+    "query_patterns": [
+      "127/2025/qh15",
+      "luật thi hành án hình sự"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "41/2019/QH14",
+      "59/2024/QH15",
+      "86/2025/QH15",
+      "54/2022/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Ban hành Luật Thi hành án hình sự mới, quy định toàn diện các nguyên tắc, trình tự, thủ tục, tổ chức, nhiệm vụ, quyền hạn trong thi hành bản án, quyết định hình sự và biện pháp tư pháp. 2. Mở rộng phạm vi điều chỉnh đối với nhiều loại hình phạt và biện pháp tư pháp, bao gồm cả các hình phạt mới như đình chỉ hoạt động có thời hạn/vĩnh viễn, cấm kinh doanh, cấm hoạt động trong một số lĩnh vực nhất định, cấm huy động vốn đối với pháp nhân thương mại. 3. Thay thế và làm hết hiệu lực Luật Thi hành án hình sự số 41/2019/QH14 cùng các luật sửa đổi, bổ sung và Nghị quyết số 54/2022/QH15 về thí điểm mô hình lao động, hướng nghiệp, dạy nghề cho phạm nhân. 4. Sửa đổi, bổ sung quy định về miễn thuế thu nhập doanh nghiệp đối với thu nhập từ hoạt động tổ chức lao động, hướng nghiệp, dạy nghề cho phạm nhân. 5. Quy định các điều khoản chuyển tiếp cụ thể, đảm bảo sự liên tục trong thi hành các bản án, quyết định đã có hiệu lực pháp luật trước ngày Luật này có hiệu lực."
+  },
+  {
+    "id": "129-2025-qh15",
+    "document_number": "129/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Viên chức",
+    "topic_aliases": [
+      "luật viên chức",
+      "129/2025/qh15"
+    ],
+    "query_patterns": [
+      "129/2025/qh15",
+      "luật viên chức"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "58/2010/QH12",
+      "52/2019/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Định nghĩa rõ ràng về viên chức dựa trên vị trí việc làm và chế độ hợp đồng làm việc. 2. Xác định các nguyên tắc hoạt động nghề nghiệp và quản lý viên chức, nhấn mạnh sự lãnh đạo của Đảng, quản lý theo vị trí việc làm, quyền tự chủ của đơn vị sự nghiệp công lập, bình đẳng giới và ứng dụng công nghệ. 3. Bổ sung quy định về việc xử lý hành vi vi phạm của viên chức đã nghỉ việc, nghỉ hưu, bao gồm các hình thức kỷ luật cụ thể. 4. Quy định các điều khoản chuyển tiếp cho viên chức được tuyển dụng trước ngày luật có hiệu lực, đặc biệt là việc hoàn thành bố trí vị trí việc làm và xếp lương. 5. Luật này thay thế Luật Viên chức hiện hành số 58/2010/QH12 và các luật sửa đổi liên quan."
+  },
+  {
+    "id": "131-2025-qh15",
+    "document_number": "131/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật sửa đổi, bổ sung một số điều của Luật Sở hữu trí tuệ",
+    "topic_aliases": [
+      "luật sửa đổi, bổ sung một số điều của luật sở hữu trí tuệ",
+      "131/2025/qh15"
+    ],
+    "query_patterns": [
+      "131/2025/qh15",
+      "luật sửa đổi, bổ sung một số điều của luật sở hữu trí tuệ"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-04-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "50/2005/QH11",
+      "36/2009/QH12",
+      "42/2019/QH14",
+      "07/2022/QH15",
+      "93/2025/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Sửa đổi và bổ sung định nghĩa về Quyền sở hữu trí tuệ và Kiểu dáng công nghiệp. 2. Bổ sung quy định về việc Chính phủ quy định xác lập quyền sở hữu trí tuệ đối với đối tượng được tạo ra bằng hệ thống trí tuệ nhân tạo. 3. Làm rõ nguyên tắc khai thác, bảo vệ quyền sở hữu trí tuệ không được xâm phạm lợi ích của Nhà nước, lợi ích công cộng và quyền, lợi ích hợp pháp của tổ chức, cá nhân khác. 4. Quy định quyền của Nhà nước trong việc cấm hoặc hạn chế thực hiện quyền sở hữu trí tuệ nhằm bảo đảm mục tiêu quốc phòng, an ninh quốc gia, trật tự, an toàn xã hội, đạo đức xã hội, sức khỏe của cộng đồng."
+  },
+  {
+    "id": "134-2025-qh15",
+    "document_number": "134/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Trí tuệ nhân tạo",
+    "topic_aliases": [
+      "luật trí tuệ nhân tạo",
+      "134/2025/qh15"
+    ],
+    "query_patterns": [
+      "134/2025/qh15",
+      "luật trí tuệ nhân tạo"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-03-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "71/2025/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Thiết lập khuôn khổ pháp lý toàn diện cho hoạt động trí tuệ nhân tạo tại Việt Nam, bao gồm nghiên cứu, phát triển, cung cấp, triển khai và sử dụng. 2. Xác định rõ quyền, nghĩa vụ của các chủ thể tham gia như nhà phát triển, nhà cung cấp, bên triển khai, người sử dụng. 3. Đưa ra các định nghĩa chuẩn về Trí tuệ nhân tạo và Hệ thống trí tuệ nhân tạo, làm cơ sở cho việc áp dụng pháp luật. 4. Quy định về quản lý nhà nước đối với hoạt động trí tuệ nhân tạo, bao gồm bảo đảm bí mật thông tin, dữ liệu và khuyến khích hợp tác quốc tế. 5. Có điều khoản chuyển tiếp cho các hệ thống AI đã hoạt động trước ngày luật có hiệu lực, với thời hạn tuân thủ khác nhau tùy theo lĩnh vực."
+  },
+  {
+    "id": "135-2025-qh15",
+    "document_number": "135/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Xây dựng",
+    "topic_aliases": [
+      "luật xây dựng",
+      "135/2025/qh15"
+    ],
+    "query_patterns": [
+      "135/2025/qh15",
+      "luật xây dựng"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-01-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "50/2014/QH13"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định toàn diện về hoạt động xây dựng, bao gồm lập, thẩm định dự án, thiết kế, thi công, quản lý dự án, chi phí, hợp đồng, nghiệm thu và bảo trì công trình. 2. Xác định rõ quyền, nghĩa vụ và trách nhiệm của cơ quan, tổ chức, cá nhân trong hoạt động và quản lý nhà nước về xây dựng. 3. Cập nhật các định nghĩa liên quan đến hoạt động xây dựng, công trình và hệ thống hạ tầng kỹ thuật, hạ tầng xã hội. 4. Quy định các điều khoản chuyển tiếp đối với các công trình, dự án, hợp đồng và ban quản lý dự án được thực hiện theo Luật Xây dựng số 50/2014/QH13."
+  },
+  {
+    "id": "136-2025-qh15",
+    "document_number": "136/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật sửa đổi, bổ sung một số điều của Luật Tiếp công dân, Luật Khiếu nại, Luật Tố cáo",
+    "topic_aliases": [
+      "luật sửa đổi, bổ sung một số điều của luật tiếp công dân, luật khiếu nại, luật tố cáo",
+      "136/2025/qh15"
+    ],
+    "query_patterns": [
+      "136/2025/qh15",
+      "luật sửa đổi, bổ sung một số điều của luật tiếp công dân, luật khiếu nại, luật tố cáo"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-10",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "42/2013/QH13",
+      "02/2011/QH13",
+      "25/2018/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Bổ sung hình thức tiếp công dân trực tuyến, giao Chính phủ quy định chi tiết. 2. Mở rộng đối tượng cơ quan có trách nhiệm tiếp công dân là cơ quan chuyên môn thuộc Ủy ban nhân dân cấp tỉnh. 3. Quy định chi tiết hơn về thông tin định danh của người đến khiếu nại, tố cáo, kiến nghị, phản ánh bao gồm số căn cước, số định danh cá nhân hoặc số hộ chiếu. 4. Người tố cáo có quyền rút toàn bộ hoặc một phần nội dung tố cáo trước khi có kết luận bằng đơn hoặc biên bản. 5. Bãi bỏ khoản 2 Điều 13 của Luật Tố cáo."
+  },
+  {
+    "id": "143-2025-qh15",
+    "document_number": "143/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Đầu tư",
+    "topic_aliases": [
+      "luật đầu tư",
+      "143/2025/qh15"
+    ],
+    "query_patterns": [
+      "143/2025/qh15",
+      "luật đầu tư"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-11",
+    "effective_date": "",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định về hoạt động đầu tư kinh doanh tại Việt Nam và hoạt động đầu tư kinh doanh từ Việt Nam ra nước ngoài. 2. Xác định các đối tượng áp dụng là nhà đầu tư và các cơ quan, tổ chức, cá nhân liên quan. 3. Giải thích rõ ràng các từ ngữ quan trọng như chấp thuận chủ trương đầu tư, cơ quan đăng ký đầu tư, dự án đầu tư và điều kiện đầu tư kinh doanh. 4. Đặt ra các điều kiện tiếp cận thị trường đối với nhà đầu tư nước ngoài và liệt kê chi tiết các ngành, nghề hạn chế tiếp cận."
+  },
+  {
+    "id": "145-2025-qh15",
+    "document_number": "145/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Dự trữ quốc gia",
+    "topic_aliases": [
+      "luật dự trữ quốc gia",
+      "145/2025/qh15"
+    ],
+    "query_patterns": [
+      "145/2025/qh15",
+      "luật dự trữ quốc gia"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-11",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "22/2012/QH13",
+      "21/2017/QH14",
+      "56/2024/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": [
+      "Thiết lập khuôn khổ pháp lý toàn diện cho việc hình thành, quản lý và sử dụng dự trữ quốc gia, bao gồm cả hàng dự trữ thông thường và hàng dự trữ chiến lược.",
+      "Mở rộng mục tiêu dự trữ quốc gia không chỉ cho các tình huống đột xuất, cấp bách mà còn hướng tới tự chủ chiến lược quốc gia, điều tiết thị trường và phát triển kinh tế - xã hội.",
+      "Phân loại rõ ràng giữa \"Dự trữ quốc gia\" và \"Hàng dự trữ chiến lược\", với việc bổ sung các loại hình dự trữ chiến lược mới như tài nguyên, khoáng sản, năng lượng và sản phẩm công nghệ cao.",
+      "Quy định chính sách nhà nước về dự trữ quốc gia, bao gồm chiến lược, quy hoạch, kế hoạch và ngân sách, nhằm đảm bảo hiệu quả và bền vững.",
+      "Sửa đổi, bổ sung các quy định liên quan trong các luật khác như Luật Phòng thủ dân sự và Luật Ngân sách nhà nước, đồng thời thay thế Luật Dự trữ quốc gia số 22/2012/QH13 và các văn bản sửa đổi trước đó."
+    ]
+  },
+  {
+    "id": "148-2025-qh15",
+    "document_number": "148/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Chuyển đổi số",
+    "topic_aliases": [
+      "luật chuyển đổi số",
+      "148/2025/qh15"
+    ],
+    "query_patterns": [
+      "148/2025/qh15",
+      "luật chuyển đổi số"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-12-11",
+    "effective_date": "2026-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "93/2025/QH15",
+      "20/2023/QH15",
+      "60/2024/QH15",
+      "116/2025/QH15",
+      "67/2006/QH11",
+      "21/2017/QH14",
+      "24/2023/QH15",
+      "71/2025/QH15",
+      "84/2025/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Ban hành Luật Chuyển đổi số, quy định nguyên tắc, chính sách, điều phối quốc gia, biện pháp bảo đảm chuyển đổi số. 2. Tập trung vào các trụ cột Chính phủ số, kinh tế số, xã hội số và xác định trách nhiệm của cơ quan, tổ chức, cá nhân liên quan. 3. Định nghĩa các khái niệm cốt lõi như chuyển đổi số, hạ tầng số, nền tảng số để tạo cơ sở pháp lý thống nhất. 4. Thực hiện việc sửa đổi, bổ sung hoặc bãi bỏ một số điều, khoản của các luật liên quan hiện hành như Luật Khoa học, công nghệ và đổi mới sáng tạo số, Luật Giao dịch điện tử. 5. Thay thế và làm hết hiệu lực toàn bộ Luật Công nghệ thông tin số 67/2006/QH11 và các văn bản sửa đổi, bổ sung luật này."
+  },
+  {
+    "id": "64-2025-qh15",
+    "document_number": "64/2025/QH15",
+    "document_type": "luat",
+    "title": "LUẬT BAN HÀNH VĂN BẢN QUY PHẠM PHÁP LUẬT",
+    "topic_aliases": [
+      "luật ban hành văn bản quy phạm pháp luật",
+      "64/2025/qh15"
+    ],
+    "query_patterns": [
+      "64/2025/qh15",
+      "luật ban hành văn bản quy phạm pháp luật"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-02-19",
+    "effective_date": "2025-02-19",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "80/2015/QH13",
+      "63/2020/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Quy định toàn diện về xây dựng, ban hành và nội dung cơ bản về tổ chức thi hành văn bản quy phạm pháp luật, không điều chỉnh việc làm Hiến pháp, sửa đổi Hiến pháp. 2. Định nghĩa chi tiết các khái niệm quan trọng như quy phạm pháp luật, chính sách, tham vấn chính sách, đánh giá tác động, rà soát và kiểm tra văn bản quy phạm pháp luật. 3. Thiết lập hệ thống văn bản quy phạm pháp luật, bao gồm Hiến pháp, luật, nghị quyết của Quốc hội, pháp lệnh, nghị quyết của Ủy ban Thường vụ Quốc hội và các văn bản khác. 4. Thay thế và làm hết hiệu lực thi hành đối với Luật Ban hành văn bản quy phạm pháp luật số 80/2015/QH13 đã được sửa đổi, bổ sung bởi Luật số 63/2020/QH14. 5. Quy định các điều khoản chuyển tiếp cho Chương trình xây dựng luật, pháp lệnh năm 2025 và dự thảo văn bản quy phạm pháp luật đã được thẩm định hoặc trình trước ngày luật này có hiệu lực."
+  },
+  {
+    "id": "67-2025-qh15",
+    "document_number": "67/2025/QH15",
+    "document_type": "luat",
+    "title": "LUẬT THUẾ THU NHẬP DOANH NGHIỆP",
+    "topic_aliases": [
+      "luật thuế thu nhập doanh nghiệp",
+      "67/2025/qh15"
+    ],
+    "query_patterns": [
+      "67/2025/qh15",
+      "luật thuế thu nhập doanh nghiệp"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-14",
+    "effective_date": "2025-10-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "14/2008/QH12",
+      "32/2013/QH13",
+      "71/2014/QH13",
+      "61/2020/QH14",
+      "12/2022/QH15",
+      "15/2023/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Luật này quy định toàn diện về thuế thu nhập doanh nghiệp, bao gồm người nộp, thu nhập chịu thuế, thu nhập được miễn thuế, căn cứ và phương pháp tính thuế, cùng các ưu đãi thuế. 2. Mở rộng phạm vi người nộp thuế, bao gồm các doanh nghiệp nước ngoài hoạt động thương mại điện tử và kinh doanh dựa trên nền tảng số, không phụ thuộc vào việc có cơ sở thường trú tại Việt Nam. 3. Thống nhất quy định nộp thuế đối với thu nhập chịu thuế phát sinh tại Việt Nam và ngoài Việt Nam cho các doanh nghiệp Việt Nam và doanh nghiệp nước ngoài có cơ sở thường trú. 4. Bãi bỏ hiệu lực của Luật Thuế thu nhập doanh nghiệp số 14/2008/QH12 và các luật sửa đổi, bổ sung có liên quan. 5. Quy định rõ ràng các điều khoản chuyển tiếp để xử lý các dự án đầu tư đang được hưởng ưu đãi hoặc đủ điều kiện hưởng ưu đãi theo quy định mới, đảm bảo sự liên tục và linh hoạt trong áp dụng chính sách thuế."
+  },
+  {
+    "id": "76-2025-qh15",
+    "document_number": "76/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật sửa đổi, bổ sung một số điều của Luật Doanh nghiệp",
+    "topic_aliases": [
+      "luật sửa đổi, bổ sung một số điều của luật doanh nghiệp",
+      "76/2025/qh15"
+    ],
+    "query_patterns": [
+      "76/2025/qh15",
+      "luật sửa đổi, bổ sung một số điều của luật doanh nghiệp"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-17",
+    "effective_date": "2025-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "59/2020/QH14",
+      "03/2022/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": [
+      "Bổ sung định nghĩa và các quy định liên quan đến 'Chủ sở hữu hưởng lợi của doanh nghiệp', bao gồm trách nhiệm thu thập, cập nhật, lưu giữ và cung cấp thông tin về đối tượng này.",
+      "Yêu cầu bổ sung danh sách chủ sở hữu hưởng lợi vào nội dung hồ sơ đăng ký doanh nghiệp.",
+      "Quy định doanh nghiệp phải lưu giữ thông tin về chủ sở hữu hưởng lợi ít nhất 05 năm kể từ ngày doanh nghiệp giải thể hoặc phá sản.",
+      "Tăng cường quản lý nhà nước đối với doanh nghiệp, giao Ủy ban nhân dân cấp tỉnh ban hành quy trình kiểm tra đăng ký kinh doanh và thúc đẩy tích hợp, chia sẻ thông tin đăng ký doanh nghiệp.",
+      "Giao Chính phủ quy định chi tiết về tiêu chí, chủ thể kê khai, việc kê khai, cung cấp, lưu giữ và chia sẻ thông tin về chủ sở hữu hưởng lợi của doanh nghiệp."
+    ]
+  },
+  {
+    "id": "84-2025-qh15",
+    "document_number": "84/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật Thanh tra",
+    "topic_aliases": [
+      "luật thanh tra",
+      "84/2025/qh15"
+    ],
+    "query_patterns": [
+      "84/2025/qh15",
+      "luật thanh tra"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-25",
+    "effective_date": "2025-06-25",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "11/2022/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Thiết lập khuôn khổ pháp lý mới, toàn diện về tổ chức và hoạt động thanh tra, thay thế Luật Thanh tra hiện hành. 2. Quy định chi tiết và giải thích rõ ràng các khái niệm cơ bản như thanh tra, người tiến hành thanh tra, kế hoạch thanh tra. 3. Đảm bảo tính liên tục của hoạt động thanh tra thông qua các quy định chuyển tiếp về xử lý các cuộc thanh tra đang tiến hành và theo dõi việc thực hiện kết luận thanh tra khi có sự thay đổi về quy định và tổ chức bộ máy."
+  },
+  {
+    "id": "85-2025-qh15",
+    "document_number": "85/2025/QH15",
+    "document_type": "luat",
+    "title": "LUẬT SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA BỘ LUẬT TỐ TỤNG DÂN SỰ, LUẬT TỐ TỤNG HÀNH CHÍNH, LUẬT TƯ PHÁP NGƯỜI CHƯA THÀNH NIÊN, LUẬT PHÁ SẢN VÀ LUẬT HÒA GIẢI, ĐỐI THOẠI TẠI TÒA ÁN",
+    "topic_aliases": [
+      "luật sửa đổi, bổ sung một số điều của bộ luật tố tụng dân sự, luật tố tụng hành chính, luật tư pháp người chưa thành niên, luật phá sản và luật hòa giải, đối thoại tại tòa án",
+      "85/2025/qh15"
+    ],
+    "query_patterns": [
+      "85/2025/qh15",
+      "luật sửa đổi, bổ sung một số điều của bộ luật tố tụng dân sự, luật tố tụng hành chính, luật tư pháp người chưa thành niên, luật phá sản và luật hòa giải, đối thoại tại tòa án"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-25",
+    "effective_date": "2025-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "92/2015/QH13",
+      "93/2015/QH13",
+      "59/2024/QH15",
+      "51/2014/QH13",
+      "58/2020/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Luật này sửa đổi, bổ sung đồng thời nhiều văn bản pháp luật quan trọng liên quan đến tố tụng dân sự, hành chính, tư pháp người chưa thành niên, phá sản và hòa giải tại Tòa án. 2. Thay đổi cơ bản về tổ chức và thẩm quyền của hệ thống Tòa án, đặc biệt là việc thiết lập và phân định rõ thẩm quyền của Tòa án nhân dân khu vực và các Tòa chuyên trách tại cấp này. 3. Điều chỉnh thẩm quyền giám đốc việc xét xử, phân công trách nhiệm giám đốc của Tòa án nhân dân tối cao và Tòa án nhân dân cấp tỉnh đối với các Tòa án nhân dân khu vực. 4. Cập nhật quy định về thẩm quyền giải quyết phá sản, giao cho Tòa Phá sản thuộc Tòa án nhân dân khu vực. 5. Sửa đổi quy định về hòa giải, đối thoại tại Tòa án, cho phép linh hoạt hơn trong việc lựa chọn Hòa giải viên giữa các Tòa án nhân dân khu vực cùng phạm vi địa giới hành chính cấp tỉnh."
+  },
+  {
+    "id": "86-2025-qh15",
+    "document_number": "86/2025/QH15",
+    "document_type": "luat",
+    "title": "LUẬT SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA BỘ LUẬT HÌNH SỰ",
+    "topic_aliases": [
+      "luật sửa đổi, bổ sung một số điều của bộ luật hình sự",
+      "86/2025/qh15"
+    ],
+    "query_patterns": [
+      "86/2025/qh15",
+      "luật sửa đổi, bổ sung một số điều của bộ luật hình sự"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-25",
+    "effective_date": "2025-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "100/2015/QH13"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Bổ sung các trường hợp không thi hành án tử hình, bao gồm phụ nữ có thai hoặc đang nuôi con dưới 36 tháng tuổi, người từ đủ 75 tuổi trở lên và người mắc bệnh ung thư giai đoạn cuối. 2. Quy định chi tiết về bắt buộc chữa bệnh đối với người thực hiện hành vi nguy hiểm cho xã hội khi mắc bệnh hoặc mắc bệnh trước khi bị kết án/đang chấp hành hình phạt, trong đó thời gian chữa bệnh được trừ vào thời hạn chấp hành hình phạt tù. 3. Chuyển hình phạt tử hình thành tù chung thân đối với một số tội về ma túy (Điều 248, Điều 251 Bộ luật Hình sự) và các tội tham nhũng (Điều 353, Điều 354 Bộ luật Hình sự) theo các điều kiện cụ thể về khối lượng chất ma túy, vai trò và tình tiết tăng nặng của người phạm tội. 4. Giao trách nhiệm cho Tòa án nhân dân tối cao, Chính phủ, Viện kiểm sát nhân dân tối cao chủ trì, phối hợp rà soát các trường hợp bị kết án tử hình thuộc diện được chuyển hình phạt và các văn bản quy phạm pháp luật liên quan để kịp thời điều chỉnh phù hợp với Luật này."
+  },
+  {
+    "id": "90-2025-qh15",
+    "document_number": "90/2025/QH15",
+    "document_type": "luat",
+    "title": "Luật sửa đổi, bổ sung một số điều của Luật Đấu thầu, Luật Đầu tư theo phương thức đối tác công tư, Luật Hải quan, Luật Thuế giá trị gia tăng, Luật Thuế xuất khẩu, Thuế nhập khẩu, Luật Đầu tư, Luật Đầu tư công, Luật Quản lý, sử dụng tài sản công",
+    "topic_aliases": [
+      "luật sửa đổi, bổ sung một số điều của luật đấu thầu, luật đầu tư theo phương thức đối tác công tư, luật hải quan, luật thuế giá trị gia tăng, luật thuế xuất khẩu, thuế nhập khẩu, luật đầu tư, luật đầu tư công, luật quản lý, sử dụng tài sản công",
+      "90/2025/qh15"
+    ],
+    "query_patterns": [
+      "90/2025/qh15",
+      "luật sửa đổi, bổ sung một số điều của luật đấu thầu, luật đầu tư theo phương thức đối tác công tư, luật hải quan, luật thuế giá trị gia tăng, luật thuế xuất khẩu, thuế nhập khẩu, luật đầu tư, luật đầu tư công, luật quản lý, sử dụng tài sản công"
+    ],
+    "issuer": "Quốc hội",
+    "issue_date": "2025-06-25",
+    "effective_date": "",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "22/2023/QH15",
+      "64/2020/QH14",
+      "54/2014/QH13",
+      "48/2024/QH15",
+      "107/2016/QH13",
+      "61/2020/QH14",
+      "58/2024/QH15",
+      "15/2017/QH14"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Sửa đổi, bổ sung một số điều của Luật Đấu thầu, tập trung vào phạm vi áp dụng hoạt động đấu thầu sử dụng vốn ngân sách nhà nước và quyền tự quyết định áp dụng của tổ chức, cá nhân. 2. Phân cấp thẩm quyền chấp thuận, điều chỉnh chủ trương đầu tư dự án từ Thủ tướng Chính phủ xuống Ủy ban nhân dân cấp tỉnh đối với một số trường hợp chuyển tiếp. 3. Quy định chi tiết các thủ tục chuyển tiếp đối với chương trình, dự án đầu tư công, bao gồm việc áp dụng luật hiện hành cho hồ sơ đã trình và phân cấp thẩm quyền điều chỉnh quyết định đầu tư. 4. Đơn giản hóa thủ tục điều chỉnh chủ trương đầu tư đối với các dự án sử dụng vốn ODA và vốn vay ưu đãi nước ngoài, không yêu cầu điều chỉnh lại đề xuất dự án."
+  },
+  {
+    "id": "99-2025-qh15",
+    "document_number": "99/2025/QH15",
+    "document_type": "luat",
+    "title": "LUẬT SỬA ĐỔI, BỔ SUNG MỘT SỐ ĐIỀU CỦA BỘ LUẬT TỐ TỤNG HÌNH SỰ",
+    "topic_aliases": [
+      "luật sửa đổi, bổ sung một số điều của bộ luật tố tụng hình sự",
+      "99/2025/qh15"
+    ],
+    "query_patterns": [
+      "99/2025/qh15",
+      "luật sửa đổi, bổ sung một số điều của bộ luật tố tụng hình sự"
+    ],
+    "issuer": "QUỐC HỘI",
+    "issue_date": "2025-06-27",
+    "effective_date": "2025-07-01",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [
+      "101/2015/QH13",
+      "02/2021/QH15",
+      "34/2024/QH15",
+      "59/2024/QH15"
+    ],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Bổ sung các định nghĩa mới về \"Viện kiểm sát có thẩm quyền\" và \"cấp xã\" vào Điều 4 của Bộ luật Tố tụng hình sự. 2. Sửa đổi, làm rõ trách nhiệm của Viện kiểm sát trong thực hành quyền công tố và kiểm sát việc tuân theo pháp luật trong tố tụng hình sự tại Điều 20, đảm bảo xử lý kịp thời, nghiêm minh. 3. Điều chỉnh danh sách và thẩm quyền của người được giao nhiệm vụ tiến hành một số hoạt động điều tra tại Điều 35, bao gồm các chức danh trong Bộ đội biên phòng. 4. Thay thế, thống nhất nhiều cụm từ pháp lý quan trọng trong toàn bộ luật, như đổi \"chính quyền địa phương\" thành \"Ủy ban nhân dân\", \"Tòa án nhân dân cấp huyện/tỉnh\" thành \"Tòa án nhân dân khu vực\", và cập nhật thuật ngữ liên quan đến chữa bệnh, cơ quan thi hành án. 5. Bãi bỏ các cụm từ như \"Viện kiểm sát cùng cấp hoặc\" và \"Viện trưởng Viện kiểm sát cùng cấp hoặc\" tại một số điều nhằm tinh giản quy định và điều chỉnh thẩm quyền."
+  },
+  {
+    "id": "a-mttq-btt",
+    "document_number": "/ĐA-MTTQ-BTT",
+    "document_type": "khac",
+    "title": "Sắp xếp, tinh gọn các hội quần chúng do Đảng và Nhà nước giao nhiệm vụ cấp tỉnh trên địa bàn tỉnh Lâm Đồng",
+    "topic_aliases": [
+      "sắp xếp, tinh gọn các hội quần chúng do đảng và nhà nước giao nhiệm vụ cấp tỉnh trên địa bàn tỉnh lâm đồng",
+      "/đa-mttq-btt"
+    ],
+    "query_patterns": [
+      "/đa-mttq-btt",
+      "sắp xếp, tinh gọn các hội quần chúng do đảng và nhà nước giao nhiệm vụ cấp tỉnh trên địa bàn tỉnh lâm đồng"
+    ],
+    "issuer": "ỦY BAN MTTQ VIỆT NAM TỈNH LÂM ĐỒNG BAN THƯỜNG TRỰC",
+    "issue_date": null,
+    "effective_date": null,
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "1. Đề án nhằm sắp xếp, tinh gọn các hội quần chúng cấp tỉnh nhằm khắc phục tình trạng tổ chức nhiều, hoạt động kém hiệu quả hoặc trùng lặp. 2. Mục tiêu là kiện toàn tổ chức, nâng cao chất lượng cán bộ, đổi mới nội dung và phương thức hoạt động của các hội cho sát thực tiễn và nhiệm vụ chính trị địa phương. 3. Tăng cường cơ chế phối hợp, quản lý và hỗ trợ nguồn lực cho các hội, bao gồm việc làm rõ cơ chế giao nhiệm vụ, đặt hàng, khoán kinh phí. 4. Đề án kỳ vọng các hội phát huy vai trò tự quản, thực hiện hiệu quả các nhiệm vụ được giao như tuyên truyền pháp luật, tư vấn miễn phí, giám sát, phản biện xã hội và các hoạt động phúc lợi xã hội."
+  },
+  {
+    "id": "639-gm-ubnd",
+    "document_number": "639/GM-UBND",
+    "document_type": "giay_moi",
+    "title": "Hội nghị trực tuyến toàn quốc tổng kết công tác năm 2024 và triển khai nhiệm vụ công tác năm 2025 của ngành Nội vụ.",
+    "topic_aliases": [
+      "hội nghị trực tuyến toàn quốc tổng kết công tác năm 2024 và triển khai nhiệm vụ công tác năm 2025 của ngành nội vụ.",
+      "639/gm-ubnd"
+    ],
+    "query_patterns": [
+      "639/gm-ubnd",
+      "hội nghị trực tuyến toàn quốc tổng kết công tác năm 2024 và triển khai nhiệm vụ công tác năm 2025 của ngành nội vụ."
+    ],
+    "issuer": "ỦY BAN NHÂN DÂN TỈNH BÌNH THUẬN",
+    "issue_date": "2024-12-19",
+    "effective_date": "2024-12-21",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "Hội nghị trực tuyến toàn quốc tổng kết công tác năm 2024 và triển khai nhiệm vụ công tác năm 2025 của ngành Nội vụ sẽ diễn ra vào lúc 08 giờ 00, ngày 21/12/2024. Địa điểm: Cấp tỉnh tại phòng họp số 5 UBND tỉnh; Cấp huyện tại phòng họp trực tuyến các huyện, thị xã, thành phố. Thành phần tham dự gồm: Chủ tịch UBND tỉnh (chủ trì), đại diện lãnh đạo Ban Tổ chức Tỉnh ủy, Văn phòng Tỉnh ủy, Văn phòng Đoàn ĐBQH và HĐND tỉnh, Văn phòng UBND tỉnh, các Sở (Giáo dục và Đào tạo, Thông tin và Truyền thông, Tư pháp, Tài chính, Y tế, Lao động - Thương binh và Xã hội, Văn hóa, Thể thao và Du lịch, Kế hoạch và Đầu tư), Giám đốc, các Phó Giám đốc Sở Nội vụ và Trưởng các phòng chuyên môn, đơn vị trực thuộc Sở Nội vụ (tại điểm cầu tỉnh); Trưởng Phòng Nội vụ các huyện, thị xã, thành phố (tại điểm cầu cấp huyện)."
+  },
+  {
+    "id": "45-gm-ubnd",
+    "document_number": "45/GM-UBND",
+    "document_type": "giay_moi",
+    "title": "Mời họp Phiên họp lần thứ nhất Ban Chỉ đạo quốc gia về dữ liệu",
+    "topic_aliases": [
+      "mời họp phiên họp lần thứ nhất ban chỉ đạo quốc gia về dữ liệu",
+      "45/gm-ubnd"
+    ],
+    "query_patterns": [
+      "45/gm-ubnd",
+      "mời họp phiên họp lần thứ nhất ban chỉ đạo quốc gia về dữ liệu"
+    ],
+    "issuer": "ỦY BAN NHÂN DÂN TỈNH LÂM ĐỒNG",
+    "issue_date": "2026-01-12",
+    "effective_date": "2026-01-12",
+    "effective_status": "in_force",
+    "status_as_of": "2026-08-21",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-08-21T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2,
+    "tom_tat_chinh_sach": "Giấy mời họp Phiên họp lần thứ nhất Ban Chỉ đạo quốc gia về dữ liệu. Thời gian diễn ra vào lúc 14 giờ 30, ngày 12 tháng 01 năm 2026 (thứ Hai), tại Phòng họp số 2 - Văn phòng UBND tỉnh. Thành phần dự họp gồm Chủ tịch UBND tỉnh Hồ Văn Mười (chủ trì), Phó Chủ tịch Thường trực UBND tỉnh Lê Trọng Yên, Đại diện Lãnh đạo Công an tỉnh, các Sở ban ngành liên quan, Mặt trận Tổ quốc tỉnh, Tòa án nhân dân tỉnh, Viện Kiểm sát nhân dân tỉnh, Bộ Chỉ huy Quân sự tỉnh, Thanh tra tỉnh, Ban Quản lý các Khu Công nghiệp tỉnh, Báo và Phát thanh Truyền hình Lâm Đồng."
   }
 ]

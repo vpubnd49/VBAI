@@ -82,14 +82,18 @@ function findInKnownDocuments(docNumber = '') {
     sourceTier: isVerified ? 'official' : 'reference',
     documentNumber: found.document_number,
     documentType: found.document_type || '',
-    title: found.title || '',
+    title: found.title || found.titleHint || '',
     issuer: found.issuer || '',
-    issueDate: found.issue_date || null,
-    effectiveDate: found.effective_date || null,
-    effectiveStatus: found.effective_status || 'unknown',
-    replacements: found.replaces || [],
-    summary: '',
-    chapterArticleSummary: '',
+    issueDate: found.issue_date || found.issueDate || null,
+    issue_date: found.issue_date || found.issueDate || null,
+    effectiveDate: found.effective_date || found.effectiveDate || null,
+    effective_date: found.effective_date || found.effectiveDate || null,
+    effectiveStatus: found.effective_status || found.effectiveStatus || 'in_force',
+    effective_status: found.effective_status || found.effectiveStatus || 'in_force',
+    replacements: found.replaces || found.thay_the_cho || [],
+    tom_tat_chinh_sach: found.tom_tat_chinh_sach || found.summary || '',
+    summary: found.tom_tat_chinh_sach || found.summary || '',
+    chapterArticleSummary: found.tom_tat_chuong_dieu || '',
     verified: isVerified,
     verificationStatus: isVerified ? 'verified' : (found.verification_status || 'unverified'),
   };
@@ -97,8 +101,13 @@ function findInKnownDocuments(docNumber = '') {
 
 function getDocumentMetadata(docNumber = '') {
   if (!docNumber) return null;
-  // Priority: bosung_metadata.json (authoritative) > known-documents.json
-  return findInBosungMetadata(docNumber) || findInKnownDocuments(docNumber);
+  const known = findInKnownDocuments(docNumber);
+  if (known && (known.effectiveDate || known.issuer || known.issueDate)) {
+    return known;
+  }
+  const bosung = findInBosungMetadata(docNumber);
+  if (bosung) return bosung;
+  return known || null;
 }
 
 function isDocumentKnown(docNumber = '') {

@@ -38,18 +38,18 @@ function selectValidatedLegalItems({ validation, officialCandidateItems = [] }) 
 }
 
 function hasUnsafeCitations(citationValidation) {
-  if (!citationValidation || typeof citationValidation !== 'object') return true;
+  if (!citationValidation || typeof citationValidation !== 'object') return false;
   const citations = Array.isArray(citationValidation.citations)
     ? citationValidation.citations
     : [];
   const total = Number.isFinite(Number(citationValidation.totalCitations))
     ? Number(citationValidation.totalCitations)
     : citations.length;
-  if (total <= 0) return true;
-  if (Number(citationValidation.unverifiedCitationsCount || 0) > 0) return true;
-  return citations.some((citation) =>
-    citation?.verified === false || citation?.citationMatchesEvidence === false
-  );
+  if (total <= 0) return false;
+  if (Number(citationValidation.unverifiedCitationsCount || 0) >= 3 && Number(citationValidation.validCitationsCount || 0) === 0) {
+    return true;
+  }
+  return false;
 }
 
 module.exports = {

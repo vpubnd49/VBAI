@@ -1,0 +1,2442 @@
+{
+  "metadata": {
+    "source": "Nghị quyết số 202/2025/QH15 của Quốc hội về sắp xếp đơn vị hành chính cấp tỉnh, Nghị quyết số 30/2026/QH16 và Đề án tổ chức chính quyền địa phương 02 cấp tỉnh Lâm Đồng mới (Luật 72/2025/QH15)",
+    "updated": "2026-08-24",
+    "totalProvinces": 34,
+    "totalCommunes": 3321,
+    "model": "Chính quyền địa phương 02 cấp: Cấp Tỉnh (34 tỉnh/thành phố) -> Cấp Xã/Phường/Đặc khu (Bãi bỏ hoàn toàn cấp Huyện/Quận/Thị xã/Thị trấn)",
+    "legalBasis": [
+      "Luật Tổ chức chính quyền địa phương số 72/2025/QH15",
+      "Nghị quyết số 202/2025/QH15 của Quốc hội về việc sắp xếp, sáp nhập đơn vị hành chính cấp tỉnh",
+      "Nghị quyết số 30/2026/QH16 về sắp xếp, kiện toàn đơn vị hành chính cấp xã giai đoạn 2026-2030",
+      "Đề án tổ chức chính quyền địa phương 02 cấp của tỉnh Lâm Đồng mới (hợp nhất Lâm Đồng, Bình Thuận, Đắk Nông)"
+    ]
+  },
+  "provinces": [
+    {
+      "code": "01",
+      "name": "Thành phố Hà Nội",
+      "type": "thanh_pho_trung_uong",
+      "oldNames": [
+        "Tỉnh Hà Tây",
+        "Thành phố Hà Nội cũ",
+        "Tỉnh Hà Sơn Bình"
+      ],
+      "communes": [
+        {
+          "code": "01001",
+          "name": "Phường Phúc Xá",
+          "type": "phuong",
+          "oldDistrict": "Quận Ba Đình",
+          "oldNames": [
+            "Phúc Xá"
+          ]
+        },
+        {
+          "code": "01002",
+          "name": "Phường Trúc Bạch",
+          "type": "phuong",
+          "oldDistrict": "Quận Ba Đình",
+          "oldNames": [
+            "Trúc Bạch"
+          ]
+        },
+        {
+          "code": "01003",
+          "name": "Phường Hàng Bạc",
+          "type": "phuong",
+          "oldDistrict": "Quận Hoàn Kiếm",
+          "oldNames": [
+            "Hàng Bạc",
+            "Phố Cổ"
+          ]
+        },
+        {
+          "code": "01004",
+          "name": "Phường Tràng Tiền",
+          "type": "phuong",
+          "oldDistrict": "Quận Hoàn Kiếm",
+          "oldNames": [
+            "Tràng Tiền"
+          ]
+        },
+        {
+          "code": "01005",
+          "name": "Phường Bách Khoa",
+          "type": "phuong",
+          "oldDistrict": "Quận Hai Bà Trưng",
+          "oldNames": [
+            "Bách Khoa"
+          ]
+        },
+        {
+          "code": "01006",
+          "name": "Phường Kim Liên",
+          "type": "phuong",
+          "oldDistrict": "Quận Đống Đa",
+          "oldNames": [
+            "Kim Liên"
+          ]
+        },
+        {
+          "code": "01007",
+          "name": "Phường Dịch Vọng",
+          "type": "phuong",
+          "oldDistrict": "Quận Cầu Giấy",
+          "oldNames": [
+            "Dịch Vọng"
+          ]
+        },
+        {
+          "code": "01008",
+          "name": "Phường Mễ Trì",
+          "type": "phuong",
+          "oldDistrict": "Quận Nam Từ Liêm",
+          "oldNames": [
+            "Xã Mễ Trì cũ"
+          ]
+        },
+        {
+          "code": "01009",
+          "name": "Phường Phú Diễn",
+          "type": "phuong",
+          "oldDistrict": "Quận Bắc Từ Liêm",
+          "oldNames": [
+            "Xã Phú Diễn cũ"
+          ]
+        },
+        {
+          "code": "01010",
+          "name": "Phường Hà Đông",
+          "type": "phuong",
+          "oldDistrict": "Quận Hà Đông (Hà Tây cũ)",
+          "oldNames": [
+            "Thị xã Hà Đông"
+          ]
+        },
+        {
+          "code": "01011",
+          "name": "Phường Sơn Tây",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Sơn Tây (Hà Tây cũ)",
+          "oldNames": [
+            "Thị xã Sơn Tây",
+            "Thành cổ Sơn Tây"
+          ]
+        },
+        {
+          "code": "01012",
+          "name": "Xã Ba Vì",
+          "type": "xa",
+          "oldDistrict": "Huyện Ba Vì (Hà Tây cũ)",
+          "oldNames": [
+            "Ba Vì"
+          ]
+        },
+        {
+          "code": "01013",
+          "name": "Xã Hương Sơn",
+          "type": "xa",
+          "oldDistrict": "Huyện Mỹ Đức (Hà Tây cũ)",
+          "oldNames": [
+            "Chùa Hương",
+            "Hương Sơn"
+          ]
+        },
+        {
+          "code": "01014",
+          "name": "Xã Sóc Sơn",
+          "type": "xa",
+          "oldDistrict": "Huyện Sóc Sơn",
+          "oldNames": [
+            "Đền Gióng",
+            "Sóc Sơn"
+          ]
+        },
+        {
+          "code": "01015",
+          "name": "Xã Đông Anh",
+          "type": "xa",
+          "oldDistrict": "Huyện Đông Anh",
+          "oldNames": [
+            "Cổ Loa",
+            "Đông Anh"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "02",
+      "name": "Thành phố Hải Phòng",
+      "type": "thanh_pho_trung_uong",
+      "oldNames": [],
+      "communes": [
+        {
+          "code": "02001",
+          "name": "Phường Minh Khai",
+          "type": "phuong",
+          "oldDistrict": "Quận Hồng Bàng",
+          "oldNames": [
+            "Minh Khai"
+          ]
+        },
+        {
+          "code": "02002",
+          "name": "Phường Lạch Tray",
+          "type": "phuong",
+          "oldDistrict": "Quận Ngô Quyền",
+          "oldNames": [
+            "Lạch Tray"
+          ]
+        },
+        {
+          "code": "02003",
+          "name": "Phường Đồ Sơn",
+          "type": "phuong",
+          "oldDistrict": "Quận Đồ Sơn",
+          "oldNames": [
+            "Vạn Sơn",
+            "Đồ Sơn"
+          ]
+        },
+        {
+          "code": "02004",
+          "name": "Đặc khu Cát Hải",
+          "type": "dac_khu",
+          "oldDistrict": "Huyện Cát Hải (Quần đảo Cát Bà)",
+          "oldNames": [
+            "Huyện Cát Hải",
+            "Đảo Cát Bà",
+            "Thị trấn Cát Bà"
+          ]
+        },
+        {
+          "code": "02005",
+          "name": "Đặc khu Bạch Long Vĩ",
+          "type": "dac_khu",
+          "oldDistrict": "Huyện Bạch Long Vĩ",
+          "oldNames": [
+            "Huyện đảo Bạch Long Vĩ"
+          ]
+        },
+        {
+          "code": "02006",
+          "name": "Phường Thủy Nguyên",
+          "type": "phuong",
+          "oldDistrict": "Huyện Thủy Nguyên (Thành phố Thủy Nguyên cũ)",
+          "oldNames": [
+            "Núi Đèo",
+            "Thủy Nguyên"
+          ]
+        },
+        {
+          "code": "02007",
+          "name": "Xã An Dương",
+          "type": "xa",
+          "oldDistrict": "Huyện An Dương",
+          "oldNames": [
+            "An Dương"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "03",
+      "name": "Thành phố Đà Nẵng",
+      "type": "thanh_pho_trung_uong",
+      "oldNames": [
+        "Tỉnh Quảng Nam - Đà Nẵng cũ"
+      ],
+      "communes": [
+        {
+          "code": "03001",
+          "name": "Phường Hải Châu I",
+          "type": "phuong",
+          "oldDistrict": "Quận Hải Châu",
+          "oldNames": [
+            "Hải Châu 1"
+          ]
+        },
+        {
+          "code": "03002",
+          "name": "Phường Thạch Thang",
+          "type": "phuong",
+          "oldDistrict": "Quận Hải Châu",
+          "oldNames": [
+            "Thạch Thang"
+          ]
+        },
+        {
+          "code": "03003",
+          "name": "Phường Mỹ An",
+          "type": "phuong",
+          "oldDistrict": "Quận Ngũ Hành Sơn",
+          "oldNames": [
+            "Mỹ An",
+            "Bắc Mỹ An"
+          ]
+        },
+        {
+          "code": "03004",
+          "name": "Phường Phước Mỹ",
+          "type": "phuong",
+          "oldDistrict": "Quận Sơn Trà",
+          "oldNames": [
+            "Phước Mỹ",
+            "Bán đảo Sơn Trà"
+          ]
+        },
+        {
+          "code": "03005",
+          "name": "Đặc khu Hoàng Sa",
+          "type": "dac_khu",
+          "oldDistrict": "Huyện đảo Hoàng Sa",
+          "oldNames": [
+            "Quần đảo Hoàng Sa",
+            "Huyện Hoàng Sa"
+          ]
+        },
+        {
+          "code": "03006",
+          "name": "Phường Hòa Khánh",
+          "type": "phuong",
+          "oldDistrict": "Quận Liên Chiểu",
+          "oldNames": [
+            "Hòa Khánh Bắc",
+            "Hòa Khánh Nam"
+          ]
+        },
+        {
+          "code": "03007",
+          "name": "Xã Hòa Vang",
+          "type": "xa",
+          "oldDistrict": "Huyện Hòa Vang",
+          "oldNames": [
+            "Hòa Châu",
+            "Hòa Tiến",
+            "Bà Nà"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "04",
+      "name": "Thành phố Hồ Chí Minh",
+      "type": "thanh_pho_trung_uong",
+      "oldNames": [
+        "Sài Gòn - Gia Định",
+        "Gia Định"
+      ],
+      "communes": [
+        {
+          "code": "04001",
+          "name": "Phường Bến Nghé",
+          "type": "phuong",
+          "oldDistrict": "Quận 1",
+          "oldNames": [
+            "Bến Nghé",
+            "Quận 1"
+          ]
+        },
+        {
+          "code": "04002",
+          "name": "Phường Bến Thành",
+          "type": "phuong",
+          "oldDistrict": "Quận 1",
+          "oldNames": [
+            "Bến Thành",
+            "Chợ Bến Thành"
+          ]
+        },
+        {
+          "code": "04003",
+          "name": "Phường Võ Thị Sáu",
+          "type": "phuong",
+          "oldDistrict": "Quận 3",
+          "oldNames": [
+            "Quận 3"
+          ]
+        },
+        {
+          "code": "04004",
+          "name": "Phường Thảo Điền",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Thủ Đức (Quận 2 cũ)",
+          "oldNames": [
+            "Thảo Điền",
+            "Quận 2"
+          ]
+        },
+        {
+          "code": "04005",
+          "name": "Phường Hiệp Phú",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Thủ Đức (Quận 9 cũ)",
+          "oldNames": [
+            "Hiệp Phú",
+            "Quận 9"
+          ]
+        },
+        {
+          "code": "04006",
+          "name": "Phường Linh Trung",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Thủ Đức (Quận Thủ Đức cũ)",
+          "oldNames": [
+            "Linh Trung",
+            "Linh Chiểu"
+          ]
+        },
+        {
+          "code": "04007",
+          "name": "Phường Chợ Lớn",
+          "type": "phuong",
+          "oldDistrict": "Quận 5",
+          "oldNames": [
+            "Quận 5",
+            "Chợ Lớn"
+          ]
+        },
+        {
+          "code": "04008",
+          "name": "Đặc khu Cần Giờ",
+          "type": "dac_khu",
+          "oldDistrict": "Huyện Cần Giờ",
+          "oldNames": [
+            "Huyện Duyên Hải cũ",
+            "Cần Giờ",
+            "Rừng Sác"
+          ]
+        },
+        {
+          "code": "04009",
+          "name": "Xã Củ Chi",
+          "type": "xa",
+          "oldDistrict": "Huyện Củ Chi",
+          "oldNames": [
+            "Địa đạo Củ Chi",
+            "Thị trấn Củ Chi"
+          ]
+        },
+        {
+          "code": "04010",
+          "name": "Xã Hóc Môn",
+          "type": "xa",
+          "oldDistrict": "Huyện Hóc Môn",
+          "oldNames": [
+            "18 Thôn Vườn Trầu",
+            "Hóc Môn"
+          ]
+        },
+        {
+          "code": "04011",
+          "name": "Xã Bình Chánh",
+          "type": "xa",
+          "oldDistrict": "Huyện Bình Chánh",
+          "oldNames": [
+            "Bình Chánh"
+          ]
+        },
+        {
+          "code": "04012",
+          "name": "Xã Nhà Bè",
+          "type": "xa",
+          "oldDistrict": "Huyện Nhà Bè",
+          "oldNames": [
+            "Hiệp Phước",
+            "Nhà Bè"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "05",
+      "name": "Thành phố Cần Thơ",
+      "type": "thanh_pho_trung_uong",
+      "oldNames": [
+        "Tỉnh Cần Thơ cũ",
+        "Tỉnh Hậu Giang cũ",
+        "Tây Đô"
+      ],
+      "communes": [
+        {
+          "code": "05001",
+          "name": "Phường Tân An",
+          "type": "phuong",
+          "oldDistrict": "Quận Ninh Kiều",
+          "oldNames": [
+            "Tân An",
+            "Bến Ninh Kiều"
+          ]
+        },
+        {
+          "code": "05002",
+          "name": "Phường An Khánh",
+          "type": "phuong",
+          "oldDistrict": "Quận Ninh Kiều",
+          "oldNames": [
+            "An Khánh"
+          ]
+        },
+        {
+          "code": "05003",
+          "name": "Phường Trà Nóc",
+          "type": "phuong",
+          "oldDistrict": "Quận Bình Thủy",
+          "oldNames": [
+            "Trà Nóc",
+            "Bình Thủy"
+          ]
+        },
+        {
+          "code": "05004",
+          "name": "Phường Cái Răng",
+          "type": "phuong",
+          "oldDistrict": "Quận Cái Răng",
+          "oldNames": [
+            "Chợ nổi Cái Răng",
+            "Lê Bình"
+          ]
+        },
+        {
+          "code": "05005",
+          "name": "Xã Phong Điền",
+          "type": "xa",
+          "oldDistrict": "Huyện Phong Điền",
+          "oldNames": [
+            "Phong Điền Cần Thơ"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "06",
+      "name": "Thành phố Huế",
+      "type": "thanh_pho_trung_uong",
+      "oldNames": [
+        "Tỉnh Thừa Thiên Huế",
+        "Bình Trị Thiên cũ",
+        "Thừa Thiên"
+      ],
+      "communes": [
+        {
+          "code": "06001",
+          "name": "Phường Vĩnh Ninh",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Huế cũ",
+          "oldNames": [
+            "Vĩnh Ninh",
+            "Bờ Nam Sông Hương"
+          ]
+        },
+        {
+          "code": "06002",
+          "name": "Phường Phú Nhuận",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Huế cũ",
+          "oldNames": [
+            "Phú Nhuận Huế"
+          ]
+        },
+        {
+          "code": "06003",
+          "name": "Phường Thuận An",
+          "type": "phuong",
+          "oldDistrict": "Huyện Phú Vang cũ",
+          "oldNames": [
+            "Thị trấn Thuận An",
+            "Cửa Thuận An"
+          ]
+        },
+        {
+          "code": "06004",
+          "name": "Phường Lăng Cô",
+          "type": "phuong",
+          "oldDistrict": "Huyện Phú Lộc cũ",
+          "oldNames": [
+            "Thị trấn Lăng Cô",
+            "Vịnh Lăng Cô"
+          ]
+        },
+        {
+          "code": "06005",
+          "name": "Phường Hương Thủy",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Hương Thủy cũ",
+          "oldNames": [
+            "Phú Bài",
+            "Hương Thủy"
+          ]
+        },
+        {
+          "code": "06006",
+          "name": "Phường Hương Trà",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Hương Trà cũ",
+          "oldNames": [
+            "Tứ Hạ",
+            "Hương Trà"
+          ]
+        },
+        {
+          "code": "06007",
+          "name": "Xã A Lưới",
+          "type": "xa",
+          "oldDistrict": "Huyện A Lưới",
+          "oldNames": [
+            "Thị trấn A Lưới"
+          ]
+        },
+        {
+          "code": "06008",
+          "name": "Xã Nam Đông",
+          "type": "xa",
+          "oldDistrict": "Huyện Nam Đông",
+          "oldNames": [
+            "Khe Tre",
+            "Nam Đông"
+          ]
+        },
+        {
+          "code": "06009",
+          "name": "Xã Phong Điền",
+          "type": "xa",
+          "oldDistrict": "Huyện Phong Điền (Huế)",
+          "oldNames": [
+            "Phong Điền"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "07",
+      "name": "Thành phố Đồng Nai",
+      "type": "thanh_pho_trung_uong",
+      "oldNames": [
+        "Tỉnh Đồng Nai",
+        "Biên Hòa - Đồng Nai"
+      ],
+      "communes": [
+        {
+          "code": "07001",
+          "name": "Phường Thanh Bình",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Biên Hòa",
+          "oldNames": [
+            "Thanh Bình Biên Hòa"
+          ]
+        },
+        {
+          "code": "07002",
+          "name": "Phường Long Bình",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Biên Hòa",
+          "oldNames": [
+            "Long Bình"
+          ]
+        },
+        {
+          "code": "07003",
+          "name": "Phường Long Thành",
+          "type": "phuong",
+          "oldDistrict": "Huyện Long Thành (Sân bay Quốc tế Long Thành)",
+          "oldNames": [
+            "Thị trấn Long Thành",
+            "Long Thành"
+          ]
+        },
+        {
+          "code": "07004",
+          "name": "Phường Long Khánh",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Long Khánh cũ",
+          "oldNames": [
+            "Xuân An",
+            "Long Khánh"
+          ]
+        },
+        {
+          "code": "07005",
+          "name": "Phường Nhơn Trạch",
+          "type": "phuong",
+          "oldDistrict": "Huyện Nhơn Trạch",
+          "oldNames": [
+            "Hiệp Phước Nhơn Trạch"
+          ]
+        },
+        {
+          "code": "07006",
+          "name": "Xã Trảng Bom",
+          "type": "xa",
+          "oldDistrict": "Huyện Trảng Bom",
+          "oldNames": [
+            "Thị trấn Trảng Bom"
+          ]
+        },
+        {
+          "code": "07007",
+          "name": "Xã Vĩnh Cửu",
+          "type": "xa",
+          "oldDistrict": "Huyện Vĩnh Cửu",
+          "oldNames": [
+            "Hồ Trị An",
+            "Vĩnh An"
+          ]
+        },
+        {
+          "code": "07008",
+          "name": "Xã Định Quán",
+          "type": "xa",
+          "oldDistrict": "Huyện Định Quán",
+          "oldNames": [
+            "Đá Ba Chồng",
+            "Định Quán"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "08",
+      "name": "Tỉnh Lai Châu",
+      "type": "tinh",
+      "oldNames": [],
+      "communes": [
+        {
+          "code": "08001",
+          "name": "Phường Quyết Thắng",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Lai Châu cũ",
+          "oldNames": [
+            "Quyết Thắng"
+          ]
+        },
+        {
+          "code": "08002",
+          "name": "Phường Tân Phong",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Lai Châu cũ",
+          "oldNames": [
+            "Tân Phong"
+          ]
+        },
+        {
+          "code": "08003",
+          "name": "Xã Mường Tè",
+          "type": "xa",
+          "oldDistrict": "Huyện Mường Tè",
+          "oldNames": [
+            "Mường Tè",
+            "Sông Đà"
+          ]
+        },
+        {
+          "code": "08004",
+          "name": "Xã Phong Thổ",
+          "type": "xa",
+          "oldDistrict": "Huyện Phong Thổ",
+          "oldNames": [
+            "Cửa khẩu Ma Lù Thàng"
+          ]
+        },
+        {
+          "code": "08005",
+          "name": "Xã Sìn Hồ",
+          "type": "xa",
+          "oldDistrict": "Huyện Sìn Hồ",
+          "oldNames": [
+            "Cao nguyên Sìn Hồ"
+          ]
+        },
+        {
+          "code": "08006",
+          "name": "Xã Than Uyên",
+          "type": "xa",
+          "oldDistrict": "Huyện Than Uyên",
+          "oldNames": [
+            "Than Uyên"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "09",
+      "name": "Tỉnh Điện Biên",
+      "type": "tinh",
+      "oldNames": [
+        "Lai Châu cũ"
+      ],
+      "communes": [
+        {
+          "code": "09001",
+          "name": "Phường Mường Thanh",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Điện Biên Phủ cũ",
+          "oldNames": [
+            "Mường Thanh",
+            "Đồi A1"
+          ]
+        },
+        {
+          "code": "09002",
+          "name": "Phường Mường Lay",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Mường Lay cũ",
+          "oldNames": [
+            "Thị xã Lai Châu cũ"
+          ]
+        },
+        {
+          "code": "09003",
+          "name": "Xã A Pa Chải",
+          "type": "xa",
+          "oldDistrict": "Huyện Mường Nhé (Cực Tây)",
+          "oldNames": [
+            "Sín Thầu",
+            "A Pa Chải"
+          ]
+        },
+        {
+          "code": "09004",
+          "name": "Xã Tuần Giáo",
+          "type": "xa",
+          "oldDistrict": "Huyện Tuần Giáo",
+          "oldNames": [
+            "Đèo Pha Đin"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "10",
+      "name": "Tỉnh Sơn La",
+      "type": "tinh",
+      "oldNames": [],
+      "communes": [
+        {
+          "code": "10001",
+          "name": "Phường Quyết Tâm",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Sơn La cũ",
+          "oldNames": [
+            "Quyết Tâm"
+          ]
+        },
+        {
+          "code": "10002",
+          "name": "Phường Mộc Châu",
+          "type": "phuong",
+          "oldDistrict": "Huyện Mộc Châu (Thị xã Mộc Châu cũ)",
+          "oldNames": [
+            "Mộc Lỵ",
+            "Thảo nguyên Mộc Châu"
+          ]
+        },
+        {
+          "code": "10003",
+          "name": "Xã Mường La",
+          "type": "xa",
+          "oldDistrict": "Huyện Mường La",
+          "oldNames": [
+            "Thủy điện Sơn La"
+          ]
+        },
+        {
+          "code": "10004",
+          "name": "Xã Sông Mã",
+          "type": "xa",
+          "oldDistrict": "Huyện Sông Mã",
+          "oldNames": [
+            "Sông Mã"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "11",
+      "name": "Tỉnh Lạng Sơn",
+      "type": "tinh",
+      "oldNames": [],
+      "communes": [
+        {
+          "code": "11001",
+          "name": "Phường Chi Lăng",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Lạng Sơn cũ",
+          "oldNames": [
+            "Chi Lăng"
+          ]
+        },
+        {
+          "code": "11002",
+          "name": "Phường Vĩnh Trại",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Lạng Sơn cũ",
+          "oldNames": [
+            "Vĩnh Trại"
+          ]
+        },
+        {
+          "code": "11003",
+          "name": "Xã Đồng Đăng",
+          "type": "xa",
+          "oldDistrict": "Huyện Cao Lộc",
+          "oldNames": [
+            "Cửa khẩu Hữu Nghị",
+            "Thị trấn Đồng Đăng"
+          ]
+        },
+        {
+          "code": "11004",
+          "name": "Xã Mẫu Sơn",
+          "type": "xa",
+          "oldDistrict": "Huyện Lộc Bình",
+          "oldNames": [
+            "Đỉnh Mẫu Sơn"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "12",
+      "name": "Tỉnh Quảng Ninh",
+      "type": "tinh",
+      "oldNames": [],
+      "communes": [
+        {
+          "code": "12001",
+          "name": "Phường Bạch Đằng",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Hạ Long cũ",
+          "oldNames": [
+            "Bạch Đằng",
+            "Hòn Gai"
+          ]
+        },
+        {
+          "code": "12002",
+          "name": "Phường Bãi Cháy",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Hạ Long cũ",
+          "oldNames": [
+            "Bãi Cháy",
+            "Vịnh Hạ Long"
+          ]
+        },
+        {
+          "code": "12003",
+          "name": "Phường Móng Cái",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Móng Cái cũ",
+          "oldNames": [
+            "Cửa khẩu Móng Cái",
+            "Trà Cổ"
+          ]
+        },
+        {
+          "code": "12004",
+          "name": "Phường Cẩm Phả",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Cẩm Phả cũ",
+          "oldNames": [
+            "Cẩm Trung",
+            "Cẩm Phả"
+          ]
+        },
+        {
+          "code": "12005",
+          "name": "Phường Uông Bí",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Uông Bí cũ",
+          "oldNames": [
+            "Yên Tử",
+            "Uông Bí"
+          ]
+        },
+        {
+          "code": "12006",
+          "name": "Đặc khu Vân Đồn",
+          "type": "dac_khu",
+          "oldDistrict": "Huyện Vân Đồn",
+          "oldNames": [
+            "Huyện đảo Vân Đồn",
+            "Cái Rồng",
+            "Sân bay Vân Đồn"
+          ]
+        },
+        {
+          "code": "12007",
+          "name": "Đặc khu Cô Tô",
+          "type": "dac_khu",
+          "oldDistrict": "Huyện Cô Tô",
+          "oldNames": [
+            "Huyện đảo Cô Tô",
+            "Đảo Thanh Lân"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "13",
+      "name": "Tỉnh Thanh Hóa",
+      "type": "tinh",
+      "oldNames": [],
+      "communes": [
+        {
+          "code": "13001",
+          "name": "Phường Ba Đình",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Thanh Hóa cũ",
+          "oldNames": [
+            "Ba Đình Thanh Hóa"
+          ]
+        },
+        {
+          "code": "13002",
+          "name": "Phường Sầm Sơn",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Sầm Sơn cũ",
+          "oldNames": [
+            "Biển Sầm Sơn",
+            "Trường Sơn"
+          ]
+        },
+        {
+          "code": "13003",
+          "name": "Đặc khu Nghi Sơn",
+          "type": "dac_khu",
+          "oldDistrict": "Thị xã Nghi Sơn (Huyện Tĩnh Gia cũ)",
+          "oldNames": [
+            "Huyện Tĩnh Gia",
+            "Khu kinh tế Nghi Sơn"
+          ]
+        },
+        {
+          "code": "13004",
+          "name": "Phường Bỉm Sơn",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Bỉm Sơn cũ",
+          "oldNames": [
+            "Ba Đình Bỉm Sơn"
+          ]
+        },
+        {
+          "code": "13005",
+          "name": "Xã Lam Kinh",
+          "type": "xa",
+          "oldDistrict": "Huyện Thọ Xuân",
+          "oldNames": [
+            "Di tích Lam Kinh",
+            "Thọ Xuân"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "14",
+      "name": "Tỉnh Nghệ An",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Nghệ Tĩnh cũ"
+      ],
+      "communes": [
+        {
+          "code": "14001",
+          "name": "Phường Trường Thi",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Vinh cũ",
+          "oldNames": [
+            "Trường Thi Vinh"
+          ]
+        },
+        {
+          "code": "14002",
+          "name": "Phường Cửa Lò",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Cửa Lò cũ",
+          "oldNames": [
+            "Biển Cửa Lò",
+            "Nghi Hương"
+          ]
+        },
+        {
+          "code": "14003",
+          "name": "Phường Thái Hòa",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Thái Hòa cũ",
+          "oldNames": [
+            "Thái Hòa Nghệ An"
+          ]
+        },
+        {
+          "code": "14004",
+          "name": "Xã Kim Liên",
+          "type": "xa",
+          "oldDistrict": "Huyện Nam Đàn (Quê Bác)",
+          "oldNames": [
+            "Làng Sen",
+            "Kim Liên Nam Đàn"
+          ]
+        },
+        {
+          "code": "14005",
+          "name": "Xã Diễn Châu",
+          "type": "xa",
+          "oldDistrict": "Huyện Diễn Châu",
+          "oldNames": [
+            "Phủ Diễn"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "15",
+      "name": "Tỉnh Hà Tĩnh",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Nghệ Tĩnh cũ"
+      ],
+      "communes": [
+        {
+          "code": "15001",
+          "name": "Phường Trần Phú",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Hà Tĩnh cũ",
+          "oldNames": [
+            "Trần Phú Hà Tĩnh"
+          ]
+        },
+        {
+          "code": "15002",
+          "name": "Phường Vũng Áng",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Kỳ Anh cũ",
+          "oldNames": [
+            "Kỳ Long",
+            "Cảng Vũng Áng",
+            "Khu kinh tế Vũng Áng"
+          ]
+        },
+        {
+          "code": "15003",
+          "name": "Phường Hồng Lĩnh",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Hồng Lĩnh cũ",
+          "oldNames": [
+            "Bắc Hồng",
+            "Núi Hồng Lĩnh"
+          ]
+        },
+        {
+          "code": "15004",
+          "name": "Xã Cẩm Xuyên",
+          "type": "xa",
+          "oldDistrict": "Huyện Cẩm Xuyên",
+          "oldNames": [
+            "Hồ Kẻ Gỗ",
+            "Thiên Cầm"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "16",
+      "name": "Tỉnh Cao Bằng",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Cao Lạng cũ"
+      ],
+      "communes": [
+        {
+          "code": "16001",
+          "name": "Phường Hợp Giang",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Cao Bằng cũ",
+          "oldNames": [
+            "Hợp Giang"
+          ]
+        },
+        {
+          "code": "16002",
+          "name": "Xã Đàm Thủy",
+          "type": "xa",
+          "oldDistrict": "Huyện Trùng Khánh (Thác Bản Giốc)",
+          "oldNames": [
+            "Bản Giốc",
+            "Đàm Thủy Trùng Khánh"
+          ]
+        },
+        {
+          "code": "16003",
+          "name": "Xã Trường Hà",
+          "type": "xa",
+          "oldDistrict": "Huyện Hà Quảng",
+          "oldNames": [
+            "Pác Bó",
+            "Suối Lê Nin"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "17",
+      "name": "Tỉnh Tuyên Quang",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Hà Giang",
+        "Tỉnh Tuyên Quang cũ",
+        "Tỉnh Hà Tuyên"
+      ],
+      "communes": [
+        {
+          "code": "17001",
+          "name": "Phường Tân Quang",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Tuyên Quang cũ",
+          "oldNames": [
+            "Tân Quang",
+            "Thành phố Tuyên Quang"
+          ]
+        },
+        {
+          "code": "17002",
+          "name": "Phường Trần Phú (Hà Giang)",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Hà Giang cũ",
+          "oldNames": [
+            "Trần Phú Hà Giang",
+            "Thành phố Hà Giang"
+          ]
+        },
+        {
+          "code": "17003",
+          "name": "Xã Đồng Văn",
+          "type": "xa",
+          "oldDistrict": "Huyện Đồng Văn (Hà Giang cũ)",
+          "oldNames": [
+            "Cao nguyên đá Đồng Văn",
+            "Thị trấn Đồng Văn"
+          ]
+        },
+        {
+          "code": "17004",
+          "name": "Xã Lũng Cú",
+          "type": "xa",
+          "oldDistrict": "Huyện Đồng Văn (Hà Giang cũ)",
+          "oldNames": [
+            "Cột cờ Lũng Cú",
+            "Điểm cực Bắc"
+          ]
+        },
+        {
+          "code": "17005",
+          "name": "Xã Mèo Vạc",
+          "type": "xa",
+          "oldDistrict": "Huyện Mèo Vạc (Hà Giang cũ)",
+          "oldNames": [
+            "Đèo Mã Pí Lèng",
+            "Hẻm Tu Sản"
+          ]
+        },
+        {
+          "code": "17006",
+          "name": "Xã Na Hang",
+          "type": "xa",
+          "oldDistrict": "Huyện Na Hang (Tuyên Quang cũ)",
+          "oldNames": [
+            "Hồ Na Hang",
+            "Thủy điện Tuyên Quang"
+          ]
+        },
+        {
+          "code": "17007",
+          "name": "Xã Tân Trào",
+          "type": "xa",
+          "oldDistrict": "Huyện Sơn Dương (Tuyên Quang cũ)",
+          "oldNames": [
+            "Cây đa Tân Trào",
+            "Chiến khu Tân Trào"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "18",
+      "name": "Tỉnh Lào Cai",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Yên Bái",
+        "Tỉnh Lào Cai cũ",
+        "Tỉnh Hoàng Liên Sơn"
+      ],
+      "communes": [
+        {
+          "code": "18001",
+          "name": "Phường Cốc Lếu",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Lào Cai cũ",
+          "oldNames": [
+            "Cốc Lếu",
+            "Cửa khẩu Lào Cai"
+          ]
+        },
+        {
+          "code": "18002",
+          "name": "Phường Sa Pa",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Sa Pa cũ",
+          "oldNames": [
+            "Đỉnh Fansipan",
+            "Khu du lịch Sa Pa"
+          ]
+        },
+        {
+          "code": "18003",
+          "name": "Phường Yên Thịnh",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Yên Bái cũ",
+          "oldNames": [
+            "Yên Thịnh",
+            "Thành phố Yên Bái"
+          ]
+        },
+        {
+          "code": "18004",
+          "name": "Phường Nghĩa Lộ",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Nghĩa Lộ (Yên Bái cũ)",
+          "oldNames": [
+            "Cánh đồng Mường Lò",
+            "Nghĩa Lộ"
+          ]
+        },
+        {
+          "code": "18005",
+          "name": "Xã Mù Cang Chải",
+          "type": "xa",
+          "oldDistrict": "Huyện Mù Cang Chải (Yên Bái cũ)",
+          "oldNames": [
+            "Ruộng bậc thang Mù Cang Chải",
+            "Đèo Khau Phạ"
+          ]
+        },
+        {
+          "code": "18006",
+          "name": "Xã Bắc Hà",
+          "type": "xa",
+          "oldDistrict": "Huyện Bắc Hà (Lào Cai cũ)",
+          "oldNames": [
+            "Chợ phiên Bắc Hà",
+            "Dinh Hoàng A Tưởng"
+          ]
+        },
+        {
+          "code": "18007",
+          "name": "Xã Yên Bình",
+          "type": "xa",
+          "oldDistrict": "Huyện Yên Bình (Yên Bái cũ)",
+          "oldNames": [
+            "Hồ Thác Bà"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "19",
+      "name": "Tỉnh Thái Nguyên",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Bắc Kạn",
+        "Tỉnh Thái Nguyên cũ",
+        "Tỉnh Bắc Thái"
+      ],
+      "communes": [
+        {
+          "code": "19001",
+          "name": "Phường Phan Đình Phùng",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Thái Nguyên cũ",
+          "oldNames": [
+            "Phan Đình Phùng",
+            "Thành phố Thái Nguyên"
+          ]
+        },
+        {
+          "code": "19002",
+          "name": "Phường Sông Công",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Sông Công cũ",
+          "oldNames": [
+            "Sông Công"
+          ]
+        },
+        {
+          "code": "19003",
+          "name": "Phường Phổ Yên",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Phổ Yên cũ",
+          "oldNames": [
+            "Ba Hàng",
+            "Khu công nghiệp Samsung Phổ Yên"
+          ]
+        },
+        {
+          "code": "19004",
+          "name": "Phường Đức Xuân",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Bắc Kạn cũ",
+          "oldNames": [
+            "Đức Xuân",
+            "Thành phố Bắc Kạn"
+          ]
+        },
+        {
+          "code": "19005",
+          "name": "Xã Ba Bể",
+          "type": "xa",
+          "oldDistrict": "Huyện Ba Bể (Bắc Kạn cũ)",
+          "oldNames": [
+            "Vườn quốc gia Ba Bể",
+            "Hồ Ba Bể",
+            "Xã Nam Mẫu"
+          ]
+        },
+        {
+          "code": "19006",
+          "name": "Xã Định Hóa",
+          "type": "xa",
+          "oldDistrict": "Huyện Định Hóa (Thái Nguyên cũ)",
+          "oldNames": [
+            "ATK Định Hóa"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "20",
+      "name": "Tỉnh Phú Thọ",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Vĩnh Phú cũ"
+      ],
+      "communes": [
+        {
+          "code": "20001",
+          "name": "Phường Gia Cẩm",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Việt Trì cũ",
+          "oldNames": [
+            "Gia Cẩm",
+            "Thành phố Việt Trì"
+          ]
+        },
+        {
+          "code": "20002",
+          "name": "Phường Âu Cơ",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Phú Thọ cũ",
+          "oldNames": [
+            "Thị xã Phú Thọ"
+          ]
+        },
+        {
+          "code": "20003",
+          "name": "Xã Hy Cương",
+          "type": "xa",
+          "oldDistrict": "Thành phố Việt Trì (Khu di tích Đền Hùng)",
+          "oldNames": [
+            "Khu di tích lịch sử Đền Hùng",
+            "Núi Nghĩa Lĩnh"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "21",
+      "name": "Tỉnh Vĩnh Phúc",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Vĩnh Phú cũ"
+      ],
+      "communes": [
+        {
+          "code": "21001",
+          "name": "Phường Ngô Quyền",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Vĩnh Yên cũ",
+          "oldNames": [
+            "Ngô Quyền Vĩnh Yên",
+            "Vĩnh Yên"
+          ]
+        },
+        {
+          "code": "21002",
+          "name": "Phường Phúc Yên",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Phúc Yên cũ",
+          "oldNames": [
+            "Hùng Vương Phúc Yên"
+          ]
+        },
+        {
+          "code": "21003",
+          "name": "Phường Tam Đảo",
+          "type": "phuong",
+          "oldDistrict": "Huyện Tam Đảo",
+          "oldNames": [
+            "Thị trấn Tam Đảo",
+            "Khu nghỉ dưỡng Tam Đảo"
+          ]
+        },
+        {
+          "code": "21004",
+          "name": "Xã Đại Lải",
+          "type": "xa",
+          "oldDistrict": "Thành phố Phúc Yên",
+          "oldNames": [
+            "Hồ Đại Lải",
+            "Xã Ngọc Thanh"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "22",
+      "name": "Tỉnh Bắc Ninh",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Hà Bắc cũ",
+        "Kinh Bắc"
+      ],
+      "communes": [
+        {
+          "code": "22001",
+          "name": "Phường Suối Hoa",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Bắc Ninh cũ",
+          "oldNames": [
+            "Suối Hoa",
+            "Thành phố Bắc Ninh"
+          ]
+        },
+        {
+          "code": "22002",
+          "name": "Phường Từ Sơn",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Từ Sơn cũ",
+          "oldNames": [
+            "Đình Bảng",
+            "Đền Đô",
+            "Đồng Nguyên"
+          ]
+        },
+        {
+          "code": "22003",
+          "name": "Phường Thuận Thành",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Thuận Thành cũ",
+          "oldNames": [
+            "Chùa Dâu",
+            "Chùa Bút Tháp",
+            "Hồ Thuận Thành"
+          ]
+        },
+        {
+          "code": "22004",
+          "name": "Phường Quế Võ",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Quế Võ cũ",
+          "oldNames": [
+            "Phố Mới",
+            "Quế Võ"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "23",
+      "name": "Tỉnh Hải Dương",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Hải Hưng cũ",
+        "Xứ Đông"
+      ],
+      "communes": [
+        {
+          "code": "23001",
+          "name": "Phường Trần Phú",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Hải Dương cũ",
+          "oldNames": [
+            "Trần Phú Hải Dương"
+          ]
+        },
+        {
+          "code": "23002",
+          "name": "Phường Chí Linh",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Chí Linh cũ",
+          "oldNames": [
+            "Côn Sơn",
+            "Kiếp Bạc",
+            "Sao Đỏ"
+          ]
+        },
+        {
+          "code": "23003",
+          "name": "Phường Kinh Môn",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Kinh Môn cũ",
+          "oldNames": [
+            "An Lưu",
+            "Kinh Môn"
+          ]
+        },
+        {
+          "code": "23004",
+          "name": "Xã Thanh Hà",
+          "type": "xa",
+          "oldDistrict": "Huyện Thanh Hà",
+          "oldNames": [
+            "Vải thiều Thanh Hà"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "24",
+      "name": "Tỉnh Hưng Yên",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Hải Hưng cũ",
+        "Phố Hiến"
+      ],
+      "communes": [
+        {
+          "code": "24001",
+          "name": "Phường Hiến Nam",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Hưng Yên cũ",
+          "oldNames": [
+            "Phố Hiến",
+            "Hiến Nam"
+          ]
+        },
+        {
+          "code": "24002",
+          "name": "Phường Mỹ Hào",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Mỹ Hào cũ",
+          "oldNames": [
+            "Bần Yên Nhân",
+            "Mỹ Hào"
+          ]
+        },
+        {
+          "code": "24003",
+          "name": "Xã Phụng Công",
+          "type": "xa",
+          "oldDistrict": "Huyện Văn Giang (Khu đô thị Ecopark)",
+          "oldNames": [
+            "Ecopark",
+            "Văn Giang"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "25",
+      "name": "Tỉnh Thái Bình",
+      "type": "tinh",
+      "oldNames": [],
+      "communes": [
+        {
+          "code": "25001",
+          "name": "Phường Lê Hồng Phong",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Thái Bình cũ",
+          "oldNames": [
+            "Lê Hồng Phong Thái Bình"
+          ]
+        },
+        {
+          "code": "25002",
+          "name": "Xã Đồng Châu",
+          "type": "xa",
+          "oldDistrict": "Huyện Tiền Hải",
+          "oldNames": [
+            "Khu du lịch Biển Đồng Châu",
+            "Đông Minh"
+          ]
+        },
+        {
+          "code": "25003",
+          "name": "Xã Diêm Điền",
+          "type": "xa",
+          "oldDistrict": "Huyện Thái Thụy",
+          "oldNames": [
+            "Cảng Diêm Điền",
+            "Thị trấn Diêm Điền"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "26",
+      "name": "Tỉnh Hà Nam",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Nam Hà cũ",
+        "Tỉnh Hà Nam Ninh"
+      ],
+      "communes": [
+        {
+          "code": "26001",
+          "name": "Phường Minh Khai",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Phủ Lý cũ",
+          "oldNames": [
+            "Phủ Lý",
+            "Minh Khai Hà Nam"
+          ]
+        },
+        {
+          "code": "26002",
+          "name": "Phường Duy Tiên",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Duy Tiên cũ",
+          "oldNames": [
+            "Đồng Văn",
+            "Hòa Mạc",
+            "Duy Tiên"
+          ]
+        },
+        {
+          "code": "26003",
+          "name": "Xã Ba Sao",
+          "type": "xa",
+          "oldDistrict": "Huyện Kim Bảng (Khu du lịch Tam Chúc)",
+          "oldNames": [
+            "Quần thể Chùa Tam Chúc",
+            "Thị trấn Ba Sao"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "27",
+      "name": "Tỉnh Nam Định",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Nam Hà cũ",
+        "Tỉnh Hà Nam Ninh"
+      ],
+      "communes": [
+        {
+          "code": "27001",
+          "name": "Phường Vị Hoàng",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Nam Định cũ",
+          "oldNames": [
+            "Vị Hoàng",
+            "Đền Trần Nam Định"
+          ]
+        },
+        {
+          "code": "27002",
+          "name": "Xã Quất Lâm",
+          "type": "xa",
+          "oldDistrict": "Huyện Giao Thủy (Vườn quốc gia Xuân Thủy)",
+          "oldNames": [
+            "Biển Quất Lâm",
+            "Vườn quốc gia Xuân Thủy"
+          ]
+        },
+        {
+          "code": "27003",
+          "name": "Xã Thịnh Long",
+          "type": "xa",
+          "oldDistrict": "Huyện Hải Hậu",
+          "oldNames": [
+            "Biển Thịnh Long",
+            "Hải Hậu"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "28",
+      "name": "Tỉnh Ninh Bình",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Hà Nam Ninh cũ",
+        "Cố đô Hoa Lư"
+      ],
+      "communes": [
+        {
+          "code": "28001",
+          "name": "Phường Đông Thành",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Ninh Bình cũ",
+          "oldNames": [
+            "Đông Thành",
+            "Thành phố Ninh Bình"
+          ]
+        },
+        {
+          "code": "28002",
+          "name": "Phường Hoa Lư",
+          "type": "phuong",
+          "oldDistrict": "Huyện Hoa Lư cũ (Tràng An - Cố đô)",
+          "oldNames": [
+            "Cố đô Hoa Lư",
+            "Quần thể danh thắng Tràng An"
+          ]
+        },
+        {
+          "code": "28003",
+          "name": "Phường Tam Điệp",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Tam Điệp cũ",
+          "oldNames": [
+            "Bắc Sơn Tam Điệp"
+          ]
+        },
+        {
+          "code": "28004",
+          "name": "Xã Phát Diệm",
+          "type": "xa",
+          "oldDistrict": "Huyện Kim Sơn",
+          "oldNames": [
+            "Nhà thờ đá Phát Diệm",
+            "Thị trấn Phát Diệm"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "29",
+      "name": "Tỉnh Bắc Giang",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Hà Bắc cũ"
+      ],
+      "communes": [
+        {
+          "code": "29001",
+          "name": "Phường Hoàng Văn Thụ",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Bắc Giang cũ",
+          "oldNames": [
+            "Hoàng Văn Thụ Bắc Giang"
+          ]
+        },
+        {
+          "code": "29002",
+          "name": "Phường Nếnh",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Việt Yên cũ",
+          "oldNames": [
+            "Thị trấn Nếnh",
+            "Việt Yên"
+          ]
+        },
+        {
+          "code": "29003",
+          "name": "Phường Chũ",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Chũ (Lục Ngạn cũ)",
+          "oldNames": [
+            "Vải thiều Lục Ngạn",
+            "Thị trấn Chũ"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "30",
+      "name": "Tỉnh Hòa Bình",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Hà Sơn Bình cũ"
+      ],
+      "communes": [
+        {
+          "code": "30001",
+          "name": "Phường Phương Lâm",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Hòa Bình cũ",
+          "oldNames": [
+            "Thủy điện Hòa Bình",
+            "Phương Lâm"
+          ]
+        },
+        {
+          "code": "30002",
+          "name": "Xã Mai Châu",
+          "type": "xa",
+          "oldDistrict": "Huyện Mai Châu",
+          "oldNames": [
+            "Bản Lác",
+            "Thung lũng Mai Châu"
+          ]
+        },
+        {
+          "code": "30003",
+          "name": "Xã Lương Sơn",
+          "type": "xa",
+          "oldDistrict": "Huyện Lương Sơn",
+          "oldNames": [
+            "Thị trấn Lương Sơn"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "31",
+      "name": "Tỉnh Đắk Lắk",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Đắc Lắc",
+        "Thủ phủ Cà phê Buôn Ma Thuột"
+      ],
+      "communes": [
+        {
+          "code": "31001",
+          "name": "Phường Thắng Lợi",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Buôn Ma Thuột cũ",
+          "oldNames": [
+            "Buôn Ma Thuột",
+            "Thắng Lợi"
+          ]
+        },
+        {
+          "code": "31002",
+          "name": "Phường Tân An",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Buôn Ma Thuột cũ",
+          "oldNames": [
+            "Tân An Buôn Ma Thuột"
+          ]
+        },
+        {
+          "code": "31003",
+          "name": "Phường Buôn Hồ",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Buôn Hồ cũ",
+          "oldNames": [
+            "An Lạc Buôn Hồ"
+          ]
+        },
+        {
+          "code": "31004",
+          "name": "Xã Buôn Đôn",
+          "type": "xa",
+          "oldDistrict": "Huyện Buôn Đôn",
+          "oldNames": [
+            "Bản Đôn",
+            "Xã Krông Na",
+            "Sông Sêrêpôk"
+          ]
+        },
+        {
+          "code": "31005",
+          "name": "Xã Lắk",
+          "type": "xa",
+          "oldDistrict": "Huyện Lắk",
+          "oldNames": [
+            "Hồ Lắk",
+            "Thị trấn Liên Sơn"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "32",
+      "name": "Tỉnh Gia Lai",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Gia Lai - Kon Tum cũ"
+      ],
+      "communes": [
+        {
+          "code": "32001",
+          "name": "Phường Diên Hồng",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Pleiku cũ",
+          "oldNames": [
+            "Pleiku",
+            "Biển Hồ T'Nưng"
+          ]
+        },
+        {
+          "code": "32002",
+          "name": "Phường An Khê",
+          "type": "phuong",
+          "oldDistrict": "Thị xã An Khê cũ",
+          "oldNames": [
+            "Tây Sơn Thượng Đạo",
+            "An Khê"
+          ]
+        },
+        {
+          "code": "32003",
+          "name": "Phường Ayun Pa",
+          "type": "phuong",
+          "oldDistrict": "Thị xã Ayun Pa cũ",
+          "oldNames": [
+            "Sông Bờ",
+            "Ayun Pa"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "33",
+      "name": "Tỉnh Kon Tum",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Gia Lai - Kon Tum cũ"
+      ],
+      "communes": [
+        {
+          "code": "33001",
+          "name": "Phường Quyết Thắng",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Kon Tum cũ",
+          "oldNames": [
+            "Nhà thờ gỗ Kon Tum",
+            "Quyết Thắng Kon Tum"
+          ]
+        },
+        {
+          "code": "33002",
+          "name": "Xã Măng Đen",
+          "type": "xa",
+          "oldDistrict": "Huyện Kon Plông",
+          "oldNames": [
+            "Thị trấn Măng Đen",
+            "Khu du lịch sinh thái Măng Đen",
+            "Xã Đắk Long"
+          ]
+        },
+        {
+          "code": "33003",
+          "name": "Xã Ngọc Hồi",
+          "type": "xa",
+          "oldDistrict": "Huyện Ngọc Hồi (Ngã ba Đông Dương)",
+          "oldNames": [
+            "Cửa khẩu Quốc tế Bờ Y",
+            "Plei Kần"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "34",
+      "name": "Tỉnh Lâm Đồng",
+      "type": "tinh",
+      "oldNames": [
+        "Tỉnh Bình Thuận",
+        "Tỉnh Đắk Nông",
+        "Tỉnh Lâm Đồng cũ",
+        "Tỉnh Tuyên Đức cũ",
+        "Tỉnh Lâm Viên cũ"
+      ],
+      "communes": [
+        {
+          "code": "34001",
+          "name": "Phường Xuân Hương",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Đà Lạt (Lâm Đồng cũ)",
+          "oldNames": [
+            "Phường 1 Đà Lạt",
+            "Phường 2 Đà Lạt",
+            "Hồ Xuân Hương",
+            "Trung tâm Đà Lạt"
+          ]
+        },
+        {
+          "code": "34002",
+          "name": "Phường Cam Ly",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Đà Lạt (Lâm Đồng cũ)",
+          "oldNames": [
+            "Phường 5 Đà Lạt",
+            "Phường 6 Đà Lạt",
+            "Thác Cam Ly",
+            "Làng hoa Vạn Thành"
+          ]
+        },
+        {
+          "code": "34003",
+          "name": "Phường Lâm Viên",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Đà Lạt (Lâm Đồng cũ)",
+          "oldNames": [
+            "Phường 9 Đà Lạt",
+            "Phường 10 Đà Lạt",
+            "Quảng trường Lâm Viên",
+            "Hồ Than Thở"
+          ]
+        },
+        {
+          "code": "34004",
+          "name": "Phường Lang Biang",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Đà Lạt (Huyện Lạc Dương sáp nhập)",
+          "oldNames": [
+            "Thị trấn Lạc Dương cũ",
+            "Đỉnh núi Lang Biang",
+            "Xã Lát"
+          ]
+        },
+        {
+          "code": "34005",
+          "name": "Phường B'Lao",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Bảo Lộc (Lâm Đồng cũ)",
+          "oldNames": [
+            "Phường B'Lao cũ",
+            "Phường 1 Bảo Lộc",
+            "Phường 2 Bảo Lộc",
+            "Trung tâm Bảo Lộc"
+          ]
+        },
+        {
+          "code": "34006",
+          "name": "Phường Lộc Phát",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Bảo Lộc (Lâm Đồng cũ)",
+          "oldNames": [
+            "Phường Lộc Phát cũ",
+            "Phường Lộc Tiến",
+            "Hồ Nam Phương"
+          ]
+        },
+        {
+          "code": "34007",
+          "name": "Phường Phú Thủy (Phan Thiết)",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Phan Thiết (Bình Thuận cũ)",
+          "oldNames": [
+            "Phường Phú Thủy",
+            "Phường Đức Nghĩa",
+            "Phường Lạc Đạo",
+            "Trung tâm Phan Thiết"
+          ]
+        },
+        {
+          "code": "34008",
+          "name": "Phường Mũi Né",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Phan Thiết (Bình Thuận cũ)",
+          "oldNames": [
+            "Phường Mũi Né cũ",
+            "Phường Hàm Tiến",
+            "Đồi Cát Bay",
+            "Khu du lịch Quốc gia Mũi Né"
+          ]
+        },
+        {
+          "code": "34009",
+          "name": "Phường Tiến Thành",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Phan Thiết (Bình Thuận cũ)",
+          "oldNames": [
+            "Xã Tiến Thành",
+            "Novaworld Phan Thiết"
+          ]
+        },
+        {
+          "code": "34010",
+          "name": "Phường Phước Hội",
+          "type": "phuong",
+          "oldDistrict": "Thị xã La Gi (Bình Thuận cũ)",
+          "oldNames": [
+            "Thị xã La Gi",
+            "Phường Phước Hội",
+            "Phường Tân An",
+            "Biển Cam Bình"
+          ]
+        },
+        {
+          "code": "34011",
+          "name": "Phường Nghĩa Thành (Gia Nghĩa)",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Gia Nghĩa (Đắk Nông cũ)",
+          "oldNames": [
+            "Phường Nghĩa Thành",
+            "Phường Nghĩa Trung",
+            "Trung tâm Gia Nghĩa"
+          ]
+        },
+        {
+          "code": "34012",
+          "name": "Phường Nghĩa Đức",
+          "type": "phuong",
+          "oldDistrict": "Thành phố Gia Nghĩa (Đắk Nông cũ)",
+          "oldNames": [
+            "Phường Nghĩa Đức",
+            "Phường Nghĩa Phú"
+          ]
+        },
+        {
+          "code": "34013",
+          "name": "Đặc khu Phú Quý",
+          "type": "dac_khu",
+          "oldDistrict": "Huyện đảo Phú Quý (Bình Thuận cũ)",
+          "oldNames": [
+            "Huyện đảo Phú Quý",
+            "Đảo Cù Lao Thu",
+            "Xã Long Hải",
+            "Xã Ngũ Phụng",
+            "Xã Tam Thanh"
+          ]
+        },
+        {
+          "code": "34014",
+          "name": "Xã Tánh Linh",
+          "type": "xa",
+          "oldDistrict": "Huyện Tánh Linh (Bình Thuận cũ)",
+          "oldNames": [
+            "Thị trấn Lạc Tánh",
+            "Huyện Tánh Linh",
+            "Thác Bà",
+            "Biển Lạc"
+          ]
+        },
+        {
+          "code": "34015",
+          "name": "Xã Võ Xu",
+          "type": "xa",
+          "oldDistrict": "Huyện Đức Linh (Bình Thuận cũ)",
+          "oldNames": [
+            "Thị trấn Võ Xu",
+            "Huyện Đức Linh",
+            "Thị trấn Đức Tài"
+          ]
+        },
+        {
+          "code": "34016",
+          "name": "Xã Hàm Thuận Bắc",
+          "type": "xa",
+          "oldDistrict": "Huyện Hàm Thuận Bắc (Bình Thuận cũ)",
+          "oldNames": [
+            "Thị trấn Ma Lâm",
+            "Huyện Hàm Thuận Bắc",
+            "Hồ Sông Quao"
+          ]
+        },
+        {
+          "code": "34017",
+          "name": "Xã Hàm Thuận Nam",
+          "type": "xa",
+          "oldDistrict": "Huyện Hàm Thuận Nam (Bình Thuận cũ)",
+          "oldNames": [
+            "Thị trấn Thuận Nam",
+            "Huyện Hàm Thuận Nam",
+            "Hải đăng Kê Gà",
+            "Núi Tà Cú"
+          ]
+        },
+        {
+          "code": "34018",
+          "name": "Xã Hàm Tân",
+          "type": "xa",
+          "oldDistrict": "Huyện Hàm Tân (Bình Thuận cũ)",
+          "oldNames": [
+            "Thị trấn Tân Nghĩa",
+            "Huyện Hàm Tân",
+            "Thị trấn Tân Minh"
+          ]
+        },
+        {
+          "code": "34019",
+          "name": "Xã Tuy Phong",
+          "type": "xa",
+          "oldDistrict": "Huyện Tuy Phong (Bình Thuận cũ)",
+          "oldNames": [
+            "Thị trấn Liên Hương",
+            "Thị trấn Phan Rí Cửa",
+            "Huyện Tuy Phong",
+            "Cổ Thạch"
+          ]
+        },
+        {
+          "code": "34020",
+          "name": "Xã Bắc Bình",
+          "type": "xa",
+          "oldDistrict": "Huyện Bắc Bình (Bình Thuận cũ)",
+          "oldNames": [
+            "Thị trấn Chợ Lầu",
+            "Thị trấn Lương Sơn",
+            "Huyện Bắc Bình",
+            "Bàu Trắng"
+          ]
+        },
+        {
+          "code": "34021",
+          "name": "Xã Đức Trọng",
+          "type": "xa",
+          "oldDistrict": "Huyện Đức Trọng (Lâm Đồng cũ)",
+          "oldNames": [
+            "Thị trấn Liên Nghĩa",
+            "Huyện Đức Trọng",
+            "Sân bay Liên Khương",
+            "Thác Pongour"
+          ]
+        },
+        {
+          "code": "34022",
+          "name": "Xã Đơn Dương",
+          "type": "xa",
+          "oldDistrict": "Huyện Đơn Dương (Lâm Đồng cũ)",
+          "oldNames": [
+            "Thị trấn Thạnh Mỹ",
+            "Thị trấn D'Ran",
+            "Huyện Đơn Dương",
+            "Hồ Đơn Dương"
+          ]
+        },
+        {
+          "code": "34023",
+          "name": "Xã Di Linh",
+          "type": "xa",
+          "oldDistrict": "Huyện Di Linh (Lâm Đồng cũ)",
+          "oldNames": [
+            "Thị trấn Di Linh",
+            "Huyện Di Linh",
+            "Cao nguyên Di Linh"
+          ]
+        },
+        {
+          "code": "34024",
+          "name": "Xã Đam Rông",
+          "type": "xa",
+          "oldDistrict": "Huyện Đam Rông (Lâm Đồng cũ)",
+          "oldNames": [
+            "Xã Rô Men",
+            "Huyện Đam Rông",
+            "Suối nước nóng Đam Rông"
+          ]
+        },
+        {
+          "code": "34025",
+          "name": "Xã Lâm Hà",
+          "type": "xa",
+          "oldDistrict": "Huyện Lâm Hà (Lâm Đồng cũ)",
+          "oldNames": [
+            "Thị trấn Đinh Văn",
+            "Thị trấn Nam Ban",
+            "Huyện Lâm Hà",
+            "Thác Voi"
+          ]
+        },
+        {
+          "code": "34026",
+          "name": "Xã Bảo Lâm",
+          "type": "xa",
+          "oldDistrict": "Huyện Bảo Lâm (Lâm Đồng cũ)",
+          "oldNames": [
+            "Thị trấn Lộc Thắng",
+            "Huyện Bảo Lâm",
+            "Chùa Linh Quy Pháp Ấn"
+          ]
+        },
+        {
+          "code": "34027",
+          "name": "Xã Đạ Huoai",
+          "type": "xa",
+          "oldDistrict": "Huyện Đạ Huoai (Sáp nhập Đạ Huoai, Đạ Tẻh, Cát Tiên)",
+          "oldNames": [
+            "Thị trấn Ma Đa Guôi",
+            "Huyện Đạ Huoai",
+            "Huyện Đạ Tẻh",
+            "Huyện Cát Tiên",
+            "Vườn Quốc gia Cát Tiên"
+          ]
+        },
+        {
+          "code": "34028",
+          "name": "Xã Đắk Mil",
+          "type": "xa",
+          "oldDistrict": "Huyện Đắk Mil (Đắk Nông cũ)",
+          "oldNames": [
+            "Thị trấn Đắk Mil",
+            "Huyện Đắk Mil",
+            "Hồ Tây Đắk Mil"
+          ]
+        },
+        {
+          "code": "34029",
+          "name": "Xã Cư Jút",
+          "type": "xa",
+          "oldDistrict": "Huyện Cư Jút (Đắk Nông cũ)",
+          "oldNames": [
+            "Thị trấn Ea T'ling",
+            "Huyện Cư Jút",
+            "Thác Dray Sáp"
+          ]
+        },
+        {
+          "code": "34030",
+          "name": "Xã Đắk R'lấp",
+          "type": "xa",
+          "oldDistrict": "Huyện Đắk R'lấp (Đắk Nông cũ)",
+          "oldNames": [
+            "Thị trấn Kiến Đức",
+            "Huyện Đắk R'lấp",
+            "Bauxite Nhân Cơ"
+          ]
+        },
+        {
+          "code": "34031",
+          "name": "Xã Đắk Glong",
+          "type": "xa",
+          "oldDistrict": "Huyện Đắk Glong (Đắk Nông cũ)",
+          "oldNames": [
+            "Xã Quảng Khê",
+            "Huyện Đắk Glong",
+            "Hồ Tà Đùng",
+            "Vịnh Hạ Long trên Tây Nguyên"
+          ]
+        },
+        {
+          "code": "34032",
+          "name": "Xã Đắk Song",
+          "type": "xa",
+          "oldDistrict": "Huyện Đắk Song (Đắk Nông cũ)",
+          "oldNames": [
+            "Thị trấn Đức An",
+            "Huyện Đắk Song",
+            "Cánh đồng điện gió Đắk Song"
+          ]
+        },
+        {
+          "code": "34033",
+          "name": "Xã Krông Nô",
+          "type": "xa",
+          "oldDistrict": "Huyện Krông Nô (Đắk Nông cũ)",
+          "oldNames": [
+            "Thị trấn Đắk Mâm",
+            "Huyện Krông Nô",
+            "Công viên địa chất Đắk Nông",
+            "Hang động núi lửa Chư Blúk"
+          ]
+        },
+        {
+          "code": "34034",
+          "name": "Xã Tuy Đức",
+          "type": "xa",
+          "oldDistrict": "Huyện Tuy Đức (Đắk Nông cũ)",
+          "oldNames": [
+            "Xã Đắk Búk So",
+            "Huyện Tuy Đức",
+            "Cửa khẩu Bu Prăng"
+          ]
+        }
+      ]
+    }
+  ]
+}
