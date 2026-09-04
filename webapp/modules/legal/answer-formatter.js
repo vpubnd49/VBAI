@@ -287,15 +287,17 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
 
   if (Array.isArray(documents)) {
     documents.forEach(d => {
-      const num = d.documentNumber || d.document_number;
-      if (num) {
+       const num = d.documentNumber || d.document_number || d.number || '';
+       if (num || d.url || d.sourceUrl || d.link) {
         docsMap.set(num.toLowerCase(), {
-          number: num,
-          title: d.title || d.titleHint || d.snippet || `Văn bản số ${num}`,
+           number: num || 'VBPL',
+           title: d.title || d.titleHint || d.snippet || `Văn bản số ${num || 'VBPL'}`,
           issuer: d.issuer || 'Chính phủ / Quốc hội',
           dates: [d.issueDate || d.issue_date, d.effectiveDate || d.effective_date].filter(Boolean).join(' / ') || 'Còn hiệu lực',
           status: d.effectiveStatus === 'in_force' || d.effectiveStatus === 'co_hieu_luc' ? 'Còn hiệu lực' : (d.effectiveStatus || 'Còn hiệu lực'),
-          link: d.sourceUrl || d.link || `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`
+           link: /^https:\/\/(?:www\.)?vbpl\.vn(?:\/|$)/i.test(String(d.sourceUrl || d.url || d.link || ''))
+             ? String(d.sourceUrl || d.url || d.link)
+             : `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`
         });
       }
     });

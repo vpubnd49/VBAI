@@ -2,8 +2,8 @@
  * VBAI Cloud Run Proxy Service
  *
  * Provides secure, authenticated endpoints for:
- * - Chat completions (Gemini)
- * - Audio transcription (Gemini)
+ * - Chat completions (zplay OpenAI-compatible)
+ * - Audio transcription (fail-closed unless supported by configured provider)
  * - System configuration read/write (admin only)
  *
  * Deployed to Google Cloud Run.
@@ -39,8 +39,13 @@ const { encodeCursor, decodeCursor, validateCursor, sanitizeHistoryDoc, SAFE_HIS
 const { createTranscriptionRouter } = require('./routers/transcription.router');
 const { loadBosungMetadataIndex } = require('./legal/repositories/bosung-metadata-index');
 const { searchAdministrativeDivisions } = require('./services/administrative-division.service');
-const { ingestVbaibotTurn, SYNC_SECRET } = require('./services/vbaibot-ingestion.service');
+const { ingestVbaibotTurn } = require('./services/vbaibot-ingestion.service');
 const { runCrawlerTask, getCrawlerStatus, initCrawlerScheduler } = require('./services/legal-crawler.service');
+const {
+  createConversationMemory,
+  buildBehaviorContext,
+  normalizeResponseMeta,
+} = require('./services/chat-behavior.service');
 const {
   FieldPath,
   FieldValue,
@@ -51,6 +56,12 @@ const {
   getFirebaseFirestore,
   initFirebase,
 } = require('./services/firebase-admin.service');
+
+const CHAT_BEHAVIOR_MEMORY = createConversationMemory({
+  ttlMs: Number(process.env.CHAT_MEMORY_TTL_MS) || 30 * 60 * 1000,
+  maxTurns: Number(process.env.CHAT_MEMORY_MAX_TURNS) || 12,
+  maxSessions: Number(process.env.CHAT_MEMORY_MAX_SESSIONS) || 1000,
+});
 
 function extractAssistantText(data) {
   if (!data || typeof data !== 'object') return '';
@@ -158,82 +169,12 @@ const DEFAULT_VERTEX_SERVING_CONFIG_ID = 'default_search';
 const WEB_SEARCH_RESULT_CACHE = new Map();
 const LEGAL_SYNTHESIS_CACHE = new Map();
 const LEGAL_SYNTHESIS_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
-const GEMINI_API_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
-const GEMINI_SAFE_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
-const GEMINI_SAFE_FALLBACK_MODELS = Object.freeze([
-  'gemini-3.5-flash-lite',
-  'gemini-3.5-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-]);
-const ALLOWED_GEMINI_MODELS = Object.freeze([
-  'gemini-3.5-flash-lite',
-  'gemini-3.5-flash',
-  'gemini-3.5-pro',
-  'gemini-2.5-flash',
-  'gemini-2.5-pro',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-exp',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro',
-]);
-
-function getAllowedGeminiModels(config = {}) {
-  const customList = Array.isArray(config.gemini_models) ? config.gemini_models : [];
-  const merged = [
-    ...customList,
-    config.gemini_model,
-    config.transcribe_model,
-    config.meeting_model,
-    ...GEMINI_SAFE_FALLBACK_MODELS,
-    ...ALLOWED_GEMINI_MODELS,
-  ].filter(Boolean).map((m) => String(m).trim());
-
-  const cleanList = merged.filter((m) => {
-    const norm = m.toLowerCase();
-    return !norm.includes('devgovietnam') && !norm.includes('9router');
-  });
-
-  return Array.from(new Set(cleanList));
-}
-
-function isAllowedGeminiModel(model = '', config = {}) {
-  const norm = String(model || '').trim().toLowerCase();
-  if (!norm || norm.includes('devgovietnam') || norm.includes('9router')) return false;
-  const allowlist = getAllowedGeminiModels(config);
-  return allowlist.some((m) => m.toLowerCase() === norm);
-}
-
-function resolveGeminiModel(requestedModel, config = {}, context = 'chat') {
-  const normReq = String(requestedModel || '').trim();
-  if (normReq && isAllowedGeminiModel(normReq, config)) {
-    return normReq;
-  }
-  if (normReq) {
-    const norm = normReq.toLowerCase();
-    if (!norm.includes('devgovietnam') && !norm.includes('9router')) {
-      return normReq;
-    }
-  }
-
-  if (context === 'meeting' || context === 'meeting_minutes') {
-    const defaultMeeting = config.meeting_model || config.transcribe_model || config.gemini_model;
-    if (defaultMeeting) return String(defaultMeeting).trim();
-  }
-
-  if (context === 'transcription') {
-    const defaultTranscribe = config.transcribe_model || config.gemini_model;
-    if (defaultTranscribe) return String(defaultTranscribe).trim();
-  }
-
-  if (config.gemini_model) {
-    return String(config.gemini_model).trim();
-  }
-
-  return 'gemini-3.7-flash-high';
+function resolveAiConfig(config = {}, requestConfig = {}) {
+  const source = requestConfig && typeof requestConfig === 'object' ? requestConfig : {};
+  const apiKey = String(source.api_key || source.zplay_api_key || config.zplay_api_key || '').trim();
+  const endpoint = String(source.endpoint || source.zplay_api_endpoint || config.zplay_api_endpoint || '').trim().replace(/\/+$/, '');
+  const model = String(source.model || config.ai_model || '').trim();
+  return { apiKey, endpoint, model };
 }
 const LEGAL_MATCH_PASS_SCORE = 70;
 const OFFICIAL_SOURCE_HOSTS = Object.freeze([
@@ -831,19 +772,39 @@ async function fetchDeepContent(url) {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const requestHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'vi,en-US;q=0.9,en;q=0.8',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    };
 
-    const response = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'vi,en-US;q=0.9,en;q=0.8',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-    });
+    // Do not let fetch follow a user-controlled Location header without checking it.
+    let currentUrl = String(url || '').trim();
+    let response;
+    for (let hop = 0; hop <= 3; hop += 1) {
+      const check = await validateUrlForSSRF(currentUrl);
+      if (!check.safe) return '';
+
+      response = await fetch(currentUrl, {
+        method: 'GET',
+        redirect: 'manual',
+        signal: controller.signal,
+        headers: requestHeaders,
+      });
+
+      const location = response.headers.get('location');
+      const isRedirect = [301, 302, 303, 307, 308].includes(response.status);
+      if (!isRedirect || !location) break;
+      if (hop === 3) return '';
+
+      try {
+        currentUrl = new URL(location, currentUrl).toString();
+      } catch {
+        return '';
+      }
+    }
     clearTimeout(timeoutId);
 
     if (!response.ok) return '';
@@ -1579,7 +1540,7 @@ function dedupeModelNames(list = []) {
   return Array.from(new Set((list || []).filter(Boolean).map((x) => String(x).trim())));
 }
 
-function isGeminiModelNotFoundError(message = '') {
+function isProviderModelNotFoundError(message = '') {
   const normalized = String(message || '').toLowerCase();
   if (!normalized) return false;
   return (
@@ -1589,7 +1550,7 @@ function isGeminiModelNotFoundError(message = '') {
   );
 }
 
-function isGeminiModelCompatibilityError(message = '') {
+function isProviderModelCompatibilityError(message = '') {
   const normalized = String(message || '').toLowerCase();
   if (!normalized) return false;
   if (normalized.includes('requested entity was not found')) return true;
@@ -1602,20 +1563,14 @@ function isGeminiModelCompatibilityError(message = '') {
   );
 }
 
-function pickGeminiRetryModel(primaryModel = '', configuredModel = '') {
+function pickProviderRetryModel(primaryModel = '', configuredModel = '') {
   const primary = normalizeModelInput(primaryModel);
   const configured = normalizeModelInput(configuredModel);
-  if (configured && configured !== primary) {
-    return configured;
-  }
-  if (GEMINI_SAFE_FALLBACK_MODEL !== primary) {
-    return GEMINI_SAFE_FALLBACK_MODEL;
-  }
-  return '';
+  return primary || configured || '';
 }
 
-function isRetryableModelSelectionError(status, message = '') {
-  return status === 404 || (status === 400 && isGeminiModelCompatibilityError(message));
+function isRetryableModelSelectionError() {
+  return false;
 }
 
 function shouldFallbackTranscriptionPath(attempt = null) {
@@ -1798,7 +1753,7 @@ function convertVertexResponseToOpenAi(vertexData, modelName) {
   };
 }
 
-async function executeVertexGeminiChat({ modelName, normalizedMessages, temperature, max_tokens }) {
+/* async function executeLegacyVertexChat({ modelName, normalizedMessages, temperature, max_tokens }) {
   const token = await getGoogleAccessToken();
   const projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0462350485';
   const location = 'asia-southeast1';
@@ -1807,7 +1762,7 @@ async function executeVertexGeminiChat({ modelName, normalizedMessages, temperat
   if (modelName.startsWith('models/')) {
     vertexModel = modelName.replace('models/', '');
   }
-  if (vertexModel === 'gemini-2.0-flash-lite' || vertexModel === 'gemini-3.5-flash-lite') {
+  if (vertexModel === 'gemini-2.0-flash-lite' || vertexModel === 'claude-sonnet-5') {
     vertexModel = 'gemini-2.5-flash';
   }
   
@@ -1855,6 +1810,7 @@ async function executeVertexGeminiChat({ modelName, normalizedMessages, temperat
     data: convertVertexResponseToOpenAi(data, modelName)
   };
 }
+*/
 
 function extractTextFromProviderPayload(data = {}) {
   if (!data || typeof data !== 'object') return '';
@@ -1877,12 +1833,13 @@ function extractTextFromProviderPayload(data = {}) {
   return '';
 }
 
-async function uploadToGeminiFiles({ filePath, mimeType, filename, model, prompt }) {
+async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt }) {
+  throw new Error('Audio transcription is unavailable: zplay chat-only contract does not support audio uploads.');
+  // Legacy implementation retained for compatibility; active transcription fails closed above.
   const config = await getCachedSystemConfig();
-  const apiKey = process.env.GEMINI_API_KEY || config?.gemini_api_key;
-  let apiEndpoint = process.env.GEMINI_API_ENDPOINT || config?.gemini_api_endpoint;
-  if (!apiEndpoint || (apiKey && apiKey.startsWith('sk-') && apiEndpoint.includes('generativelanguage.googleapis.com'))) {
-    apiEndpoint = 'https://9router.flowgiare.com/v1';
+  const { apiKey, endpoint: apiEndpoint, model: configuredModel } = resolveAiConfig(config);
+  if (!apiKey || !apiEndpoint || !configuredModel) {
+    throw new Error('AI configuration is incomplete.');
   }
 
   if (!filePath || !fs.existsSync(filePath)) {
@@ -1896,10 +1853,11 @@ async function uploadToGeminiFiles({ filePath, mimeType, filename, model, prompt
   const effectivePrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
   const ext = path.extname(filename || filePath).toLowerCase().replace('.', '') || 'mp3';
   const effectiveMime = mimeType || (ext === 'wav' ? 'audio/wav' : 'audio/mpeg');
-  const targetModel = normalizeModelInput(model || config?.meeting_model || config?.transcribe_model || config?.gemini_model || 'gemini-3.7-flash-high');
+  const targetModel = normalizeModelInput(model || config?.meeting_model || config?.transcribe_model || config?.ai_model || '');
+  if (!targetModel) throw new Error('AI model is not configured.');
 
-  // Strategy 1: OpenAI-compatible Gateway (e.g. 9router, OpenAI, etc.)
-  const isGateway = (apiKey && apiKey.startsWith('sk-')) || (apiEndpoint && !apiEndpoint.includes('generativelanguage.googleapis.com'));
+  // Strategy 1: OpenAI-compatible zplay gateway.
+  const isGateway = apiEndpoint === 'https://zplay.io.vn/v1' && Boolean(apiKey);
   if (isGateway && apiKey) {
     try {
       console.log(`[Audio Transcribe] Fast Gateway transcription via ${apiEndpoint} (model: ${targetModel}, size: ${stat.size} bytes)...`);
@@ -2115,7 +2073,7 @@ async function uploadToGeminiFiles({ filePath, mimeType, filename, model, prompt
   throw new Error('Không thể phiên âm tệp âm thanh. Vui lòng kiểm tra lại kết nối hoặc định dạng tệp.');
 }
 
-async function deleteFromGeminiFiles({ apiKey, fileName }) {
+async function deleteFromLegacyFiles({ apiKey, fileName }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/${fileName}?key=${encodeURIComponent(apiKey)}`;
   try {
     const res = await fetch(url, { method: 'DELETE' });
@@ -2123,12 +2081,11 @@ async function deleteFromGeminiFiles({ apiKey, fileName }) {
       console.warn(`Failed to delete file ${fileName} from Gemini: ${res.status}`);
     }
   } catch (err) {
-    console.warn(`Error deleting file ${fileName} from Gemini:`, err);
+    console.warn(`Error deleting file ${fileName}:`, err);
   }
 }
 
-
-async function executeVertexNativeAudioTranscription({
+async function executeLegacyNativeAudioTranscription({
   modelName,
   audioBase64,
   audioBuffer,
@@ -2186,13 +2143,13 @@ async function executeVertexNativeAudioTranscription({
     const data = await res.json();
     const text = extractTextFromProviderPayload(data);
     if (!text) {
-      return {
-        ok: false,
-        status: 502,
-        message: 'Vertex AI transcription returned empty text',
-        reason: 'empty_transcription'
-      };
-    }
+  return {
+    ok: false,
+    status: 502,
+    message: 'All transcription strategies failed',
+    reason: 'ALL_TRANSCRIPTION_STRATEGIES_FAILED',
+  };
+}
     
     return {
       ok: true,
@@ -2210,7 +2167,7 @@ async function executeVertexNativeAudioTranscription({
   }
 }
 
-async function executeGeminiNativeAudioTranscription({
+async function executeLegacyNativeAudioTranscriptionV2({
   apiKey,
   modelName,
   audioBase64,
@@ -2352,7 +2309,7 @@ async function executeGeminiNativeAudioTranscription({
   }
 }
 
-async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, messages, temperature = 0.1, maxTokens = 64 }) {
+async function executeZplayChatRequest({ apiKey, endpoint, modelName, messages, temperature = 0.1, maxTokens = 64 }) {
   const payload = {
     model: modelName,
     messages,
@@ -2361,7 +2318,8 @@ async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, mes
     max_tokens: Math.max(maxTokens, 64),
   };
 
-  const apiEndpoint = endpoint || GEMINI_API_ENDPOINT;
+  const apiEndpoint = String(endpoint || '').trim().replace(/\/+$/, '');
+  if (!apiEndpoint || !modelName || !apiKey) throw new Error('AI endpoint, model and API key are required.');
   
   const fetchWithTimeout = async (url, options, timeoutMs = 15000) => {
     const controller = new AbortController();
@@ -2483,19 +2441,27 @@ const { router: legalResearchRouter, initRouter: initLegalResearchRouter } = req
 
 // Security middleware
 app.use(helmet());
+const IS_PRODUCTION = [process.env.NODE_ENV, process.env.APP_ENV]
+  .some(value => ['production', 'prod'].includes(String(value || '').trim().toLowerCase()));
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+if (IS_PRODUCTION && ALLOWED_ORIGINS.length === 0) {
+  throw new Error('ALLOWED_ORIGINS is required in production');
+}
+if (IS_PRODUCTION && ALLOWED_ORIGINS.includes('*')) {
+  throw new Error('Wildcard ALLOWED_ORIGINS is not permitted in production');
+}
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (server-to-server, curl, etc.)
     if (!origin) return callback(null, true);
-    const allowed = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
-    // If no origins configured (dev mode), allow all
-    if (allowed.length === 0) return callback(null, true);
-    if (allowed.includes(origin)) return callback(null, true);
+    if (ALLOWED_ORIGINS.length === 0) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     return callback(new Error('CORS origin not allowed: ' + origin));
   },
   credentials: true
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request-ID middleware for end-to-end audit traceability
@@ -2507,7 +2473,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(createTranscriptionRouter({ verifyIdToken, upload, checkRateLimit, uploadToProvider: uploadToGeminiFiles, initFirebase }));
+app.use(createTranscriptionRouter({ verifyIdToken, upload, checkRateLimit, uploadToProvider: uploadToZplayAudio, initFirebase }));
 
 // Note: web-search and web-extract have full inline handlers below
 // with auth + rate limiting. Only mount legal-research router.
@@ -2894,28 +2860,27 @@ app.get('/api/system-config-summary', async (req, res) => {
     const webSearchProvider = sanitizeWebSearchProvider(data.web_search_provider);
     const cseConfigured = !!(data.google_search_key && data.google_search_cx);
     const vertexConfigured = isVertexSearchConfigured(data);
-    const activeGeminiKey = process.env.GEMINI_API_KEY || data.gemini_api_key;
-    const isConfigured = !!activeGeminiKey;
+    const ai = resolveAiConfig(data);
+    const isConfigured = !!(ai.apiKey && ai.endpoint && ai.model);
     res.json({
       configured: isConfigured,
-      maskedKey: requesterIsAdmin && activeGeminiKey ? maskApiKey(activeGeminiKey) : '',
-      provider: 'gemini',
-      model: data.gemini_model || 'gemini-3.7-flash-high',
-      gemini_model: data.gemini_model || 'gemini-3.7-flash-high',
-      gemini_endpoint: data.gemini_endpoint || GEMINI_API_ENDPOINT,
+      maskedKey: requesterIsAdmin && ai.apiKey ? maskApiKey(ai.apiKey) : '',
+      provider: 'zplay',
+      model: ai.model,
+      ai_model: ai.model,
+      ai_endpoint: ai.endpoint,
       google_search_configured: cseConfigured,
       vertex_search_configured: vertexConfigured,
-      web_search_configured: cseConfigured || vertexConfigured,
-      has_gemini_key: requesterIsAdmin ? isConfigured : false,
-      google_search_key: requesterIsAdmin ? (data.google_search_key || '') : '',
+       web_search_configured: cseConfigured || vertexConfigured,
+       has_zplay_key: requesterIsAdmin ? Boolean(ai.apiKey) : false,
       google_search_cx: requesterIsAdmin ? (data.google_search_cx || '') : '',
       vertex_project_id: requesterIsAdmin ? (data.vertex_project_id || '') : '',
       vertex_location: requesterIsAdmin ? (data.vertex_location || DEFAULT_VERTEX_LOCATION) : '',
       vertex_data_store_id: requesterIsAdmin ? (data.vertex_data_store_id || '') : '',
       vertex_serving_config: requesterIsAdmin ? (data.vertex_serving_config || '') : '',
-      transcribe_model: data.transcribe_model || data.gemini_model || 'gemini-3.7-flash-high',
-      meeting_model: data.meeting_model || data.transcribe_model || data.gemini_model || 'gemini-3.7-flash-high',
-      gemini_models: Array.isArray(data.gemini_models) ? data.gemini_models : [],
+      transcribe_model: data.transcribe_model || '',
+      meeting_model: data.meeting_model || data.transcribe_model || '',
+      ai_models: data.ai_models || [],
       
       web_search_provider: webSearchProvider,
       web_search_mode: webSearchMode,
@@ -2932,36 +2897,34 @@ app.get('/api/system-config-summary', async (req, res) => {
   }
 });
 
-// POST: Admin validate Gemini API key (live check)
-app.post('/api/admin/validate-gemini-key', async (req, res) => {
+// POST: Admin validate zplay API key (live check)
+app.post('/api/admin/validate-zplay-key', async (req, res) => {
   try {
     const decoded = await verifyIdToken(req);
     if (!isAdmin(decoded)) {
       return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
     }
 
-    const rawKey = String(req.body?.gemini_api_key || '').trim();
-    const rawEndpoint = String(req.body?.gemini_endpoint || '').trim();
-    const useStoredKey = req.body?.use_stored_key !== false;
+    const rawKey = String(req.body?.zplay_api_key || '').trim();
+    const rawEndpoint = String(req.body?.zplay_api_endpoint || '').trim();
+    const useStoredKey = false;
     
     const config = await dbService.getSystemConfig(true);
     
-    const requestedModel = req.body?.model || config.gemini_model || 'gemini-3.7-flash-high';
-    const model = resolveGeminiModel(requestedModel, config);
-    const keyToValidate = rawKey || (useStoredKey ? String(config.gemini_api_key || process.env.GEMINI_API_KEY || '').trim() : '');
-    let endpointToValidate = rawEndpoint || (useStoredKey ? String(config.gemini_endpoint || process.env.GEMINI_API_ENDPOINT || '').trim() : '');
-    if (!endpointToValidate) {
-      endpointToValidate = GEMINI_API_ENDPOINT;
-    }
+    const submitted = { api_key: rawKey, endpoint: rawEndpoint, model: req.body?.model };
+    const validationConfig = resolveAiConfig(config, submitted);
+    const model = validationConfig.model;
+    const keyToValidate = validationConfig.apiKey;
+    const endpointToValidate = validationConfig.endpoint;
 
-    if (!keyToValidate) {
+    if (!keyToValidate || !endpointToValidate || !model) {
       return res.status(400).json({
         valid: false,
-        message: 'Chưa có Gemini API key để xác nhận.',
+        message: 'Thiếu endpoint, model hoặc API key để xác nhận.',
       });
     }
 
-    const probe = await executeGeminiCompatChatRequest({
+    const probe = await executeZplayChatRequest({
       apiKey: keyToValidate,
       endpoint: endpointToValidate,
       modelName: model,
@@ -2982,17 +2945,17 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
       });
     }
 
-    console.info(`[AUDIT] Gemini key validated by admin: ${decoded.email || decoded.uid}`);
+    console.info(`[AUDIT] zplay key validated by admin: ${decoded.email || decoded.uid}`);
     return res.json({
       valid: true,
-      message: 'Gemini API key hợp lệ.',
+      message: 'zplay API key hợp lệ.',
       meta: {
         provider_status: 200,
         model,
       }
     });
   } catch (err) {
-    console.error('POST /api/admin/validate-gemini-key error:', err);
+    console.error('POST /api/admin/validate-zplay-key error:', err);
     return res.status(500).json({ valid: false, error: 'Internal server error', message: err.message });
   }
 });
@@ -3081,9 +3044,10 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
 
     const {
-      gemini_api_key,
-      gemini_endpoint,
-      gemini_model,
+      zplay_api_key,
+      zplay_api_endpoint,
+      ai_model,
+      ai_endpoint,
       web_search_provider,
       google_search_key,
       google_search_cx,
@@ -3110,9 +3074,12 @@ app.post('/api/admin/system-config', async (req, res) => {
       updated_by: decoded.email || decoded.uid,
     };
 
-    if (gemini_model !== undefined) {
-      const val = String(gemini_model || '').trim();
-      if (val) updateData.gemini_model = val;
+    if (ai_model !== undefined) {
+      const val = String(ai_model || '').trim();
+      updateData.ai_model = val;
+    }
+    if (ai_endpoint !== undefined) {
+      updateData.ai_endpoint = String(ai_endpoint || '').trim();
     }
     if (transcribe_model !== undefined) {
       const val = String(transcribe_model || '').trim();
@@ -3129,19 +3096,14 @@ app.post('/api/admin/system-config', async (req, res) => {
       updateData.active_chat_provider = req.body.active_chat_provider;
     }
 
-    if (gemini_endpoint !== undefined) {
-      const val = String(gemini_endpoint || '').trim();
-      if (val) updateData.gemini_endpoint = val;
+    if (zplay_api_endpoint !== undefined) {
+      updateData.zplay_api_endpoint = String(zplay_api_endpoint || '').trim();
     }
 
-    // Update or clear Gemini API Key
-    if (req.body.clear_gemini_api_key === true || req.body.clear_gemini_key === true || gemini_api_key === '__CLEAR__') {
-      updateData.gemini_api_key = '';
-    } else if (gemini_api_key !== undefined) {
-      const keyVal = String(gemini_api_key || '').trim();
-      if (keyVal) {
-        updateData.gemini_api_key = keyVal;
-      }
+    if (req.body.clear_zplay_api_key === true || req.body.clear_gemini_api_key === true || zplay_api_key === '__CLEAR__') {
+      updateData.zplay_api_key = '';
+    } else if (zplay_api_key !== undefined) {
+      updateData.zplay_api_key = String(zplay_api_key || '').trim();
     }
 
     if (google_search_key !== undefined) {
@@ -3452,7 +3414,7 @@ app.post('/api/admin/update-user', async (req, res) => {
 // POST /api/telemetry/vbaibot-ingest (Continuous live ingestion from Zalo Bot vbaibot)
 app.post('/api/telemetry/vbaibot-ingest', async (req, res) => {
   try {
-    const authSecret = req.headers['x-vbaibot-secret'] || req.body?.secret || '';
+    const authSecret = req.headers['x-vbaibot-secret'];
     const { userPrompt, modelResponse, sourceUserId, timestamp } = req.body || {};
     
     if (!userPrompt || !modelResponse) {
@@ -3717,19 +3679,23 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'messages or contents array required' });
     }
 
-    if (provider === '9router') {
+    if (provider && provider !== 'zplay') {
       return res.status(400).json({
         error: 'UNSUPPORTED_AI_PROVIDER',
-        message: 'Hệ thống chỉ hỗ trợ Google Gemini.',
+        message: 'Hệ thống chỉ hỗ trợ provider OpenAI-compatible zplay.',
       });
     }
 
     // Fetch system config (từ cache để giảm độ trễ phản hồi)
     const config = await getCachedSystemConfig();
+    const ai = resolveAiConfig(config);
+    const endpoint = ai.endpoint;
+    const apiKey = ai.apiKey;
+    const effectiveModel = ai.model;
 
-    const endpoint = process.env.GEMINI_API_ENDPOINT || config.gemini_endpoint || GEMINI_API_ENDPOINT;
-    const apiKey = process.env.GEMINI_API_KEY || config.gemini_api_key;
-    const effectiveModel = resolveGeminiModel(model, config);
+    if (!apiKey || !endpoint || !effectiveModel) {
+      return res.status(503).json({ error: 'AI_CONFIG_MISSING', message: 'Thiếu endpoint, model hoặc API key trong cấu hình quản trị.' });
+    }
 
     const userMessage = Array.isArray(normalizedMessages)
       ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
@@ -3737,6 +3703,14 @@ app.post('/api/chat', async (req, res) => {
 
     const auditQuery = String(traceMeta?.query || userMessage || '').trim();
     const auditFeature = String(traceMeta?.feature || 'chat-assistant').trim();
+    const behaviorUserId = decoded?.uid || null;
+    const behaviorSessionId = String(traceMeta?.sessionId || traceMeta?.session_id || req.headers['x-chat-session-id'] || '').trim() || null;
+    const behavior = buildBehaviorContext(CHAT_BEHAVIOR_MEMORY, behaviorUserId, behaviorSessionId, userMessage);
+    const memoryContext = behavior.messages;
+    const memoryEnabled = Boolean(behaviorUserId && behaviorSessionId);
+    if (memoryEnabled && memoryContext.length) {
+      normalizedMessages.splice(-1, 0, ...memoryContext);
+    }
     const auditMode = String(traceMeta?.mode || 'chat').trim();
     const auditEffectiveDate = traceMeta?.effectiveDate ? String(traceMeta.effectiveDate).trim() : null;
 
@@ -3781,7 +3755,7 @@ app.post('/api/chat', async (req, res) => {
         await db.collection('search_logs').add({
           query: auditQuery,
           prompt: auditQuery,
-          model: effectiveModel || 'gemini-3.5-flash-lite',
+          model: effectiveModel || null,
           user_id: decoded?.uid || null,
           user_email: decoded?.email || decoded?.uid || 'anonymous',
           userEmail: decoded?.email || decoded?.uid || 'anonymous',
@@ -3814,7 +3788,7 @@ app.post('/api/chat', async (req, res) => {
 
     console.log('NORMALIZED:', {
       route: '/api/chat',
-      provider: 'gemini',
+      provider: 'zplay',
       model: effectiveModel,
       message_count: Array.isArray(normalizedMessages) ? normalizedMessages.length : 0,
       stream: stream === true,
@@ -3827,15 +3801,8 @@ app.post('/api/chat', async (req, res) => {
       return res.status(503).json({ error: 'API key missing', message: 'Please contact administrator to configure Gemini API key.' });
     }
 
-    const defaultModel = config.gemini_model || 'gemini-3.5-flash-lite';
-    const primaryModel = resolveGeminiModel(effectiveModel, config);
-    const retryModel = pickGeminiRetryModel(primaryModel, defaultModel);
-    const candidateModels = dedupeModelNames([
-      primaryModel,
-      retryModel,
-      defaultModel,
-      GEMINI_SAFE_FALLBACK_MODEL,
-    ]);
+    const primaryModel = ai.model;
+    const candidateModels = [primaryModel];
     const attemptedModels = [];
 
     const isLegalSearchTrace = auditFeature === 'legal-search' || traceMeta?.feature === 'legal-search' || isLegalQuery;
@@ -4011,7 +3978,7 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
             };
           } else {
             data = await providerRes.json();
-            // If content is empty (e.g. 9router reasoning models requiring stream), fetch with stream: true
+            // If content is empty, retry with stream: true.
             if (data?.choices?.[0]?.message && !data.choices[0].message.content) {
               try {
                 const streamRes = await fetch(`${endpoint}/chat/completions`, {
@@ -4046,24 +4013,10 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
           return { ok: true, status: 200, data };
         }
 
-        // Gemini API failed or was skipped — try Vertex AI fallback
-        console.log(`[executeProviderAttempt] API key call failed or skipped (status: ${providerRes?.status || 'no_response'}). Falling back to Vertex AI for model ${modelName}...`);
-        try {
-          const vertexAttempt = await executeVertexGeminiChat({
-            modelName,
-            normalizedMessages: effectiveMessages,
-            temperature,
-            max_tokens
-          });
-          if (vertexAttempt.ok) {
-            return vertexAttempt;
-          }
-          console.error(`[executeProviderAttempt] Vertex AI fallback failed with status ${vertexAttempt.status}:`, vertexAttempt.message);
-        } catch (vertexErr) {
-          console.error(`[executeProviderAttempt] Vertex AI fallback error:`, vertexErr.message);
-        }
+        // zplay is the only active chat provider; retrieval remains separate.
+        // Do not fall back to Gemini/Vertex chat on provider failure.
 
-        // Both Gemini API and Vertex failed — return error details
+        // zplay failed — return error details
         if (providerRes) {
           const providerError = await readProviderError(providerRes);
           return {
@@ -4077,7 +4030,7 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
         return {
           ok: false,
           status: 502,
-          message: attemptErr?.message || 'Both Gemini API key and Vertex AI calls failed.',
+          message: attemptErr?.message || 'zplay provider request failed.',
           reason: 'PROVIDER_ERROR',
         };
       } catch (err) {
@@ -4102,9 +4055,7 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
         break;
       }
       attempt = currentAttempt;
-      const canRetryByModel = (currentAttempt.status === 404 && isGeminiModelNotFoundError(currentAttempt.message))
-        || (currentAttempt.status === 400 && isGeminiModelCompatibilityError(currentAttempt.message));
-      if (!canRetryByModel) break;
+      break;
     }
 
     if (!attempt?.ok) {
@@ -4113,7 +4064,7 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
         const db = getFirebaseFirestore();
         await db.collection('search_logs').add({
           query: auditQuery,
-          model: primaryModel || 'gemini-3.5-flash-lite',
+          model: primaryModel || null,
           userEmail: decoded.email || decoded.uid || 'anonymous',
           timestamp: FieldValue.serverTimestamp(),
           feature: auditFeature,
@@ -4146,14 +4097,23 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
     let citationValidation = null;
 
     if (data && typeof data === 'object' && !Array.isArray(data)) {
-      data.meta = {
+      data.meta = normalizeResponseMeta({
         ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
         provider_status: 200,
         attempted_models: attemptedModels,
         final_model: finalModel,
         provider_error_reason: null,
         retried: attemptedModels.length > 1,
-      };
+      }, { ...behavior, memoryEnabled });
+
+      // Keep bounded, short-lived conversational context only. No extracted facts,
+      // identifiers, or PII are persisted by this behavior layer.
+      if (memoryEnabled) {
+        CHAT_BEHAVIOR_MEMORY.append(behaviorUserId, behaviorSessionId, [
+          { role: 'user', content: userMessage },
+          { role: 'assistant', content: extractAssistantText(data) },
+        ]);
+      }
 
       // Server-side citation validation after Gemini synthesis
       if (legalContext && legalContext.evidenceBundle) {
@@ -4242,7 +4202,7 @@ app.post('/api/web-search', async (req, res) => {
 
     initFirebase();
     let decoded = null;
-    const localTestBypass = String(process.env.VBAI_LOCAL_TEST || '').trim().toLowerCase() === 'true';
+    const localTestBypass = !IS_PRODUCTION && String(process.env.VBAI_LOCAL_TEST || '').trim().toLowerCase() === 'true';
     if (!localTestBypass) {
       decoded = await verifyIdToken(req);
     }

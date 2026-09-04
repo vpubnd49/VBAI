@@ -30,11 +30,7 @@ async function ensureSystemConfig() {
   return systemConfigCache;
 }
 
-const GEMINI_MEETING_MODEL_FALLBACK_ORDER = [
-  "gemini-3.7-flash-high",
-  "gemini-2.5-flash",
-  "gemini-1.5-flash",
-];
+const MEETING_MODEL_FALLBACK_ORDER = [];
 
 function getMeetingModelFallbackOrder() {
   let preferred = '';
@@ -42,16 +38,11 @@ function getMeetingModelFallbackOrder() {
     const cached = localStorage.getItem('vbai_system_config_cache');
     if (cached) {
       const parsed = JSON.parse(cached);
-      preferred = parsed?.config?.meeting_model || parsed?.config?.transcribe_model || parsed?.config?.gemini_model || '';
+        preferred = parsed?.config?.meeting_model || parsed?.config?.transcribe_model || '';
     }
   } catch (_) {}
-  if (!preferred) {
-    preferred = localStorage.getItem('vbai_gemini_model_meeting') || localStorage.getItem('vbai_gemini_model') || '';
-  }
-  if (preferred) {
-    return [preferred, ...GEMINI_MEETING_MODEL_FALLBACK_ORDER.filter(m => m !== preferred)];
-  }
-  return GEMINI_MEETING_MODEL_FALLBACK_ORDER;
+  if (preferred) return [preferred];
+  return MEETING_MODEL_FALLBACK_ORDER;
 }
 
 const PROCESSING_TEXT = "Đang xử lý......";
@@ -584,7 +575,7 @@ function renderStep3(sc, c) {
 }
 
 // ==============================================
-// XỬ LÝ GHI ÂM QUA PROXY (GEMINI)
+// XỬ LÝ GHI ÂM QUA PROXY (zplay; audio không được hỗ trợ thì fail-closed)
 // ==============================================
 function normalizeModelName(model = "") {
   return String(model || "")
@@ -735,7 +726,7 @@ async function processAudioWithProxy(file, progressEl) {
   await ensureSystemConfig();
   const transcribeContext = 'meeting'; // always use proxy context
   const transcribeRouteLabel = 'Proxy';
-  const provider = 'gemini'; // Gemini-only architecture
+  const provider = 'zplay';
 
   // Không chuyển đổi âm thanh sang WAV nữa, giữ định dạng nén nhỏ gọn (m4a, aac, ogg, mp3, webm...)
   // Gemini API chính thức hỗ trợ trực tiếp các định dạng này một cách tối ưu nhất.
@@ -852,7 +843,8 @@ async function processAudioWithProxy(file, progressEl) {
 
 async function reanalyzeTranscript() {
   const config = await ensureSystemConfig();
-  const strictModel = config?.gemini_model || 'gemini-3.5-flash-lite';
+  const strictModel = String(config?.meeting_model || config?.transcribe_model || '').trim();
+  if (!strictModel) throw new Error('Meeting analysis unavailable: AI model is not configured.');
   const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
 {
   "chu_tri": "...",

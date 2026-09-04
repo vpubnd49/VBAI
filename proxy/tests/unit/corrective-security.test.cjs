@@ -97,5 +97,16 @@ ok(serverContent.includes('encodeCursor'), 'server.js uses encodeCursor');
 ok(serverContent.includes('sanitizeHistoryDoc'), 'server.js uses sanitizeHistoryDoc');
 ok(serverContent.includes("orderBy('created_at', 'desc')"), 'Orders by created_at DESC');
 
+// 7. User-Controlled Deep Fetch Redirect Hardening
+console.log('\n--- 7. Deep Fetch Redirect Hardening ---');
+const deepFetchStart = serverContent.indexOf('async function fetchDeepContent');
+const deepFetchEnd = serverContent.indexOf('\nfunction parseLegalDocumentMetadata', deepFetchStart);
+const deepFetchContent = serverContent.slice(deepFetchStart, deepFetchEnd);
+ok(deepFetchContent.includes("redirect: 'manual'"), 'Deep fetch uses manual redirect handling');
+ok(!deepFetchContent.includes("redirect: 'follow'"), 'Deep fetch does not automatically follow redirects');
+ok(deepFetchContent.includes('validateUrlForSSRF(currentUrl)'), 'Initial and redirected URLs use the SSRF guard');
+ok(deepFetchContent.includes('new URL(location, currentUrl)'), 'Redirect locations are resolved relative to the current URL');
+ok(deepFetchContent.includes('hop <= 3') && deepFetchContent.includes('hop === 3'), 'Deep fetch is limited to three redirect hops');
+
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
 if (failed > 0) process.exit(1);

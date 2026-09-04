@@ -244,11 +244,11 @@ async function executeLegalSearch(container, query) {
 
     const trace = {
       feature: 'legal-search',
-      query: cleanQ,
+       query: query,
       mode: currentSearchState.mode,
       effectiveDate: currentSearchState.effectiveDate,
     };
-    const response = await sendStructuredChatRequest([{ role: 'user', content: fullPrompt }], 'gemini-2.5-flash', { trace });
+    const response = await sendStructuredChatRequest([{ role: 'user', content: fullPrompt }], undefined, { trace, provider: 'zplay' });
 
     let rawText = '';
     let evidenceBundle = null;

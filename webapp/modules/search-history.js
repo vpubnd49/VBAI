@@ -178,7 +178,7 @@ async function fetchLogs(container, navigateToCallback) {
       userId: raw.user_id || null,
       mode: raw.mode || 'legal-search',
       feature: raw.feature || 'legal-search',
-      model: raw.model || 'gemini-3.5-flash-lite',
+      model: raw.model || '',
       effectiveDate: raw.effectiveDate || null,
       status: raw.status || 'success',
       createdAt: raw.created_at || raw.timestamp,

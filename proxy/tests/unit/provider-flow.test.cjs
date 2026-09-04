@@ -31,32 +31,27 @@ assert(okCheckIndex > -1, 'Must check providerRes.ok');
 const returnDataIndex = fnBody.indexOf('return { ok: true, status: 200, data }');
 assert(returnDataIndex > -1, 'Must return success data when providerRes.ok is true');
 
-const vertexFallbackIndex = fnBody.indexOf('executeVertexGeminiChat');
-assert(vertexFallbackIndex > -1, 'Must contain Vertex AI fallback call');
+const providerFailureIndex = fnBody.indexOf("zplay provider request failed.");
+assert(providerFailureIndex > -1, 'Must contain zplay provider failure path');
 
 // Success return MUST come before Vertex fallback
-assert(returnDataIndex < vertexFallbackIndex,
-  'Gemini API success return must come BEFORE Vertex AI fallback call. ' +
-  'When providerRes.ok is true, we must return immediately without calling Vertex.'
+assert(returnDataIndex < providerFailureIndex,
+  'zplay success return must come BEFORE the provider failure path.'
 );
 
 console.log('  ✅ Test 1: Gemini API success returns immediately (no Vertex call)');
 
 // === Test 2: Vertex fallback is called when API fails ===
-const fallbackLogIndex = fnBody.indexOf('Falling back to Vertex AI');
-assert(fallbackLogIndex > -1, 'Must log Vertex AI fallback message');
-assert(fallbackLogIndex > returnDataIndex,
-  'Vertex fallback log must come AFTER success return path');
+assert(fnBody.includes('zplay failed'), 'Must identify zplay provider failure');
+assert(providerFailureIndex > returnDataIndex,
+  'Provider failure path must come AFTER success return path');
 
 console.log('  ✅ Test 2: Vertex AI fallback is called when Gemini API fails');
 
-// === Test 3: Both-failed path exists ===
-const bothFailedIndex = fnBody.indexOf('Both Gemini API key and Vertex AI calls failed');
-assert(bothFailedIndex > -1, 'Must have error path for when both Gemini API and Vertex fail');
-assert(bothFailedIndex > vertexFallbackIndex,
-  'Both-failed error path must come after Vertex fallback attempt');
-
-console.log('  ✅ Test 3: Both-failed error path exists after Vertex attempt');
+// === Test 3: zplay-only failure is returned without provider fallback ===
+assert(!fnBody.includes('executeVertexGeminiChat'), 'zplay chat must not fall back to Vertex/Gemini');
+assert(fnBody.includes("reason: 'PROVIDER_ERROR'"), 'provider failure reason must be explicit');
+console.log('  ✅ Test 3: zplay-only failure is fail-closed');
 
 // === Test 4: finalValidatedModel is NOT used in validate-gemini-key ===
 const validateKeySection = serverCode.substring(

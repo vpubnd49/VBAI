@@ -1,7 +1,7 @@
 import { showToast } from './ui-utils.js';
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, query, limit, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { fetchSystemConfig, updateSystemConfig, validateGeminiApiKey, triggerVertexIngestion } from './system-config.js';
+import { fetchSystemConfig, updateSystemConfig, validateZplayApiKey, triggerVertexIngestion } from './system-config.js';
 import { firebaseConfig } from '../firebase-config.js';
 
 let allLogs = [];
@@ -77,60 +77,60 @@ export function renderAdminPanel(container) {
               <!-- Full-Width Vertical Stack Container -->
               <div style="display: flex; flex-direction: column; gap: 24px; width: 100%; box-sizing: border-box;">
                 
-                <!-- Section 1: AI Engine (Google Gemini) - FULL WIDTH -->
+                <!-- Section 1: AI Engine (zplay / provider-neutral) - FULL WIDTH -->
                 <section class="config-section-card" style="width:100%; box-sizing:border-box; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #cbd5e1); border-radius:10px; padding:20px 24px; border-left:4px solid var(--brand-primary, #008ca1);">
                   <div class="config-section-title" style="color: var(--brand-primary, #008ca1); font-size:1rem; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
-                    <span>●</span> AI Engine (Google Gemini)
+                    <span>●</span> AI Engine (zplay / provider-neutral)
                   </div>
                   
                   <div class="form-group" style="margin-bottom:16px;">
-                    <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Gemini API Key</label>
+                    <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">zplay API Key</label>
                     <div class="config-inline-row" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                      <input type="password" id="gemini_api_key" class="form-input config-inline-grow" placeholder="AIza... (Để trống nếu không đổi)" style="flex:1; min-width:280px; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
-                      <button type="button" id="toggle-gemini-key-btn" class="btn btn-secondary btn-sm" style="padding:8px 14px;">Hiện key</button>
-                      <button type="button" id="verify-gemini-key-btn" class="btn btn-primary btn-sm" style="padding:8px 16px; background:var(--brand-primary, #008ca1); color:white; border:none; border-radius:6px;">✓ Xác nhận key</button>
-                      <button type="button" id="clear-gemini-key-btn" class="btn btn-danger btn-sm" style="padding:8px 14px; background:#dc2626; color:white; border:none; border-radius:6px;">🗑️ Xóa key</button>
+                      <input type="password" id="zplay_api_key" class="form-input config-inline-grow" placeholder="AIza... (Để trống nếu không đổi)" style="flex:1; min-width:280px; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
+                      <button type="button" id="toggle-zplay-key-btn" class="btn btn-secondary btn-sm" style="padding:8px 14px;">Hiện key</button>
+                      <button type="button" id="verify-zplay-key-btn" class="btn btn-primary btn-sm" style="padding:8px 16px; background:var(--brand-primary, #008ca1); color:white; border:none; border-radius:6px;">✓ Xác nhận key</button>
+                      <button type="button" id="clear-zplay-key-btn" class="btn btn-danger btn-sm" style="padding:8px 14px; background:#dc2626; color:white; border:none; border-radius:6px;">🗑️ Xóa key</button>
                     </div>
                     <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
                       <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; cursor:pointer;">
-                        <input type="checkbox" id="verify-gemini-on-save" checked style="width:16px; height:16px; cursor:pointer;">
+                        <input type="checkbox" id="verify-zplay-on-save" checked style="width:16px; height:16px; cursor:pointer;">
                         <span>Xác nhận key khi lưu cấu hình</span>
                       </label>
                     </div>
                     <small class="config-hint" style="display:block; margin-top:4px; color:var(--text-muted, #64748b);">Khóa API được lưu an toàn trong Secret Manager/Firestore</small>
-                    <small id="gemini-key-verify-status" class="config-hint" style="display:block; margin-top:4px;"></small>
+                    <small id="zplay-key-verify-status" class="config-hint" style="display:block; margin-top:4px;"></small>
                   </div>
 
                   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-bottom:16px;">
                     <div class="form-group">
-                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Gemini API Endpoint (Base URL)</label>
-                      <input type="text" id="gemini_endpoint" class="form-input" placeholder="https://generativelanguage.googleapis.com/v1beta/openai" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
+                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">zplay API Endpoint (Base URL)</label>
+                      <input type="text" id="zplay_api_endpoint" class="form-input" placeholder="Provider endpoint" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
                     </div>
                     <div class="form-group">
-                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Model mặc định (Gemini)</label>
-                      <input type="text" id="gemini_model" class="form-input" placeholder="gemini-3.5-flash-lite" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
-                      <small id="gemini-runtime-warning" class="config-hint" style="display:none; color:var(--warning);"></small>
+                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Model mặc định (zplay)</label>
+                      <input type="text" id="ai_model" class="form-input" placeholder="Model từ cấu hình provider" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
+                      <small id="zplay-runtime-warning" class="config-hint" style="display:none; color:var(--warning);"></small>
                     </div>
                   </div>
 
                   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-bottom:16px;">
                     <div class="form-group">
                       <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Model transcription (Ghi âm)</label>
-                      <input type="text" id="transcribe_model" class="form-input" placeholder="gemini-3.5-flash-lite" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
+                      <input type="text" id="transcribe_model" class="form-input" placeholder="Model từ cấu hình provider" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
                     </div>
                     <div class="form-group">
                       <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Model meeting (Biên bản cuộc họp)</label>
-                      <input type="text" id="meeting_model" class="form-input" placeholder="gemini-3.5-flash-lite" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
+                      <input type="text" id="meeting_model" class="form-input" placeholder="Model từ cấu hình provider" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
                     </div>
                   </div>
 
                   <div class="form-group">
-                    <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Danh sách Model Gemini khả dụng</label>
+                    <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Danh sách Model zplay khả dụng</label>
                     <div class="config-inline-row" style="display:flex; gap:10px; align-items:center;">
-                      <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập model (VD: gemini-3.5-flash-lite)" style="flex:1; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
-                      <button type="button" id="add-gemini-model-btn" class="btn btn-primary btn-sm" style="padding:10px 18px; background:var(--brand-primary, #008ca1); color:white; border:none; border-radius:6px;">+ Thêm</button>
+                      <input type="text" id="zplay_model_input" class="form-input config-inline-grow" placeholder="Nhập model từ cấu hình provider" style="flex:1; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
+                      <button type="button" id="add-zplay-model-btn" class="btn btn-primary btn-sm" style="padding:10px 18px; background:var(--brand-primary, #008ca1); color:white; border:none; border-radius:6px;">+ Thêm</button>
                     </div>
-                    <div id="gemini-models-list" class="config-chip-list" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                    <div id="zplay-models-list" class="config-chip-list" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
                   </div>
                 </section>
 
@@ -240,7 +240,7 @@ export function renderAdminPanel(container) {
                       <strong>Citation Validator:</strong> Strict Verification Engine
                     </div>
                     <div style="padding:10px 14px; background:var(--bg-secondary, #f8fafc); border-radius:8px; border-left:3px solid #f59e0b;">
-                      <strong>Môi trường Runtime:</strong> Google Gemini Only
+                      <strong>Môi trường Runtime:</strong> zplay Only
                     </div>
                   </div>
                 </section>
@@ -323,7 +323,7 @@ export function renderAdminPanel(container) {
             </div>
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Mô hình đích Vertex AI</div>
-              <div style="font-size:1.4rem; font-weight:800; color:#7c3aed; margin-top:2px;">gemini-2.0-flash</div>
+              <div style="font-size:1.4rem; font-weight:800; color:#7c3aed; margin-top:2px;">zplay-2.0-flash</div>
             </div>
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Trạng thái đồng bộ</div>
@@ -615,7 +615,7 @@ export function renderAdminPanel(container) {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'vbai_gemini_tuning_dataset.jsonl';
+        a.download = 'vbai_zplay_tuning_dataset.jsonl';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -906,14 +906,14 @@ async function initSystemConfigPanel(container) {
   const refreshBtn = container.querySelector('#refresh-config-btn');
   const saveStatusEl = container.querySelector('#config-save-status');
 
-  const geminiKeyInput = formEl.querySelector('#gemini_api_key');
-  const toggleGeminiKeyBtn = formEl.querySelector('#toggle-gemini-key-btn');
-  const verifyGeminiKeyBtn = formEl.querySelector('#verify-gemini-key-btn');
-  const verifyGeminiOnSaveInput = formEl.querySelector('#verify-gemini-on-save');
-  const geminiKeyVerifyStatus = formEl.querySelector('#gemini-key-verify-status');
-  const geminiEndpointInput = formEl.querySelector('#gemini_endpoint');
-  const geminiModelInput = formEl.querySelector('#gemini_model');
-  const geminiRuntimeWarning = formEl.querySelector('#gemini-runtime-warning');
+  const zplayKeyInput = formEl.querySelector('#zplay_api_key');
+  const togglezplayKeyBtn = formEl.querySelector('#toggle-zplay-key-btn');
+  const verifyzplayKeyBtn = formEl.querySelector('#verify-zplay-key-btn');
+  const verifyzplayOnSaveInput = formEl.querySelector('#verify-zplay-on-save');
+  const zplayKeyVerifyStatus = formEl.querySelector('#zplay-key-verify-status');
+const zplayEndpointInput = formEl.querySelector('#zplay_api_endpoint');
+   const zplayModelInput = formEl.querySelector('#ai_model');
+  const zplayRuntimeWarning = formEl.querySelector('#zplay-runtime-warning');
   
   const transcribeModelInput = formEl.querySelector('#transcribe_model');
   const meetingModelInput = formEl.querySelector('#meeting_model');
@@ -932,10 +932,10 @@ async function initSystemConfigPanel(container) {
     luatvietnam: formEl.querySelector('#fallback_luatvietnam'),
   };
 
-  let geminiModels = [];
+  let zplayModels = [];
 
-  const geminiListEl = setupModelInput(container, 'gemini_model_input', 'add-gemini-model-btn', 'gemini-models-list', () => geminiModels, (next) => {
-    geminiModels = next;
+  const zplayListEl = setupModelInput(container, 'zplay_model_input', 'add-zplay-model-btn', 'zplay-models-list', () => zplayModels, (next) => {
+    zplayModels = next;
   });
 
   function setConfigStatus(message, kind = 'info') {
@@ -970,39 +970,39 @@ async function initSystemConfigPanel(container) {
     return out;
   }
 
-  function updateGeminiRuntimeWarning(modelName, hasGeminiKey) {
-    if (!geminiRuntimeWarning) return;
+  function updatezplayRuntimeWarning(modelName, haszplayKey) {
+    if (!zplayRuntimeWarning) return;
     const normalized = String(modelName || '').trim().toLowerCase();
     const useProLikeModel = normalized.includes('pro');
-    if (hasGeminiKey && useProLikeModel) {
-      geminiRuntimeWarning.style.display = 'block';
-      geminiRuntimeWarning.textContent = 'Lưu ý: model Pro có thể bị 404 theo quyền dự án. Runtime sẽ tự fallback 1 lần sang gemini-3.5-flash-lite để tránh gián đoạn.';
+    if (haszplayKey && useProLikeModel) {
+      zplayRuntimeWarning.style.display = 'block';
+       zplayRuntimeWarning.textContent = 'Model không hợp lệ hoặc không được cấu hình; runtime sẽ không tự fallback.';
       return;
     }
-    geminiRuntimeWarning.style.display = 'none';
-    geminiRuntimeWarning.textContent = '';
+    zplayRuntimeWarning.style.display = 'none';
+    zplayRuntimeWarning.textContent = '';
   }
 
-  function setGeminiKeyVerifyStatus(message = '', kind = 'info') {
-    if (!geminiKeyVerifyStatus) return;
-    geminiKeyVerifyStatus.textContent = message;
+  function setzplayKeyVerifyStatus(message = '', kind = 'info') {
+    if (!zplayKeyVerifyStatus) return;
+    zplayKeyVerifyStatus.textContent = message;
     if (kind === 'error') {
-      geminiKeyVerifyStatus.style.color = '#b91c1c';
+      zplayKeyVerifyStatus.style.color = '#b91c1c';
       return;
     }
     if (kind === 'success') {
-      geminiKeyVerifyStatus.style.color = '#15803d';
+      zplayKeyVerifyStatus.style.color = '#15803d';
       return;
     }
-    geminiKeyVerifyStatus.style.color = 'var(--text-muted)';
+    zplayKeyVerifyStatus.style.color = 'var(--text-muted)';
   }
 
-  async function runKeyValidation(provider = 'gemini', { useStoredKey = true } = {}) {
-    const keyInput = geminiKeyInput;
-    const endpointInput = geminiEndpointInput;
-    const modelInput = geminiModelInput;
-    const verifyBtn = verifyGeminiKeyBtn;
-    const verifyStatusEl = geminiKeyVerifyStatus;
+  async function runKeyValidation(provider = 'zplay', { useStoredKey = true } = {}) {
+    const keyInput = zplayKeyInput;
+    const endpointInput = zplayEndpointInput;
+    const modelInput = zplayModelInput;
+    const verifyBtn = verifyzplayKeyBtn;
+    const verifyStatusEl = zplayKeyVerifyStatus;
 
     if (verifyBtn) {
       verifyBtn.disabled = true;
@@ -1010,23 +1010,23 @@ async function initSystemConfigPanel(container) {
     }
     
     if (verifyStatusEl) {
-      verifyStatusEl.textContent = 'Đang xác nhận Gemini API key...';
+      verifyStatusEl.textContent = 'Đang xác nhận zplay API key...';
       verifyStatusEl.style.color = 'var(--text-muted)';
     }
 
     try {
       const payload = {
         apiKey: keyInput?.value?.trim() || '',
-        gemini_endpoint: endpointInput?.value?.trim() || '',
+        zplay_api_endpoint: endpointInput?.value?.trim() || '',
         useStoredKey,
-        model: modelInput?.value?.trim() || 'gemini-3.5-flash-lite',
+        model: modelInput?.value?.trim() || '',
       };
-      const result = await validateGeminiApiKey(payload);
+      const result = await validateZplayApiKey(payload);
       if (result?.valid !== true) {
         throw new Error(result?.message || 'Xác nhận key thất bại.');
       }
       if (verifyStatusEl) {
-        verifyStatusEl.textContent = '✅ Gemini API key hợp lệ.';
+        verifyStatusEl.textContent = '✅ zplay API key hợp lệ.';
         verifyStatusEl.style.color = '#15803d';
       }
       return true;
@@ -1051,7 +1051,7 @@ async function initSystemConfigPanel(container) {
       if (!config) {
         setConfigStatus('Chưa có cấu hình hệ thống. Vui lòng nhập thông tin và lưu.', 'info');
         formEl.classList.remove('is-hidden');
-        renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
+        renderModelChips(zplayListEl, zplayModels, 'zplay', (next) => { zplayModels = next; });
         return;
       }
 
@@ -1059,20 +1059,20 @@ async function initSystemConfigPanel(container) {
       const setInputValue = (el, val) => { if (el) el.value = val; };
       const getInputValue = (el, fallback = '') => el ? el.value.trim() : fallback;
 
-      // Load Gemini
-      setInputValue(geminiModelInput, config.gemini_model || 'gemini-3.5-flash-lite');
-      setInputValue(geminiEndpointInput, config.gemini_endpoint || '');
-      setInputValue(geminiKeyInput, config.gemini_api_key || '');
-      if (geminiKeyInput) geminiKeyInput.type = 'password';
-      if (toggleGeminiKeyBtn) toggleGeminiKeyBtn.textContent = 'Hiện key';
-      setGeminiKeyVerifyStatus(config.has_gemini_key ? 'Đã lưu Gemini API key. Bạn có thể xác nhận lại bất cứ lúc nào.' : 'Chưa có Gemini API key.');
-      updateGeminiRuntimeWarning(geminiModelInput ? geminiModelInput.value : '', !!config.has_gemini_key);
-      geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
-      renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
+      // Load zplay
+setInputValue(zplayModelInput, config.ai_model || '');
+       setInputValue(zplayEndpointInput, config.ai_endpoint || config.zplay_api_endpoint || '');
+       setInputValue(zplayKeyInput, '');
+      if (zplayKeyInput) zplayKeyInput.type = 'password';
+      if (togglezplayKeyBtn) togglezplayKeyBtn.textContent = 'Hiện key';
+      setzplayKeyVerifyStatus(config.has_zplay_key ? 'Đã lưu zplay API key. Bạn có thể xác nhận lại bất cứ lúc nào.' : 'Chưa có zplay API key.');
+      updatezplayRuntimeWarning(zplayModelInput ? zplayModelInput.value : '', !!config.has_zplay_key);
+      zplayModels = Array.isArray(config.zplay_models) ? [...config.zplay_models] : [];
+      renderModelChips(zplayListEl, zplayModels, 'zplay', (next) => { zplayModels = next; });
 
       // Load other configs
-      setInputValue(transcribeModelInput, config.transcribe_model || config.gemini_model || 'gemini-3.7-flash-high');
-      setInputValue(meetingModelInput, config.meeting_model || config.transcribe_model || config.gemini_model || 'gemini-3.7-flash-high');
+      setInputValue(transcribeModelInput, config.transcribe_model || config.zplay_model || 'zplay-3.7-flash-high');
+      setInputValue(meetingModelInput, config.meeting_model || config.transcribe_model || config.zplay_model || 'zplay-3.7-flash-high');
       setInputValue(vertexProjectIdInput, config.vertex_project_id || '');
       setInputValue(vertexLocationInput, config.vertex_location || 'global');
       setInputValue(vertexDataStoreIdInput, config.vertex_data_store_id || '');
@@ -1093,24 +1093,18 @@ async function initSystemConfigPanel(container) {
 
   async function saveConfig() {
     const getInputValue = (el, fallback = '') => el ? el.value.trim() : fallback;
-    const activeGeminiModel = getInputValue(geminiModelInput, 'gemini-3.7-flash-high');
-    const activeTranscribeModel = getInputValue(transcribeModelInput, activeGeminiModel);
-    const activeMeetingModel = getInputValue(meetingModelInput, activeGeminiModel);
-
-    // Auto append manual typed models into list if not already present
-    const updatedModels = Array.from(new Set([
-      activeGeminiModel,
-      activeTranscribeModel,
-      activeMeetingModel,
-      ...geminiModels
-    ])).filter(Boolean);
+    const activeAiModel = getInputValue(zplayModelInput);
+    const activeTranscribeModel = getInputValue(transcribeModelInput);
+    const activeMeetingModel = getInputValue(meetingModelInput);
 
     const payload = {
-      // Gemini
-      gemini_model: activeGeminiModel,
-      gemini_endpoint: getInputValue(geminiEndpointInput),
-      gemini_models: updatedModels,
-      gemini_api_key: getInputValue(geminiKeyInput),
+      // zplay
+      ai_provider: 'zplay',
+      ai_model: activeAiModel,
+      ai_endpoint: getInputValue(zplayEndpointInput),
+      zplay_api_endpoint: getInputValue(zplayEndpointInput),
+      // Only submit a key when an administrator manually entered a new one.
+      ...(getInputValue(zplayKeyInput) ? { zplay_api_key: getInputValue(zplayKeyInput) } : {}),
 
       // Other Settings
       transcribe_model: activeTranscribeModel,
@@ -1129,12 +1123,11 @@ async function initSystemConfigPanel(container) {
     saveStatusEl.className = 'config-save-status';
     saveStatusEl.textContent = '';
     try {
-      if (verifyGeminiOnSaveInput?.checked) {
-        const useStoredKey = !payload.gemini_api_key;
-        const keyOk = await runKeyValidation('gemini', { useStoredKey });
+      if (verifyzplayOnSaveInput?.checked) {
+        const keyOk = await runKeyValidation('zplay', { useStoredKey: false });
         if (!keyOk) {
           saveStatusEl.className = 'config-save-status error';
-          saveStatusEl.textContent = '❌ Key Gemini chưa hợp lệ nên chưa lưu cấu hình.';
+          saveStatusEl.textContent = '❌ Key zplay chưa hợp lệ nên chưa lưu cấu hình.';
           return;
         }
       }
@@ -1156,24 +1149,23 @@ async function initSystemConfigPanel(container) {
     if (!confirm('XÁC NHẬN: Bạn có chắc chắn muốn lưu và áp dụng toàn bộ cấu hình AI & Hệ thống mới này?')) return;
     saveConfig();
   });
-  toggleGeminiKeyBtn?.addEventListener('click', () => {
-    const showing = geminiKeyInput.type === 'text';
-    geminiKeyInput.type = showing ? 'password' : 'text';
-    toggleGeminiKeyBtn.textContent = showing ? 'Hiện key' : 'Ẩn key';
+  togglezplayKeyBtn?.addEventListener('click', () => {
+    const showing = zplayKeyInput.type === 'text';
+    zplayKeyInput.type = showing ? 'password' : 'text';
+    togglezplayKeyBtn.textContent = showing ? 'Hiện key' : 'Ẩn key';
   });
-  verifyGeminiKeyBtn?.addEventListener('click', () => {
-    const useStoredKey = !geminiKeyInput.value.trim();
-    void runKeyValidation('gemini', { useStoredKey });
+  verifyzplayKeyBtn?.addEventListener('click', () => {
+    void runKeyValidation('zplay', { useStoredKey: false });
   });
-  const clearGeminiKeyBtn = formEl.querySelector('#clear-gemini-key-btn');
-  clearGeminiKeyBtn?.addEventListener('click', async () => {
-    if (!confirm('Bạn có chắc chắn muốn xóa Gemini API key khỏi hệ thống không?')) return;
+  const clearzplayKeyBtn = formEl.querySelector('#clear-zplay-key-btn');
+  clearzplayKeyBtn?.addEventListener('click', async () => {
+    if (!confirm('Bạn có chắc chắn muốn xóa zplay API key khỏi hệ thống không?')) return;
     try {
-      if (geminiKeyInput) geminiKeyInput.value = '';
-      await updateSystemConfig({ clear_gemini_api_key: true });
+      if (zplayKeyInput) zplayKeyInput.value = '';
+      await updateSystemConfig({ clear_zplay_api_key: true });
       if (saveStatusEl) {
         saveStatusEl.className = 'config-save-status success';
-        saveStatusEl.textContent = '✅ Đã xóa Gemini API key thành công.';
+        saveStatusEl.textContent = '✅ Đã xóa zplay API key thành công.';
       }
       await loadConfig();
     } catch (err) {
@@ -1212,8 +1204,8 @@ async function initSystemConfigPanel(container) {
       triggerVertexIngestBtn.textContent = '🔄 Đồng bộ dữ liệu (Ingest)';
     }
   });
-  geminiModelInput.addEventListener('input', () => {
-    updateGeminiRuntimeWarning(geminiModelInput.value, geminiKeyInput.value.includes('•') || !!geminiKeyInput.value.trim());
+  zplayModelInput.addEventListener('input', () => {
+    updatezplayRuntimeWarning(zplayModelInput.value, zplayKeyInput.value.includes('•') || !!zplayKeyInput.value.trim());
   });
   loadConfig();
 
@@ -1486,7 +1478,7 @@ function setupModelInput(container, inputId, btnId, listElId, getModels, setMode
     const next = [...models, val];
     setModels(next);
     input.value = '';
-    renderModelChips(listEl, next, 'gemini', setModels);
+    renderModelChips(listEl, next, 'zplay', setModels);
   }
 
   btn.addEventListener('click', addModel);
@@ -1542,7 +1534,7 @@ async function loadLogs(container) {
         userEmail: item.user_email || item.userEmail || item.user_id || 'anonymous',
         query: item.query || item.prompt || '',
         action: item.query || item.prompt || '',
-        model: item.model || 'gemini-3.5-flash-lite',
+        model: item.model || null,
         mode: item.mode || 'legal-search',
         status: item.status || 'success',
         verifiedEvidenceCount: typeof item.verified_count === 'number' ? item.verified_count : item.verifiedEvidenceCount,
@@ -1588,7 +1580,7 @@ function renderPage(container) {
           <div>${escapeHtml(queryDisplay)} ${modeBadge}</div>
           <div style="margin-top:2px;">${statusTag}</div>
         </td>
-        <td style="padding:12px;"><span style="font-family:monospace; font-size:0.78rem;">${escapeHtml(item.data.model || 'gemini-3.5-flash-lite')}</span></td>
+        <td style="padding:12px;"><span style="font-family:monospace; font-size:0.78rem;">${escapeHtml(item.data.model || '')}</span></td>
         <td style="padding:12px; text-align:right;"><button class="btn-delete" data-id="${item.id}" style="padding:4px 8px; font-size:0.8rem; background:var(--btn-danger-bg, #b91c1c); color:white; border:none; border-radius:4px; cursor:pointer;">Xóa</button></td>
       </tr>
     `;

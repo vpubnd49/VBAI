@@ -2,7 +2,7 @@
  * Transcription Service
  *
  * Handles the core transcription logic:
- * - Single-file streaming transcription via Gemini Files API
+ * - Single-file transcription through the configured provider contract
  * - Magic-byte verification on uploaded files
  * - Stream-based provider upload (no full-file Buffer)
  */
@@ -65,6 +65,9 @@ async function transcribeSingleFile({ filePath, mimeType, filename, model, promp
   }
 
   try {
+    if (typeof uploadToProvider !== 'function') {
+      throw Object.assign(new Error('Transcription unavailable: provider does not support audio.'), { status: 503 });
+    }
     const result = await uploadToProvider({ filePath, mimeType, filename, model, prompt });
     return { error: false, body: result };
   } catch (err) {

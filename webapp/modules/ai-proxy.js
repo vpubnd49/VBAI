@@ -1,11 +1,7 @@
 import { fetchSystemConfig, getCachedSystemConfig } from './system-config.js';
 
-const DEFAULT_PROXY_MODEL = 'gemini-3.5-flash-lite';
 const DEFAULT_BACKEND_BASE = '/api';
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const GEMINI_COMPAT_PATH = ['open', 'ai'].join('');
-const DEFAULT_GEMINI_ENDPOINT = `${GEMINI_API_BASE}/${GEMINI_COMPAT_PATH}`;
-const DEFAULT_TRANSCRIBE_CHUNK_BYTES = 10 * 1024 * 1024; // 10MB (an toàn với giới hạn 20MB của Gemini)
+const DEFAULT_TRANSCRIBE_CHUNK_BYTES = 10 * 1024 * 1024; // Chunk size limit for uploads
 let lastWebSearchMeta = null;
 const ALLOWED_BACKEND_HOSTS = new Set([
   'vbai.tracuu.lamdong.vn',
@@ -79,11 +75,7 @@ function parseEndpointHost(endpoint = '') {
 }
 
 export function isGeminiApiEndpoint(endpoint = '') {
-  const raw = String(endpoint || '').trim().toLowerCase();
-  if (!raw) return false;
-  const host = parseEndpointHost(raw);
-  if (host === 'generativelanguage.googleapis.com') return true;
-  return raw.includes(`${GEMINI_API_BASE.toLowerCase()}/${GEMINI_COMPAT_PATH}`);
+  return false;
 }
 
 function isReasoningModel(model = '') {
@@ -187,16 +179,10 @@ export async function backendFetch(path, { method = 'GET', headers = {}, body, t
 }
 
 async function getSystemConfigSafe() {
-  const config = await fetchSystemConfig() || getCachedSystemConfig() || {
-    provider: 'gemini',
-    gemini_model: 'gemini-3.5-flash-lite',
-    gemini_endpoint: DEFAULT_GEMINI_ENDPOINT,
-    transcribe_model: 'gemini-3.5-flash-lite',
-    has_gemini_key: false,
-  };
+  const config = await fetchSystemConfig() || getCachedSystemConfig() || {};
   
   // Normalize endpoints
-  if (config.gemini_endpoint) config.gemini_endpoint = trimTrailingSlash(config.gemini_endpoint);
+  if (config.ai_endpoint) config.ai_endpoint = trimTrailingSlash(config.ai_endpoint);
   
   return config;
 }
@@ -238,7 +224,7 @@ export async function sendChatRequest(messages, model, options = {}) {
 
   const systemConfig = await getSystemConfigSafe();
   const resolvedModel = normalizeModelName(
-    model || systemConfig.gemini_model || DEFAULT_PROXY_MODEL
+    model || systemConfig.ai_model || ''
   );
 
   const messagesList = normalizeMessagesForProvider(messages, resolvedModel);
@@ -299,7 +285,7 @@ export async function sendStructuredChatRequest(messages, model, options = {}) {
 
   const systemConfig = await getSystemConfigSafe();
   const resolvedModel = normalizeModelName(
-    model || systemConfig.gemini_model || DEFAULT_PROXY_MODEL
+    model || systemConfig.ai_model || ''
   );
 
   const messagesList = normalizeMessagesForProvider(messages, resolvedModel);
@@ -339,7 +325,7 @@ export async function sendStructuredChatRequest(messages, model, options = {}) {
   };
 }
 
-export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, options = {}) {
+export async function sendAudioTranscription(file, model = '', options = {}) {
   const chunkWhenLarge = options.chunkWhenLarge === true;
   const configuredMaxBytes = Number(options.maxBytes);
   const maxBytes = Number.isFinite(configuredMaxBytes) && configuredMaxBytes > 0
@@ -391,11 +377,13 @@ export async function sendAudioTranscription(file, model = DEFAULT_PROXY_MODEL, 
   return sendSingleAudioTranscription(file, model, options);
 }
 
-async function sendSingleAudioTranscription(file, model = DEFAULT_PROXY_MODEL, options = {}, partMeta = null) {
+async function sendSingleAudioTranscription(file, model = '', options = {}, partMeta = null) {
   const formData = new FormData();
   formData.append('audio', file, file?.name || 'audio');
   formData.append('filename', file?.name || 'audio');
-  formData.append('model', normalizeModelName(model || DEFAULT_PROXY_MODEL));
+  const configuredModel = normalizeModelName(model || (await getSystemConfigSafe()).transcribe_model || '');
+  if (!configuredModel) throw new Error('Thiếu model AI trong cấu hình.');
+  formData.append('model', configuredModel);
   if (options.prompt) {
     formData.append('prompt', options.prompt);
   }
@@ -554,10 +542,8 @@ export async function checkProxyStatus(context = 'default') {
 export async function getProxyModelIds(context = 'default') {
   const config = await getSystemConfigSafe();
   const models = [
-    config.gemini_model,
+    config.ai_model,
     config.transcribe_model,
-    DEFAULT_PROXY_MODEL,
-    'gemini-3.5-flash-lite',
   ].filter(Boolean);
   return Array.from(new Set(models.map((x) => String(x).trim()).filter(Boolean)));
 }

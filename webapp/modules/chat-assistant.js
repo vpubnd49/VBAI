@@ -19,13 +19,13 @@ import {
   sendLegalAgentRequest,
 } from './ai-proxy.js';
 
-import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig, validateGeminiApiKey } from './system-config.js';
+import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig, validateZplayApiKey } from './system-config.js';
 import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tier-policy.js';
 import { showToast } from './ui-utils.js';
 
 
-const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
-const STRICT_MEETING_AUDIO_MODEL = 'gemini-3.5-flash-lite';
+const DEFAULT_MODEL = '';
+const STRICT_MEETING_AUDIO_MODEL = '';
 const DEFAULT_FALLBACK_SOURCES = {
   vbpl: true,
   chinhphu: true,
@@ -42,8 +42,8 @@ let systemConfigCache = null;
 function applyRuntimeSystemConfig(nextConfig = null) {
   if (!nextConfig || typeof nextConfig !== 'object') return;
   systemConfigCache = nextConfig;
-  const nextModel = systemConfigCache?.gemini_model || 'gemini-3.5-flash-lite';
-  currentModelName = normalizeModelName(nextModel) || DEFAULT_MODEL;
+  const nextModel = systemConfigCache?.ai_model || '';
+  currentModelName = normalizeModelName(nextModel);
 }
 
 async function loadSystemConfig() {
@@ -105,7 +105,7 @@ function isLikelyApiKey(value = "") {
 
 function isLikelyGoogleApiKey(value = "") {
   const v = String(value || "").trim();
-  return /^AIza[0-9A-Za-z\-_]{20,}$/.test(v);
+  return false;
 }
 
 function isValidHttpEndpoint(value = "") {
@@ -269,6 +269,19 @@ const CHAT_CACHE_TTL_TIME_SENSITIVE_MS = 60 * 1000;
 const DAILY_SYNC_TIMESTAMP_KEY = 'vbai_daily_sync_timestamp';
 const HOT_KNOWLEDGE_TTL_MS = 2 * 60 * 60 * 1000;
 const CHAT_CONTEXT_MAX_TURNS = 6;
+const CHAT_SESSION_STORAGE_KEY = 'vbai_chat_session_id';
+const CHAT_SESSION_ID = (() => {
+  try {
+    let value = sessionStorage.getItem(CHAT_SESSION_STORAGE_KEY);
+    if (!value) {
+      value = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      sessionStorage.setItem(CHAT_SESSION_STORAGE_KEY, value);
+    }
+    return value;
+  } catch {
+    return null;
+  }
+})();
 
 let allSkills = [];
 let recentTurns = [];
@@ -352,8 +365,9 @@ async function processAttachedFile(file, statusCallback) {
       
       statusCallback('Đang nhận diện ký tự bằng AI...');
       const config = await fetchSystemConfig();
-      const model = config?.gemini_model || 'gemini-3.5-flash-lite';
-      const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr', provider: 'gemini' });
+      const model = config?.ai_model || '';
+      if (!model) throw new Error('OCR unavailable: AI model is not configured.');
+      const ocrText = await sendChatRequest([{ role: "user", content }], model, { temperature: 0, context: 'ocr', provider: 'zplay' });
       if (!ocrText) throw new Error('Không thể nhận diện được nội dung chữ từ file quét scan.');
       fullText = ocrText;
     }
@@ -2421,11 +2435,12 @@ export async function runDailyLegalSync() {
 }
 
 
-export function initChat(apiKey, modelName = DEFAULT_MODEL) {
-  const normalizedModel = normalizeModelName(
-    modelName || DEFAULT_MODEL
-  );
-  currentModelName = normalizedModel || DEFAULT_MODEL;
+export function initChat(apiKey, modelName = '') {
+  const normalizedModel = normalizeModelName(modelName);
+  currentModelName = normalizedModel;
+  if (!currentModelName) {
+    console.warn('Chat init deferred: AI model is required in system configuration.');
+  }
   
   try {
     aiClient = { proxy: true };
@@ -2516,7 +2531,7 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
         context: "chat",
         stream: true,
         temperature: drafting ? 0.35 : 0.2,
-        trace: { feature: 'chat-assistant', mode: 'file-chat', query: rawUserText },
+        trace: { feature: 'chat-assistant', mode: 'file-chat', query: rawUserText, sessionId: CHAT_SESSION_ID },
         onDelta: (partial) => {
           if (onChunk) onChunk(partial);
         }
@@ -3002,7 +3017,7 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
       context: "chat",
       stream: true,
       temperature: drafting ? 0.35 : 0.2,
-      trace: { feature: 'chat-assistant', mode: 'chat', query: rawUserText },
+      trace: { feature: 'chat-assistant', mode: 'chat', query: rawUserText, sessionId: CHAT_SESSION_ID },
       onDelta: (partial) => {
         if (onChunk) {
           onChunk(partial);
@@ -3051,10 +3066,11 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
 
 export async function renderChatUI(container) {
   const fallbackConfig = {
-    provider: 'gemini',
-    gemini_model: 'gemini-3.5-flash-lite',
-    transcribe_model: 'gemini-3.5-flash-lite',
-    has_gemini_key: false,
+    provider: 'zplay',
+    ai_model: '',
+    transcribe_model: '',
+    meeting_model: '',
+    has_zplay_key: false,
     web_search_provider: 'vertex_search',
     web_search_mode: 'cse_with_fallback',
     web_search_fallback_sources: { ...DEFAULT_FALLBACK_SOURCES },
@@ -3062,7 +3078,7 @@ export async function renderChatUI(container) {
 
   const isAdmin = isCurrentUserAdmin();
   const configSnapshot = { ...fallbackConfig, ...(systemConfigCache || {}) };
-  const savedModel = normalizeModelName(configSnapshot.gemini_model || 'gemini-3.5-flash-lite') || 'gemini-3.5-flash-lite';
+  const savedModel = normalizeModelName(configSnapshot.ai_model || '');
 
   container.innerHTML = `
     <div class="chat-assistant-panel panel-group">
@@ -3112,27 +3128,27 @@ export async function renderChatUI(container) {
             ${isAdmin ? `
               <div class="config-modal-two-col">
                 <section class="config-section-card">
-                  <div class="config-modal-section-title">Gemini</div>
+                  <div class="config-modal-section-title">zplay</div>
                   <div class="form-group">
                     <label class="form-label">Nh\u00e0 cung c\u1ea5p AI m\u1eb7c \u0111\u1ecbnh</label>
                     <input type="text" class="form-input" value="Gemini" readonly>
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Model Gemini</label>
-                    <input type="text" id="modal-gemini-model" class="form-input" value="${escapeHtml(configSnapshot.gemini_model || 'gemini-2.5-pro')}">
-                    <small id="modal-gemini-runtime-warning" class="config-hint" style="display:none; color:#fbbf24;"></small>
+                    <label class="form-label">Model zplay</label>
+                    <input type="text" id="modal-zplay-model" class="form-input" value="${escapeHtml(configSnapshot.ai_model || '')}">
+                    <small id="modal-zplay-runtime-warning" class="config-hint" style="display:none; color:#fbbf24;"></small>
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Gemini API Key</label>
+                    <label class="form-label">zplay API Key</label>
                     <div class="config-inline-row">
-                      <input type="password" id="modal-gemini-key" class="form-input config-inline-grow" placeholder="AIza..." value="${escapeHtml(configSnapshot.gemini_api_key || '')}">
+                      <input type="password" id="modal-zplay-key" class="form-input config-inline-grow" placeholder="AIza..." value="">
                       <button type="button" id="modal-toggle-gemini-key-btn" class="btn btn-secondary btn-sm config-inline-add-btn">Hiện key</button>
                       <button type="button" id="modal-verify-gemini-key-btn" class="btn btn-primary btn-sm config-inline-add-btn">Xác nhận key</button>
                     </div>
                     <label class="config-radio-option" style="margin-top:8px">
                       <input type="checkbox" id="modal-verify-gemini-on-save" checked> Xác nhận key khi lưu cấu hình
                     </label>
-                    <small id="modal-gemini-key-status" class="config-hint"></small>
+                    <small id="modal-zplay-key-status" class="config-hint"></small>
                   </div>
                 </section>
 
@@ -3348,30 +3364,30 @@ export async function renderChatUI(container) {
   function syncModalFromConfig(config = null) {
     if (!isAdmin) return;
     const live = { ...fallbackConfig, ...(config || systemConfigCache || {}) };
-    const geminiModelInput = container.querySelector('#modal-gemini-model');
-    const geminiKeyInput = container.querySelector('#modal-gemini-key');
-    const geminiKeyToggleBtn = container.querySelector('#modal-toggle-gemini-key-btn');
-    const geminiKeyStatus = container.querySelector('#modal-gemini-key-status');
-    const geminiRuntimeWarning = container.querySelector('#modal-gemini-runtime-warning');
+    const geminiModelInput = container.querySelector('#modal-zplay-model');
+    const geminiKeyInput = container.querySelector('#modal-zplay-key');
+    const geminiKeyToggleBtn = container.querySelector('#modal-toggle-zplay-key-btn');
+    const geminiKeyStatus = container.querySelector('#modal-zplay-key-status');
+    const geminiRuntimeWarning = container.querySelector('#modal-zplay-runtime-warning');
 
-    if (geminiModelInput) geminiModelInput.value = live.gemini_model || 'gemini-3.5-flash-lite';
+    if (geminiModelInput) geminiModelInput.value = live.ai_model || '';
     if (geminiKeyInput) {
-      geminiKeyInput.value = live.gemini_api_key || '';
+      geminiKeyInput.value = '';
       geminiKeyInput.type = 'password';
     }
     if (geminiKeyToggleBtn) geminiKeyToggleBtn.textContent = 'Hiện key';
     if (geminiKeyStatus) {
-      geminiKeyStatus.textContent = live.has_gemini_key
-        ? 'Đã lưu Gemini API key. Bạn có thể xác nhận lại bất cứ lúc nào.'
-        : 'Chưa có Gemini API key.';
+      geminiKeyStatus.textContent = live.has_zplay_key
+        ? 'Đã lưu zplay API key (chỉ hiển thị trạng thái, không trả key).'
+        : 'Chưa có zplay API key.';
       geminiKeyStatus.style.color = 'var(--text-muted)';
     }
     if (geminiRuntimeWarning) {
-      const normalizedModel = String(live.gemini_model || '').trim().toLowerCase();
+      const normalizedModel = String(live.ai_model || '').trim().toLowerCase();
       const useProLikeModel = normalizedModel.includes('pro');
-      if (live.has_gemini_key && useProLikeModel) {
+      if (live.has_zplay_key && useProLikeModel) {
         geminiRuntimeWarning.style.display = 'block';
-        geminiRuntimeWarning.textContent = "Model Pro c\u00f3 th\u1ec3 b\u1ecb 404 theo quy\u1ec1n d\u1ef1 \u00e1n. H\u1ec7 th\u1ed1ng s\u1ebd t\u1ef1 fallback 1 l\u1ea7n sang gemini-3.5-flash-lite khi c\u1ea7n.";
+        geminiRuntimeWarning.textContent = "Model Pro c\u00f3 th\u1ec3 b\u1ecb 404 theo quy\u1ec1n d\u1ef1 \u00e1n. H\u1ec7 th\u1ed1ng s\u1ebd t\u1ef1 fallback 1 l\u1ea7n sang  khi c\u1ea7n.";
       } else {
         geminiRuntimeWarning.style.display = 'none';
         geminiRuntimeWarning.textContent = '';
@@ -3406,12 +3422,12 @@ export async function renderChatUI(container) {
 
     const modalSaveBtn = container.querySelector('#modal-save-config-btn');
     const modalStatus = container.querySelector('#modal-save-status');
-    const modalGeminiModelInput = container.querySelector('#modal-gemini-model');
-    const modalGeminiKey = container.querySelector('#modal-gemini-key');
-    const modalToggleGeminiKeyBtn = container.querySelector('#modal-toggle-gemini-key-btn');
-    const modalVerifyGeminiKeyBtn = container.querySelector('#modal-verify-gemini-key-btn');
+    const modalGeminiModelInput = container.querySelector('#modal-zplay-model');
+    const modalGeminiKey = container.querySelector('#modal-zplay-key');
+    const modalToggleGeminiKeyBtn = container.querySelector('#modal-toggle-zplay-key-btn');
+    const modalVerifyGeminiKeyBtn = container.querySelector('#modal-verify-zplay-key-btn');
     const modalVerifyGeminiOnSave = container.querySelector('#modal-verify-gemini-on-save');
-    const modalGeminiKeyStatus = container.querySelector('#modal-gemini-key-status');
+    const modalGeminiKeyStatus = container.querySelector('#modal-zplay-key-status');
 
     const setModalKeyStatus = (message = '', kind = 'info') => {
       if (!modalGeminiKeyStatus) return;
@@ -3434,10 +3450,10 @@ export async function renderChatUI(container) {
       }
       setModalKeyStatus('Đang xác nhận Gemini API key...');
       try {
-        const result = await validateGeminiApiKey({
+        const result = await validateZplayApiKey({
           apiKey: modalGeminiKey?.value?.trim() || '',
           useStoredKey,
-          model: modalGeminiModelInput?.value?.trim() || 'gemini-3.5-flash-lite',
+          model: modalGeminiModelInput?.value?.trim() || '',
         });
         if (result?.valid !== true) {
           throw new Error(result?.message || 'Xác nhận key thất bại.');
@@ -3475,17 +3491,16 @@ export async function renderChatUI(container) {
 
         try {
           const configUpdate = {
-            gemini_model: modalGeminiModelInput.value.trim() || 'gemini-3.5-flash-lite',
+            ai_model: modalGeminiModelInput.value.trim(),
             web_search_provider: 'vertex_search',
             web_search_mode: getRadioValue('modal_web_search_mode', 'cse_with_fallback'),
             web_search_fallback_sources: collectFallbackCheckboxes(),
           };
 
-          configUpdate.gemini_api_key = modalGeminiKey.value.trim();
+          if (modalGeminiKey.value.trim()) configUpdate.zplay_api_key = modalGeminiKey.value.trim();
 
           if (modalVerifyGeminiOnSave?.checked) {
-            const useStoredKey = !configUpdate.gemini_api_key;
-            const keyOk = await runModalKeyValidation({ useStoredKey });
+            const keyOk = await runModalKeyValidation({ useStoredKey: false });
             if (!keyOk) {
               modalStatus.textContent = '❌ Key chưa hợp lệ nên chưa lưu cấu hình.';
               modalStatus.style.color = '#dc2626';
@@ -3498,8 +3513,8 @@ export async function renderChatUI(container) {
           syncModalFromConfig(systemConfigCache);
 
           currentModelName = normalizeModelName(
-            systemConfigCache?.gemini_model || 'gemini-3.5-flash-lite'
-          ) || 'gemini-3.5-flash-lite';
+            systemConfigCache?.ai_model || ''
+          ) || '';
 
           modalStatus.textContent = '\u2705 \u0110\u00e3 l\u01b0u v\u00e0 \u00e1p d\u1ee5ng ngay!';
           modalStatus.style.color = '#16a34a';
@@ -3521,7 +3536,7 @@ export async function renderChatUI(container) {
 
   void loadSystemConfig().then(() => {
     const nextModel = normalizeModelName(
-      systemConfigCache?.gemini_model || savedModel
+      systemConfigCache?.ai_model || savedModel
     ) || savedModel;
     if (nextModel !== currentModelName) {
       currentModelName = nextModel;

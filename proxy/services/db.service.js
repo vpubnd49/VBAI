@@ -4,7 +4,12 @@
  */
 'use strict';
 
-const { MongoClient } = require('mongodb');
+let MongoClient;
+try {
+  ({ MongoClient } = require('mongodb'));
+} catch (error) {
+  MongoClient = null;
+}
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017';
 const DB_NAME = process.env.MONGODB_DB_NAME || 'vbai_db';
@@ -142,17 +147,11 @@ async function getSystemConfig(forceReload = false) {
 
   const defaultConfig = {
     _id: 'system',
-    gemini_model: 'gemini-3.5-flash-lite',
-    transcribe_model: 'gemini-3.5-flash-lite',
-    gemini_models: [
-      'gemini-3.5-flash-lite',
-      'gemini-2.0-flash-lite',
-      'gemini-2.5-flash',
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-2.5-pro'
-    ],
-    gemini_endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    ai_provider: '',
+    ai_model: '',
+    ai_endpoint: '',
+    zplay_api_endpoint: '',
+    transcribe_model: '',
     web_search_mode: 'cse_with_fallback',
     web_search_fallback_sources: {
       chinhphu: true,

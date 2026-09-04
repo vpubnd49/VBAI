@@ -84,7 +84,7 @@ async function getIdToken() {
   }
 }
 
-export function normalizeGeminiOnlyConfig(raw = {}) {
+export function normalizeAiProxyConfig(raw = {}) {
   if (!raw || typeof raw !== 'object') return {};
   const cleaned = { ...raw };
   delete cleaned.active_provider;
@@ -94,6 +94,10 @@ export function normalizeGeminiOnlyConfig(raw = {}) {
   delete cleaned.nine_router_model;
   delete cleaned.nine_router_models;
   delete cleaned.has_nine_router_key;
+  delete cleaned.gemini_api_key;
+  delete cleaned.google_search_key;
+  delete cleaned.api_key;
+  delete cleaned.zplay_api_key;
   return cleaned;
 }
 
@@ -133,7 +137,7 @@ export async function fetchSystemConfig(options = {}) {
     }
 
     const data = await res.json();
-    cachedConfig = normalizeGeminiOnlyConfig(data);
+    cachedConfig = normalizeAiProxyConfig(data);
     cacheExpiresAt = Date.now() + CONFIG_CACHE_TTL;
     return cachedConfig;
   } catch (err) {
@@ -177,7 +181,7 @@ export async function updateSystemConfig(configData) {
     throw new Error(e?.message || 'Backend URL khong hop le');
   }
 
-  const cleanData = normalizeGeminiOnlyConfig(configData);
+  const cleanData = normalizeAiProxyConfig(configData);
 
   const response = await fetch(`${backendUrl}/admin/system-config`, {
     method: 'POST',
@@ -222,9 +226,9 @@ export async function updateSystemConfig(configData) {
 }
 
 /**
- * Validate Gemini API key by calling backend live check endpoint (admin only).
+ * Validate zplay API key by calling backend live check endpoint (admin only).
  */
-export async function validateGeminiApiKey(options = {}) {
+export async function validateZplayApiKey(options = {}) {
   const token = await getIdToken();
   if (!token) throw new Error('Not authenticated');
 
@@ -236,13 +240,13 @@ export async function validateGeminiApiKey(options = {}) {
   }
 
   const payload = {
-    gemini_api_key: String(options?.apiKey || '').trim(),
-    gemini_endpoint: String(options?.gemini_endpoint || '').trim() || undefined,
-    use_stored_key: options?.useStoredKey !== false,
+    zplay_api_key: String(options?.apiKey || '').trim(),
+    zplay_api_endpoint: String(options?.zplay_api_endpoint || '').trim() || undefined,
+    use_stored_key: false,
     model: String(options?.model || '').trim() || undefined,
   };
 
-  const response = await fetch(`${backendUrl}/admin/validate-gemini-key`, {
+  const response = await fetch(`${backendUrl}/admin/validate-zplay-key`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

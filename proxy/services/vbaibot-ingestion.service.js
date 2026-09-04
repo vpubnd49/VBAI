@@ -5,9 +5,20 @@
  */
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const dbService = require('./db.service');
 
-const SYNC_SECRET = process.env.VBAIBOT_SYNC_SECRET || 'vbai-zalo-sync-secret-key-2026-ld';
+const SYNC_SECRET = String(process.env.VBAIBOT_SYNC_SECRET || '').trim();
+const MAX_TELEMETRY_FIELD_LENGTH = 100 * 1024;
+const IS_PRODUCTION = ['production', 'prod'].includes(String(process.env.NODE_ENV || process.env.APP_ENV || '').trim().toLowerCase());
+if (IS_PRODUCTION && !SYNC_SECRET) {
+  throw new Error('VBAIBOT_SYNC_SECRET is required in production');
+}
+
+function hasValidSyncSecret(candidate) {
+  if (!SYNC_SECRET || typeof candidate !== 'string' || candidate.length !== SYNC_SECRET.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(SYNC_SECRET));
+}
 
 // Casual noise phrases to filter out
 const NOISE_PHRASES = [
@@ -72,8 +83,11 @@ function detectCategory(prompt = '') {
  * Ingest conversation turn from vbaibot
  */
 async function ingestVbaibotTurn({ userPrompt, modelResponse, sourceUserId, timestamp, authSecret }) {
-  if (authSecret && authSecret !== SYNC_SECRET) {
+  if (!hasValidSyncSecret(authSecret)) {
     throw { status: 401, message: 'Invalid sync secret key' };
+  }
+  if (String(userPrompt || '').length > MAX_TELEMETRY_FIELD_LENGTH || String(modelResponse || '').length > MAX_TELEMETRY_FIELD_LENGTH) {
+    throw { status: 413, message: 'Telemetry payload is too large' };
   }
 
   const cleanUser = maskPII(userPrompt).trim();
@@ -130,6 +144,8 @@ async function ingestVbaibotTurn({ userPrompt, modelResponse, sourceUserId, time
 
 module.exports = {
   SYNC_SECRET,
+  MAX_TELEMETRY_FIELD_LENGTH,
+  hasValidSyncSecret,
   maskPII,
   isQualitySample,
   ingestVbaibotTurn

@@ -10,8 +10,20 @@ const { OAuth2Client } = require('google-auth-library');
 const dbService = require('./db.service');
 const { getFirebaseAuth, initFirebase } = require('./firebase-admin.service');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'vbai-production-secret-jwt-key-2026-vn-secure';
+const JWT_SECRET = String(process.env.JWT_SECRET || '').trim();
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
+const IS_PRODUCTION = ['production', 'prod'].includes(String(process.env.NODE_ENV || process.env.APP_ENV || '').trim().toLowerCase());
+
+if (IS_PRODUCTION && !JWT_SECRET) {
+  throw new Error('JWT_SECRET is required in production');
+}
+
+function getJwtSecret() {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+  return JWT_SECRET;
+}
 
 const googleClient = new OAuth2Client();
 
@@ -24,13 +36,13 @@ function generateToken(user) {
     admin: user.role === 'admin' || user.isAdmin === true || user.customClaims?.admin === true,
     role: user.role || (user.isAdmin || user.customClaims?.admin ? 'admin' : 'user')
   };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 }
 
 function verifyToken(token) {
   try {
     const cleanToken = token.startsWith('Bearer ') ? token.slice(7).trim() : token.trim();
-    return jwt.verify(cleanToken, JWT_SECRET);
+    return jwt.verify(cleanToken, getJwtSecret());
   } catch (error) {
     return null;
   }
