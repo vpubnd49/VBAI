@@ -33,6 +33,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "
     `$env:GOOGLE_APPLICATION_CREDENTIALS='$saPath';
     `$env:FIREBASE_PROJECT_ID='gen-lang-client-0462350485';
     `$env:FIREBASE_SERVICE_ACCOUNT=Get-Content '$saPath' -Raw;
+    `$env:HOST='127.0.0.1';
     cd '$PSScriptRoot/proxy';
     npm run dev
 "

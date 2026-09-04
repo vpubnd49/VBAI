@@ -20,6 +20,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const multer = require('multer');
 const fetch = globalThis.fetch.bind(globalThis);
+const { extractAssistantText } = require('./lib/provider-response');
 const { cleanText: cleanStrictText, extractStrictLegalText } = require('./lib/legal-extract');
 const { detectQueryIntent } = require('./legal/domain/query-intent');
 const { normalizeDocumentNumber } = require('./legal/domain/document-number');
@@ -63,16 +64,6 @@ const CHAT_BEHAVIOR_MEMORY = createConversationMemory({
   maxSessions: Number(process.env.CHAT_MEMORY_MAX_SESSIONS) || 1000,
 });
 
-function extractAssistantText(data) {
-  if (!data || typeof data !== 'object') return '';
-  if (Array.isArray(data.choices) && data.choices[0]?.message?.content) {
-    return String(data.choices[0].message.content || '');
-  }
-  if (Array.isArray(data.candidates) && data.candidates[0]?.content?.parts?.[0]?.text) {
-    return String(data.candidates[0].content.parts[0].text || '');
-  }
-  return '';
-}
 function getBosungMetadataBySoHieu(soHieu = '') {
   if (!soHieu) return null;
   try {
@@ -1834,8 +1825,8 @@ function extractTextFromProviderPayload(data = {}) {
 }
 
 async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt }) {
-  throw new Error('Audio transcription is unavailable: zplay chat-only contract does not support audio uploads.');
-  // Legacy implementation retained for compatibility; active transcription fails closed above.
+  // zplay exposes an OpenAI-compatible contract. Audio support is capability-based:
+  // send input_audio only when the configured endpoint accepts it; never use Gemini/Vertex here.
   const config = await getCachedSystemConfig();
   const { apiKey, endpoint: apiEndpoint, model: configuredModel } = resolveAiConfig(config);
   if (!apiKey || !apiEndpoint || !configuredModel) {
@@ -1856,9 +1847,8 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
   const targetModel = normalizeModelInput(model || config?.meeting_model || config?.transcribe_model || config?.ai_model || '');
   if (!targetModel) throw new Error('AI model is not configured.');
 
-  // Strategy 1: OpenAI-compatible zplay gateway.
-  const isGateway = apiEndpoint === 'https://zplay.io.vn/v1' && Boolean(apiKey);
-  if (isGateway && apiKey) {
+  // Strategy 1: configured zplay OpenAI-compatible gateway.
+  if (apiKey && apiEndpoint) {
     try {
       console.log(`[Audio Transcribe] Fast Gateway transcription via ${apiEndpoint} (model: ${targetModel}, size: ${stat.size} bytes)...`);
       const fileBuffer = await fs.promises.readFile(filePath);
@@ -1895,7 +1885,7 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
 
       if (res.ok) {
         const data = await res.json();
-        const text = data?.choices?.[0]?.message?.content || extractAssistantText(data) || '';
+        const text = extractAssistantText(data);
         if (text) {
           console.log(`[Audio Transcribe] Gateway successfully transcribed in fast path!`);
           return {
@@ -1909,14 +1899,16 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
         }
       } else {
         const errText = await res.text();
-        console.warn(`[Audio Transcribe] Gateway status ${res.status}: ${errText}. Trying Vertex AI fallback...`);
+        console.warn(`[Audio Transcribe] zplay returned HTTP ${res.status}; audio contract unavailable.`);
       }
     } catch (gwErr) {
-      console.warn(`[Audio Transcribe] Gateway failed: ${gwErr.message}. Trying Vertex AI fallback...`);
+      console.warn('[Audio Transcribe] zplay request failed; audio contract unavailable.');
     }
   }
 
-  // Strategy 2: Fast inline_data base64 directly to Gemini API if size < 20MB
+  /* Provider policy: zplay only. Do not fall back to Gemini/Vertex when the
+   * OpenAI-compatible audio contract is unavailable. */
+  /*
   if (stat.size < 20 * 1024 * 1024 && apiKey && apiKey.startsWith('AIza')) {
     try {
       console.log(`[Audio Transcribe] Fast inline Gemini API transcription (model: ${targetModel})...`);
@@ -1958,7 +1950,8 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
     }
   }
 
-  // Strategy 3: Vertex AI Enterprise Fallback using Service Account
+  */
+  /* Strategy 3: Vertex AI Enterprise Fallback using Service Account
   try {
     console.log(`[Audio Transcribe] Using Vertex AI Native Fallback for ${filename}...`);
     const fileBuffer = await fs.promises.readFile(filePath);
@@ -1982,7 +1975,8 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
     console.warn('[Audio Transcribe] Vertex AI fallback failed:', vertexErr.message);
   }
 
-  // Strategy 4: Official Gemini Files API (for large files with official AIza key)
+  */
+  /* Strategy 4: Official Gemini Files API (for large files with official AIza key)
   if (apiKey && apiKey.startsWith('AIza')) {
     const initUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`;
     const initRes = await fetch(initUrl, {
@@ -2070,7 +2064,11 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
     }
   }
 
-  throw new Error('Không thể phiên âm tệp âm thanh. Vui lòng kiểm tra lại kết nối hoặc định dạng tệp.');
+  */
+  throw Object.assign(new Error('Configured zplay endpoint does not support audio input.'), {
+    status: 503,
+    code: 'ZPLAY_AUDIO_INPUT_UNSUPPORTED',
+  });
 }
 
 async function deleteFromLegacyFiles({ apiKey, fileName }) {
@@ -7615,11 +7613,12 @@ app.get('/api/build-info', (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT || 8080);
+const HOST = String(process.env.HOST || '127.0.0.1').trim();
 initFirebase();
 initLegalResearchRouter(getFirebaseAuth());
 app.use('/api', legalResearchRouter);
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   try {
     initCrawlerScheduler();
   } catch (e) {

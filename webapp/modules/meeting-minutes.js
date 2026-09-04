@@ -1,7 +1,7 @@
 /**
  * Meeting Minutes Module — Redesigned
  * Chuyển đổi audio cuộc họp thành Thông báo kết luận (NĐ30/HD36)
- * Dung Gemini API cho xu ly ghi am va phan tich noi dung
+ * Sử dụng proxy zplay OpenAI-compatible cho ghi âm và phân tích nội dung
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType } from 'docx';
 import { saveAs } from 'file-saver';
@@ -680,6 +680,22 @@ async function resolveMeetingAudioModelCandidates(context = "meeting") {
   ]);
 }
 
+const TRANSCRIPTION_PROMPT = 'Hãy bóc băng toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt. Không tóm tắt, không trả về JSON, chỉ trả về transcript.';
+
+export function parseMeetingJson(raw) {
+  if (raw && typeof raw === 'object') return raw;
+  const source = String(raw || '').trim();
+  if (!source) throw new Error('AI không trả về dữ liệu.');
+  const candidates = [source.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()];
+  const first = source.indexOf('{');
+  const last = source.lastIndexOf('}');
+  if (first >= 0 && last > first) candidates.push(source.slice(first, last + 1));
+  for (const candidate of candidates) {
+    try { return JSON.parse(candidate); } catch (_) { /* try next candidate */ }
+  }
+  throw new Error('AI trả về JSON không hợp lệ hoặc chưa đầy đủ.');
+}
+
 const MEETING_PROMPT = `Bạn là trợ lý thư ký cuộc họp chuyên nghiệp trong cơ quan hành chính nhà nước Việt Nam.
 Hãy nghe KỸ file ghi âm cuộc họp này và trích xuất theo cấu trúc chuẩn Thông báo kết luận:
 
@@ -723,7 +739,7 @@ Trả về JSON:
 CHỈ trả về JSON.`;
 
 async function processAudioWithProxy(file, progressEl) {
-  await ensureSystemConfig();
+  const config = await ensureSystemConfig();
   const transcribeContext = 'meeting'; // always use proxy context
   const transcribeRouteLabel = 'Proxy';
   const provider = 'zplay';
@@ -767,62 +783,35 @@ async function processAudioWithProxy(file, progressEl) {
 
   try {
     let lastErr = null;
-    let jsonText = '';
-    
+    let transcript = '';
     for (const modelCandidate of transcribeCandidates) {
       try {
-        progressEl.textContent = PROCESSING_TEXT;
-        const progressTracker = createProgressBar("Đang phân tích trực tiếp");
-        // Gọi thẳng vào API phân tích với prompt JSON
-        const text = await sendAudioTranscription(activeFile, modelCandidate, {
-          temperature: 0.1,
-          context: transcribeContext,
-          timeoutMs: safeTranscribeTimeoutMs,
-          chunkWhenLarge: true,
-          maxBytes: 28 * 1024 * 1024,
-          onProgress: progressTracker,
-          prompt: MEETING_PROMPT
+        progressEl.textContent = 'Đang bóc băng âm thanh...';
+        transcript = await sendAudioTranscription(activeFile, modelCandidate, {
+          context: transcribeContext, timeoutMs: safeTranscribeTimeoutMs,
+          chunkWhenLarge: true, maxBytes: 28 * 1024 * 1024,
+          onProgress: createProgressBar('Đang bóc băng'), prompt: TRANSCRIPTION_PROMPT
         });
-        
-        if (String(text || "").trim()) {
-          jsonText = text.trim();
-          usedTranscriptModel = modelCandidate;
-          chatModel = modelCandidate;
-          break;
-        }
-      } catch (err) {
-        lastErr = err;
-      }
+        if (String(transcript || '').trim()) { usedTranscriptModel = modelCandidate; break; }
+      } catch (err) { lastErr = err; }
     }
+    if (!String(transcript || '').trim()) throw (lastErr || new Error(`Khong nhan duoc transcript tu ${transcribeRouteLabel}.`));
 
-    if (!String(jsonText || '').trim()) {
-      throw (lastErr || new Error(`Khong nhan duoc ket qua tu ${transcribeRouteLabel}.`));
-    }
-
-    progressEl.textContent = PROCESSING_TEXT;
-    
-    // Clean JSON response
-    jsonText = (jsonText || '').replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-
-    try {
-      const data = JSON.parse(jsonText);
-      formState.chu_tri = data.chu_tri || "";
-      formState.thanh_phan = data.thanh_phan || "";
-      formState.dia_diem = data.dia_diem || "";
-      formState.tom_tat = data.tom_tat || data.tom_tat_noi_dung || "";
-      formState.noi_dung_cuoc_hop = (data.noi_dung_cuoc_hop || []).map(nd => ({
-        tieu_de: nd.tieu_de || '',
-        danh_gia: nd.danh_gia || '',
-        ket_luan: nd.ket_luan || []
-      }));
-      if (formState.noi_dung_cuoc_hop.length === 0 && data.ket_luan) {
-        formState.noi_dung_cuoc_hop = [{ tieu_de: 'Kết luận chung', danh_gia: '', ket_luan: data.ket_luan }];
-      }
-      formState.transcript = data.transcript || "Đã phân tích trực tiếp (Không có transcript chi tiết)";
-    } catch (e) {
-      console.error("Lỗi parse JSON:", e, jsonText);
-      formState.transcript = jsonText;
-      formState.tom_tat = "Không thể trích xuất cấu trúc JSON. Vui lòng xem kết quả bên dưới.";
+    formState.transcript = String(transcript).trim();
+    progressEl.textContent = 'Đang phân tích nội dung cuộc họp...';
+    const analysisText = await sendChatRequest([{
+      role: 'user', content: `${MEETING_PROMPT}\n\nTRANSCRIPT:\n${formState.transcript}`
+    }], String(config?.meeting_model || chatModel).trim(), { temperature: 0.1, context: analysisContext, provider });
+    const data = parseMeetingJson(analysisText);
+    formState.chu_tri = data.chu_tri || '';
+    formState.thanh_phan = data.thanh_phan || '';
+    formState.dia_diem = data.dia_diem || '';
+    formState.tom_tat = data.tom_tat || data.tom_tat_noi_dung || '';
+    formState.noi_dung_cuoc_hop = (Array.isArray(data.noi_dung_cuoc_hop) ? data.noi_dung_cuoc_hop : []).map(nd => ({
+      tieu_de: nd?.tieu_de || '', danh_gia: nd?.danh_gia || '', ket_luan: Array.isArray(nd?.ket_luan) ? nd.ket_luan : []
+    }));
+    if (!formState.noi_dung_cuoc_hop.length && Array.isArray(data.ket_luan)) {
+      formState.noi_dung_cuoc_hop = [{ tieu_de: 'Kết luận chung', danh_gia: '', ket_luan: data.ket_luan }];
     }
   } catch (e) {
     const endpoint = getTranscribeEndpointForError(transcribeContext);
@@ -863,9 +852,8 @@ ${formState.transcript}`;
   const messages = [{ role: "user", content: prompt }];
   let text = await sendChatRequest(messages, strictModel, { temperature: 0.1, context: transcribeContext });
 
-  text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
   try {
-    const data = JSON.parse(text);
+    const data = parseMeetingJson(text);
     formState.chu_tri = data.chu_tri || formState.chu_tri;
     formState.thanh_phan = data.thanh_phan || formState.thanh_phan;
     formState.dia_diem = data.dia_diem || formState.dia_diem;

@@ -108,8 +108,13 @@ function createTranscribeHandler(deps) {
       });
       return res.status(result.error ? result.status : 200).json(result.body);
     } catch (err) {
-      console.error('POST /api/transcribe error:', err);
-      return res.status(500).json({ error: 'Internal server error', message: err.message });
+      console.error('POST /api/transcribe error:', err?.code || err?.name || 'transcription_error', err?.status || 500);
+      const status = Number.isInteger(err?.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
+      return res.status(status).json({
+        error: status === 503 ? 'Transcription unavailable' : 'Internal server error',
+        code: err?.code || (status === 503 ? 'TRANSCRIPTION_PROVIDER_UNAVAILABLE' : 'TRANSCRIPTION_FAILED'),
+        message: status === 503 ? 'Configured audio provider does not support the required audio input contract.' : 'Unable to process audio transcription request.',
+      });
     }
   };
 }

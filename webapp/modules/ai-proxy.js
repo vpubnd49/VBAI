@@ -554,8 +554,16 @@ export function getProxyEndpointForContext(context = 'default') {
 
 function extractTextFromPayload(data = {}) {
   if (typeof data === 'string') return data;
-  if (Array.isArray(data?.choices) && data.choices[0]) {
-    return data.choices[0]?.message?.content || data.choices[0]?.text || '';
+  if (Array.isArray(data?.choices)) {
+    for (const choice of data.choices) {
+      const content = choice?.message?.content;
+      if (typeof content === 'string' && content.trim()) return content;
+      if (Array.isArray(content)) {
+        const text = content.map((part) => typeof part === 'string' ? part : String(part?.text || part?.content || '')).join('');
+        if (text.trim()) return text;
+      }
+      if (typeof choice?.text === 'string' && choice.text.trim()) return choice.text;
+    }
   }
   if (typeof data?.output_text === 'string') return data.output_text;
   if (Array.isArray(data?.content)) {

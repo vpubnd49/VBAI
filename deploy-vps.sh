@@ -7,7 +7,9 @@ set -e
 
 # Khai báo biến đường dẫn
 APP_DIR="/var/www/vbai"
+# Backend chỉ bind loopback; Nginx là public entrypoint.
 BACKEND_PORT=8080
+BACKEND_HOST=127.0.0.1
 
 # 1. Cập nhật hệ thống và cài đặt công cụ cần thiết
 echo "=== 1. Đang cập nhật hệ thống và cài đặt Git, Nginx ==="
@@ -64,13 +66,15 @@ if [ ! -f "$APP_DIR/proxy/service-account.json" ]; then
     echo "Hoặc chạy lệnh sau từ máy cá nhân của bạn để sao chép:"
     echo "  scp -P 24700 proxy/service-account.json root@202.92.7.138:$APP_DIR/proxy/"
     echo "======================================================================"
+    exit 1
 fi
+sudo chmod 600 "$APP_DIR/proxy/service-account.json"
 
 # 7. Cấu hình khởi chạy Backend bằng PM2
 echo "=== 7. Khởi chạy Backend Proxy với PM2 ==="
 cd "$APP_DIR/proxy"
 pm2 delete vbai-proxy 2>/dev/null || true
-PORT=$BACKEND_PORT pm2 start server.js --name "vbai-proxy"
+HOST=$BACKEND_HOST PORT=$BACKEND_PORT pm2 start server.js --name "vbai-proxy"
 pm2 save
 # Đăng ký PM2 tự khởi chạy cùng hệ điều hành
 sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME || true
