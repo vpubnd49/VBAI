@@ -1073,10 +1073,7 @@ setInputValue(geminiModelInput, config.gemini_model || '');
       updategeminiRuntimeWarning(geminiModelInput ? geminiModelInput.value : '', !!config.has_gemini_key);
        geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
        renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
-       const targetModelEl = container.querySelector('#stat-target-model');
-       if (targetModelEl) targetModelEl.textContent = config.gemini_model || 'gemini-3.8-flash-high';
-
-      // Load other configs
+       // Load other configs
       setInputValue(transcribeModelInput, config.transcribe_model || config.gemini_model || '');
       setInputValue(meetingModelInput, config.meeting_model || config.transcribe_model || config.gemini_model || '');
       setInputValue(vertexProjectIdInput, config.vertex_project_id || '');
@@ -1089,6 +1086,8 @@ setInputValue(geminiModelInput, config.gemini_model || '');
        setInputValue(appBuildShaInput, config.app_build_sha || config.build_sha || '');
 
       const provider = config.web_search_provider || 'vertex_search';
+       const targetModelEl = container.querySelector('#stat-target-model');
+       if (targetModelEl) targetModelEl.textContent = config.gemini_model || 'Chưa cấu hình';
       const mode = (config.web_search_mode === 'cse_fast' || config.web_search_mode === 'direct') ? 'direct' : 'vertex_first';
       setSelectedRadio('web_search_provider', provider);
       setSelectedRadio('web_search_mode', mode);
