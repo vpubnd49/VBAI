@@ -7,7 +7,27 @@
 import { backendFetch } from './ai-proxy.js';
 
 const CONFIG_CACHE_KEY = 'vbai_system_config_cache';
+const CONFIG_CACHE_VERSION_KEY = 'vbai_system_config_cache_version';
+const CONFIG_CACHE_VERSION = 'gemini-only-v2';
+const LEGACY_CONFIG_CACHE_KEYS = [
+  CONFIG_CACHE_KEY,
+  'vbai_ai_config_cache',
+  'vbai_provider_config',
+  'ai_system_config_cache',
+];
 const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function clearLegacyConfigCache() {
+  try {
+    const version = localStorage.getItem(CONFIG_CACHE_VERSION_KEY);
+    if (version !== CONFIG_CACHE_VERSION) {
+      LEGACY_CONFIG_CACHE_KEYS.forEach((key) => localStorage.removeItem(key));
+      localStorage.setItem(CONFIG_CACHE_VERSION_KEY, CONFIG_CACHE_VERSION);
+    }
+  } catch (e) {}
+}
+
+clearLegacyConfigCache();
 const DEFAULT_BACKEND_BASE = '/api';
 const ALLOWED_BACKEND_HOSTS = new Set([
   'vbai.tracuu.lamdong.vn',
@@ -88,9 +108,11 @@ async function getIdToken() {
 
 export function normalizeAiProxyConfig(raw = {}) {
   if (!raw || typeof raw !== 'object') return {};
-  const cleaned = { ...raw };
+  const cleaned = { ...raw, provider: 'gemini' };
+  // Never allow a legacy/provider-neutral credential selector to survive in runtime config.
   delete cleaned.active_provider;
   delete cleaned.active_chat_provider;
+  delete cleaned.provider_id;
   delete cleaned.nine_router_api_key;
   delete cleaned.nine_router_endpoint;
   delete cleaned.nine_router_model;

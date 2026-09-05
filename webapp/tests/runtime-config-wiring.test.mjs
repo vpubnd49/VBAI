@@ -18,10 +18,10 @@ console.log('[TEST] Running runtime configuration wiring tests...');
 
 const indexHtml = read('index.html');
 const runtimePosition = indexHtml.indexOf(
-  '<script src="/runtime-config.js"></script>'
+  '<script src="/runtime-config.js?v=gemini-only-v2"></script>'
 );
 const mainPosition = indexHtml.indexOf(
-  '<script type="module" src="/main.js"></script>'
+  '<script type="module" src="/main.js?v=gemini-only-v2"></script>'
 );
 
 assert.ok(runtimePosition >= 0, 'index.html must load runtime-config.js');
@@ -29,8 +29,11 @@ assert.ok(
   runtimePosition < mainPosition,
   'runtime-config.js must load before main.js'
 );
+assert.match(indexHtml, /runtime-config\.js\?v=gemini-only-v2/);
+assert.match(indexHtml, /main\.js\?v=gemini-only-v2/);
+assert.match(indexHtml, /style\.css\?v=gemini-only-v2/);
 
-console.log('  PASS: runtime config loads before main module');
+console.log('  PASS: runtime config loads before main module with cache-busting version');
 
 const template = read('runtime-config.template.js');
 
@@ -118,6 +121,8 @@ const dockerfile = read('Dockerfile');
 const entrypoint = read('docker-entrypoint.sh');
 const nginx = read('nginx.conf');
 const aiProxy = read('modules/ai-proxy.js');
+const systemConfig = read('modules/system-config.js');
+const adminPanel = read('modules/admin-panel.js');
 
 assert.match(
   dockerfile,
@@ -170,5 +175,14 @@ assert.doesNotMatch(
   'Arbitrary Cloud Run hosts must not be trusted'
 );
 
+assert.match(systemConfig, /CONFIG_CACHE_VERSION\s*=\s*'gemini-only-v2'/);
+assert.match(systemConfig, /clearLegacyConfigCache\(\)/);
+assert.match(systemConfig, /provider:\s*'gemini'/);
+assert.match(systemConfig, /validate-gemini-key/);
+assert.doesNotMatch(systemConfig, /validate-(?:anthropic|provider)-key/);
+assert.match(adminPanel, /provider !== 'gemini'/);
+assert.match(adminPanel, /validateGeminiApiKey\(payload\)/);
+
 console.log('  PASS: Docker, Nginx and backend host wiring fail closed');
+console.log('  PASS: Gemini-only config normalization and admin validation contract');
 console.log('Runtime configuration wiring tests passed.');

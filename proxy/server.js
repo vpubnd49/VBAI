@@ -160,8 +160,9 @@ const LEGAL_SYNTHESIS_CACHE = new Map();
 const LEGAL_SYNTHESIS_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 function resolveGeminiConfig(config = {}, requestConfig = {}) {
   const source = requestConfig && typeof requestConfig === 'object' ? requestConfig : {};
-  const apiKey = String(source.gemini_api_key || source.api_key || config.gemini_api_key || '').trim();
-  const endpoint = String(source.gemini_endpoint || source.endpoint || config.gemini_endpoint || '').trim().replace(/\/+$/, '');
+  // This is intentionally not a generic provider credential resolver. Gemini is the only AI runtime.
+  const apiKey = String(source.gemini_api_key || config.gemini_api_key || '').trim();
+  const endpoint = String(source.gemini_endpoint || config.gemini_endpoint || '').trim().replace(/\/+$/, '');
   // Runtime model selection is configuration-owned. Request model values are never trusted.
   const configuredModels = Array.isArray(config.gemini_models) ? config.gemini_models : [];
   const model = String(config.gemini_model || configuredModels[0] || '').trim();
@@ -2805,7 +2806,9 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
     
     const config = await dbService.getSystemConfig(true);
     
-    const submitted = { gemini_api_key: rawKey, gemini_endpoint: rawEndpoint, gemini_model: req.body?.model };
+     // Validation accepts only explicit Gemini fields and always uses this endpoint.
+     const submitted = { gemini_api_key: rawKey, gemini_endpoint: rawEndpoint, gemini_model: req.body?.model };
+
     const validationConfig = resolveGeminiConfig(config, submitted);
     const model = validationConfig.model;
     const keyToValidate = validationConfig.apiKey;

@@ -143,6 +143,19 @@ async function countUsers() {
 let localConfigCache = null;
 let localConfigExpiresAt = 0;
 const CACHE_TTL_MS = 3 * 60 * 1000;
+const LEGACY_PROVIDER_FIELDS = [
+  'active_provider', 'active_chat_provider', 'provider', 'provider_id',
+  'ai_provider', 'api_key', 'anthropic_api_key', 'anthropic_endpoint',
+  'anthropic_model', 'credentials', 'provider_credentials',
+];
+
+function normalizeSystemConfig(config = {}) {
+  const normalized = { ...config, provider: 'gemini' };
+  LEGACY_PROVIDER_FIELDS.forEach((field) => {
+    if (field !== 'provider') delete normalized[field];
+  });
+  return normalized;
+}
 
 async function getSystemConfig(forceReload = false) {
   const now = Date.now();
@@ -153,9 +166,20 @@ async function getSystemConfig(forceReload = false) {
   const database = await getDb();
   const configDoc = await database.collection('config').findOne({ _id: 'system' });
   if (configDoc) {
-    localConfigCache = configDoc;
+    const normalizedConfig = normalizeSystemConfig(configDoc);
+    const hadLegacyFields = LEGACY_PROVIDER_FIELDS.some((field) => field !== 'provider' && Object.hasOwn(configDoc, field));
+    if (hadLegacyFields || configDoc.provider !== 'gemini') {
+      await database.collection('config').updateOne(
+        { _id: 'system' },
+        {
+          $set: { ...normalizedConfig, updated_at: new Date() },
+          $unset: Object.fromEntries(LEGACY_PROVIDER_FIELDS.filter((field) => field !== 'provider').map((field) => [field, ''])),
+        }
+      );
+    }
+    localConfigCache = normalizedConfig;
     localConfigExpiresAt = now + CACHE_TTL_MS;
-    return configDoc;
+    return normalizedConfig;
   }
 
   const defaultConfig = {

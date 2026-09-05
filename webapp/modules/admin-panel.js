@@ -998,6 +998,10 @@ const geminiEndpointInput = formEl.querySelector('#gemini_endpoint');
   }
 
   async function runKeyValidation(provider = 'gemini', { useStoredKey = true } = {}) {
+    // Keep this UI path explicitly Gemini-only; no generic provider resolver is allowed.
+    if (provider !== 'gemini') {
+      throw new Error('Chỉ hỗ trợ xác nhận Gemini API key.');
+    }
     const keyInput = geminiKeyInput;
     const endpointInput = geminiEndpointInput;
     const modelInput = geminiModelInput;
