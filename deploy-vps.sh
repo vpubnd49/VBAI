@@ -113,10 +113,10 @@ NGINX_CONF="/etc/nginx/sites-available/vbai"
 sudo bash -c "cat > $NGINX_CONF" <<EOF
 server {
     listen 80;
-    server_name localhost;
+    server_name vbai.tracuu.lamdong.vn;
 
-    # Cho phép tải lên tệp âm thanh cuộc họp lớn (500MB)
-    client_max_body_size 500m;
+    # Keep the VBAI virtual host isolated from VBAIBot.
+    client_max_body_size 25m;
 
     # Compression (Gzip)
     gzip on;

@@ -3671,11 +3671,8 @@ export async function renderChatUI(container) {
         msgsArea.scrollTop = msgsArea.scrollHeight;
       }, activeFileAttachment);
       setAiMessageText(aiMsgDiv, finalAnswer, false);
-      const chatMeta = getLastChatMeta();
-      const metaLine = chatMeta?.requestId || chatMeta?.meta?.behavior
-        ? `Trace: ${chatMeta.requestId || 'n/a'}${chatMeta.meta?.behavior ? ` · memory ${chatMeta.meta.behavior.memory_enabled ? 'on' : 'off'} (${chatMeta.meta.behavior.memory_turns || 0})` : ''}`
-        : '';
-      if (metaLine) appendInlineStatus(aiMsgDiv, metaLine);
+      // Request identifiers and memory metadata stay in the internal response event/meta;
+      // never append audit or runtime diagnostics to the assistant message shown to users.
       if (shouldAutoExportDocx(queryText)) {
         try {
           await exportDraftToDocx(queryText, finalAnswer);

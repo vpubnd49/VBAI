@@ -37,7 +37,7 @@ const { detectAdminSearchContext, buildAdminSearchPrompt } = require('./legal/se
 const { detectAdminReviewIntent, buildAdminReviewPrompt } = require('./legal/services/administrative-review-engine');
 const path = require('path');
 const { validateMagicBytes, VALID_AUDIO_EXTS, readFileHeader, registerCleanup, cleanupTempFile: cleanupTempFileUtil } = require('./middleware/upload-security');
-const { encodeCursor, decodeCursor, validateCursor, sanitizeHistoryDoc, SAFE_HISTORY_FIELDS } = require('./utils/pagination');
+const { encodeCursor, decodeCursor, validateCursor, sanitizeHistoryDoc, sanitizeAuditQuery, SAFE_HISTORY_FIELDS } = require('./utils/pagination');
 const { createTranscriptionRouter } = require('./routers/transcription.router');
 const { loadBosungMetadataIndex } = require('./legal/repositories/bosung-metadata-index');
 const { searchAdministrativeDivisions } = require('./services/administrative-division.service');
@@ -753,14 +753,18 @@ function normalizeLegalSearchQuery(query = '') {
 function repairMojibakeUtf8(value = '') {
   const raw = String(value || '');
   if (!raw) return raw;
-  if (!/[À-ſ�]/.test(raw) && !/[?]/.test(raw)) return raw;
+
+  // Only attempt a Latin-1 round-trip when unmistakable UTF-8 mojibake markers
+  // are present. Valid Vietnamese text must never be converted through Latin-1.
+  const mojibakeMarkers = /(?:Ã.|Â.|â(?:€|€™|€œ|€“|€¦)|ðŸ|ï¿½)/u;
+  if (!mojibakeMarkers.test(raw)) return raw;
+
   try {
     const repaired = Buffer.from(raw, 'latin1').toString('utf8');
-    if (!repaired || repaired.includes('')) return raw;
-    const replacementCount = (repaired.match(/�/g) || []).length;
-    const rawReplacementCount = (raw.match(/�/g) || []).length;
-    if (replacementCount > rawReplacementCount) return raw;
-    return repaired;
+    if (!repaired || repaired.includes('\uFFFD')) return raw;
+    const rawMarkerCount = (raw.match(/(?:Ã.|Â.|â|ðŸ|ï¿½)/gu) || []).length;
+    const repairedMarkerCount = (repaired.match(/(?:Ã.|Â.|â|ðŸ|ï¿½)/gu) || []).length;
+    return repairedMarkerCount < rawMarkerCount ? repaired : raw;
   } catch {
     return raw;
   }
@@ -2709,7 +2713,7 @@ app.post('/api/log-action', async (req, res) => {
 
     const payload = req.body || {};
     const logEntry = {
-      query: String(payload.query || payload.query_preview || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 280),
+      query: sanitizeAuditQuery(payload.query || payload.query_preview || ''),
       user_id: decoded?.uid || 'anonymous',
       ...(decoded && isAdmin(decoded) && decoded.email ? { user_email: String(decoded.email).trim().toLowerCase().slice(0, 254) } : {}),
       feature: String(payload.feature || 'unknown').slice(0, 80),
@@ -3507,27 +3511,52 @@ app.get('/api/admin/training-datasets/export-jsonl', async (req, res) => {
   }
 });
 
+function readTsString(source, start) {
+  const quote = source[start];
+  if (!['"', "'", '`'].includes(quote)) return null;
+  let value = '';
+  for (let i = start + 1; i < source.length; i += 1) {
+    if (source[i] === '\\' && i + 1 < source.length) { value += source[i + 1]; i += 1; continue; }
+    if (source[i] === quote) return { value, end: i + 1 };
+    value += source[i];
+  }
+  return null;
+}
+
 function extractEvalSamples(sourceText, sourceFile) {
-  // Only ingest explicit object literals with user/prompt and model/response fields;
-  // source text is never persisted, and values are PII-masked before insertion.
+  // vbaibot evals are behavior specifications. Only an explicit textual expected
+  // answer may become a model answer; tool/memory expectations must never be invented.
   const samples = [];
-  const objectRe = /\{[\s\S]*?(?:userPrompt|prompt|user)[\s]*:[\s]*['"`]([\s\S]*?)['"`][\s\S]*?(?:modelResponse|response|assistant|expected)[\s]*:[\s]*['"`]([\s\S]*?)['"`][\s\S]*?\}/g;
+  const cases = [];
+  const objectRe = /\{[\s\S]*?\bten\s*:/g;
   let match;
   while ((match = objectRe.exec(sourceText))) {
-    const userPrompt = maskPII(match[1]).trim();
-    const modelResponse = maskPII(match[2]).trim();
-    if (!isQualitySample(userPrompt, modelResponse)) continue;
+    const end = sourceText.indexOf('\n  },', match.index);
+    const block = sourceText.slice(match.index, end < 0 ? sourceText.length : end);
+    const nameMatch = /\bten\s*:\s*(["'`])/.exec(block);
+    const promptMatch = /\btinNhan\s*:\s*(["'`])/.exec(block);
+    const expectationMatch = /\bmongDoi\s*:\s*\{/.exec(block);
+    if (!nameMatch || !promptMatch || !expectationMatch) continue;
+    const name = readTsString(block, nameMatch.index + nameMatch[0].length - 1);
+    const prompt = readTsString(block, promptMatch.index + promptMatch[0].length - 1);
+    if (!name || !prompt) continue;
+    cases.push({ name: name.value, prompt: prompt.value, block });
+  }
+  for (const item of cases) {
+    const answerMatch = /\b(?:expectedAnswer|answer|cauTraLoi|traLoi|text)\s*:\s*(["'`])/.exec(item.block);
+    const answer = answerMatch && readTsString(item.block, answerMatch.index + answerMatch[0].length - 1);
+    const userPrompt = maskPII(item.prompt).trim();
+    const modelResponse = maskPII(answer?.value || '').trim();
+    if (!answer || !isQualitySample(userPrompt, modelResponse)) continue;
     samples.push({
       messages: [{ role: 'user', content: userPrompt }, { role: 'model', content: modelResponse }],
-      category: 'vbaibot-eval',
-      tags: ['vbaibot-eval', sourceFile],
-      source: `vbaibot-eval:${sourceFile}`,
-      sourceHash: crypto.createHash('sha256').update(`${sourceFile}\n${userPrompt}\n${modelResponse}`).digest('hex'),
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      category: 'vbaibot-eval', tags: ['vbaibot-eval', sourceFile, item.name],
+      source: `vbaibot-eval:${sourceFile}`, sourceCase: item.name,
+      sourceHash: crypto.createHash('sha256').update(`${sourceFile}\n${item.name}\n${userPrompt}\n${modelResponse}`).digest('hex'),
+      createdAt: new Date(), updatedAt: new Date(),
     });
   }
-  return samples;
+  return { parsedCases: cases.length, samples };
 }
 
 // POST /api/admin/training-datasets/sync-vbaibot
@@ -3536,38 +3565,54 @@ app.post('/api/admin/training-datasets/sync-vbaibot', async (req, res) => {
     await verifyAdminToken(req);
     console.log('[DatasetSync] Starting sync with vpubnd49/vbaibot...');
     const adminUrl = 'https://raw.githubusercontent.com/vpubnd49/vbaibot/main/data/administrative_divisions.json';
-    const adminRes = await fetch(adminUrl, { headers: { 'User-Agent': 'VBAI-Server' } });
-    if (!adminRes.ok) throw Object.assign(new Error(`Administrative source fetch failed (${adminRes.status})`), { status: 502 });
-    const adminJson = await adminRes.json();
-    const savePath = path.join(__dirname, 'data', 'administrative_divisions.json');
-    fs.writeFileSync(savePath, JSON.stringify(adminJson, null, 2), 'utf-8');
-    const newAdminCount = Array.isArray(adminJson.provinces) ? adminJson.provinces.length : 0;
-
     const evalFiles = ['eval-cases-cach-noi.ts', 'eval-cases-tool.ts', 'eval-cases-memory.ts', 'eval-cases.ts'];
     let syncedSourceCount = 0;
+    let parsedCaseCount = 0;
+    let ingestedCaseCount = 0;
+    let skippedCaseCount = 0;
+    const missingSources = [];
+    let newAdminCount = 0;
     const evalSamples = [];
+    const adminRes = await fetch(adminUrl, { headers: { 'User-Agent': 'VBAI-Server' } });
+    if (adminRes.ok) {
+      const adminJson = await adminRes.json();
+      const savePath = path.join(__dirname, 'data', 'administrative_divisions.json');
+      fs.writeFileSync(savePath, JSON.stringify(adminJson, null, 2), 'utf-8');
+      newAdminCount = Array.isArray(adminJson.provinces) ? adminJson.provinces.length : 0;
+    } else {
+      missingSources.push('data/administrative_divisions.json');
+    }
     for (const ef of evalFiles) {
       const efRes = await fetch(`https://raw.githubusercontent.com/vpubnd49/vbaibot/main/evals/${ef}`, { headers: { 'User-Agent': 'VBAI-Server' } });
-      if (!efRes.ok) continue;
+      if (!efRes.ok) { missingSources.push(ef); continue; }
       const efText = await efRes.text();
+      const parsed = extractEvalSamples(efText, ef);
+      syncedSourceCount++;
+      parsedCaseCount += parsed.parsedCases;
+      skippedCaseCount += parsed.parsedCases - parsed.samples.length;
+      evalSamples.push(...parsed.samples);
+      // Raw GitHub source is canonical; local files are only a trace of last sync.
       const saveEfPath = path.join(__dirname, 'data', 'evals_source', ef);
       fs.mkdirSync(path.dirname(saveEfPath), { recursive: true });
       fs.writeFileSync(saveEfPath, efText, 'utf-8');
-      syncedSourceCount++;
-      evalSamples.push(...extractEvalSamples(efText, ef));
     }
     const db = await dbService.getDb();
-    let ingestedCaseCount = 0;
     if (evalSamples.length) {
       const result = await db.collection('training_datasets').bulkWrite(evalSamples.map((sample) => ({
         updateOne: { filter: { sourceHash: sample.sourceHash }, update: { $setOnInsert: sample }, upsert: true },
       })));
       ingestedCaseCount = result.upsertedCount || 0;
     }
-    const status = syncedSourceCount > 0 ? (syncedSourceCount < evalFiles.length ? 'PARTIAL' : 'SYNCED') : 'PARTIAL';
+    const snapshotSamples = await db.collection('training_datasets').find({}).toArray();
+    const jsonlPath = path.join(__dirname, 'data', 'vbai_tuning_dataset.jsonl');
+    assertSafePathInside(jsonlPath, path.join(__dirname, 'data'));
+    fs.writeFileSync(jsonlPath, snapshotSamples.map((sample) => JSON.stringify({ messages: sample.messages })).join('\n'), 'utf-8');
+    const status = parsedCaseCount === 0 || missingSources.length > 0 ? 'PARTIAL' : 'SYNCED';
+    const syncManifest = { status, syncedSourceCount, parsedCaseCount, ingestedCaseCount, skippedCaseCount, missingSources, snapshotPath: 'data/vbai_tuning_dataset.jsonl', updatedAt: new Date() };
+    await db.collection('vbaibot_sync_metadata').insertOne({ type: 'training-dataset', ...syncManifest });
     res.status(status === 'PARTIAL' ? 502 : 200).json({
-      success: status !== 'PARTIAL', status, syncedSourceCount, ingestedCaseCount, newAdminCount,
-      message: `Đồng bộ nguồn ${status === 'PARTIAL' ? 'một phần' : 'thành công'}: ${newAdminCount} tỉnh thành, ${syncedSourceCount}/${evalFiles.length} nguồn eval, ${ingestedCaseCount} case mới.`,
+      success: status === 'SYNCED', status, syncedSourceCount, parsedCaseCount, ingestedCaseCount, skippedCaseCount, missingSources, newAdminCount,
+      message: `Đồng bộ nguồn ${status === 'PARTIAL' ? 'một phần' : 'thành công'}: ${newAdminCount} tỉnh thành, ${syncedSourceCount}/${evalFiles.length} nguồn eval, parsed ${parsedCaseCount}, ingested ${ingestedCaseCount}, skipped ${skippedCaseCount}.`,
       timestamp: new Date().toISOString()
     });
   } catch (err) {
@@ -3586,36 +3631,29 @@ app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
       return res.status(503).json({ error: 'AI_CONFIG_MISSING', message: 'Chưa cấu hình model Gemini cho tác vụ tuning.' });
     }
     
-    // Check if tuning dataset exists
-    const jsonlPath = path.join(__dirname, 'data', 'vbai_tuning_dataset.jsonl');
-    assertSafePathInside(jsonlPath, path.join(__dirname, 'data'));
-    if (!fs.existsSync(jsonlPath)) {
-      return res.status(400).json({ error: 'Không tìm thấy file dataset vbai_tuning_dataset.jsonl để huấn luyện.' });
-    }
-
-    const lines = fs.readFileSync(jsonlPath, 'utf-8').split('\n').filter(Boolean);
-    const sampleCount = lines.length;
-
-    // Simulate / register tuning job in DB
+    // MongoDB is the sole dataset source. Validate the exact JSONL contract in memory;
+    // do not let an old local export drive a tuning request.
     const db = await dbService.getDb();
-    const jobId = `tune_vbai_${Date.now()}`;
-    const jobRecord = {
-      jobId,
+    const samples = await db.collection('training_datasets').find({}).toArray();
+    const validSamples = samples.filter((sample) => {
+      const messages = sample?.messages;
+      return Array.isArray(messages) && messages.length >= 2 &&
+        messages[0]?.role === 'user' && typeof messages[0]?.content === 'string' && messages[0].content.trim() &&
+        messages[1]?.role === 'model' && typeof messages[1]?.content === 'string' && messages[1].content.trim();
+    });
+    if (!validSamples.length || validSamples.length !== samples.length) {
+      return res.status(400).json({ error: 'DATASET_SCHEMA_INVALID', message: 'Dataset MongoDB trống hoặc có mẫu không đúng schema messages user/model.' });
+    }
+    const sampleCount = validSamples.length;
+    // Vertex AI tuning is intentionally not claimed until the real API integration exists.
+    return res.status(501).json({
+      success: false,
+      status: 'NOT_IMPLEMENTED',
+      error: 'NOT_IMPLEMENTED',
+      message: `Vertex AI tuning API chưa được tích hợp; không submit job và không ghi ai_tuning_jobs (model cấu hình: ${configuredModel}, ${sampleCount} mẫu hợp lệ).`,
       configuredModel,
       epochs,
-      sampleCount,
-      status: 'REGISTERED',
-      targetEndpoint: `projects/gen-lang-client-0462350485/locations/asia-southeast1/models/vbai-legal-v1`,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    await db.collection('ai_tuning_jobs').insertOne(jobRecord);
-
-    res.json({
-      success: true,
-      message: `Đã đăng ký job tuning (${sampleCount} mẫu dữ liệu, model cấu hình: ${configuredModel}). Vertex AI tuning API chưa được triển khai; chưa bắt đầu huấn luyện.`,
-      status: 'NOT_IMPLEMENTED',
-      job: jobRecord
+      sampleCount
     });
   } catch (err) {
     console.error('POST /api/admin/training-datasets/trigger-tuning error:', err);
@@ -3723,8 +3761,8 @@ app.post('/api/chat', async (req, res) => {
       // Record search attempt to search_logs for full audit trace
       try {
         await dbService.addSearchLog({
-          // Keep a bounded, sanitized query preview for reopen/search; never persist raw prompt.
-          query: String(auditQuery || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 280),
+          // Keep the original Unicode query, bounded and newline-sanitized, for reopen/search.
+          query: sanitizeAuditQuery(auditQuery),
           ...(isAdmin(decoded) ? { user_email: String(decoded?.email || '').trim().toLowerCase().slice(0, 254) } : {}),
           model: effectiveModel || null,
           user_id: decoded?.uid || null,
@@ -4029,8 +4067,8 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
       // Record failed search attempt to search_logs
       try {
         await dbService.addSearchLog({
-          // Keep a bounded, sanitized query preview for reopen/search; never persist raw prompt.
-          query: String(auditQuery || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 280),
+          // Keep the original Unicode query, bounded and newline-sanitized, for reopen/search.
+          query: sanitizeAuditQuery(auditQuery),
           ...(isAdmin(decoded) ? { user_email: String(decoded?.email || '').trim().toLowerCase().slice(0, 254) } : {}),
           model: primaryModel || null,
           user_id: decoded.uid || null,
@@ -4125,8 +4163,8 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
         (citationValidation?.totalCitations) || 0;
 
         await dbService.addSearchLog({
-          // Keep a bounded, sanitized query preview for reopen/search; never persist raw prompt.
-          query: String(auditQuery || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 280),
+          // Keep the original Unicode query, bounded and newline-sanitized, for reopen/search.
+          query: sanitizeAuditQuery(auditQuery),
            ...(isAdmin(decoded) ? { user_email: String(decoded?.email || '').trim().toLowerCase().slice(0, 254) } : {}),
            model: finalModel,
            user_id: decoded.uid || null,

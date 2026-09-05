@@ -12,16 +12,24 @@ const tuningRoute = server.slice(server.indexOf("app.post('/api/admin/training-d
 const trainingUi = adminPanel.slice(adminPanel.indexOf("const syncVbaibotBtn"), adminPanel.indexOf("const exportDatasetBtn"));
 
 assert.match(syncRoute, /await verifyAdminToken\(req\)/);
-assert.match(syncRoute, /throw Object\.assign\(new Error\(`Administrative source fetch failed/);
+assert.match(syncRoute, /missingSources/);
+assert.match(syncRoute, /administrative_divisions\.json/);
 assert.match(syncRoute, /bulkWrite\(/);
+assert.match(server, /tinNhan/);
+assert.match(server, /mongDoi/);
+assert.match(syncRoute, /parsedCaseCount/);
 assert.match(syncRoute, /ingestedCaseCount/);
+assert.match(syncRoute, /skippedCaseCount/);
+assert.match(syncRoute, /success: status === 'SYNCED'/);
 assert.match(syncRoute, /status === 'PARTIAL' \? 502 : 200/);
 assert.doesNotMatch(syncRoute, /success:\s*true[\s\S]{0,200}if \(.*fetch/i);
 
 assert.match(tuningRoute, /configuredModel/);
 assert.match(tuningRoute, /configuredModel,\n\s*epochs/);
-assert.match(tuningRoute, /status: 'REGISTERED'/);
 assert.match(tuningRoute, /status: 'NOT_IMPLEMENTED'/);
+assert.match(tuningRoute, /status\(501\)/);
+assert.match(tuningRoute, /training_datasets/);
+assert.doesNotMatch(tuningRoute, /ai_tuning_jobs.*insertOne/);
 assert.doesNotMatch(tuningRoute, /baseModel/);
 
 assert.doesNotMatch(trainingUi, /currentUser\.getIdToken/);

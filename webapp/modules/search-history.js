@@ -221,12 +221,11 @@ function applyFilterAndRender(container, navigateToCallback) {
   const { logs, filterQuery, filterMode } = historyState;
 
   historyState.filteredLogs = logs.filter(item => {
-    const matchesQuery = !filterQuery ||
-       item.query.toLowerCase().includes(filterQuery) ||
-       item.user.toLowerCase().includes(filterQuery) ||
-       String(item.requestId || '').toLowerCase().includes(filterQuery) ||
-       String(item.feature || '').toLowerCase().includes(filterQuery) ||
-       String(item.effectiveDate || '').toLowerCase().includes(filterQuery);
+    // Search a normalized copy only; keep item.query untouched for display/reopen.
+    const searchable = [item.query, item.user, item.requestId, item.feature, item.effectiveDate]
+      .map(value => String(value || '').toLocaleLowerCase('vi-VN'))
+      .join(' ');
+    const matchesQuery = !filterQuery || searchable.includes(filterQuery);
 
     const matchesMode = filterMode === 'all' || item.mode === filterMode;
 
@@ -282,7 +281,7 @@ function renderTablePage(container, navigateToCallback) {
     }
 
     const modelTag = `<span style="font-size:0.72rem; background:var(--bg-secondary); padding:2px 6px; border-radius:4px; margin-left:4px; font-family:monospace;">${escapeHtml(item.model)}</span>`;
-     const traceIdTag = item.requestId ? `<div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">requestId: ${escapeHtml(item.requestId)}</div>` : '<div style="font-size:0.7rem; color:var(--text-muted);">requestId: n/a</div>';
+    const traceIdTag = item.requestId ? `<div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">requestId: ${escapeHtml(item.requestId)}</div>` : '<div style="font-size:0.7rem; color:var(--text-muted);">requestId: n/a</div>';
 
     const canDelete = historyState.isAdmin || (window.currentUser && item.userId === window.currentUser.uid);
     const deleteBtnHtml = canDelete
@@ -305,7 +304,7 @@ function renderTablePage(container, navigateToCallback) {
            <div>feature: ${featureTag || 'n/a'} · mode: ${modeBadge}</div>
            <div style="margin-top:2px;">${modelTag}</div>
         </td>
-        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary);">
+        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary);" title="${escapeAttribute(item.query)}">
           <div style="max-height:48px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
             ${escapeHtml(item.query)}
           </div>

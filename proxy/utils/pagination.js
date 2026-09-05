@@ -75,14 +75,20 @@ const SAFE_HISTORY_FIELDS = [
  * @param {Object} doc - Raw MongoDB document data
  * @returns {Object} Sanitized document
  */
+function sanitizeAuditQuery(value = '') {
+  return Array.from(String(value || '').replace(/[\r\n\t]+/g, ' ').trim())
+    .slice(0, 1000)
+    .join('');
+}
+
 function sanitizeHistoryDoc(doc, { includeAdminEmail = false } = {}) {
   const safe = {};
   for (const field of SAFE_HISTORY_FIELDS) {
     if (field === 'user_email' && !includeAdminEmail) continue;
     if (doc[field] !== undefined) safe[field] = doc[field];
   }
-  if (safe.query !== undefined) safe.query = String(safe.query).replace(/[\\r\\n\\t]+/g, ' ').trim().slice(0, 280);
-  if (safe.query_preview !== undefined) safe.query_preview = String(safe.query_preview).replace(/[\\r\\n\\t]+/g, ' ').trim().slice(0, 280);
+  if (safe.query !== undefined) safe.query = sanitizeAuditQuery(safe.query);
+  if (safe.query_preview !== undefined) safe.query_preview = sanitizeAuditQuery(safe.query_preview);
   // Format timestamps
   if (safe.created_at?.toDate) {
     safe.created_at = safe.created_at.toDate().toISOString();
@@ -99,5 +105,6 @@ module.exports = {
   decodeCursor,
   validateCursor,
   sanitizeHistoryDoc,
+  sanitizeAuditQuery,
   SAFE_HISTORY_FIELDS,
 };

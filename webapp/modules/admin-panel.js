@@ -41,9 +41,11 @@ async function readResponsePayload(response) {
   }
 }
 
-function updateDatasetStats(container, total) {
+function updateDatasetStats(container, total, sync = null) {
   const stat = container.querySelector('#stat-total-samples');
   if (stat && Number.isFinite(Number(total))) stat.textContent = `${Number(total)} mẫu`;
+  const syncStat = container.querySelector('#stat-sync-status');
+  if (syncStat && sync) syncStat.textContent = `parsed ${sync.parsedCaseCount || 0} / ingested ${sync.ingestedCaseCount || 0} / skipped ${sync.skippedCaseCount || 0}`;
 }
 
 function setActionState(button, label, busy) {
@@ -351,7 +353,7 @@ export function renderAdminPanel(container) {
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Trạng thái đồng bộ</div>
               <div style="font-size:1rem; font-weight:700; color:#059669; margin-top:4px; display:flex; align-items:center; gap:4px;">
-                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#059669;"></span> Đã kết nối vbaibot
+                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#059669;"></span><span id="stat-sync-status">Đã kết nối vbaibot</span>
               </div>
             </div>
           </div>
@@ -585,7 +587,8 @@ export function renderAdminPanel(container) {
       try {
         const res = await adminFetch('/api/admin/training-datasets/sync-vbaibot', { method: 'POST' });
         const data = await readResponsePayload(res);
-        if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+        updateDatasetStats(container, undefined, data);
+        if (!res.ok && data.status !== 'PARTIAL') throw new Error(data.message || data.error || `HTTP ${res.status}`);
         showToast(data.message || 'Đã đồng bộ vbaibot.', data.status === 'PARTIAL' ? 'warning' : 'success');
         await loadDatasetSamples(container);
       } catch (err) {
@@ -604,8 +607,8 @@ export function renderAdminPanel(container) {
       try {
         const res = await adminFetch('/api/admin/training-datasets/trigger-tuning', { method: 'POST' });
         const data = await readResponsePayload(res);
-        if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
-        const status = data.status || data.job?.status || 'REGISTERED';
+        if (!res.ok && data.status !== 'NOT_IMPLEMENTED') throw new Error(data.message || data.error || `HTTP ${res.status}`);
+        const status = data.status || data.job?.status || 'NOT_IMPLEMENTED';
         showToast(`${data.message || 'Đã đăng ký yêu cầu tuning.'} [${status}]`, status === 'NOT_IMPLEMENTED' ? 'warning' : 'success');
       } catch (err) {
         showToast(err.message || 'Khởi tạo thất bại', 'error');
@@ -619,10 +622,7 @@ export function renderAdminPanel(container) {
   if (exportDatasetBtn) {
     exportDatasetBtn.addEventListener('click', async () => {
       try {
-        const idToken = await window.currentUser.getIdToken();
-        const res = await adminFetch('/api/admin/training-datasets/export-jsonl', {
-          headers: { 'Authorization': `Bearer ${idToken}` }
-        });
+        const res = await adminFetch('/api/admin/training-datasets/export-jsonl', {});
         if (!res.ok) throw new Error('Xuất file JSONL thất bại');
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
@@ -663,11 +663,9 @@ export function renderAdminPanel(container) {
       const modelResponse = container.querySelector('#dataset-model-response').value;
 
       try {
-        const idToken = await window.currentUser.getIdToken();
         const res = await adminFetch('/api/admin/training-datasets', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${idToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ userPrompt, modelResponse, category })

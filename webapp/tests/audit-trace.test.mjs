@@ -59,7 +59,22 @@ assert.ok(
   'chat-assistant.js MUST disable duplicate client-side search_logs addDoc'
 );
 
-// 7. Verify admin-panel.js handles legacy and V2 audit entries
+// 7. Chat output must preserve Vietnamese text and never expose internal trace/memory metadata.
+assert.match(chatAssistantJs, /setAiMessageText\(aiMsgDiv, finalAnswer, false\)/);
+assert.doesNotMatch(chatAssistantJs, /metaLine\s*=\s*[\s\S]*Trace:/);
+assert.doesNotMatch(chatAssistantJs, /appendInlineStatus\(aiMsgDiv, metaLine\)/);
+assert.ok(!chatAssistantJs.includes('Hãy liệt kê các luật mớiTrace'), 'Vietnamese query must not be joined with trace output');
+
+// 8. Audit query storage/rendering must retain Unicode and the full bounded query.
+const searchHistoryJs = fs.readFileSync(path.join(webappRoot, 'modules/search-history.js'), 'utf8');
+assert.match(serverJs, /sanitizeAuditQuery/);
+const paginationJs = fs.readFileSync(path.join(proxyRoot, 'utils/pagination.js'), 'utf8');
+assert.match(paginationJs, /slice\(0, 1000\)/);
+assert.match(searchHistoryJs, /data-query="\$\{escapeAttribute\(item\.query\)\}"/);
+assert.match(searchHistoryJs, /title="\$\{escapeAttribute\(item\.query\)\}"/);
+assert.doesNotMatch(searchHistoryJs, /item\.query\.normalize\(/);
+
+// 9. Verify admin-panel.js handles legacy and V2 audit entries
 const adminPanelJs = fs.readFileSync(path.join(webappRoot, 'modules/admin-panel.js'), 'utf8');
 
 assert.ok(adminPanelJs.includes('item.data.userEmail || item.data.user'), 'admin-panel.js MUST handle legacy user fields');
