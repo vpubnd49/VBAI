@@ -4,6 +4,8 @@
  * Used by various modules to determine active provider, models, and endpoints.
  */
 
+import { backendFetch } from './ai-proxy.js';
+
 const CONFIG_CACHE_KEY = 'vbai_system_config_cache';
 const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const DEFAULT_BACKEND_BASE = '/api';
@@ -97,7 +99,10 @@ export function normalizeAiProxyConfig(raw = {}) {
   delete cleaned.gemini_api_key;
   delete cleaned.google_search_key;
   delete cleaned.api_key;
-  delete cleaned.zplay_api_key;
+  // Drop obsolete provider-specific and provider-neutral credential fields.
+  delete cleaned.ai_provider;
+  delete cleaned.ai_model;
+  delete cleaned.ai_endpoint;
   return cleaned;
 }
 
@@ -116,21 +121,8 @@ export async function fetchSystemConfig(options = {}) {
     return null;
   }
 
-  let backendUrl = DEFAULT_BACKEND_BASE;
   try {
-    backendUrl = resolveBackendBase();
-  } catch (e) {
-    console.warn('Invalid backend URL config, fallback to /api:', e?.message || e);
-    backendUrl = DEFAULT_BACKEND_BASE;
-  }
-
-  try {
-    const res = await fetch(`${backendUrl}/system-config-summary`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      cache: 'no-store'
-    });
+    const res = await backendFetch('/system-config-summary', { method: 'GET' });
 
     if (!res.ok) {
       throw new Error(`Backend responded ${res.status}`);
@@ -174,21 +166,10 @@ export async function updateSystemConfig(configData) {
   const token = await getIdToken();
   if (!token) throw new Error('Not authenticated');
 
-  let backendUrl = DEFAULT_BACKEND_BASE;
-  try {
-    backendUrl = resolveBackendBase();
-  } catch (e) {
-    throw new Error(e?.message || 'Backend URL khong hop le');
-  }
-
   const cleanData = normalizeAiProxyConfig(configData);
-
-  const response = await fetch(`${backendUrl}/admin/system-config`, {
+  const response = await backendFetch('/admin/system-config', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(cleanData)
   });
 
@@ -226,32 +207,22 @@ export async function updateSystemConfig(configData) {
 }
 
 /**
- * Validate zplay API key by calling backend live check endpoint (admin only).
+ * Validate Gemini API key by calling backend live check endpoint (admin only).
  */
-export async function validateZplayApiKey(options = {}) {
+export async function validateGeminiApiKey(options = {}) {
   const token = await getIdToken();
   if (!token) throw new Error('Not authenticated');
 
-  let backendUrl = DEFAULT_BACKEND_BASE;
-  try {
-    backendUrl = resolveBackendBase();
-  } catch (e) {
-    throw new Error(e?.message || 'Backend URL khong hop le');
-  }
-
   const payload = {
-    zplay_api_key: String(options?.apiKey || '').trim(),
-    zplay_api_endpoint: String(options?.zplay_api_endpoint || '').trim() || undefined,
+    gemini_api_key: String(options?.apiKey || '').trim(),
+    gemini_endpoint: String(options?.gemini_endpoint || '').trim() || undefined,
     use_stored_key: false,
     model: String(options?.model || '').trim() || undefined,
   };
 
-  const response = await fetch(`${backendUrl}/admin/validate-zplay-key`, {
+  const response = await backendFetch('/admin/validate-gemini-key', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 
@@ -289,13 +260,6 @@ export async function triggerVertexIngestion(options = {}) {
   const token = await getIdToken();
   if (!token) throw new Error('Not authenticated');
 
-  let backendUrl = DEFAULT_BACKEND_BASE;
-  try {
-    backendUrl = resolveBackendBase();
-  } catch (e) {
-    throw new Error(e?.message || 'Backend URL khong hop le');
-  }
-
   const payload = {
     vertex_project_id: options?.projectId || undefined,
     vertex_location: options?.location || undefined,
@@ -303,12 +267,9 @@ export async function triggerVertexIngestion(options = {}) {
     bucket_name: options?.bucketName || undefined,
   };
 
-  const response = await fetch(`${backendUrl}/admin/ingest-vertex`, {
+  const response = await backendFetch('/admin/ingest-vertex', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 

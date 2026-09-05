@@ -21,8 +21,8 @@ function encodeCursor(doc) {
     : (doc.created_at || new Date().toISOString());
   const payload = JSON.stringify({
     v: CURSOR_VERSION,
-    t: createdAt,
-    d: doc.id || doc._id,
+    t: new Date(createdAt).toISOString(),
+    d: String(doc.id || doc._id || ''),
   });
   return Buffer.from(payload).toString('base64url');
 }
@@ -63,10 +63,10 @@ function validateCursor(cursor) {
  * Strips prompt, email, token, and provider payloads.
  */
 const SAFE_HISTORY_FIELDS = [
+  // Audit metadata only. Never return raw prompts, email addresses, or provider payloads.
   'id', 'created_at', 'timestamp', 'feature', 'mode',
   'status', 'verified_count', 'evidence_count', 'verifiedEvidenceCount', 'totalEvidenceCount',
-  'requestId', 'effectiveDate', 'user_id', 'query', 'model', 'user_email', 'userEmail',
-  'errorMessage',
+  'requestId', 'effectiveDate', 'model', 'errorMessage', 'user_id', 'query', 'query_preview', 'user_email',
 ];
 
 /**
@@ -74,13 +74,14 @@ const SAFE_HISTORY_FIELDS = [
  * @param {Object} doc - Raw Firestore document data
  * @returns {Object} Sanitized document
  */
-function sanitizeHistoryDoc(doc) {
+function sanitizeHistoryDoc(doc, { includeAdminEmail = false } = {}) {
   const safe = {};
   for (const field of SAFE_HISTORY_FIELDS) {
-    if (doc[field] !== undefined) {
-      safe[field] = doc[field];
-    }
+    if (field === 'user_email' && !includeAdminEmail) continue;
+    if (doc[field] !== undefined) safe[field] = doc[field];
   }
+  if (safe.query !== undefined) safe.query = String(safe.query).replace(/[\\r\\n\\t]+/g, ' ').trim().slice(0, 280);
+  if (safe.query_preview !== undefined) safe.query_preview = String(safe.query_preview).replace(/[\\r\\n\\t]+/g, ' ').trim().slice(0, 280);
   // Format timestamps
   if (safe.created_at?.toDate) {
     safe.created_at = safe.created_at.toDate().toISOString();

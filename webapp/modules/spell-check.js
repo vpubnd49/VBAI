@@ -142,8 +142,8 @@ async function checkSpellingAI(paragraphs, progressTextEl) {
   
   progressTextEl.innerText = "Đang kết nối AI...";
   const config = await fetchSystemConfig();
-  const modelName = String(config?.ai_model || '').trim();
-  if (!modelName) throw new Error('Spell checking unavailable: AI model is not configured.');
+  const modelName = String(config?.gemini_model || '').trim();
+  if (!modelName) throw new Error('Spell checking unavailable: Gemini model is not configured.');
 
   // 2. Batching paragraphs — batch lớn hơn để tối ưu số lần gọi API
   const validParas = paragraphs.filter(p => p.text.trim().length > 10);

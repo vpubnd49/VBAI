@@ -93,8 +93,8 @@ ok(sanitized.prompt === undefined, 'prompt STRIPPED');
 ok(sanitized.email === undefined, 'email STRIPPED');
 ok(sanitized.token === undefined, 'token STRIPPED');
 ok(sanitized.provider_response === undefined, 'provider_response STRIPPED');
-ok(sanitized.userEmail === 'user@example.com', 'userEmail preserved for audit trace');
-ok(sanitized.user_email === 'user@example.com', 'user_email preserved for audit trace');
+ok(sanitized.userEmail === undefined, 'userEmail STRIPPED to avoid PII');
+ok(sanitized.user_email === undefined, 'user_email STRIPPED to avoid PII');
 
 // 4. Source-level ownership checks
 console.log('\n--- 4. Source-Level Privacy Checks ---');

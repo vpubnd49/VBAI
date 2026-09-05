@@ -1,13 +1,14 @@
 import { showToast } from './ui-utils.js';
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, query, limit, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { fetchSystemConfig, updateSystemConfig, validateZplayApiKey, triggerVertexIngestion } from './system-config.js';
-import { firebaseConfig } from '../firebase-config.js';
+import { adminFetch } from './ai-proxy.js';
+import { fetchSystemConfig, updateSystemConfig, validateGeminiApiKey, triggerVertexIngestion } from './system-config.js';
 
 let allLogs = [];
 let allUsers = [];
 let allDatasetSamples = [];
 let currentPage = 1;
+let currentPageCursor = null;
+let nextPageCursor = null;
+let previousPageCursors = [];
 let currentUsersPage = 1;
 let currentDatasetPage = 1;
 const ITEMS_PER_PAGE = 10;
@@ -77,39 +78,39 @@ export function renderAdminPanel(container) {
               <!-- Full-Width Vertical Stack Container -->
               <div style="display: flex; flex-direction: column; gap: 24px; width: 100%; box-sizing: border-box;">
                 
-                <!-- Section 1: AI Engine (zplay / provider-neutral) - FULL WIDTH -->
+                <!-- Section 1: AI Engine (gemini / provider-neutral) - FULL WIDTH -->
                 <section class="config-section-card" style="width:100%; box-sizing:border-box; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #cbd5e1); border-radius:10px; padding:20px 24px; border-left:4px solid var(--brand-primary, #008ca1);">
                   <div class="config-section-title" style="color: var(--brand-primary, #008ca1); font-size:1rem; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
-                    <span>●</span> AI Engine (zplay / provider-neutral)
+                    <span>●</span> AI Engine (gemini / provider-neutral)
                   </div>
                   
                   <div class="form-group" style="margin-bottom:16px;">
-                    <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">zplay API Key</label>
+                    <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">gemini API Key</label>
                     <div class="config-inline-row" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                      <input type="password" id="zplay_api_key" class="form-input config-inline-grow" placeholder="AIza... (Để trống nếu không đổi)" style="flex:1; min-width:280px; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
-                      <button type="button" id="toggle-zplay-key-btn" class="btn btn-secondary btn-sm" style="padding:8px 14px;">Hiện key</button>
-                      <button type="button" id="verify-zplay-key-btn" class="btn btn-primary btn-sm" style="padding:8px 16px; background:var(--brand-primary, #008ca1); color:white; border:none; border-radius:6px;">✓ Xác nhận key</button>
-                      <button type="button" id="clear-zplay-key-btn" class="btn btn-danger btn-sm" style="padding:8px 14px; background:#dc2626; color:white; border:none; border-radius:6px;">🗑️ Xóa key</button>
+                      <input type="password" id="gemini_api_key" class="form-input config-inline-grow" placeholder="AIza... (Để trống nếu không đổi)" style="flex:1; min-width:280px; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
+                      <button type="button" id="toggle-gemini-key-btn" class="btn btn-secondary btn-sm" style="padding:8px 14px;">Hiện key</button>
+                      <button type="button" id="verify-gemini-key-btn" class="btn btn-primary btn-sm" style="padding:8px 16px; background:var(--brand-primary, #008ca1); color:white; border:none; border-radius:6px;">✓ Xác nhận key</button>
+                      <button type="button" id="clear-gemini-key-btn" class="btn btn-danger btn-sm" style="padding:8px 14px; background:#dc2626; color:white; border:none; border-radius:6px;">🗑️ Xóa key</button>
                     </div>
                     <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
                       <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; cursor:pointer;">
-                        <input type="checkbox" id="verify-zplay-on-save" checked style="width:16px; height:16px; cursor:pointer;">
+                        <input type="checkbox" id="verify-gemini-on-save" checked style="width:16px; height:16px; cursor:pointer;">
                         <span>Xác nhận key khi lưu cấu hình</span>
                       </label>
                     </div>
                     <small class="config-hint" style="display:block; margin-top:4px; color:var(--text-muted, #64748b);">Khóa API được lưu an toàn trong Secret Manager/Firestore</small>
-                    <small id="zplay-key-verify-status" class="config-hint" style="display:block; margin-top:4px;"></small>
+                    <small id="gemini-key-verify-status" class="config-hint" style="display:block; margin-top:4px;"></small>
                   </div>
 
                   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-bottom:16px;">
                     <div class="form-group">
-                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">zplay API Endpoint (Base URL)</label>
-                      <input type="text" id="zplay_api_endpoint" class="form-input" placeholder="Provider endpoint" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
+                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">gemini API Endpoint (Base URL)</label>
+                      <input type="text" id="gemini_endpoint" class="form-input" placeholder="Provider endpoint" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
                     </div>
                     <div class="form-group">
-                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Model mặc định (zplay)</label>
-                      <input type="text" id="ai_model" class="form-input" placeholder="Model từ cấu hình provider" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
-                      <small id="zplay-runtime-warning" class="config-hint" style="display:none; color:var(--warning);"></small>
+                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Model mặc định (gemini)</label>
+                      <input type="text" id="gemini_model" class="form-input" placeholder="Model từ cấu hình provider" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
+                      <small id="gemini-runtime-warning" class="config-hint" style="display:none; color:var(--warning);"></small>
                     </div>
                   </div>
 
@@ -125,12 +126,12 @@ export function renderAdminPanel(container) {
                   </div>
 
                   <div class="form-group">
-                    <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Danh sách Model zplay khả dụng</label>
+                    <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Danh sách Model gemini khả dụng</label>
                     <div class="config-inline-row" style="display:flex; gap:10px; align-items:center;">
-                      <input type="text" id="zplay_model_input" class="form-input config-inline-grow" placeholder="Nhập model từ cấu hình provider" style="flex:1; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
-                      <button type="button" id="add-zplay-model-btn" class="btn btn-primary btn-sm" style="padding:10px 18px; background:var(--brand-primary, #008ca1); color:white; border:none; border-radius:6px;">+ Thêm</button>
+                      <input type="text" id="gemini_model_input" class="form-input config-inline-grow" placeholder="Nhập model từ cấu hình provider" style="flex:1; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
+                      <button type="button" id="add-gemini-model-btn" class="btn btn-primary btn-sm" style="padding:10px 18px; background:var(--brand-primary, #008ca1); color:white; border:none; border-radius:6px;">+ Thêm</button>
                     </div>
-                    <div id="zplay-models-list" class="config-chip-list" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+                    <div id="gemini-models-list" class="config-chip-list" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
                   </div>
                 </section>
 
@@ -240,7 +241,7 @@ export function renderAdminPanel(container) {
                       <strong>Citation Validator:</strong> Strict Verification Engine
                     </div>
                     <div style="padding:10px 14px; background:var(--bg-secondary, #f8fafc); border-radius:8px; border-left:3px solid #f59e0b;">
-                      <strong>Môi trường Runtime:</strong> zplay Only
+                      <strong>Môi trường Runtime:</strong> gemini Only
                     </div>
                   </div>
                 </section>
@@ -323,7 +324,7 @@ export function renderAdminPanel(container) {
             </div>
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Mô hình đích Vertex AI</div>
-              <div style="font-size:1.4rem; font-weight:800; color:#7c3aed; margin-top:2px;">zplay-2.0-flash</div>
+              <div style="font-size:1.4rem; font-weight:800; color:#7c3aed; margin-top:2px;">gemini-2.0-flash</div>
             </div>
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Trạng thái đồng bộ</div>
@@ -433,6 +434,7 @@ export function renderAdminPanel(container) {
                 <tr style="background:var(--bg-secondary, #f8fafc); border-bottom:1px solid var(--border-color, #cbd5e1); text-align:left">
                   <th style="padding:14px">Email</th>
                   <th style="padding:14px">Tên hiển thị</th>
+                  <th style="padding:14px; width:150px">Vai trò / Trạng thái</th>
                   <th style="padding:14px; width:180px">Ngày tham gia</th>
                   <th style="padding:14px; width:180px">Đăng nhập cuối</th>
                   <th style="padding:14px; width:120px; text-align:right">Hành động</th>
@@ -561,7 +563,7 @@ export function renderAdminPanel(container) {
       syncVbaibotBtn.innerHTML = '🔄 Đang đồng bộ...';
       try {
         const idToken = await window.currentUser.getIdToken();
-        const res = await fetch('/api/admin/training-datasets/sync-vbaibot', {
+        const res = await adminFetch('/api/admin/training-datasets/sync-vbaibot', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
@@ -586,7 +588,7 @@ export function renderAdminPanel(container) {
       triggerTuningBtn.innerHTML = '🚀 Đang khởi tạo...';
       try {
         const idToken = await window.currentUser.getIdToken();
-        const res = await fetch('/api/admin/training-datasets/trigger-tuning', {
+        const res = await adminFetch('/api/admin/training-datasets/trigger-tuning', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
@@ -607,7 +609,7 @@ export function renderAdminPanel(container) {
     exportDatasetBtn.addEventListener('click', async () => {
       try {
         const idToken = await window.currentUser.getIdToken();
-        const res = await fetch('/api/admin/training-datasets/export-jsonl', {
+        const res = await adminFetch('/api/admin/training-datasets/export-jsonl', {
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
         if (!res.ok) throw new Error('Xuất file JSONL thất bại');
@@ -615,7 +617,7 @@ export function renderAdminPanel(container) {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'vbai_zplay_tuning_dataset.jsonl';
+        a.download = 'vbai_gemini_tuning_dataset.jsonl';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -651,7 +653,7 @@ export function renderAdminPanel(container) {
 
       try {
         const idToken = await window.currentUser.getIdToken();
-        const res = await fetch('/api/admin/training-datasets', {
+        const res = await adminFetch('/api/admin/training-datasets', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${idToken}`,
@@ -684,7 +686,7 @@ export function renderAdminPanel(container) {
       if (!confirm('Bạn có chắc chắn muốn xóa mẫu dữ liệu huấn luyện này?')) return;
       try {
         const idToken = await window.currentUser.getIdToken();
-        const res = await fetch(`/api/admin/training-datasets/${id}`, {
+        const res = await adminFetch(`/api/admin/training-datasets/${id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${idToken}` }
         });
@@ -727,21 +729,30 @@ export function renderAdminPanel(container) {
   container.querySelector('#refresh-users-btn').addEventListener('click', () => loadUsers(container));
 
   container.querySelector('#prev-page-btn').addEventListener('click', () => {
-    if (currentPage > 1) { currentPage -= 1; renderPage(container); }
+    if (currentPage > 1) {
+      previousPageCursors.pop();
+      currentPage -= 1;
+      currentPageCursor = previousPageCursors[previousPageCursors.length - 1] || null;
+      loadLogs(container, currentPageCursor);
+    }
   });
 
   container.querySelector('#next-page-btn').addEventListener('click', () => {
-    const totalPages = Math.ceil(allLogs.length / ITEMS_PER_PAGE);
-    if (currentPage < totalPages) { currentPage += 1; renderPage(container); }
+    if (nextPageCursor) {
+      previousPageCursors.push(nextPageCursor);
+      currentPage += 1;
+      currentPageCursor = nextPageCursor;
+      loadLogs(container, currentPageCursor);
+    }
   });
 
   container.querySelector('#users-prev-page-btn').addEventListener('click', () => {
-    if (currentUsersPage > 1) { currentUsersPage -= 1; renderUsersPage(container); }
+      if (currentUsersPage > 1) { currentUsersPage -= 1; loadUsers(container); }
   });
 
   container.querySelector('#users-next-page-btn').addEventListener('click', () => {
-    const totalPages = Math.ceil(allUsers.length / ITEMS_PER_PAGE);
-    if (currentUsersPage < totalPages) { currentUsersPage += 1; renderUsersPage(container); }
+      const totalPages = allUsers.totalPages || Math.ceil(allUsers.length / ITEMS_PER_PAGE);
+      if (currentUsersPage < totalPages) { currentUsersPage += 1; loadUsers(container); }
   });
 
   container.querySelector('#delete-all-logs-btn').addEventListener('click', async () => {
@@ -750,26 +761,11 @@ export function renderAdminPanel(container) {
     btn.disabled = true;
     btn.textContent = 'Đang xóa...';
     try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      let totalDeleted = 0;
-      let hasMore = true;
-      while (hasMore) {
-        const q = query(collection(db, 'search_logs'), limit(500));
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) {
-          hasMore = false;
-          break;
-        }
-        const deletePromises = snapshot.docs.map((document) => deleteDoc(doc(db, 'search_logs', document.id)));
-        await Promise.all(deletePromises);
-        totalDeleted += snapshot.docs.length;
-        btn.textContent = `Đang xóa... (${totalDeleted})`;
-        if (snapshot.docs.length < 500) {
-          hasMore = false;
-        }
-      }
-      loadLogs(container);
+      const response = await adminFetch('/api/search-history', { method: 'DELETE' });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || `HTTP ${response.status}`);
+      btn.textContent = `Đã xóa (${result.deleted || 0})`;
+      await loadLogs(container);
     } catch (e) {
       alert('Lỗi xóa tất cả: ' + e.message);
     } finally {
@@ -786,10 +782,10 @@ export function renderAdminPanel(container) {
     e.target.disabled = true;
     e.target.textContent = '...';
     try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      await deleteDoc(doc(db, 'search_logs', logId));
-      loadLogs(container);
+      const response = await adminFetch(`/api/search-history/${encodeURIComponent(logId)}`, { method: 'DELETE' });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || `HTTP ${response.status}`);
+      await loadLogs(container);
     } catch (err) {
       alert('Lỗi xóa: ' + err.message);
       e.target.disabled = false;
@@ -817,7 +813,7 @@ export function renderAdminPanel(container) {
       
       try {
         const idToken = await window.currentUser.getIdToken();
-        const res = await fetch('/api/admin/delete-user', {
+        const res = await adminFetch('/api/admin/delete-user', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${idToken}`,
@@ -876,7 +872,7 @@ export function renderAdminPanel(container) {
       
       try {
         const idToken = await window.currentUser.getIdToken();
-        const res = await fetch('/api/admin/update-user', {
+        const res = await adminFetch('/api/admin/update-user', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${idToken}`,
@@ -906,14 +902,14 @@ async function initSystemConfigPanel(container) {
   const refreshBtn = container.querySelector('#refresh-config-btn');
   const saveStatusEl = container.querySelector('#config-save-status');
 
-  const zplayKeyInput = formEl.querySelector('#zplay_api_key');
-  const togglezplayKeyBtn = formEl.querySelector('#toggle-zplay-key-btn');
-  const verifyzplayKeyBtn = formEl.querySelector('#verify-zplay-key-btn');
-  const verifyzplayOnSaveInput = formEl.querySelector('#verify-zplay-on-save');
-  const zplayKeyVerifyStatus = formEl.querySelector('#zplay-key-verify-status');
-const zplayEndpointInput = formEl.querySelector('#zplay_api_endpoint');
-   const zplayModelInput = formEl.querySelector('#ai_model');
-  const zplayRuntimeWarning = formEl.querySelector('#zplay-runtime-warning');
+  const geminiKeyInput = formEl.querySelector('#gemini_api_key');
+  const togglegeminiKeyBtn = formEl.querySelector('#toggle-gemini-key-btn');
+  const verifygeminiKeyBtn = formEl.querySelector('#verify-gemini-key-btn');
+  const verifygeminiOnSaveInput = formEl.querySelector('#verify-gemini-on-save');
+  const geminiKeyVerifyStatus = formEl.querySelector('#gemini-key-verify-status');
+const geminiEndpointInput = formEl.querySelector('#gemini_endpoint');
+   const geminiModelInput = formEl.querySelector('#gemini_model');
+  const geminiRuntimeWarning = formEl.querySelector('#gemini-runtime-warning');
   
   const transcribeModelInput = formEl.querySelector('#transcribe_model');
   const meetingModelInput = formEl.querySelector('#meeting_model');
@@ -921,6 +917,10 @@ const zplayEndpointInput = formEl.querySelector('#zplay_api_endpoint');
   const vertexLocationInput = formEl.querySelector('#vertex_location');
   const vertexDataStoreIdInput = formEl.querySelector('#vertex_data_store_id');
   const vertexServingConfigInput = formEl.querySelector('#vertex_serving_config');
+  const appProductNameInput = formEl.querySelector('#app_product_name');
+  const appFirebaseProjectInput = formEl.querySelector('#app_firebase_project');
+  const appEnvironmentInput = formEl.querySelector('#app_environment');
+  const appBuildShaInput = formEl.querySelector('#app_build_sha');
   const triggerVertexIngestBtn = formEl.querySelector('#trigger-vertex-ingest-btn');
   const vertexIngestStatus = formEl.querySelector('#vertex-ingest-status');
 
@@ -932,10 +932,10 @@ const zplayEndpointInput = formEl.querySelector('#zplay_api_endpoint');
     luatvietnam: formEl.querySelector('#fallback_luatvietnam'),
   };
 
-  let zplayModels = [];
+  let geminiModels = [];
 
-  const zplayListEl = setupModelInput(container, 'zplay_model_input', 'add-zplay-model-btn', 'zplay-models-list', () => zplayModels, (next) => {
-    zplayModels = next;
+  const geminiListEl = setupModelInput(container, 'gemini_model_input', 'add-gemini-model-btn', 'gemini-models-list', () => geminiModels, (next) => {
+    geminiModels = next;
   });
 
   function setConfigStatus(message, kind = 'info') {
@@ -970,39 +970,39 @@ const zplayEndpointInput = formEl.querySelector('#zplay_api_endpoint');
     return out;
   }
 
-  function updatezplayRuntimeWarning(modelName, haszplayKey) {
-    if (!zplayRuntimeWarning) return;
+  function updategeminiRuntimeWarning(modelName, hasgeminiKey) {
+    if (!geminiRuntimeWarning) return;
     const normalized = String(modelName || '').trim().toLowerCase();
     const useProLikeModel = normalized.includes('pro');
-    if (haszplayKey && useProLikeModel) {
-      zplayRuntimeWarning.style.display = 'block';
-       zplayRuntimeWarning.textContent = 'Model không hợp lệ hoặc không được cấu hình; runtime sẽ không tự fallback.';
+    if (hasgeminiKey && useProLikeModel) {
+      geminiRuntimeWarning.style.display = 'block';
+       geminiRuntimeWarning.textContent = 'Model không hợp lệ hoặc không được cấu hình; runtime sẽ không tự fallback.';
       return;
     }
-    zplayRuntimeWarning.style.display = 'none';
-    zplayRuntimeWarning.textContent = '';
+    geminiRuntimeWarning.style.display = 'none';
+    geminiRuntimeWarning.textContent = '';
   }
 
-  function setzplayKeyVerifyStatus(message = '', kind = 'info') {
-    if (!zplayKeyVerifyStatus) return;
-    zplayKeyVerifyStatus.textContent = message;
+  function setgeminiKeyVerifyStatus(message = '', kind = 'info') {
+    if (!geminiKeyVerifyStatus) return;
+    geminiKeyVerifyStatus.textContent = message;
     if (kind === 'error') {
-      zplayKeyVerifyStatus.style.color = '#b91c1c';
+      geminiKeyVerifyStatus.style.color = '#b91c1c';
       return;
     }
     if (kind === 'success') {
-      zplayKeyVerifyStatus.style.color = '#15803d';
+      geminiKeyVerifyStatus.style.color = '#15803d';
       return;
     }
-    zplayKeyVerifyStatus.style.color = 'var(--text-muted)';
+    geminiKeyVerifyStatus.style.color = 'var(--text-muted)';
   }
 
-  async function runKeyValidation(provider = 'zplay', { useStoredKey = true } = {}) {
-    const keyInput = zplayKeyInput;
-    const endpointInput = zplayEndpointInput;
-    const modelInput = zplayModelInput;
-    const verifyBtn = verifyzplayKeyBtn;
-    const verifyStatusEl = zplayKeyVerifyStatus;
+  async function runKeyValidation(provider = 'gemini', { useStoredKey = true } = {}) {
+    const keyInput = geminiKeyInput;
+    const endpointInput = geminiEndpointInput;
+    const modelInput = geminiModelInput;
+    const verifyBtn = verifygeminiKeyBtn;
+    const verifyStatusEl = geminiKeyVerifyStatus;
 
     if (verifyBtn) {
       verifyBtn.disabled = true;
@@ -1010,23 +1010,23 @@ const zplayEndpointInput = formEl.querySelector('#zplay_api_endpoint');
     }
     
     if (verifyStatusEl) {
-      verifyStatusEl.textContent = 'Đang xác nhận zplay API key...';
+      verifyStatusEl.textContent = 'Đang xác nhận gemini API key...';
       verifyStatusEl.style.color = 'var(--text-muted)';
     }
 
     try {
       const payload = {
         apiKey: keyInput?.value?.trim() || '',
-        zplay_api_endpoint: endpointInput?.value?.trim() || '',
+        gemini_endpoint: endpointInput?.value?.trim() || '',
         useStoredKey,
         model: modelInput?.value?.trim() || '',
       };
-      const result = await validateZplayApiKey(payload);
+      const result = await validateGeminiApiKey(payload);
       if (result?.valid !== true) {
         throw new Error(result?.message || 'Xác nhận key thất bại.');
       }
       if (verifyStatusEl) {
-        verifyStatusEl.textContent = '✅ zplay API key hợp lệ.';
+        verifyStatusEl.textContent = '✅ gemini API key hợp lệ.';
         verifyStatusEl.style.color = '#15803d';
       }
       return true;
@@ -1051,7 +1051,7 @@ const zplayEndpointInput = formEl.querySelector('#zplay_api_endpoint');
       if (!config) {
         setConfigStatus('Chưa có cấu hình hệ thống. Vui lòng nhập thông tin và lưu.', 'info');
         formEl.classList.remove('is-hidden');
-        renderModelChips(zplayListEl, zplayModels, 'zplay', (next) => { zplayModels = next; });
+        renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
         return;
       }
 
@@ -1059,24 +1059,28 @@ const zplayEndpointInput = formEl.querySelector('#zplay_api_endpoint');
       const setInputValue = (el, val) => { if (el) el.value = val; };
       const getInputValue = (el, fallback = '') => el ? el.value.trim() : fallback;
 
-      // Load zplay
-setInputValue(zplayModelInput, config.ai_model || '');
-       setInputValue(zplayEndpointInput, config.ai_endpoint || config.zplay_api_endpoint || '');
-       setInputValue(zplayKeyInput, '');
-      if (zplayKeyInput) zplayKeyInput.type = 'password';
-      if (togglezplayKeyBtn) togglezplayKeyBtn.textContent = 'Hiện key';
-      setzplayKeyVerifyStatus(config.has_zplay_key ? 'Đã lưu zplay API key. Bạn có thể xác nhận lại bất cứ lúc nào.' : 'Chưa có zplay API key.');
-      updatezplayRuntimeWarning(zplayModelInput ? zplayModelInput.value : '', !!config.has_zplay_key);
-      zplayModels = Array.isArray(config.zplay_models) ? [...config.zplay_models] : [];
-      renderModelChips(zplayListEl, zplayModels, 'zplay', (next) => { zplayModels = next; });
+      // Load gemini
+setInputValue(geminiModelInput, config.gemini_model || '');
+       setInputValue(geminiEndpointInput, config.gemini_endpoint || '');
+       setInputValue(geminiKeyInput, '');
+      if (geminiKeyInput) geminiKeyInput.type = 'password';
+      if (togglegeminiKeyBtn) togglegeminiKeyBtn.textContent = 'Hiện key';
+      setgeminiKeyVerifyStatus(config.has_gemini_key ? 'Đã lưu gemini API key. Bạn có thể xác nhận lại bất cứ lúc nào.' : 'Chưa có gemini API key.');
+      updategeminiRuntimeWarning(geminiModelInput ? geminiModelInput.value : '', !!config.has_gemini_key);
+      geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
+      renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
 
       // Load other configs
-      setInputValue(transcribeModelInput, config.transcribe_model || config.zplay_model || 'zplay-3.7-flash-high');
-      setInputValue(meetingModelInput, config.meeting_model || config.transcribe_model || config.zplay_model || 'zplay-3.7-flash-high');
+      setInputValue(transcribeModelInput, config.transcribe_model || config.gemini_model || '');
+      setInputValue(meetingModelInput, config.meeting_model || config.transcribe_model || config.gemini_model || '');
       setInputValue(vertexProjectIdInput, config.vertex_project_id || '');
       setInputValue(vertexLocationInput, config.vertex_location || 'global');
       setInputValue(vertexDataStoreIdInput, config.vertex_data_store_id || '');
-      setInputValue(vertexServingConfigInput, config.vertex_serving_config || '');
+       setInputValue(vertexServingConfigInput, config.vertex_serving_config || '');
+       setInputValue(appProductNameInput, config.app_product_name || '');
+       setInputValue(appFirebaseProjectInput, config.app_firebase_project || '');
+       setInputValue(appEnvironmentInput, config.app_environment || config.environment || '');
+       setInputValue(appBuildShaInput, config.app_build_sha || config.build_sha || '');
 
       const provider = config.web_search_provider || 'vertex_search';
       const mode = (config.web_search_mode === 'cse_fast' || config.web_search_mode === 'direct') ? 'direct' : 'vertex_first';
@@ -1093,18 +1097,16 @@ setInputValue(zplayModelInput, config.ai_model || '');
 
   async function saveConfig() {
     const getInputValue = (el, fallback = '') => el ? el.value.trim() : fallback;
-    const activeAiModel = getInputValue(zplayModelInput);
+    const activeAiModel = getInputValue(geminiModelInput);
     const activeTranscribeModel = getInputValue(transcribeModelInput);
     const activeMeetingModel = getInputValue(meetingModelInput);
 
     const payload = {
-      // zplay
-      ai_provider: 'zplay',
-      ai_model: activeAiModel,
-      ai_endpoint: getInputValue(zplayEndpointInput),
-      zplay_api_endpoint: getInputValue(zplayEndpointInput),
+      // gemini
+      gemini_model: activeAiModel,
+      gemini_endpoint: getInputValue(geminiEndpointInput),
       // Only submit a key when an administrator manually entered a new one.
-      ...(getInputValue(zplayKeyInput) ? { zplay_api_key: getInputValue(zplayKeyInput) } : {}),
+      ...(getInputValue(geminiKeyInput) ? { gemini_api_key: getInputValue(geminiKeyInput) } : {}),
 
       // Other Settings
       transcribe_model: activeTranscribeModel,
@@ -1115,7 +1117,9 @@ setInputValue(zplayModelInput, config.ai_model || '');
       vertex_project_id: getInputValue(vertexProjectIdInput),
       vertex_location: getInputValue(vertexLocationInput, 'global'),
       vertex_data_store_id: getInputValue(vertexDataStoreIdInput),
-      vertex_serving_config: getInputValue(vertexServingConfigInput),
+       vertex_serving_config: getInputValue(vertexServingConfigInput),
+       app_product_name: getInputValue(appProductNameInput),
+       app_firebase_project: getInputValue(appFirebaseProjectInput),
     };
 
     saveBtn.disabled = true;
@@ -1123,11 +1127,11 @@ setInputValue(zplayModelInput, config.ai_model || '');
     saveStatusEl.className = 'config-save-status';
     saveStatusEl.textContent = '';
     try {
-      if (verifyzplayOnSaveInput?.checked) {
-        const keyOk = await runKeyValidation('zplay', { useStoredKey: false });
+      if (verifygeminiOnSaveInput?.checked) {
+        const keyOk = await runKeyValidation('gemini', { useStoredKey: false });
         if (!keyOk) {
           saveStatusEl.className = 'config-save-status error';
-          saveStatusEl.textContent = '❌ Key zplay chưa hợp lệ nên chưa lưu cấu hình.';
+          saveStatusEl.textContent = '❌ Key gemini chưa hợp lệ nên chưa lưu cấu hình.';
           return;
         }
       }
@@ -1149,23 +1153,23 @@ setInputValue(zplayModelInput, config.ai_model || '');
     if (!confirm('XÁC NHẬN: Bạn có chắc chắn muốn lưu và áp dụng toàn bộ cấu hình AI & Hệ thống mới này?')) return;
     saveConfig();
   });
-  togglezplayKeyBtn?.addEventListener('click', () => {
-    const showing = zplayKeyInput.type === 'text';
-    zplayKeyInput.type = showing ? 'password' : 'text';
-    togglezplayKeyBtn.textContent = showing ? 'Hiện key' : 'Ẩn key';
+  togglegeminiKeyBtn?.addEventListener('click', () => {
+    const showing = geminiKeyInput.type === 'text';
+    geminiKeyInput.type = showing ? 'password' : 'text';
+    togglegeminiKeyBtn.textContent = showing ? 'Hiện key' : 'Ẩn key';
   });
-  verifyzplayKeyBtn?.addEventListener('click', () => {
-    void runKeyValidation('zplay', { useStoredKey: false });
+  verifygeminiKeyBtn?.addEventListener('click', () => {
+    void runKeyValidation('gemini', { useStoredKey: false });
   });
-  const clearzplayKeyBtn = formEl.querySelector('#clear-zplay-key-btn');
-  clearzplayKeyBtn?.addEventListener('click', async () => {
-    if (!confirm('Bạn có chắc chắn muốn xóa zplay API key khỏi hệ thống không?')) return;
+  const cleargeminiKeyBtn = formEl.querySelector('#clear-gemini-key-btn');
+  cleargeminiKeyBtn?.addEventListener('click', async () => {
+    if (!confirm('Bạn có chắc chắn muốn xóa gemini API key khỏi hệ thống không?')) return;
     try {
-      if (zplayKeyInput) zplayKeyInput.value = '';
-      await updateSystemConfig({ clear_zplay_api_key: true });
+      if (geminiKeyInput) geminiKeyInput.value = '';
+      await updateSystemConfig({ clear_gemini_api_key: true });
       if (saveStatusEl) {
         saveStatusEl.className = 'config-save-status success';
-        saveStatusEl.textContent = '✅ Đã xóa zplay API key thành công.';
+        saveStatusEl.textContent = '✅ Đã xóa gemini API key thành công.';
       }
       await loadConfig();
     } catch (err) {
@@ -1204,8 +1208,8 @@ setInputValue(zplayModelInput, config.ai_model || '');
       triggerVertexIngestBtn.textContent = '🔄 Đồng bộ dữ liệu (Ingest)';
     }
   });
-  zplayModelInput.addEventListener('input', () => {
-    updatezplayRuntimeWarning(zplayModelInput.value, zplayKeyInput.value.includes('•') || !!zplayKeyInput.value.trim());
+  geminiModelInput.addEventListener('input', () => {
+    updategeminiRuntimeWarning(geminiModelInput.value, geminiKeyInput.value.includes('•') || !!geminiKeyInput.value.trim());
   });
   loadConfig();
 
@@ -1283,7 +1287,7 @@ setInputValue(zplayModelInput, config.ai_model || '');
 
         try {
           const token = localStorage.getItem('vbai_token') || (window.currentUser ? await window.currentUser.getIdToken() : '');
-          const res = await fetch(`/api/admin/document?number=${encodeURIComponent(docNum)}`, {
+          const res = await adminFetch(`/api/admin/document?number=${encodeURIComponent(docNum)}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
           });
@@ -1311,7 +1315,7 @@ setInputValue(zplayModelInput, config.ai_model || '');
   async function loadCrawlerStatus() {
     try {
       const token = localStorage.getItem('vbai_token') || (window.currentUser ? await window.currentUser.getIdToken() : '');
-      const res = await fetch('/api/admin/crawler/status', {
+      const res = await adminFetch('/api/admin/crawler/status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) {
@@ -1345,7 +1349,7 @@ setInputValue(zplayModelInput, config.ai_model || '');
       cleanGarbageBtn.textContent = '⏳ Đang dọn rác...';
       try {
         const token = localStorage.getItem('vbai_token') || (window.currentUser ? await window.currentUser.getIdToken() : '');
-        const res = await fetch('/api/admin/crawler/clean', {
+        const res = await adminFetch('/api/admin/crawler/clean', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -1368,7 +1372,7 @@ setInputValue(zplayModelInput, config.ai_model || '');
       if (typeof crawlerMsg !== 'undefined' && crawlerMsg) crawlerMsg.textContent = 'Đang kết nối Cổng TTĐT Chính phủ và Cổng VBPL...';
       try {
         const token = localStorage.getItem('vbai_token') || (window.currentUser ? await window.currentUser.getIdToken() : '');
-        const res = await fetch('/api/admin/crawler/run', {
+        const res = await adminFetch('/api/admin/crawler/run', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1424,7 +1428,7 @@ setInputValue(zplayModelInput, config.ai_model || '');
 
       try {
         const token = window.currentUser ? await window.currentUser.getIdToken() : '';
-        const res = await fetch('/api/admin/ingest-document', {
+        const res = await adminFetch('/api/admin/ingest-document', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1478,7 +1482,7 @@ function setupModelInput(container, inputId, btnId, listElId, getModels, setMode
     const next = [...models, val];
     setModels(next);
     input.value = '';
-    renderModelChips(listEl, next, 'zplay', setModels);
+    renderModelChips(listEl, next, 'gemini', setModels);
   }
 
   btn.addEventListener('click', addModel);
@@ -1511,11 +1515,13 @@ function renderModelChips(listEl, models, type, onChange = null) {
   });
 }
 
-async function loadLogs(container) {
+async function loadLogs(container, cursor = null) {
   const tbody = container.querySelector('#logs-table-body');
   try {
     const { backendFetch } = await import('./ai-proxy.js');
-    const response = await backendFetch('/search-history?limit=100', { method: 'GET' });
+    const params = new URLSearchParams({ limit: String(ITEMS_PER_PAGE) });
+    if (cursor) params.set('cursor', cursor);
+    const response = await backendFetch(`/search-history?${params.toString()}`, { method: 'GET' });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -1531,11 +1537,13 @@ async function loadLogs(container) {
       id: item.id,
       data: {
         timestamp: item.created_at || item.timestamp,
-        userEmail: item.user_email || item.userEmail || item.user_id || 'anonymous',
-        query: item.query || item.prompt || '',
-        action: item.query || item.prompt || '',
+          userEmail: item.user_email || (item.user_id ? `User ${String(item.user_id).slice(0, 8)}` : 'anonymous'),
+        query: item.query || '',
+        action: item.query || '',
         model: item.model || null,
+        feature: item.feature || 'legal-search',
         mode: item.mode || 'legal-search',
+        effectiveDate: item.effectiveDate || null,
         status: item.status || 'success',
         verifiedEvidenceCount: typeof item.verified_count === 'number' ? item.verified_count : item.verifiedEvidenceCount,
         totalEvidenceCount: typeof item.evidence_count === 'number' ? item.evidence_count : item.totalEvidenceCount,
@@ -1543,7 +1551,7 @@ async function loadLogs(container) {
       }
     }));
 
-    currentPage = 1;
+    nextPageCursor = resData.pagination?.nextCursor || null;
     renderPage(container);
   } catch (error) {
     console.error('Error loading logs:', error);
@@ -1562,6 +1570,8 @@ function renderPage(container) {
     const userDisplay = item.data.userEmail || item.data.user || 'anonymous';
     const queryDisplay = item.data.query || item.data.action || '';
     const modeBadge = item.data.mode ? `<span class="recent-mode-tag" style="font-size:0.68rem; margin-left:6px;">${escapeHtml(item.data.mode)}</span>` : '';
+    const featureTag = item.data.feature ? `<span style="font-size:0.68rem; color:var(--text-muted);">${escapeHtml(item.data.feature)}</span>` : '';
+    const effectiveDateTag = item.data.effectiveDate ? `<div style="font-size:0.68rem; color:var(--text-muted);">Hiệu lực: ${escapeHtml(item.data.effectiveDate)}</div>` : '';
     const verifiedCount = typeof item.data.verifiedEvidenceCount === 'number' ? item.data.verifiedEvidenceCount : 0;
     const totalCount = typeof item.data.totalEvidenceCount === 'number' ? item.data.totalEvidenceCount : 0;
     const traceId = item.data.requestId ? `<div style="font-size:0.68rem; color:var(--text-muted); font-family:monospace;">TraceID: ${escapeHtml(item.data.requestId)}</div>` : '';
@@ -1577,7 +1587,8 @@ function renderPage(container) {
           ${traceId}
         </td>
         <td style="padding:12px;">
-          <div>${escapeHtml(queryDisplay)} ${modeBadge}</div>
+          <div>${featureTag} ${modeBadge}</div>
+          ${effectiveDateTag}
           <div style="margin-top:2px;">${statusTag}</div>
         </td>
         <td style="padding:12px;"><span style="font-family:monospace; font-size:0.78rem;">${escapeHtml(item.data.model || '')}</span></td>
@@ -1587,15 +1598,15 @@ function renderPage(container) {
   }).join('') : '<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
 
 
-  const totalPages = Math.ceil(allLogs.length / ITEMS_PER_PAGE) || 1;
+  const totalPages = currentPage + (nextPageCursor ? 1 : 0);
   const paginationControls = container.querySelector('#pagination-controls');
   const pageIndicator = container.querySelector('#page-indicator');
   if (paginationControls && pageIndicator) {
-    if (allLogs.length > ITEMS_PER_PAGE) {
+    if (currentPage > 1 || nextPageCursor) {
       paginationControls.style.display = 'flex';
       pageIndicator.textContent = `Trang ${currentPage} / ${totalPages}`;
       container.querySelector('#prev-page-btn').disabled = currentPage === 1;
-      container.querySelector('#next-page-btn').disabled = currentPage === totalPages;
+      container.querySelector('#next-page-btn').disabled = !nextPageCursor;
     } else {
       paginationControls.style.display = 'none';
     }
@@ -1605,19 +1616,18 @@ function renderPage(container) {
 async function loadUsers(container) {
   const tbody = container.querySelector('#users-table-body');
   try {
-    const token = localStorage.getItem('vbai_token') || (window.currentUser ? await window.currentUser.getIdToken() : '');
-    const resp = await fetch('/api/admin/users', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    const requestedPage = currentUsersPage;
+    const resp = await adminFetch(`/api/admin/users?page=${requestedPage}&limit=${ITEMS_PER_PAGE}`, {});
     const result = await resp.json();
     if (!resp.ok || !result.success || !Array.isArray(result.users) || result.users.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu (Hệ thống trả về 0 bản ghi)</td></tr>`;
+       tbody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--text-muted)">${resp.ok ? 'Không có dữ liệu (Hệ thống trả về 0 bản ghi)' : 'Không thể tải danh sách người dùng'}</td></tr>`;
       return;
     }
-    allUsers = result.users.map((u) => ({ id: u.uid || u._id, data: { ...u, createdAt: u.created_at, lastLogin: u.last_login_at } }));
-    currentUsersPage = 1;
+    allUsers = result.users.map((u) => ({ id: u.uid || u._id, data: { ...u, createdAt: u.created_at || u.createdAt, lastLogin: u.last_login_at || u.lastLogin } }));
+    if (result.pagination) {
+      allUsers.totalPages = result.pagination.totalPages || 1;
+      allUsers.total = result.pagination.total || allUsers.length;
+    }
     renderUsersPage(container);
   } catch (error) {
     console.error('Error loading users:', error);
@@ -1636,11 +1646,13 @@ function renderUsersPage(container) {
     const email = item.data.email || item.data.username || '';
     const name = item.data.displayName || item.data.fullName || item.data.name || '';
     const position = item.data.position || '';
-    const role = item.data.role || '';
+    const role = item.data.role || item.data.system_role || '';
+    const status = item.data.status || (item.data.disabled ? 'disabled' : 'active');
     return `
       <tr style="border-bottom:1px solid var(--border-color)">
         <td style="padding:12px;">${escapeHtml(email)}</td>
         <td style="padding:12px;">${escapeHtml(name)}</td>
+        <td style="padding:12px;"><span class="badge">${escapeHtml(role)}</span><br><small>${escapeHtml(status)}</small></td>
         <td style="padding:12px;">${formatDate(item.data.createdAt)}</td>
         <td style="padding:12px;">${formatDate(item.data.lastLogin)}</td>
         <td style="padding:12px; text-align:right">
@@ -1651,13 +1663,13 @@ function renderUsersPage(container) {
     `;
   }).join('') : '<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
 
-  const totalPages = Math.ceil(allUsers.length / ITEMS_PER_PAGE) || 1;
+    const totalPages = allUsers.totalPages || Math.ceil(allUsers.length / ITEMS_PER_PAGE) || 1;
   const paginationControls = container.querySelector('#users-pagination-controls');
   const pageIndicator = container.querySelector('#users-page-indicator');
   if (paginationControls && pageIndicator) {
-    if (allUsers.length > ITEMS_PER_PAGE) {
+    if (totalPages > 1) {
       paginationControls.style.display = 'flex';
-      pageIndicator.textContent = `Trang ${currentUsersPage} / ${totalPages}`;
+      pageIndicator.textContent = `Trang ${currentUsersPage} / ${totalPages} (${allUsers.total || allUsers.length} tài khoản)`;
       container.querySelector('#users-prev-page-btn').disabled = currentUsersPage === 1;
       container.querySelector('#users-next-page-btn').disabled = currentUsersPage === totalPages;
     } else {
@@ -1693,10 +1705,7 @@ async function loadDatasetSamples(container) {
   tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Đang tải danh sách mẫu huấn luyện...</td></tr>';
   
   try {
-    const idToken = await window.currentUser.getIdToken();
-    const resp = await fetch('/api/admin/training-datasets', {
-      headers: { 'Authorization': `Bearer ${idToken}` }
-    });
+    const resp = await adminFetch('/api/admin/training-datasets', {});
     if (!resp.ok) throw new Error('Không thể nạp dữ liệu huấn luyện');
     const resData = await resp.json();
     allDatasetSamples = resData.data || [];

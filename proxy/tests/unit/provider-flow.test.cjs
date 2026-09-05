@@ -1,6 +1,6 @@
 /**
  * Provider Flow Unit Tests
- * Verifies Gemini API → Vertex AI fallback logic in executeProviderAttempt.
+ * Verifies Gemini API fail-closed logic in executeProviderAttempt.
  *
  * Tests are static analysis of the source code to verify the control flow
  * ordering is correct, since the actual function is a closure inside the
@@ -31,27 +31,27 @@ assert(okCheckIndex > -1, 'Must check providerRes.ok');
 const returnDataIndex = fnBody.indexOf('return { ok: true, status: 200, data }');
 assert(returnDataIndex > -1, 'Must return success data when providerRes.ok is true');
 
-const providerFailureIndex = fnBody.indexOf("zplay provider request failed.");
-assert(providerFailureIndex > -1, 'Must contain zplay provider failure path');
+const providerFailureIndex = fnBody.indexOf("Gemini provider request failed.");
+assert(providerFailureIndex > -1, 'Must contain Gemini provider failure path');
 
 // Success return MUST come before Vertex fallback
 assert(returnDataIndex < providerFailureIndex,
-  'zplay success return must come BEFORE the provider failure path.'
+  'Gemini success return must come BEFORE the provider failure path.'
 );
 
 console.log('  ✅ Test 1: Gemini API success returns immediately (no Vertex call)');
 
-// === Test 2: Vertex fallback is called when API fails ===
-assert(fnBody.includes('zplay failed'), 'Must identify zplay provider failure');
+// === Test 2: Gemini failure is handled after the success path ===
+assert(fnBody.includes('Gemini failed'), 'Must identify Gemini provider failure');
 assert(providerFailureIndex > returnDataIndex,
   'Provider failure path must come AFTER success return path');
 
-console.log('  ✅ Test 2: Vertex AI fallback is called when Gemini API fails');
+console.log('  ✅ Test 2: Gemini failure is handled after the success path');
 
-// === Test 3: zplay-only failure is returned without provider fallback ===
-assert(!fnBody.includes('executeVertexGeminiChat'), 'zplay chat must not fall back to Vertex/Gemini');
+// === Test 3: Gemini failure is returned without provider fallback ===
+assert(!fnBody.includes('executeVertexGeminiChat'), 'Gemini chat must not fall back to Vertex chat; Vertex Search remains separate.');
 assert(fnBody.includes("reason: 'PROVIDER_ERROR'"), 'provider failure reason must be explicit');
-console.log('  ✅ Test 3: zplay-only failure is fail-closed');
+console.log('  ✅ Test 3: Gemini failure is fail-closed');
 
 // === Test 4: finalValidatedModel is NOT used in validate-gemini-key ===
 const validateKeySection = serverCode.substring(

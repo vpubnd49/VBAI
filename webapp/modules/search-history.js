@@ -1,6 +1,6 @@
 /**
  * VBAI Legal Pro V2 — Search History Module
- * Real search logs UI rendering from Firestore `search_logs`
+ * Real search logs UI rendering from the backend search-history API
  * Enables searching, filtering, re-opening query in Legal Search UI, and item deletion.
  */
 
@@ -12,6 +12,9 @@ let historyState = {
   filteredLogs: [],
   currentPage: 1,
   pageSize: 15,
+  nextCursor: null,
+  previousCursors: [],
+  hasMore: false,
   filterQuery: '',
   filterMode: 'all',
   isLoading: false,
@@ -73,7 +76,7 @@ export async function renderSearchHistory(container, navigateToCallback) {
               <tr>
                 <td colspan="6" style="padding:40px; text-align:center; color:var(--text-muted);">
                   <div class="spinner" style="margin:0 auto 12px auto;"></div>
-                  Đang tải nhật ký tra cứu từ Firestore...
+                   Đang tải nhật ký tra cứu từ máy chủ...
                 </td>
               </tr>
             </tbody>
@@ -143,16 +146,18 @@ export async function renderSearchHistory(container, navigateToCallback) {
 
   prevBtn.addEventListener('click', () => {
     if (historyState.currentPage > 1) {
+      historyState.previousCursors.pop();
       historyState.currentPage -= 1;
-      renderTablePage(container, navigateToCallback);
+      const cursor = historyState.previousCursors[historyState.previousCursors.length - 1] || null;
+      fetchLogs(container, navigateToCallback, cursor);
     }
   });
 
   nextBtn.addEventListener('click', () => {
-    const totalPages = Math.ceil(historyState.filteredLogs.length / historyState.pageSize) || 1;
-    if (historyState.currentPage < totalPages) {
+    if (historyState.hasMore && historyState.nextCursor) {
+      historyState.previousCursors.push(historyState.nextCursor);
       historyState.currentPage += 1;
-      renderTablePage(container, navigateToCallback);
+      fetchLogs(container, navigateToCallback, historyState.nextCursor);
     }
   });
 
@@ -160,11 +165,13 @@ export async function renderSearchHistory(container, navigateToCallback) {
   await fetchLogs(container, navigateToCallback);
 }
 
-async function fetchLogs(container, navigateToCallback) {
+async function fetchLogs(container, navigateToCallback, cursor = null) {
   historyState.isLoading = true;
   try {
     const { backendFetch } = await import('./ai-proxy.js');
-    const response = await backendFetch('/search-history', { method: 'GET' });
+    const params = new URLSearchParams({ limit: String(historyState.pageSize) });
+    if (cursor) params.set('cursor', cursor);
+    const response = await backendFetch(`/search-history?${params.toString()}`, { method: 'GET' });
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -173,8 +180,8 @@ async function fetchLogs(container, navigateToCallback) {
     const data = await response.json();
     historyState.logs = (Array.isArray(data.logs) ? data.logs : []).map(raw => ({
       id: raw.id,
-      query: raw.query || raw.prompt || '',
-      user: raw.user_email || raw.userEmail || raw.user_id || 'anonymous',
+      query: raw.query || '',
+       user: raw.user_email || (raw.user_id ? `User ${String(raw.user_id).slice(0, 8)}` : 'anonymous'),
       userId: raw.user_id || null,
       mode: raw.mode || 'legal-search',
       feature: raw.feature || 'legal-search',
@@ -184,12 +191,15 @@ async function fetchLogs(container, navigateToCallback) {
       createdAt: raw.created_at || raw.timestamp,
       verifiedCount: typeof raw.verified_count === 'number' ? raw.verified_count : (typeof raw.verifiedEvidenceCount === 'number' ? raw.verifiedEvidenceCount : 0),
       totalCount: typeof raw.evidence_count === 'number' ? raw.evidence_count : (typeof raw.totalEvidenceCount === 'number' ? raw.totalEvidenceCount : 0),
-      requestId: raw.requestId || null,
+      requestId: raw.requestId || raw.request_id || null,
       errorMessage: raw.errorMessage || null
     }));
 
     historyState.isAdmin = data.isAdmin === true;
-    applyFilterAndRender(container, navigateToCallback);
+    historyState.nextCursor = data.pagination?.nextCursor || null;
+    historyState.hasMore = data.pagination?.hasMore === true || !!historyState.nextCursor;
+    historyState.filteredLogs = historyState.logs;
+    renderTablePage(container, navigateToCallback);
   } catch (err) {
     console.error('Lỗi khi tải search_logs:', err);
     const tbody = container.querySelector('#history-table-body');
@@ -212,8 +222,11 @@ function applyFilterAndRender(container, navigateToCallback) {
 
   historyState.filteredLogs = logs.filter(item => {
     const matchesQuery = !filterQuery ||
-      item.query.toLowerCase().includes(filterQuery) ||
-      item.user.toLowerCase().includes(filterQuery);
+       item.query.toLowerCase().includes(filterQuery) ||
+       item.user.toLowerCase().includes(filterQuery) ||
+       String(item.requestId || '').toLowerCase().includes(filterQuery) ||
+       String(item.feature || '').toLowerCase().includes(filterQuery) ||
+       String(item.effectiveDate || '').toLowerCase().includes(filterQuery);
 
     const matchesMode = filterMode === 'all' || item.mode === filterMode;
 
@@ -232,9 +245,9 @@ function renderTablePage(container, navigateToCallback) {
 
   if (!tbody) return;
 
-  const { filteredLogs, currentPage, pageSize } = historyState;
+  const { filteredLogs, currentPage } = historyState;
   const totalLogs = filteredLogs.length;
-  const totalPages = Math.ceil(totalLogs / pageSize) || 1;
+  const totalPages = currentPage + (historyState.hasMore ? 1 : 0);
 
   if (totalLogs === 0) {
     tbody.innerHTML = `
@@ -251,13 +264,14 @@ function renderTablePage(container, navigateToCallback) {
     return;
   }
 
-  const startIdx = (currentPage - 1) * pageSize;
-  const endIdx = Math.min(startIdx + pageSize, totalLogs);
-  const pageItems = filteredLogs.slice(startIdx, endIdx);
+  const startIdx = 0;
+  const endIdx = totalLogs;
+  const pageItems = filteredLogs;
 
   tbody.innerHTML = pageItems.map(item => {
     const formattedTime = formatTimestamp(item.createdAt);
     const modeBadge = getModeBadgeHtml(item.mode);
+    const featureTag = item.feature ? `<span style="font-size:0.72rem; color:var(--text-muted);">${escapeHtml(item.feature)}</span>` : '';
     const effectiveTag = item.effectiveDate ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Rà soát ngày: ${escapeHtml(item.effectiveDate)}</div>` : '';
     
     let resultBadge = `<span class="verify-chip verified-true" style="font-size:0.75rem;">✓ Đã kiểm chứng (${item.verifiedCount}/${item.totalCount || 1})</span>`;
@@ -268,7 +282,7 @@ function renderTablePage(container, navigateToCallback) {
     }
 
     const modelTag = `<span style="font-size:0.72rem; background:var(--bg-secondary); padding:2px 6px; border-radius:4px; margin-left:4px; font-family:monospace;">${escapeHtml(item.model)}</span>`;
-    const traceIdTag = item.requestId ? `<div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">TraceID: ${escapeHtml(item.requestId.substring(0, 14))}...</div>` : '';
+     const traceIdTag = item.requestId ? `<div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">requestId: ${escapeHtml(item.requestId)}</div>` : '<div style="font-size:0.7rem; color:var(--text-muted);">requestId: n/a</div>';
 
     const canDelete = historyState.isAdmin || (window.currentUser && item.userId === window.currentUser.uid);
     const deleteBtnHtml = canDelete
@@ -288,8 +302,8 @@ function renderTablePage(container, navigateToCallback) {
           ${traceIdTag}
         </td>
         <td style="padding:12px 16px;">
-          <div>${modeBadge}</div>
-          <div style="margin-top:2px;">${modelTag}</div>
+           <div>feature: ${featureTag || 'n/a'} · mode: ${modeBadge}</div>
+           <div style="margin-top:2px;">${modelTag}</div>
         </td>
         <td style="padding:12px 16px; font-weight:500; color:var(--text-primary);">
           <div style="max-height:48px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
@@ -309,8 +323,8 @@ function renderTablePage(container, navigateToCallback) {
 
   if (countInfo) countInfo.textContent = `Hiển thị ${startIdx + 1} - ${endIdx} trên tổng số ${totalLogs} bản ghi`;
   if (pageNum) pageNum.textContent = `${currentPage} / ${totalPages}`;
-  if (prevBtn) prevBtn.disabled = currentPage === 1;
-  if (nextBtn) nextBtn.disabled = currentPage === totalPages;
+  if (prevBtn) prevBtn.disabled = currentPage === 1 || historyState.isLoading;
+  if (nextBtn) nextBtn.disabled = !historyState.hasMore || historyState.isLoading;
 
   // Delegate Reopen and Delete actions
   tbody.addEventListener('click', async (e) => {

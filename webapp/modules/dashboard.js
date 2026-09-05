@@ -201,51 +201,62 @@ export function renderDashboard(container, navigateTo) {
     });
   });
 
-  // Bind Recent Search Clicks
-  container.querySelectorAll('.recent-search-item').forEach(item => {
-    // Click on the item itself (not the delete button) to reopen
-    item.addEventListener('click', (e) => {
-      if (e.target.closest('.recent-delete-btn')) return;
-      const q = item.dataset.query;
-      const mode = item.dataset.mode || 'legal-search';
-      if (q) navigateTo('legal-search', q, mode);
-    });
-  });
-
-  // Bind individual delete buttons
-  container.querySelectorAll('.recent-delete-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.index, 10);
-      deleteRecentSearchByIndex(idx);
-      const listEl = container.querySelector('#recent-searches-list');
-      if (listEl) listEl.innerHTML = renderRecentSearchesHtml(getRecentSearches());
-      rebindRecentSearchEvents(container, navigateTo);
-    });
-  });
-
-  // Bind clear-all button
-  const clearAllBtn = container.querySelector('#clear-all-recent');
-  if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', () => {
-      if (!confirm('Xóa tất cả lịch sử tra cứu gần đây?')) return;
-      localStorage.removeItem('vbai_recent_searches');
-      const listEl = container.querySelector('#recent-searches-list');
-      if (listEl) listEl.innerHTML = renderRecentSearchesHtml([]);
-      if (clearAllBtn) clearAllBtn.remove();
-    });
-  }
+  bindRecentSearchEvents(container, navigateTo);
+  bindClearRecentButton(container, container.querySelector('#clear-all-recent'));
 
   // Load Build SHA in Footer
   loadFooterBuildInfo(container);
 
-  // Hydrate Visit Counter safely from backend API
+  // Hydrate only after main.js has established window.currentUser/auth token.
+  hydrateRecentSearches(container, navigateTo);
   hydrateVisitCounter(container);
+}
+
+async function hydrateRecentSearches(container, navigateTo) {
+  try {
+    const { backendFetch } = await import('./ai-proxy.js');
+    const response = await backendFetch('/search-history?limit=10', { method: 'GET' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const logs = Array.isArray(data.logs) ? data.logs : [];
+    const searches = logs.map((item) => ({
+      id: item.id,
+      query: item.query || '',
+      mode: item.mode || 'legal-search',
+      created_at: item.created_at || item.timestamp,
+    })).filter((item) => item.query);
+    const listEl = container.querySelector('#recent-searches-list');
+    if (listEl) listEl.innerHTML = renderRecentSearchesHtml(searches);
+    bindRecentSearchEvents(container, navigateTo, searches);
+    const clearBtn = container.querySelector('#clear-all-recent');
+    if (!clearBtn && searches.length > 0) {
+      const head = container.querySelector('.recent-searches-card .panel-card-head > div');
+      if (head) {
+        const button = document.createElement('button');
+        button.id = 'clear-all-recent';
+        button.textContent = 'Xóa tất cả';
+        button.title = 'Xóa tất cả lịch sử';
+        button.style.cssText = 'font-size:0.72rem; padding:3px 10px; border:1px solid var(--border-default,#CBD5E1); background:transparent; color:var(--danger,#DC2626); border-radius:12px; cursor:pointer;';
+        head.appendChild(button);
+        bindClearRecentButton(container, button);
+      }
+    } else if (clearBtn) {
+      bindClearRecentButton(container, clearBtn);
+    }
+  } catch (err) {
+    // Keep the locally cached list when the backend is unavailable.
+    console.warn('Recent searches backend hydration failed safely:', err);
+  }
 }
 
 async function hydrateVisitCounter(container) {
   const visitEl = container.querySelector('#visit-count');
   if (!visitEl) return;
+  // Auth restoration can finish between render and token availability.
+  if (!window.currentUser) {
+    visitEl.textContent = '--';
+    return;
+  }
 
   const SESSION_KEY = 'vbai_visit_session_v2';
   const isNewSession = !sessionStorage.getItem(SESSION_KEY);
@@ -289,6 +300,59 @@ function getRecentSearches() {
   }
 }
 
+function bindRecentSearchEvents(container, navigateTo, searches = getRecentSearches()) {
+  container.querySelectorAll('.recent-search-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.recent-delete-btn')) return;
+      const q = item.dataset.query;
+      const mode = item.dataset.mode || 'legal-search';
+      if (q) navigateTo('legal-search', q, mode);
+    });
+  });
+  container.querySelectorAll('.recent-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      if (id) {
+        try {
+          const { backendFetch } = await import('./ai-proxy.js');
+          const response = await backendFetch(`/search-history/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch (err) {
+          console.warn('Recent search deletion failed safely:', err);
+          return;
+        }
+      } else {
+        deleteRecentSearchByIndex(parseInt(btn.dataset.index, 10));
+      }
+      const listEl = container.querySelector('#recent-searches-list');
+      const next = id ? searches.filter(item => String(item.id) !== String(id)) : getRecentSearches();
+      if (listEl) listEl.innerHTML = renderRecentSearchesHtml(next);
+      bindRecentSearchEvents(container, navigateTo, next);
+    });
+  });
+}
+
+function bindClearRecentButton(container, button) {
+  if (!button || button.dataset.bound === 'true') return;
+  button.dataset.bound = 'true';
+  button.addEventListener('click', async () => {
+    if (!confirm('Xóa tất cả lịch sử tra cứu gần đây?')) return;
+    try {
+      const { backendFetch } = await import('./ai-proxy.js');
+      const response = await backendFetch('/search-history', { method: 'DELETE' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    } catch (err) {
+      console.warn('Recent search clear failed safely:', err);
+      return;
+    }
+    localStorage.removeItem('vbai_recent_searches');
+    const listEl = container.querySelector('#recent-searches-list');
+    if (listEl) listEl.innerHTML = renderRecentSearchesHtml([]);
+    button.remove();
+  });
+}
+
 function deleteRecentSearchByIndex(index) {
   try {
     const items = JSON.parse(localStorage.getItem('vbai_recent_searches') || '[]');
@@ -300,6 +364,9 @@ function deleteRecentSearchByIndex(index) {
 }
 
 function rebindRecentSearchEvents(container, navigateTo) {
+  bindRecentSearchEvents(container, navigateTo); /* backward-compatible internal alias */
+  return;
+  /* istanbul ignore next */
   container.querySelectorAll('.recent-search-item').forEach(item => {
     item.addEventListener('click', (e) => {
       if (e.target.closest('.recent-delete-btn')) return;
@@ -335,7 +402,7 @@ function renderRecentSearchesHtml(searches) {
       <span class="recent-icon">🔍</span>
       <span class="recent-query-text">${escapeHtml(item.query)}</span>
       <span class="recent-mode-tag">${getModeTagLabel(item.mode)}</span>
-      <button class="recent-delete-btn" data-index="${idx}" title="Xóa" style="background:none; border:none; color:var(--text-muted,#94A3B8); cursor:pointer; font-size:0.9rem; padding:2px 6px; border-radius:4px; transition:all 0.15s; line-height:1;" onmouseover="this.style.color='var(--danger,#DC2626)'" onmouseout="this.style.color='var(--text-muted,#94A3B8)'">✕</button>
+      <button class="recent-delete-btn" data-index="${idx}" data-id="${escapeAttribute(item.id || '')}" title="Xóa" style="background:none; border:none; color:var(--text-muted,#94A3B8); cursor:pointer; font-size:0.9rem; padding:2px 6px; border-radius:4px; transition:all 0.15s; line-height:1;" onmouseover="this.style.color='var(--danger,#DC2626)'" onmouseout="this.style.color='var(--text-muted,#94A3B8)'">✕</button>
     </div>
   `).join('');
 }

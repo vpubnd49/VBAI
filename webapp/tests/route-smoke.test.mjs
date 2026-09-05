@@ -132,8 +132,18 @@ global.fetch = async (input) => {
   ) {
     payload = {
       logs: [],
-      isAdmin: true
+      isAdmin: true,
+      pagination: { pageSize: 15, hasMore: false, nextCursor: null }
     };
+  }
+  else if (url.startsWith('/api/admin/users')) {
+    payload = { success: true, users: [], pagination: { totalPages: 1, total: 0 } };
+  }
+  else if (url === '/api/admin/training-datasets') {
+    payload = { success: true, data: [] };
+  }
+  else if (url === '/api/admin/crawler/status') {
+    payload = { status: 'idle', totalKnownDocs: 0, recentDocuments: [] };
   }
   else {
     throw new Error(

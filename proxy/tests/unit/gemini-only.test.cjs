@@ -6,15 +6,16 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-console.log('[TEST] Running zplay-only Chat Architecture Validation...');
+console.log('[TEST] Running Gemini-only Chat Architecture Validation...');
 
 // 1. Verify proxy/server.js source code rules
 const serverPath = path.join(__dirname, '../../server.js');
 const serverCode = fs.readFileSync(serverPath, 'utf8');
-assert(serverCode.includes('resolveAiConfig'), 'server.js must resolve provider-neutral AI config');
+assert(serverCode.includes('resolveGeminiConfig'), 'server.js must resolve canonical Gemini config');
+assert(!serverCode.includes('resolveAiConfig'), 'server.js must not retain provider-neutral model resolution');
 assert(serverCode.includes('AI_CONFIG_MISSING'), 'server.js must fail closed when AI config is missing');
+assert(serverCode.includes('GEMINI_AUDIO_INPUT_UNSUPPORTED'), 'server.js must use the canonical Gemini audio error code');
 assert(!serverCode.includes('process.env.GEMINI_API_KEY'), 'server.js must not read Gemini API keys from environment');
-assert(!serverCode.includes('process.env.ZPLAY_API_KEY'), 'server.js must not read zplay API keys from environment');
 assert(serverCode.includes('UNSUPPORTED_AI_PROVIDER'), 'server.js must return UNSUPPORTED_AI_PROVIDER error');
 
 // Ensure 9Router endpoints/helpers are purged or rejected
@@ -37,7 +38,7 @@ console.log('✅ system-config.js Gemini-only static analysis passed.');
 const adminPanelPath = path.join(__dirname, '../../../webapp/modules/admin-panel.js');
 const adminPanelCode = fs.readFileSync(adminPanelPath, 'utf8');
 
-assert(adminPanelCode.includes('zplay_api_key'), 'admin-panel.js must contain provider-neutral API key input');
+assert(adminPanelCode.includes('gemini_api_key'), 'admin-panel.js must contain Gemini API key input');
 assert(!adminPanelCode.includes('nine_router_api_key'), 'admin-panel.js must not contain 9Router input fields');
 assert(!adminPanelCode.includes('active_chat_provider'), 'admin-panel.js must not contain provider radio controls');
 

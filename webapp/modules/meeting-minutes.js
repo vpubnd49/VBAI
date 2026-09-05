@@ -1,7 +1,7 @@
 /**
  * Meeting Minutes Module — Redesigned
  * Chuyển đổi audio cuộc họp thành Thông báo kết luận (NĐ30/HD36)
- * Sử dụng proxy zplay OpenAI-compatible cho ghi âm và phân tích nội dung
+ * Sử dụng proxy gemini OpenAI-compatible cho ghi âm và phân tích nội dung
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType } from 'docx';
 import { saveAs } from 'file-saver';
@@ -575,7 +575,7 @@ function renderStep3(sc, c) {
 }
 
 // ==============================================
-// XỬ LÝ GHI ÂM QUA PROXY (zplay; audio không được hỗ trợ thì fail-closed)
+// XỬ LÝ GHI ÂM QUA PROXY (gemini; audio không được hỗ trợ thì fail-closed)
 // ==============================================
 function normalizeModelName(model = "") {
   return String(model || "")
@@ -742,7 +742,7 @@ async function processAudioWithProxy(file, progressEl) {
   const config = await ensureSystemConfig();
   const transcribeContext = 'meeting'; // always use proxy context
   const transcribeRouteLabel = 'Proxy';
-  const provider = 'zplay';
+  const provider = 'gemini';
 
   // Không chuyển đổi âm thanh sang WAV nữa, giữ định dạng nén nhỏ gọn (m4a, aac, ogg, mp3, webm...)
   // Gemini API chính thức hỗ trợ trực tiếp các định dạng này một cách tối ưu nhất.

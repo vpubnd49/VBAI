@@ -248,7 +248,7 @@ async function executeLegalSearch(container, query) {
       mode: currentSearchState.mode,
       effectiveDate: currentSearchState.effectiveDate,
     };
-    const response = await sendStructuredChatRequest([{ role: 'user', content: fullPrompt }], undefined, { trace, provider: 'zplay' });
+    const response = await sendStructuredChatRequest([{ role: 'user', content: fullPrompt }], undefined, { trace, provider: 'gemini' });
 
     let rawText = '';
     let evidenceBundle = null;

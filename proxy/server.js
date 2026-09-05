@@ -2,8 +2,9 @@
  * VBAI Cloud Run Proxy Service
  *
  * Provides secure, authenticated endpoints for:
- * - Chat completions (zplay OpenAI-compatible)
- * - Audio transcription (fail-closed unless supported by configured provider)
+ * - Chat completions (Gemini)
+ * - OCR, audio transcription, and meeting analysis (Gemini)
+ * - Vertex AI Search retrieval remains an independent service
  * - System configuration read/write (admin only)
  *
  * Deployed to Google Cloud Run.
@@ -157,16 +158,21 @@ const DEFAULT_WEB_SEARCH_MODE = 'cse_with_fallback';
 const DEFAULT_WEB_SEARCH_PROVIDER = 'vertex_search';
 const DEFAULT_VERTEX_LOCATION = 'global';
 const DEFAULT_VERTEX_SERVING_CONFIG_ID = 'default_search';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const WEB_SEARCH_RESULT_CACHE = new Map();
 const LEGAL_SYNTHESIS_CACHE = new Map();
 const LEGAL_SYNTHESIS_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-function resolveAiConfig(config = {}, requestConfig = {}) {
+function resolveGeminiConfig(config = {}, requestConfig = {}) {
   const source = requestConfig && typeof requestConfig === 'object' ? requestConfig : {};
-  const apiKey = String(source.api_key || source.zplay_api_key || config.zplay_api_key || '').trim();
-  const endpoint = String(source.endpoint || source.zplay_api_endpoint || config.zplay_api_endpoint || '').trim().replace(/\/+$/, '');
-  const model = String(source.model || config.ai_model || '').trim();
+  const apiKey = String(source.gemini_api_key || source.api_key || config.gemini_api_key || '').trim();
+  const endpoint = String(source.gemini_endpoint || source.endpoint || config.gemini_endpoint || '').trim().replace(/\/+$/, '');
+  // Runtime model selection is configuration-owned. Request model values are never trusted.
+  const configuredModels = Array.isArray(config.gemini_models) ? config.gemini_models : [];
+  const model = String(config.gemini_model || configuredModels[0] || '').trim();
   return { apiKey, endpoint, model };
 }
+
+  // Canonical Gemini configuration is resolved only from explicit admin fields.
 const LEGAL_MATCH_PASS_SCORE = 70;
 const OFFICIAL_SOURCE_HOSTS = Object.freeze([
   'vbpl.vn',
@@ -1753,7 +1759,7 @@ function convertVertexResponseToOpenAi(vertexData, modelName) {
   if (modelName.startsWith('models/')) {
     vertexModel = modelName.replace('models/', '');
   }
-  if (vertexModel === 'gemini-2.0-flash-lite' || vertexModel === 'claude-sonnet-5') {
+  if (vertexModel === 'gemini-2.0-flash-lite') {
     vertexModel = 'gemini-2.5-flash';
   }
   
@@ -1824,15 +1830,27 @@ function extractTextFromProviderPayload(data = {}) {
   return '';
 }
 
-async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt }) {
-  // zplay exposes an OpenAI-compatible contract. Audio support is capability-based:
-  // send input_audio only when the configured endpoint accepts it; never use Gemini/Vertex here.
-  const config = await getCachedSystemConfig();
-  const { apiKey, endpoint: apiEndpoint, model: configuredModel } = resolveAiConfig(config);
-  if (!apiKey || !apiEndpoint || !configuredModel) {
-    throw new Error('AI configuration is incomplete.');
+async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt }) {
+  const audioConfig = await getCachedSystemConfig();
+  const resolved = resolveGeminiConfig(audioConfig);
+  if (!resolved.apiKey || !resolved.endpoint || !resolved.model) {
+    throw Object.assign(new Error('Gemini configuration is incomplete.'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
+  return executeGeminiNativeAudioTranscription({
+    apiKey: resolved.apiKey,
+    modelName: resolved.model,
+    mimeType: getCompatibleAudioMimeType(mimeType, filename),
+    filename,
+    prompt,
+    audioBuffer: await fs.promises.readFile(filePath),
+  }).then((result) => {
+    if (!result?.ok || !result.text) throw Object.assign(new Error('Gemini transcription failed.'), { status: result?.status || 502, code: 'GEMINI_TRANSCRIPTION_FAILED' });
+    return { text: result.text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'gemini_generate_content' } };
+  });
 
+  /* Legacy audio implementations removed. The native Gemini path above is the
+   * sole active transcription implementation; Vertex Search remains unchanged. */
+  /*
   if (!filePath || !fs.existsSync(filePath)) {
     throw new Error('Valid audio filePath is required for audio transcription');
   }
@@ -1844,11 +1862,11 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
   const effectivePrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
   const ext = path.extname(filename || filePath).toLowerCase().replace('.', '') || 'mp3';
   const effectiveMime = mimeType || (ext === 'wav' ? 'audio/wav' : 'audio/mpeg');
-  const targetModel = normalizeModelInput(model || config?.meeting_model || config?.transcribe_model || config?.ai_model || '');
+  const targetModel = normalizeModelInput(model || legacyConfig?.meeting_model || legacyConfig?.transcribe_model || legacyConfig?.gemini_model || '');
   if (!targetModel) throw new Error('AI model is not configured.');
 
-  // Strategy 1: configured zplay OpenAI-compatible gateway.
-  if (apiKey && apiEndpoint) {
+  // Strategy 1: configured Gemini OpenAI-compatible gateway.
+  if (false && apiKey && apiEndpoint) {
     try {
       console.log(`[Audio Transcribe] Fast Gateway transcription via ${apiEndpoint} (model: ${targetModel}, size: ${stat.size} bytes)...`);
       const fileBuffer = await fs.promises.readFile(filePath);
@@ -1899,16 +1917,15 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
         }
       } else {
         const errText = await res.text();
-        console.warn(`[Audio Transcribe] zplay returned HTTP ${res.status}; audio contract unavailable.`);
+        console.warn(`[Audio Transcribe] Gemini returned HTTP ${res.status}; audio contract unavailable.`);
       }
     } catch (gwErr) {
-      console.warn('[Audio Transcribe] zplay request failed; audio contract unavailable.');
+      console.warn('[Audio Transcribe] Gemini request failed; audio contract unavailable.');
     }
   }
 
-  /* Provider policy: zplay only. Do not fall back to Gemini/Vertex when the
-   * OpenAI-compatible audio contract is unavailable. */
-  /*
+  // Provider policy: Gemini native path only; legacy compatibility path disabled.
+  //
   if (stat.size < 20 * 1024 * 1024 && apiKey && apiKey.startsWith('AIza')) {
     try {
       console.log(`[Audio Transcribe] Fast inline Gemini API transcription (model: ${targetModel})...`);
@@ -1950,8 +1967,8 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
     }
   }
 
-  */
-  /* Strategy 3: Vertex AI Enterprise Fallback using Service Account
+  // Strategy 3: Vertex AI fallback is intentionally disabled for transcription.
+  /*
   try {
     console.log(`[Audio Transcribe] Using Vertex AI Native Fallback for ${filename}...`);
     const fileBuffer = await fs.promises.readFile(filePath);
@@ -1975,8 +1992,8 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
     console.warn('[Audio Transcribe] Vertex AI fallback failed:', vertexErr.message);
   }
 
-  */
-  /* Strategy 4: Official Gemini Files API (for large files with official AIza key)
+  // Strategy 4: Official Gemini Files API is handled by the active native path.
+  /*
   if (apiKey && apiKey.startsWith('AIza')) {
     const initUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`;
     const initRes = await fetch(initUrl, {
@@ -2065,107 +2082,40 @@ async function uploadToZplayAudio({ filePath, mimeType, filename, model, prompt 
   }
 
   */
-  throw Object.assign(new Error('Configured zplay endpoint does not support audio input.'), {
+  throw Object.assign(new Error('Gemini audio transcription is unavailable.'), {
     status: 503,
-    code: 'ZPLAY_AUDIO_INPUT_UNSUPPORTED',
+    code: 'GEMINI_AUDIO_INPUT_UNSUPPORTED',
   });
 }
 
-async function deleteFromLegacyFiles({ apiKey, fileName }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/${fileName}?key=${encodeURIComponent(apiKey)}`;
-  try {
-    const res = await fetch(url, { method: 'DELETE' });
-    if (!res.ok) {
-      console.warn(`Failed to delete file ${fileName} from Gemini: ${res.status}`);
-    }
-  } catch (err) {
-    console.warn(`Error deleting file ${fileName}:`, err);
-  }
+
+async function uploadToGeminiFiles({ apiKey, fileBuffer, mimeType, filename }) {
+  const initRes = await fetch(`${GEMINI_API_BASE}/../upload/v1beta/files?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST',
+    headers: {
+      'X-Goog-Upload-Protocol': 'resumable',
+      'X-Goog-Upload-Command': 'start',
+      'X-Goog-Upload-Header-Content-Length': String(fileBuffer.length),
+      'X-Goog-Upload-Header-Content-Type': mimeType,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ file: { displayName: filename || 'audio_file' } }),
+  });
+  if (!initRes.ok) throw new Error(`Gemini Files API init failed (${initRes.status})`);
+  const uploadUrl = initRes.headers.get('x-goog-upload-url') || initRes.headers.get('location');
+  if (!uploadUrl) throw new Error('Gemini Files API upload URL missing');
+  const uploadRes = await fetch(uploadUrl, { method: 'POST', headers: { 'Content-Length': String(fileBuffer.length), 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' }, body: fileBuffer });
+  if (!uploadRes.ok) throw new Error(`Gemini Files API upload failed (${uploadRes.status})`);
+  const data = await uploadRes.json();
+  return data.file || data;
 }
 
-async function executeLegacyNativeAudioTranscription({
-  modelName,
-  audioBase64,
-  audioBuffer,
-  mimeType,
-  prompt,
-}) {
-  try {
-    const token = await getGoogleAccessToken();
-    const projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0462350485';
-    const location = 'asia-southeast1';
-    
-    let vertexModel = 'gemini-2.5-flash';
-    if (modelName && (modelName.includes('1.5') || modelName.includes('flash-8b'))) {
-      vertexModel = 'gemini-1.5-flash';
-    }
-    
-    const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${encodeURIComponent(vertexModel)}:generateContent`;
-    
-    const activeBase64 = audioBase64 || (audioBuffer ? audioBuffer.toString('base64') : '');
-    const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
-    
-    console.log(`[Vertex AI Fallback] Transcribing via model ${vertexModel} on project ${projectId}...`);
-    
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        contents: [{
-          role: 'user',
-          parts: [
-            { text: customPrompt },
-            { inline_data: { mime_type: mimeType, data: activeBase64 } }
-          ]
-        }],
-        generationConfig: {
-          temperature: 0,
-        }
-      })
-    });
-    
-    if (!res.ok) {
-      const errText = await res.text();
-      console.warn(`[Vertex AI Fallback] Failed with status ${res.status}: ${errText}`);
-      return {
-        ok: false,
-        status: res.status,
-        message: `Vertex AI error: ${errText}`,
-        reason: 'vertex_api_error'
-      };
-    }
-    
-    const data = await res.json();
-    const text = extractTextFromProviderPayload(data);
-    if (!text) {
-  return {
-    ok: false,
-    status: 502,
-    message: 'All transcription strategies failed',
-    reason: 'ALL_TRANSCRIPTION_STRATEGIES_FAILED',
-  };
-}
-    
-    return {
-      ok: true,
-      status: 200,
-      text
-    };
-  } catch (err) {
-    console.error(`[Vertex AI Fallback] Connection error:`, err);
-    return {
-      ok: false,
-      status: 502,
-      message: `Vertex AI connection error: ${err.message}`,
-      reason: 'vertex_connection_error'
-    };
-  }
+async function deleteFromGeminiFiles({ apiKey, fileName }) {
+  if (!fileName) return;
+  await fetch(`${GEMINI_API_BASE}/${fileName}?key=${encodeURIComponent(apiKey)}`, { method: 'DELETE' }).catch(() => {});
 }
 
-async function executeLegacyNativeAudioTranscriptionV2({
+async function executeGeminiNativeAudioTranscription({
   apiKey,
   modelName,
   audioBase64,
@@ -2176,14 +2126,7 @@ async function executeLegacyNativeAudioTranscriptionV2({
 }) {
   const isKeyInvalid = !apiKey || String(apiKey).trim() === '';
   if (isKeyInvalid) {
-    console.warn(`[Gemini Transcribe] API key is empty. Routing immediately to Vertex AI...`);
-    return await executeVertexNativeAudioTranscription({
-      modelName,
-      audioBase64,
-      audioBuffer,
-      mimeType,
-      prompt,
-    });
+    throw Object.assign(new Error('Gemini API key is required for transcription.'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
 
   let fileUri = null;
@@ -2205,14 +2148,7 @@ async function executeLegacyNativeAudioTranscriptionV2({
       fileApiName = fileInfo.name;
       console.log(`[Files API] Uploaded successfully: ${fileApiName} - URI: ${fileUri}`);
     } catch (uploadErr) {
-      console.error('[Files API] Upload failed, trying Vertex AI fallback...', uploadErr);
-      return await executeVertexNativeAudioTranscription({
-        modelName,
-        audioBase64,
-        audioBuffer,
-        mimeType,
-        prompt,
-      });
+      throw Object.assign(new Error(`Gemini Files API upload failed: ${uploadErr.message}`), { status: 502, code: 'GEMINI_FILES_UPLOAD_FAILED' });
     }
   } else if (!activeBase64 && audioBuffer) {
     activeBase64 = audioBuffer.toString('base64');
@@ -2258,27 +2194,13 @@ async function executeLegacyNativeAudioTranscriptionV2({
 
     if (!providerRes.ok) {
       const providerError = await readProviderError(providerRes);
-      console.warn(`[Gemini Transcribe] Provider failed with status ${providerRes.status}: ${providerError.message}. Triggering Vertex AI fallback...`);
-      return await executeVertexNativeAudioTranscription({
-        modelName,
-        audioBase64,
-        audioBuffer,
-        mimeType,
-        prompt,
-      });
+      throw Object.assign(new Error(`Gemini transcription failed: ${providerError.message}`), { status: providerRes.status, code: 'GEMINI_TRANSCRIPTION_FAILED' });
     }
 
     const data = await providerRes.json();
     const text = extractTextFromProviderPayload(data);
     if (!text) {
-      console.warn('[Gemini Transcribe] Native transcription returned empty text. Triggering Vertex AI fallback...');
-      return await executeVertexNativeAudioTranscription({
-        modelName,
-        audioBase64,
-        audioBuffer,
-        mimeType,
-        prompt,
-      });
+      throw Object.assign(new Error('Gemini transcription returned empty text.'), { status: 502, code: 'GEMINI_EMPTY_TRANSCRIPTION' });
     }
 
     return {
@@ -2287,14 +2209,7 @@ async function executeLegacyNativeAudioTranscriptionV2({
       text,
     };
   } catch (err) {
-    console.error(`[Gemini Transcribe] Unexpected error, trying Vertex AI fallback...`, err);
-    return await executeVertexNativeAudioTranscription({
-      modelName,
-      audioBase64,
-      audioBuffer,
-      mimeType,
-      prompt,
-    });
+    throw err;
   } finally {
     if (fileApiName) {
       console.log(`[Files API] Cleaning up file from Gemini: ${fileApiName}...`);
@@ -2307,7 +2222,7 @@ async function executeLegacyNativeAudioTranscriptionV2({
   }
 }
 
-async function executeZplayChatRequest({ apiKey, endpoint, modelName, messages, temperature = 0.1, maxTokens = 64 }) {
+async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, messages, temperature = 0.1, maxTokens = 64 }) {
   const payload = {
     model: modelName,
     messages,
@@ -2471,7 +2386,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(createTranscriptionRouter({ verifyIdToken, upload, checkRateLimit, uploadToProvider: uploadToZplayAudio, initFirebase }));
+app.use(createTranscriptionRouter({ verifyIdToken, upload, checkRateLimit, uploadToProvider: uploadToGeminiAudio, initFirebase }));
 
 // Note: web-search and web-extract have full inline handlers below
 // with auth + rate limiting. Only mount legal-research router.
@@ -2628,7 +2543,10 @@ async function verifyIdToken(req) {
 
 // Helper: Check if user has admin custom claim
 function isAdmin(decodedToken) {
-  return decodedToken?.admin === true;
+  const role = String(
+    decodedToken?.role || decodedToken?.system_role || decodedToken?.['https://vbai.app/role'] || ''
+  ).trim().toLowerCase();
+  return decodedToken?.admin === true || decodedToken?.isAdmin === true || role === 'admin';
 }
 
 function getClientIp(req) {
@@ -2743,9 +2661,12 @@ app.post('/api/log-action', async (req, res) => {
 
     const payload = req.body || {};
     const logEntry = {
-      ...payload,
-      user_id: decoded?.uid || payload.user_id || 'anonymous',
-      user_email: decoded?.email || payload.user_email || 'anonymous',
+      query: String(payload.query || payload.query_preview || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 280),
+      user_id: decoded?.uid || 'anonymous',
+      ...(decoded && isAdmin(decoded) && decoded.email ? { user_email: String(decoded.email).trim().toLowerCase().slice(0, 254) } : {}),
+      feature: String(payload.feature || 'unknown').slice(0, 80),
+      mode: String(payload.mode || 'unknown').slice(0, 80),
+      status: String(payload.status || 'success').slice(0, 40),
       timestamp: new Date()
     };
     const saved = await dbService.addSearchLog(logEntry);
@@ -2779,10 +2700,14 @@ app.get('/api/admin/users', async (req, res) => {
     if (!isAdmin(decoded)) {
       return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
     }
-    const users = await dbService.listUsers({}, 200);
+    const page = Math.max(Number.parseInt(req.query.page || '1', 10) || 1, 1);
+    const pageSize = Math.min(Math.max(Number.parseInt(req.query.limit || '25', 10) || 25, 1), 100);
+    const total = await dbService.countUsers();
+    const users = await dbService.listUsers({}, pageSize, (page - 1) * pageSize);
     return res.json({
       success: true,
-      users: users.map(u => authService.sanitizeUser(u))
+      users: users.map(u => authService.sanitizeUser(u)),
+      pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize), hasMore: page * pageSize < total }
     });
   } catch (err) {
     return res.status(500).json({ error: 'Internal server error', message: err.message });
@@ -2858,26 +2783,35 @@ app.get('/api/system-config-summary', async (req, res) => {
     const webSearchProvider = sanitizeWebSearchProvider(data.web_search_provider);
     const cseConfigured = !!(data.google_search_key && data.google_search_cx);
     const vertexConfigured = isVertexSearchConfigured(data);
-    const ai = resolveAiConfig(data);
+    const ai = resolveGeminiConfig(data);
     const isConfigured = !!(ai.apiKey && ai.endpoint && ai.model);
     res.json({
       configured: isConfigured,
       maskedKey: requesterIsAdmin && ai.apiKey ? maskApiKey(ai.apiKey) : '',
-      provider: 'zplay',
+      provider: 'gemini',
       model: ai.model,
-      ai_model: ai.model,
-      ai_endpoint: ai.endpoint,
+      gemini_model: ai.model,
+      gemini_endpoint: ai.endpoint,
+
       google_search_configured: cseConfigured,
       vertex_search_configured: vertexConfigured,
        web_search_configured: cseConfigured || vertexConfigured,
-       has_zplay_key: requesterIsAdmin ? Boolean(ai.apiKey) : false,
+       has_gemini_key: requesterIsAdmin ? Boolean(ai.apiKey) : false,
       google_search_cx: requesterIsAdmin ? (data.google_search_cx || '') : '',
       vertex_project_id: requesterIsAdmin ? (data.vertex_project_id || '') : '',
       vertex_location: requesterIsAdmin ? (data.vertex_location || DEFAULT_VERTEX_LOCATION) : '',
       vertex_data_store_id: requesterIsAdmin ? (data.vertex_data_store_id || '') : '',
       vertex_serving_config: requesterIsAdmin ? (data.vertex_serving_config || '') : '',
-      transcribe_model: data.transcribe_model || '',
-      meeting_model: data.meeting_model || data.transcribe_model || '',
+       transcribe_model: data.transcribe_model || '',
+       meeting_model: data.meeting_model || data.transcribe_model || '',
+       app_product_name: requesterIsAdmin ? (data.app_product_name || '') : '',
+       app_firebase_project: requesterIsAdmin ? (data.app_firebase_project || '') : '',
+       app_environment: data.app_environment || process.env.NODE_ENV || 'production',
+       app_build_sha: process.env.GIT_SHA || process.env.K_REVISION || data.app_build_sha || 'dev',
+       gemini_models: Array.from(new Set([
+        ...(Array.isArray(data.gemini_models) ? data.gemini_models : []),
+        ai.model, data.transcribe_model, data.meeting_model
+      ].filter(Boolean).map(value => String(value).trim()))),
       ai_models: data.ai_models || [],
       
       web_search_provider: webSearchProvider,
@@ -2895,22 +2829,22 @@ app.get('/api/system-config-summary', async (req, res) => {
   }
 });
 
-// POST: Admin validate zplay API key (live check)
-app.post('/api/admin/validate-zplay-key', async (req, res) => {
+// POST: Admin validate Gemini API key (live check)
+app.post('/api/admin/validate-gemini-key', async (req, res) => {
   try {
     const decoded = await verifyIdToken(req);
     if (!isAdmin(decoded)) {
       return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
     }
 
-    const rawKey = String(req.body?.zplay_api_key || '').trim();
-    const rawEndpoint = String(req.body?.zplay_api_endpoint || '').trim();
+    const rawKey = String(req.body?.gemini_api_key || '').trim();
+    const rawEndpoint = String(req.body?.gemini_endpoint || '').trim();
     const useStoredKey = false;
     
     const config = await dbService.getSystemConfig(true);
     
-    const submitted = { api_key: rawKey, endpoint: rawEndpoint, model: req.body?.model };
-    const validationConfig = resolveAiConfig(config, submitted);
+    const submitted = { gemini_api_key: rawKey, gemini_endpoint: rawEndpoint, gemini_model: req.body?.model };
+    const validationConfig = resolveGeminiConfig(config, submitted);
     const model = validationConfig.model;
     const keyToValidate = validationConfig.apiKey;
     const endpointToValidate = validationConfig.endpoint;
@@ -2922,7 +2856,7 @@ app.post('/api/admin/validate-zplay-key', async (req, res) => {
       });
     }
 
-    const probe = await executeZplayChatRequest({
+    const probe = await executeGeminiCompatChatRequest({
       apiKey: keyToValidate,
       endpoint: endpointToValidate,
       modelName: model,
@@ -2943,17 +2877,17 @@ app.post('/api/admin/validate-zplay-key', async (req, res) => {
       });
     }
 
-    console.info(`[AUDIT] zplay key validated by admin: ${decoded.email || decoded.uid}`);
+    console.info(`[AUDIT] Gemini key validated by admin: ${decoded.email || decoded.uid}`);
     return res.json({
       valid: true,
-      message: 'zplay API key hợp lệ.',
-      meta: {
+       message: 'Gemini API key hợp lệ.',
+       meta: {
         provider_status: 200,
         model,
       }
     });
   } catch (err) {
-    console.error('POST /api/admin/validate-zplay-key error:', err);
+    console.error('POST /api/admin/validate-Gemini-key error:', err);
     return res.status(500).json({ valid: false, error: 'Internal server error', message: err.message });
   }
 });
@@ -3041,11 +2975,10 @@ app.post('/api/admin/system-config', async (req, res) => {
       });
     }
 
-    const {
-      zplay_api_key,
-      zplay_api_endpoint,
-      ai_model,
-      ai_endpoint,
+      const {
+       gemini_api_key,
+       gemini_endpoint,
+       gemini_model,
       web_search_provider,
       google_search_key,
       google_search_cx,
@@ -3056,9 +2989,11 @@ app.post('/api/admin/system-config', async (req, res) => {
       web_search_mode,
       web_search_fallback_sources,
       transcribe_model,
-      meeting_model,
-      gemini_models
-    } = req.body;
+       meeting_model,
+       gemini_models,
+       app_product_name,
+       app_firebase_project
+     } = req.body;
 
     if (web_search_mode !== undefined && !isValidWebSearchMode(web_search_mode)) {
       return res.status(400).json({ error: 'Invalid web_search_mode' });
@@ -3072,12 +3007,11 @@ app.post('/api/admin/system-config', async (req, res) => {
       updated_by: decoded.email || decoded.uid,
     };
 
-    if (ai_model !== undefined) {
-      const val = String(ai_model || '').trim();
-      updateData.ai_model = val;
+    if (gemini_model !== undefined) {
+      updateData.gemini_model = String(gemini_model || '').trim();
     }
-    if (ai_endpoint !== undefined) {
-      updateData.ai_endpoint = String(ai_endpoint || '').trim();
+    if (gemini_endpoint !== undefined) {
+      updateData.gemini_endpoint = String(gemini_endpoint || '').trim();
     }
     if (transcribe_model !== undefined) {
       const val = String(transcribe_model || '').trim();
@@ -3087,21 +3021,12 @@ app.post('/api/admin/system-config', async (req, res) => {
       const val = String(meeting_model || '').trim();
       if (val) updateData.meeting_model = val;
     }
-    if (req.body.active_provider !== undefined) {
-      updateData.active_provider = req.body.active_provider;
-    }
-    if (req.body.active_chat_provider !== undefined) {
-      updateData.active_chat_provider = req.body.active_chat_provider;
-    }
-
-    if (zplay_api_endpoint !== undefined) {
-      updateData.zplay_api_endpoint = String(zplay_api_endpoint || '').trim();
-    }
-
-    if (req.body.clear_zplay_api_key === true || req.body.clear_gemini_api_key === true || zplay_api_key === '__CLEAR__') {
-      updateData.zplay_api_key = '';
-    } else if (zplay_api_key !== undefined) {
-      updateData.zplay_api_key = String(zplay_api_key || '').trim();
+    if (app_product_name !== undefined) updateData.app_product_name = String(app_product_name || '').trim().slice(0, 120);
+    if (app_firebase_project !== undefined) updateData.app_firebase_project = String(app_firebase_project || '').trim().slice(0, 120);
+    if (req.body.clear_gemini_api_key === true || gemini_api_key === '__CLEAR__') {
+      updateData.gemini_api_key = '';
+    } else if (gemini_api_key !== undefined) {
+      updateData.gemini_api_key = String(gemini_api_key || '').trim();
     }
 
     if (google_search_key !== undefined) {
@@ -3321,8 +3246,7 @@ app.post('/api/admin/delete-user', async (req, res) => {
       return res.status(400).json({ error: 'Bad Request', message: 'Cannot delete your own account' });
     }
 
-    const db = getFirebaseFirestore();
-    await db.collection('users').doc(uid).delete();
+    await dbService.deleteUser(uid);
     
     try {
       await getFirebaseAuth().deleteUser(uid);
@@ -3358,21 +3282,21 @@ app.post('/api/admin/update-user', async (req, res) => {
       return res.status(400).json({ error: 'Bad Request', message: 'Missing uid' });
     }
 
-    const db = getFirebaseFirestore();
-    const userRef = db.collection('users').doc(uid);
-    const userSnap = await userRef.get();
-    if (!userSnap.exists) {
+    const existingUser = await dbService.getUserById(uid);
+    if (!existingUser) {
       return res.status(404).json({ error: 'Not Found', message: 'User document not found' });
     }
 
-    const updateData = {
-      updatedAt: FieldValue.serverTimestamp()
-    };
+    const updateData = {};
     if (displayName !== undefined) updateData.displayName = String(displayName).trim();
     if (position !== undefined) updateData.position = String(position).trim();
-    if (role !== undefined) updateData.role = String(role).trim();
+    if (role !== undefined) {
+      const normalizedRole = String(role).trim().toLowerCase();
+      updateData.role = normalizedRole === 'admin' ? 'admin' : (normalizedRole || 'user');
+      updateData.isAdmin = updateData.role === 'admin';
+    }
 
-    await userRef.update(updateData);
+    await dbService.updateUser(uid, updateData);
 
     if (role !== undefined) {
       const isNewAdmin = String(role).trim().toUpperCase() === 'ADMIN';
@@ -3677,16 +3601,16 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'messages or contents array required' });
     }
 
-    if (provider && provider !== 'zplay') {
+    if (provider && provider !== 'gemini') {
       return res.status(400).json({
         error: 'UNSUPPORTED_AI_PROVIDER',
-        message: 'Hệ thống chỉ hỗ trợ provider OpenAI-compatible zplay.',
+        message: 'Hệ thống chỉ hỗ trợ Gemini.'
       });
     }
 
     // Fetch system config (từ cache để giảm độ trễ phản hồi)
     const config = await getCachedSystemConfig();
-    const ai = resolveAiConfig(config);
+    const ai = resolveGeminiConfig(config);
     const endpoint = ai.endpoint;
     const apiKey = ai.apiKey;
     const effectiveModel = ai.model;
@@ -3749,16 +3673,12 @@ app.post('/api/chat', async (req, res) => {
     if (!evidenceDecision.allowed) {
       // Record search attempt to search_logs for full audit trace
       try {
-        const db = getFirebaseFirestore();
-        await db.collection('search_logs').add({
-          query: auditQuery,
-          prompt: auditQuery,
+        await dbService.addSearchLog({
+          // Keep a bounded, sanitized query preview for reopen/search; never persist raw prompt.
+          query: String(auditQuery || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 280),
+          ...(isAdmin(decoded) ? { user_email: String(decoded?.email || '').trim().toLowerCase().slice(0, 254) } : {}),
           model: effectiveModel || null,
           user_id: decoded?.uid || null,
-          user_email: decoded?.email || decoded?.uid || 'anonymous',
-          userEmail: decoded?.email || decoded?.uid || 'anonymous',
-          created_at: FieldValue.serverTimestamp(),
-          timestamp: FieldValue.serverTimestamp(),
           feature: auditFeature,
           mode: auditMode,
           effectiveDate: auditEffectiveDate,
@@ -3786,7 +3706,7 @@ app.post('/api/chat', async (req, res) => {
 
     console.log('NORMALIZED:', {
       route: '/api/chat',
-      provider: 'zplay',
+      provider: 'gemini',
       model: effectiveModel,
       message_count: Array.isArray(normalizedMessages) ? normalizedMessages.length : 0,
       stream: stream === true,
@@ -4011,10 +3931,10 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
           return { ok: true, status: 200, data };
         }
 
-        // zplay is the only active chat provider; retrieval remains separate.
+        // Gemini is the only active chat provider; retrieval remains separate.
         // Do not fall back to Gemini/Vertex chat on provider failure.
 
-        // zplay failed — return error details
+        // Gemini failed — return error details
         if (providerRes) {
           const providerError = await readProviderError(providerRes);
           return {
@@ -4028,7 +3948,7 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
         return {
           ok: false,
           status: 502,
-          message: attemptErr?.message || 'zplay provider request failed.',
+          message: attemptErr?.message || 'Gemini provider request failed.',
           reason: 'PROVIDER_ERROR',
         };
       } catch (err) {
@@ -4059,20 +3979,21 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
     if (!attempt?.ok) {
       // Record failed search attempt to search_logs
       try {
-        const db = getFirebaseFirestore();
-        await db.collection('search_logs').add({
-          query: auditQuery,
+        await dbService.addSearchLog({
+          // Keep a bounded, sanitized query preview for reopen/search; never persist raw prompt.
+          query: String(auditQuery || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 280),
+          ...(isAdmin(decoded) ? { user_email: String(decoded?.email || '').trim().toLowerCase().slice(0, 254) } : {}),
           model: primaryModel || null,
-          userEmail: decoded.email || decoded.uid || 'anonymous',
-          timestamp: FieldValue.serverTimestamp(),
+          user_id: decoded.uid || null,
           feature: auditFeature,
           mode: auditMode,
           effectiveDate: auditEffectiveDate,
           status: 'error',
           verifiedEvidenceCount: 0,
           totalEvidenceCount: 0,
-          requestId: String(req.headers['x-request-id'] || '').trim() || null
-        });
+           requestId: req.requestId || null,
+           created_at: FieldValue.serverTimestamp()
+         });
       } catch (logErr) {
         console.warn('[search_logs] Audit trace error log failed:', logErr.message);
       }
@@ -4154,15 +4075,12 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
       const totalCount = legalContext?.evidenceBundle?.documents?.length ||
         (citationValidation?.totalCitations) || 0;
 
-      await db.collection('search_logs').add({
-        query: auditQuery,
-        prompt: auditQuery,
-        model: finalModel,
-        user_id: decoded.uid || null,
-        user_email: decoded.email || decoded.uid || 'anonymous',
-        userEmail: decoded.email || decoded.uid || 'anonymous',
-        created_at: FieldValue.serverTimestamp(),
-        timestamp: FieldValue.serverTimestamp(),
+        await dbService.addSearchLog({
+          // Keep a bounded, sanitized query preview for reopen/search; never persist raw prompt.
+          query: String(auditQuery || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 280),
+           ...(isAdmin(decoded) ? { user_email: String(decoded?.email || '').trim().toLowerCase().slice(0, 254) } : {}),
+           model: finalModel,
+           user_id: decoded.uid || null,
         feature: auditFeature,
         mode: auditMode,
         effectiveDate: auditEffectiveDate,
@@ -7478,7 +7396,7 @@ function selectBestAlternative(items, requestedDocType, query) {
   return sorted.length > 0 ? sorted[0] : null;
 }
 
-// Search History API — Authenticated & Rule-Enforced
+// Search History API — MongoDB is the canonical store; Firebase is auth-only.
 app.get('/api/search-history', async (req, res) => {
   try {
     initFirebase();
@@ -7488,7 +7406,6 @@ app.get('/api/search-history', async (req, res) => {
     }
 
     const requesterIsAdmin = isAdmin(decoded);
-    const db = getFirebaseFirestore();
     const limitParam = parseInt(req.query.limit || '20', 10);
     const pageSize = Math.min(Math.max(limitParam, 1), 100);
     const cursorParam = req.query.cursor ? String(req.query.cursor).trim() : null;
@@ -7499,6 +7416,17 @@ app.get('/api/search-history', async (req, res) => {
       return res.status(400).json({ error: 'Bad Request', message: cursorValidation.error });
     }
 
+    const filter = requesterIsAdmin ? {} : { user_id: decoded.uid };
+    const mongoCursor = cursorParam && cursorValidation.decoded ? cursorValidation.decoded : null;
+    const mongoLogs = await dbService.getSearchLogs(filter, pageSize, mongoCursor);
+    const visibleLogs = mongoLogs.slice(0, pageSize);
+    const hasMore = mongoLogs.length > pageSize;
+    const logs = visibleLogs.map(item => sanitizeHistoryDoc({ ...item, id: String(item._id) }, { includeAdminEmail: requesterIsAdmin }));
+    const nextCursor = hasMore && visibleLogs.length ? encodeCursor({ id: String(visibleLogs[visibleLogs.length - 1]._id), created_at: visibleLogs[visibleLogs.length - 1].timestamp }) : null;
+    return res.json({ success: true, isAdmin: requesterIsAdmin, logs, pagination: { pageSize, hasMore, nextCursor } });
+
+    /* Legacy Firestore fallback retained below for reference; MongoDB is canonical. */
+    /*
     let snapshot;
     try {
       let queryRef = db.collection('search_logs');
@@ -7546,12 +7474,9 @@ app.get('/api/search-history', async (req, res) => {
       success: true,
       isAdmin: requesterIsAdmin,
       logs,
-      pagination: {
-        pageSize,
-        hasMore,
-        nextCursor: hasMore ? nextCursor : null
-      }
+      pagination: { pageSize, hasMore, nextCursor: hasMore ? nextCursor : null }
     });
+    */
   } catch (err) {
     console.error('GET /api/search-history error:', err);
     return res.status(500).json({ error: 'Internal server error', message: err.message });
@@ -7571,28 +7496,34 @@ app.delete('/api/search-history/:id', async (req, res) => {
       return res.status(400).json({ error: 'Bad Request', message: 'Thiếu ID bản ghi.' });
     }
 
-    const db = getFirebaseFirestore();
-    const docRef = db.collection('search_logs').doc(logId);
-    const docSnap = await docRef.get();
-
-    if (!docSnap.exists) {
-      return res.status(404).json({ error: 'Not Found', message: 'Không tìm thấy bản ghi.' });
-    }
-
-    const data = docSnap.data();
     const requesterIsAdmin = isAdmin(decoded);
-    // Ownership check: UID only — no email fallback
-    const isOwner = data.user_id && data.user_id === decoded.uid;
-
-    if (!requesterIsAdmin && !isOwner) {
-      return res.status(403).json({ error: 'Forbidden', message: 'Bạn không có quyền xóa bản ghi này.' });
-    }
-
-    await docRef.delete();
+    const existing = (await dbService.getSearchLogs(requesterIsAdmin ? {} : { user_id: decoded.uid }, 1000))
+      .find(item => String(item._id) === String(logId));
+    if (!existing) return res.status(404).json({ error: 'Not Found', message: 'Không tìm thấy bản ghi.' });
+    const deleted = await dbService.deleteSearchLogById(logId, requesterIsAdmin ? {} : { user_id: decoded.uid });
+    if (!deleted) return res.status(404).json({ error: 'Not Found', message: 'Không tìm thấy bản ghi.' });
     return res.json({ success: true, id: logId, message: 'Đã xóa bản ghi thành công.' });
   } catch (err) {
     console.error('DELETE /api/search-history/:id error:', err);
     return res.status(500).json({ error: 'Internal server error', message: err.message });
+  }
+});
+
+// Batch delete: admin may delete all logs; regular users may delete only their own.
+app.delete('/api/search-history', async (req, res) => {
+  try {
+    const decoded = await verifyIdToken(req);
+    if (!decoded) {
+      return res.status(401).json({ error: 'Unauthorized', message: 'Bạn cần đăng nhập.' });
+    }
+    const requesterIsAdmin = isAdmin(decoded);
+    const filter = requesterIsAdmin ? {} : { user_id: decoded.uid };
+    const deleted = await dbService.deleteSearchLogs(filter, 100000);
+    return res.json({ success: true, deleted, scope: requesterIsAdmin ? 'all' : 'own' });
+  } catch (err) {
+    const message = String(err?.message || '').toLowerCase();
+    const status = err?.status || (message.includes('authentication') || message.includes('login') ? 401 : 500);
+    return res.status(status).json({ error: status === 401 ? 'Unauthorized' : 'Internal server error', message: status === 401 ? 'Bạn cần đăng nhập.' : err.message });
   }
 });
 

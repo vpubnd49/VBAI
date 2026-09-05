@@ -220,9 +220,9 @@ async function parsePdfFile(file, statusCallback) {
 
     statusCallback('Đang nhận diện ký tự bằng AI...');
     const config = await fetchSystemConfig();
-    const model = String(config?.ai_model || '').trim();
+    const model = String(config?.gemini_model || '').trim();
     if (!model) throw new Error('OCR unavailable: AI model is not configured.');
-    const ocrText = await sendChatRequest([{ role: 'user', content }], model, { temperature: 0, context: 'ocr', provider: 'zplay' });
+    const ocrText = await sendChatRequest([{ role: 'user', content }], model, { temperature: 0, context: 'ocr', provider: 'gemini' });
     if (!ocrText) throw new Error('Không thể nhận diện được nội dung chữ từ file quét scan.');
     fullText = `📑 [NỘI DUNG NHẬN DIỆN OCR TÀI LIỆU SCAN: ${file.name}]\n\n` + ocrText;
   }

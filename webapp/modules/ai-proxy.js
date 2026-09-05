@@ -3,6 +3,11 @@ import { fetchSystemConfig, getCachedSystemConfig } from './system-config.js';
 const DEFAULT_BACKEND_BASE = '/api';
 const DEFAULT_TRANSCRIBE_CHUNK_BYTES = 10 * 1024 * 1024; // Chunk size limit for uploads
 let lastWebSearchMeta = null;
+let lastChatMeta = null;
+
+export function getLastChatMeta() {
+  return lastChatMeta;
+}
 const ALLOWED_BACKEND_HOSTS = new Set([
   'vbai.tracuu.lamdong.vn',
   'vbai.tracuu.lamdong.gov.vn',
@@ -75,7 +80,8 @@ function parseEndpointHost(endpoint = '') {
 }
 
 export function isGeminiApiEndpoint(endpoint = '') {
-  return false;
+  const host = parseEndpointHost(endpoint);
+  return host === 'generativelanguage.googleapis.com' || host.endsWith('.googleapis.com');
 }
 
 function isReasoningModel(model = '') {
@@ -182,9 +188,21 @@ async function getSystemConfigSafe() {
   const config = await fetchSystemConfig() || getCachedSystemConfig() || {};
   
   // Normalize endpoints
-  if (config.ai_endpoint) config.ai_endpoint = trimTrailingSlash(config.ai_endpoint);
+  if (config.gemini_endpoint) config.gemini_endpoint = trimTrailingSlash(config.gemini_endpoint);
   
   return config;
+}
+
+export async function adminFetch(path, options = {}) {
+  const normalizedPath = String(path || '').startsWith('/api/')
+    ? String(path).slice(4)
+    : path;
+  const safeOptions = { ...options };
+  if (safeOptions.headers) {
+    const { Authorization, authorization, ...headers } = safeOptions.headers;
+    safeOptions.headers = headers;
+  }
+  return backendFetch(normalizedPath, safeOptions);
 }
 
 export async function getVisitCount() {
@@ -224,7 +242,7 @@ export async function sendChatRequest(messages, model, options = {}) {
 
   const systemConfig = await getSystemConfigSafe();
   const resolvedModel = normalizeModelName(
-    model || systemConfig.ai_model || ''
+    model || systemConfig.gemini_model || ''
   );
 
   const messagesList = normalizeMessagesForProvider(messages, resolvedModel);
@@ -274,6 +292,13 @@ export async function sendChatRequest(messages, model, options = {}) {
   }
 
   const data = await response.json();
+  lastChatMeta = {
+    requestId: data?.requestId || response.headers.get('x-request-id') || null,
+    meta: data?.meta || null,
+  };
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('vbai:chat-meta', { detail: lastChatMeta }));
+  }
   return extractTextFromPayload(data) || '';
 }
 
@@ -285,7 +310,7 @@ export async function sendStructuredChatRequest(messages, model, options = {}) {
 
   const systemConfig = await getSystemConfigSafe();
   const resolvedModel = normalizeModelName(
-    model || systemConfig.ai_model || ''
+    model || systemConfig.gemini_model || ''
   );
 
   const messagesList = normalizeMessagesForProvider(messages, resolvedModel);
@@ -321,7 +346,7 @@ export async function sendStructuredChatRequest(messages, model, options = {}) {
     evidenceBundle: data?.evidenceBundle || data?.legal?.evidenceBundle || data?.evidence_bundle || null,
     citations: data?.citations || data?.legal?.citations || [],
     meta: data?.meta || null,
-    rawMeta: data
+    requestId: data?.requestId || response.headers.get('x-request-id') || null,
   };
 }
 
@@ -381,7 +406,7 @@ async function sendSingleAudioTranscription(file, model = '', options = {}, part
   const formData = new FormData();
   formData.append('audio', file, file?.name || 'audio');
   formData.append('filename', file?.name || 'audio');
-  const configuredModel = normalizeModelName(model || (await getSystemConfigSafe()).transcribe_model || '');
+  const configuredModel = normalizeModelName(model || (await getSystemConfigSafe()).transcribe_model || (await getSystemConfigSafe()).gemini_model || '');
   if (!configuredModel) throw new Error('Thiếu model AI trong cấu hình.');
   formData.append('model', configuredModel);
   if (options.prompt) {
@@ -542,7 +567,7 @@ export async function checkProxyStatus(context = 'default') {
 export async function getProxyModelIds(context = 'default') {
   const config = await getSystemConfigSafe();
   const models = [
-    config.ai_model,
+    config.gemini_model,
     config.transcribe_model,
   ].filter(Boolean);
   return Array.from(new Set(models.map((x) => String(x).trim()).filter(Boolean)));

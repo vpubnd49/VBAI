@@ -3,7 +3,17 @@
 # Script tự động triển khai VBAI trên VPS Ubuntu 24.04-LTS
 # ==============================================================================
 
-set -e
+set -euo pipefail
+
+# Production contract: provide the exact immutable commit and public origin list.
+: "${RELEASE_SHA:?Set RELEASE_SHA to the exact Git commit SHA to deploy}"
+: "${ALLOWED_ORIGINS:?Set ALLOWED_ORIGINS to a comma-separated production origin list}"
+if [[ ! "$RELEASE_SHA" =~ ^[0-9a-fA-F]{40,64}$ ]]; then
+    echo "RELEASE_SHA must be an exact 40-64 character Git SHA"
+    exit 1
+fi
+APP_ENV="production"
+NODE_ENV="production"
 
 # Khai báo biến đường dẫn
 APP_DIR="/var/www/vbai"
@@ -43,19 +53,23 @@ if [ ! -d "$APP_DIR" ]; then
 else
     echo "Thư mục $APP_DIR đã tồn tại. Đang cập nhật code mới nhất..."
     cd "$APP_DIR"
-    git pull origin main
 fi
+
+cd "$APP_DIR"
+git fetch --prune origin
+git checkout --detach "$RELEASE_SHA"
+test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
 
 # 5. Cài đặt dependency & Build Frontend
 echo "=== 5. Cài đặt dependencies và Build Frontend ==="
 cd "$APP_DIR/webapp"
-npm install
+npm ci
 npm run build
 
 # 6. Cài đặt dependency cho Backend Proxy
 echo "=== 6. Cài đặt dependencies cho Backend Proxy ==="
 cd "$APP_DIR/proxy"
-npm install
+npm ci
 
 # Kiểm tra tệp tin service-account.json
 if [ ! -f "$APP_DIR/proxy/service-account.json" ]; then
@@ -74,13 +88,26 @@ sudo chmod 600 "$APP_DIR/proxy/service-account.json"
 echo "=== 7. Khởi chạy Backend Proxy với PM2 ==="
 cd "$APP_DIR/proxy"
 pm2 delete vbai-proxy 2>/dev/null || true
-HOST=$BACKEND_HOST PORT=$BACKEND_PORT pm2 start server.js --name "vbai-proxy"
+APP_ENV="$APP_ENV" NODE_ENV="$NODE_ENV" HOST="$BACKEND_HOST" PORT="$BACKEND_PORT" ALLOWED_ORIGINS="$ALLOWED_ORIGINS" pm2 start server.js --name "vbai-proxy"
 pm2 save
-# Đăng ký PM2 tự khởi chạy cùng hệ điều hành
-sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp $HOME || true
 
-# 8. Cấu hình Nginx làm Web Server & Reverse Proxy
-echo "=== 8. Cấu hình Nginx ==="
+# 8. Health gate: fail deployment unless the exact release is serving locally.
+echo "=== 8. Kiểm tra health backend ==="
+for attempt in 1 2 3 4 5; do
+    if curl --fail --silent --show-error --max-time 10 "http://$BACKEND_HOST:$BACKEND_PORT/health" > /dev/null; then
+        break
+    fi
+    if [ "$attempt" -eq 5 ]; then
+        echo "Backend health check failed"
+        exit 1
+    fi
+    sleep 2
+done
+
+# Không thay đổi user hoặc lifecycle policy của PM2 trong script triển khai.
+
+# 9. Cấu hình Nginx làm Web Server & Reverse Proxy
+echo "=== 9. Cấu hình Nginx ==="
 NGINX_CONF="/etc/nginx/sites-available/vbai"
 
 sudo bash -c "cat > $NGINX_CONF" <<EOF

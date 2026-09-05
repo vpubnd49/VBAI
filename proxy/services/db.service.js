@@ -147,11 +147,10 @@ async function getSystemConfig(forceReload = false) {
 
   const defaultConfig = {
     _id: 'system',
-    ai_provider: '',
-    ai_model: '',
-    ai_endpoint: '',
-    zplay_api_endpoint: '',
+    gemini_model: '',
+    gemini_endpoint: '',
     transcribe_model: '',
+    meeting_model: '',
     web_search_mode: 'cse_with_fallback',
     web_search_fallback_sources: {
       chinhphu: true,
@@ -207,14 +206,50 @@ async function getSearchLogs(filter = {}, limit = 50, cursor = null) {
   const database = await getDb();
   const query = { ...filter };
   if (cursor) {
-    query.timestamp = { $lt: new Date(cursor) };
+    const cursorTime = new Date(cursor.createdAt || cursor);
+    const cursorId = cursor.docId ? String(cursor.docId) : null;
+    if (!Number.isNaN(cursorTime.getTime())) {
+      query.$and = [
+        ...(query.$and || []),
+        cursorId
+          ? { $or: [{ timestamp: { $lt: cursorTime } }, { timestamp: cursorTime, _id: { $lt: cursorId } }] }
+          : { timestamp: { $lt: cursorTime } },
+      ];
+    }
   }
-  const logs = await database.collection('search_logs')
+  return database.collection('search_logs')
     .find(query)
-    .sort({ timestamp: -1 })
-    .limit(limit)
+    .sort({ timestamp: -1, _id: -1 })
+    .limit(limit + 1)
     .toArray();
-  return logs;
+}
+
+async function countSearchLogs(filter = {}) {
+  const database = await getDb();
+  return database.collection('search_logs').countDocuments(filter);
+}
+
+async function deleteSearchLogById(id, filter = {}) {
+  const database = await getDb();
+  const { ObjectId } = require('mongodb');
+  const ids = [id];
+  if (ObjectId.isValid(String(id))) ids.push(new ObjectId(String(id)));
+  const result = await database.collection('search_logs').deleteOne({ ...filter, _id: { $in: ids } });
+  return result.deletedCount > 0;
+}
+
+async function deleteSearchLogs(filter = {}, limit = 500) {
+  const database = await getDb();
+  const collection = database.collection('search_logs');
+  let deleted = 0;
+  while (deleted < limit) {
+    const docs = await collection.find(filter, { projection: { _id: 1 } }).limit(Math.min(500, limit - deleted)).toArray();
+    if (!docs.length) break;
+    const result = await collection.deleteMany({ _id: { $in: docs.map(doc => doc._id) } });
+    deleted += result.deletedCount || 0;
+    if (docs.length < 500) break;
+  }
+  return deleted;
 }
 
 // ==================== STATS OPERATIONS ====================
@@ -263,6 +298,9 @@ module.exports = {
   updateSystemConfig,
   addSearchLog,
   getSearchLogs,
+  countSearchLogs,
+  deleteSearchLogById,
+  deleteSearchLogs,
   getVisitStats,
   incrementVisitStats,
   getWebSearchHotIndex,

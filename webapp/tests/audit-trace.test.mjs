@@ -21,9 +21,11 @@ assert.ok(serverJs.includes("db.collection('stats').doc('visits')"), 'Visit coun
 // 2. Verify backend centralized search audit trace in POST /api/chat
 assert.ok(serverJs.includes("delete req.body.trace"), 'Backend MUST strip/internalize trace metadata before model payload creation');
 assert.ok(serverJs.includes("delete req.body.audit"), 'Backend MUST strip/internalize audit metadata before model payload creation');
-assert.ok(serverJs.includes("db.collection('search_logs').add("), 'Backend MUST log search event directly to search_logs collection');
-assert.ok(serverJs.includes('userEmail: decoded.email || decoded.uid'), 'Backend MUST use verified token user identity for userEmail');
-assert.ok(serverJs.includes('serverTimestamp()'), 'Backend MUST use serverTimestamp for trace logging');
+assert.ok(serverJs.includes("db.collection('search_logs').add(") || serverJs.includes('dbService.addSearchLog('), 'Backend MUST log search event to search_logs collection');
+assert.ok(serverJs.includes('user_id: decoded.uid || null'), 'Backend MUST use verified token user identity for audit ownership');
+assert.ok(!serverJs.includes('query: auditQuery'), 'Backend MUST NOT persist raw audit query');
+assert.ok(!serverJs.includes('prompt: auditQuery'), 'Backend MUST NOT persist raw prompt');
+assert.ok(serverJs.includes('serverTimestamp()') || serverJs.includes('timestamp: new Date()'), 'Backend MUST timestamp trace logging');
 
 // 3. Verify ai-proxy.js exports getVisitCount and recordVisitSession
 const aiProxyJs = fs.readFileSync(path.join(webappRoot, 'modules/ai-proxy.js'), 'utf8');
@@ -46,6 +48,8 @@ const legalSearchJs = fs.readFileSync(path.join(webappRoot, 'modules/legal-searc
 assert.ok(legalSearchJs.includes('feature: \'legal-search\''), 'legal-search.js MUST pass feature: legal-search in trace metadata');
 assert.ok(legalSearchJs.includes('query: query'), 'legal-search.js MUST pass original user query in trace metadata');
 assert.ok(legalSearchJs.includes('mode: currentSearchState.mode'), 'legal-search.js MUST pass current mode in trace metadata');
+assert.ok(serverJs.includes('requestId: req.requestId'), 'Backend MUST persist requestId in audit metadata');
+assert.ok(serverJs.includes('effectiveDate: auditEffectiveDate'), 'Backend MUST persist effectiveDate in audit metadata');
 
 // 6. Verify chat-assistant.js duplicate client logging is disabled
 const chatAssistantJs = fs.readFileSync(path.join(webappRoot, 'modules/chat-assistant.js'), 'utf8');

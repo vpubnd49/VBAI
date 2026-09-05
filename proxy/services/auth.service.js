@@ -28,13 +28,16 @@ function getJwtSecret() {
 const googleClient = new OAuth2Client();
 
 function generateToken(user) {
+  const role = String(user.role || user.system_role || '').trim().toLowerCase();
+  const admin = role === 'admin' || user.isAdmin === true || user.customClaims?.admin === true;
   const payload = {
     uid: user.uid || user._id,
     user_id: user.uid || user._id,
     email: user.email,
     name: user.displayName || user.name || user.email?.split('@')[0],
-    admin: user.role === 'admin' || user.isAdmin === true || user.customClaims?.admin === true,
-    role: user.role || (user.isAdmin || user.customClaims?.admin ? 'admin' : 'user')
+    admin,
+    isAdmin: admin,
+    role: admin ? 'admin' : (role || 'user')
   };
   return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 }
@@ -195,6 +198,18 @@ function sanitizeUser(user) {
   const safe = { ...user };
   delete safe.passwordHash;
   delete safe.customClaims;
+  delete safe.token;
+  delete safe.apiKey;
+  delete safe.gemini_api_key;
+  delete safe.google_search_key;
+  // Keep the admin user contract stable across Mongo/Firebase records.
+  safe.uid = safe.uid || safe._id || null;
+  const role = String(safe.role || safe.system_role || '').trim().toLowerCase();
+  safe.role = safe.isAdmin === true || role === 'admin' ? 'admin' : (role || 'user');
+  safe.isAdmin = safe.role === 'admin';
+  safe.status = safe.status || (safe.disabled ? 'disabled' : 'active');
+  safe.created_at = safe.created_at || safe.createdAt || null;
+  safe.last_login_at = safe.last_login_at || safe.lastLogin || null;
   return safe;
 }
 
