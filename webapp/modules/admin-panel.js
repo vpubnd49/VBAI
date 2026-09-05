@@ -31,6 +31,28 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+async function readResponsePayload(response) {
+  const raw = await response.text();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { message: raw.slice(0, 320) };
+  }
+}
+
+function updateDatasetStats(container, total) {
+  const stat = container.querySelector('#stat-total-samples');
+  if (stat && Number.isFinite(Number(total))) stat.textContent = `${Number(total)} mẫu`;
+}
+
+function setActionState(button, label, busy) {
+  if (!button) return;
+  button.disabled = busy;
+  button.setAttribute('aria-busy', String(busy));
+  button.innerHTML = label;
+}
+
 export function renderAdminPanel(container) {
   const isAdmin = window.isAdmin === true || localStorage.getItem('vbai_is_admin') === 'true';
   if (!isAdmin) {
@@ -324,7 +346,7 @@ export function renderAdminPanel(container) {
             </div>
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Mô hình đích Vertex AI</div>
-              <div id="stat-target-model" style="font-size:1.4rem; font-weight:800; color:#7c3aed; margin-top:2px;">gemini-3.8-flash-high</div>
+              <div id="stat-target-model" style="font-size:1.4rem; font-weight:800; color:#7c3aed; margin-top:2px;">Chưa cấu hình</div>
             </div>
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Trạng thái đồng bộ</div>
@@ -559,23 +581,17 @@ export function renderAdminPanel(container) {
   if (syncVbaibotBtn) {
     syncVbaibotBtn.addEventListener('click', async () => {
       if (!confirm('Bạn có chắc chắn muốn bắt đầu đồng bộ CSDL hành chính và test cases mới nhất từ vpubnd49/vbaibot?')) return;
-      syncVbaibotBtn.disabled = true;
-      syncVbaibotBtn.innerHTML = '🔄 Đang đồng bộ...';
+      setActionState(syncVbaibotBtn, '🔄 Đang đồng bộ...', true);
       try {
-        const idToken = await window.currentUser.getIdToken();
-        const res = await adminFetch('/api/admin/training-datasets/sync-vbaibot', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${idToken}` }
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Đồng bộ thất bại');
-        showToast(data.message, 'success');
-        loadDatasetSamples(container);
+        const res = await adminFetch('/api/admin/training-datasets/sync-vbaibot', { method: 'POST' });
+        const data = await readResponsePayload(res);
+        if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+        showToast(data.message || 'Đã đồng bộ vbaibot.', data.status === 'PARTIAL' ? 'warning' : 'success');
+        await loadDatasetSamples(container);
       } catch (err) {
-        showToast(err.message, 'error');
+        showToast(err.message || 'Đồng bộ thất bại', 'error');
       } finally {
-        syncVbaibotBtn.disabled = false;
-        syncVbaibotBtn.innerHTML = '🔄 Tự động đồng bộ vbaibot';
+        setActionState(syncVbaibotBtn, '🔄 Tự động đồng bộ vbaibot', false);
       }
     });
   }
@@ -584,22 +600,17 @@ export function renderAdminPanel(container) {
   if (triggerTuningBtn) {
     triggerTuningBtn.addEventListener('click', async () => {
       if (!confirm('XÁC NHẬN: Bạn có chắc chắn muốn kích hoạt phiên huấn luyện tinh chỉnh (Supervised Fine-Tuning) trên Google Cloud Vertex AI?')) return;
-      triggerTuningBtn.disabled = true;
-      triggerTuningBtn.innerHTML = '🚀 Đang khởi tạo...';
+      setActionState(triggerTuningBtn, '🚀 Đang khởi tạo...', true);
       try {
-        const idToken = await window.currentUser.getIdToken();
-        const res = await adminFetch('/api/admin/training-datasets/trigger-tuning', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${idToken}` }
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Khởi tạo thất bại');
-        showToast(data.message, 'success');
+        const res = await adminFetch('/api/admin/training-datasets/trigger-tuning', { method: 'POST' });
+        const data = await readResponsePayload(res);
+        if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+        const status = data.status || data.job?.status || 'REGISTERED';
+        showToast(`${data.message || 'Đã đăng ký yêu cầu tuning.'} [${status}]`, status === 'NOT_IMPLEMENTED' ? 'warning' : 'success');
       } catch (err) {
-        showToast(err.message, 'error');
+        showToast(err.message || 'Khởi tạo thất bại', 'error');
       } finally {
-        triggerTuningBtn.disabled = false;
-        triggerTuningBtn.innerHTML = '🚀 Kích hoạt Huấn luyện Vertex AI';
+        setActionState(triggerTuningBtn, '🚀 Kích hoạt Huấn luyện Vertex AI', false);
       }
     });
   }
@@ -1714,6 +1725,7 @@ async function loadDatasetSamples(container) {
     if (!resp.ok) throw new Error('Không thể nạp dữ liệu huấn luyện');
     const resData = await resp.json();
     allDatasetSamples = resData.data || [];
+    updateDatasetStats(container, resData.total ?? allDatasetSamples.length);
     currentDatasetPage = 1;
     renderDatasetTable(container);
   } catch (err) {

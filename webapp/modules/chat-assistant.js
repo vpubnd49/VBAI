@@ -21,6 +21,17 @@ import {
 import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig, validateGeminiApiKey } from './system-config.js';
 import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tier-policy.js';
 import { showToast } from './ui-utils.js';
+import { fetchDocumentTemplates } from './ai-proxy.js';
+
+let documentTemplateCatalog = null;
+async function getDocumentTemplate(query = '') {
+  if (!documentTemplateCatalog) {
+    try { documentTemplateCatalog = (await fetchDocumentTemplates()).templates || []; } catch (error) { console.warn('Không thể tải danh mục mẫu:', error); }
+  }
+  const normalized = normalizeVietnamese(query);
+  return documentTemplateCatalog?.filter((item) => (item.keywords || []).some((keyword) => normalized.includes(normalizeVietnamese(keyword))))
+    .sort((a, b) => b.keywords.filter((keyword) => normalized.includes(normalizeVietnamese(keyword))).length - a.keywords.filter((keyword) => normalized.includes(normalizeVietnamese(keyword))).length)[0] || null;
+}
 
 
 const DEFAULT_MODEL = '';
@@ -1373,6 +1384,22 @@ function renderAssistantRichText(rawText = "") {
 }
 
 async function exportDraftToDocx(query = "", answer = "") {
+  const template = await getDocumentTemplate(query);
+  const content = String(answer || '').trim();
+  const required = template?.requiredFields || [];
+  const fieldValues = {
+    coQuanBanHanh: content,
+    soKyHieu: content,
+    ngayBanHanh: new Date().toISOString(),
+    trichYeu: String(query || '').trim(),
+    noiDung: content,
+    noiDungNghiQuyet: content,
+    vanDe: String(query || '').trim(),
+    canCu: content,
+    deXuat: content,
+  };
+  const missing = required.filter((field) => !String(fieldValues[field] || '').trim());
+  if (missing.length) throw new Error(`Thiếu trường bắt buộc của mẫu: ${missing.join(', ')}`);
   const filename = buildExportFilename(query);
   const children = buildSimpleAdministrativeDocContent(query, answer);
 
@@ -1394,6 +1421,9 @@ async function exportDraftToDocx(query = "", answer = "") {
   });
   const blob = await Packer.toBlob(doc);
   saveAs(blob, filename);
+  if (template) {
+    showToast(`Đã xuất DOCX theo mẫu ${template.id} (${template.templateVersion || 'catalog-1'})`, 'success');
+  }
 }
 
 function detectSkillMatch(skill, rawText, normalizedText) {

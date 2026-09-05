@@ -11,11 +11,23 @@ import {
   sendAudioTranscription,
   getProxyModelIds,
   getProxyEndpointForContext,
+  fetchDocumentTemplates,
 } from './ai-proxy.js';
 import { convertToWav, compressIfLargeWav } from './audio-utils.js';
 import { fetchSystemConfig } from './system-config.js';
 
 let systemConfigCache = null;
+let meetingTemplateMeta = null;
+
+async function loadMeetingTemplateMeta() {
+  try {
+    const result = await fetchDocumentTemplates({ type: 'KET_LUAN' });
+    meetingTemplateMeta = result.templates?.find((item) => item.id === 'ket-luan-cuoc-hop') || null;
+  } catch (error) {
+    console.warn('Không thể tải metadata mẫu kết luận cuộc họp:', error);
+  }
+  return meetingTemplateMeta;
+}
 
 async function ensureSystemConfig() {
   if (systemConfigCache) return systemConfigCache;
@@ -139,6 +151,7 @@ export function renderMeetingMinutes(container) {
       if (container?.isConnected) doRender(container);
     }).catch(() => {});
   }
+  if (!meetingTemplateMeta) loadMeetingTemplateMeta().then(() => { if (container?.isConnected) doRender(container); });
   doRender(container);
 }
 
@@ -536,8 +549,12 @@ function renderStep2(sc, c) {
 function renderStep3(sc, c) {
   sc.innerHTML = `
     <div class="section-title">📄 Bước 3: Xuất Thông báo kết luận</div>
-    <div class="panel-group">
-      <div class="panel-header"><div class="panel-header-icon">⚙️</div>Cấu hình thể thức</div>
+     <div class="panel-group">
+       <div class="panel-header"><div class="panel-header-icon">📚</div>Mẫu áp dụng</div>
+       <div class="panel-body"><strong>${escHtml(meetingTemplateMeta?.title || 'Kết luận cuộc họp')}</strong><br><small>templateId: ${escHtml(meetingTemplateMeta?.id || 'ket-luan-cuoc-hop')} · templateVersion: ${escHtml(meetingTemplateMeta?.templateVersion || 'catalog-1')}</small></div>
+     </div>
+     <div class="panel-group">
+       <div class="panel-header"><div class="panel-header-icon">⚙️</div>Cấu hình thể thức</div>
       <div class="panel-body form-grid">
         <div class="form-group span-2" style="display: flex; gap: 20px;">
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;"><input type="radio" name="the_thuc" value="nd30" ${formState.the_thuc === 'nd30' ? 'checked' : ''}> Hành chính (NĐ30)</label>
@@ -583,8 +600,10 @@ function renderStep3(sc, c) {
   sc.querySelector('#btn-back-2').addEventListener('click', () => { saveState(); formState.step = 2; doRender(c); });
   sc.querySelector('#btn-export').addEventListener('click', () => {
     saveState();
-    if (!formState.co_quan_ban_hanh || !formState.nguoi_ky) { showToast('Vui lòng nhập cơ quan ban hành và người ký!', 'error'); return; }
-    generateNotificationDocx();
+     const required = { chuTri: formState.chu_tri, thoiGian: `${formState.ngay}/${formState.thang}/${formState.nam}`, diaDiem: formState.dia_diem, thanhPhan: formState.thanh_phan, noiDungKetLuan: formState.tom_tat, nhiemVu: (formState.noi_dung_cuoc_hop || []).flatMap((item) => item.ket_luan || []).join(' ') };
+     const missing = (meetingTemplateMeta?.requiredFields || []).filter((field) => !String(required[field] || '').trim());
+     if (!formState.co_quan_ban_hanh || !formState.nguoi_ky || missing.length) { showToast(`Thiếu trường bắt buộc: ${missing.join(', ') || 'co_quan_ban_hanh, nguoi_ky'}`, 'error'); return; }
+     generateNotificationDocx();
   });
 }
 

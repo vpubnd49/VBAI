@@ -41,7 +41,8 @@ const { encodeCursor, decodeCursor, validateCursor, sanitizeHistoryDoc, SAFE_HIS
 const { createTranscriptionRouter } = require('./routers/transcription.router');
 const { loadBosungMetadataIndex } = require('./legal/repositories/bosung-metadata-index');
 const { searchAdministrativeDivisions } = require('./services/administrative-division.service');
-const { ingestVbaibotTurn } = require('./services/vbaibot-ingestion.service');
+const { ingestVbaibotTurn, maskPII, isQualitySample } = require('./services/vbaibot-ingestion.service');
+const { listTemplates: listDocumentTemplates, select: selectDocumentTemplate } = require('./services/document-template.service');
 const { runCrawlerTask, getCrawlerStatus, initCrawlerScheduler } = require('./services/legal-crawler.service');
 const {
   createConversationMemory,
@@ -103,6 +104,7 @@ const os = require('os');
 const { safeFetch, validateUrlForSSRF } = require('./security/ssrf-guard');
 const { assertSafePathInside, hasTraversalMarkers, isSymbolicLink } = require('./security/path-guard');
 const fs = require('fs');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
@@ -2739,6 +2741,28 @@ async function verifyAdminToken(req) {
   return decoded;
 }
 
+// GET /api/document-templates — authenticated metadata-only catalog; raw source files are never served.
+app.get('/api/document-templates', async (req, res) => {
+  try {
+    const decoded = await verifyIdToken(req);
+    if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
+    const { listTemplates } = require('./services/document-template.service');
+    const selected = selectDocumentTemplate({ type: req.query.type, format: req.query.format, purpose: req.query.purpose, keyword: req.query.keyword });
+    const templates = listTemplates({ type: req.query.type, keyword: req.query.keyword });
+    return res.json({
+      success: true,
+      catalogId: 'vbai-bosung-document-templates',
+      metadataOnly: true,
+      count: templates.length,
+      selectedTemplate: selected,
+      templates,
+    });
+  } catch (err) {
+    const status = err.status || (String(err.message || '').toLowerCase().includes('authentication') ? 401 : 500);
+    return res.status(status).json({ error: status === 401 ? 'Unauthorized' : 'Internal server error' });
+  }
+});
+
 // GET /api/admin/users (List all registered users from MongoDB)
 app.get('/api/admin/users', async (req, res) => {
   try {
@@ -3483,44 +3507,67 @@ app.get('/api/admin/training-datasets/export-jsonl', async (req, res) => {
   }
 });
 
+function extractEvalSamples(sourceText, sourceFile) {
+  // Only ingest explicit object literals with user/prompt and model/response fields;
+  // source text is never persisted, and values are PII-masked before insertion.
+  const samples = [];
+  const objectRe = /\{[\s\S]*?(?:userPrompt|prompt|user)[\s]*:[\s]*['"`]([\s\S]*?)['"`][\s\S]*?(?:modelResponse|response|assistant|expected)[\s]*:[\s]*['"`]([\s\S]*?)['"`][\s\S]*?\}/g;
+  let match;
+  while ((match = objectRe.exec(sourceText))) {
+    const userPrompt = maskPII(match[1]).trim();
+    const modelResponse = maskPII(match[2]).trim();
+    if (!isQualitySample(userPrompt, modelResponse)) continue;
+    samples.push({
+      messages: [{ role: 'user', content: userPrompt }, { role: 'model', content: modelResponse }],
+      category: 'vbaibot-eval',
+      tags: ['vbaibot-eval', sourceFile],
+      source: `vbaibot-eval:${sourceFile}`,
+      sourceHash: crypto.createHash('sha256').update(`${sourceFile}\n${userPrompt}\n${modelResponse}`).digest('hex'),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+  return samples;
+}
+
 // POST /api/admin/training-datasets/sync-vbaibot
 app.post('/api/admin/training-datasets/sync-vbaibot', async (req, res) => {
   try {
     await verifyAdminToken(req);
     console.log('[DatasetSync] Starting sync with vpubnd49/vbaibot...');
-    
-    // 1. Fetch latest administrative_divisions.json
     const adminUrl = 'https://raw.githubusercontent.com/vpubnd49/vbaibot/main/data/administrative_divisions.json';
     const adminRes = await fetch(adminUrl, { headers: { 'User-Agent': 'VBAI-Server' } });
-    let newAdminCount = 0;
-    if (adminRes.ok) {
-      const adminJson = await adminRes.json();
-      const savePath = path.join(__dirname, 'data', 'administrative_divisions.json');
-      fs.writeFileSync(savePath, JSON.stringify(adminJson, null, 2), 'utf-8');
-      newAdminCount = adminJson.provinces?.length || 0;
-    }
+    if (!adminRes.ok) throw Object.assign(new Error(`Administrative source fetch failed (${adminRes.status})`), { status: 502 });
+    const adminJson = await adminRes.json();
+    const savePath = path.join(__dirname, 'data', 'administrative_divisions.json');
+    fs.writeFileSync(savePath, JSON.stringify(adminJson, null, 2), 'utf-8');
+    const newAdminCount = Array.isArray(adminJson.provinces) ? adminJson.provinces.length : 0;
 
-    // 2. Fetch eval cases
     const evalFiles = ['eval-cases-cach-noi.ts', 'eval-cases-tool.ts', 'eval-cases-memory.ts', 'eval-cases.ts'];
-    let syncCount = 0;
+    let syncedSourceCount = 0;
+    const evalSamples = [];
     for (const ef of evalFiles) {
-      try {
-        const efRes = await fetch(`https://raw.githubusercontent.com/vpubnd49/vbaibot/main/evals/${ef}`, { headers: { 'User-Agent': 'VBAI-Server' } });
-        if (efRes.ok) {
-          const efText = await efRes.text();
-          const saveEfPath = path.join(__dirname, 'data', 'evals_source', ef);
-          fs.mkdirSync(path.dirname(saveEfPath), { recursive: true });
-          fs.writeFileSync(saveEfPath, efText, 'utf-8');
-          syncCount++;
-        }
-      } catch (e) {
-        console.warn(`[DatasetSync] Failed to sync ${ef}:`, e);
-      }
+      const efRes = await fetch(`https://raw.githubusercontent.com/vpubnd49/vbaibot/main/evals/${ef}`, { headers: { 'User-Agent': 'VBAI-Server' } });
+      if (!efRes.ok) continue;
+      const efText = await efRes.text();
+      const saveEfPath = path.join(__dirname, 'data', 'evals_source', ef);
+      fs.mkdirSync(path.dirname(saveEfPath), { recursive: true });
+      fs.writeFileSync(saveEfPath, efText, 'utf-8');
+      syncedSourceCount++;
+      evalSamples.push(...extractEvalSamples(efText, ef));
     }
-
-    res.json({
-      success: true,
-      message: `Đồng bộ thành công từ vpubnd49/vbaibot (${newAdminCount} tỉnh thành & ${syncCount} bộ kịch bản kiểm thử).`,
+    const db = await dbService.getDb();
+    let ingestedCaseCount = 0;
+    if (evalSamples.length) {
+      const result = await db.collection('training_datasets').bulkWrite(evalSamples.map((sample) => ({
+        updateOne: { filter: { sourceHash: sample.sourceHash }, update: { $setOnInsert: sample }, upsert: true },
+      })));
+      ingestedCaseCount = result.upsertedCount || 0;
+    }
+    const status = syncedSourceCount > 0 ? (syncedSourceCount < evalFiles.length ? 'PARTIAL' : 'SYNCED') : 'PARTIAL';
+    res.status(status === 'PARTIAL' ? 502 : 200).json({
+      success: status !== 'PARTIAL', status, syncedSourceCount, ingestedCaseCount, newAdminCount,
+      message: `Đồng bộ nguồn ${status === 'PARTIAL' ? 'một phần' : 'thành công'}: ${newAdminCount} tỉnh thành, ${syncedSourceCount}/${evalFiles.length} nguồn eval, ${ingestedCaseCount} case mới.`,
       timestamp: new Date().toISOString()
     });
   } catch (err) {
@@ -3533,8 +3580,8 @@ app.post('/api/admin/training-datasets/sync-vbaibot', async (req, res) => {
 app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
   try {
     await verifyAdminToken(req);
-    const { baseModel, epochs = 4 } = req.body || {};
-    const configuredModel = String(baseModel || (await dbService.getSystemConfig())?.gemini_model || '').trim();
+    const { epochs = 4 } = req.body || {};
+    const configuredModel = String((await dbService.getSystemConfig())?.gemini_model || '').trim();
     if (!configuredModel) {
       return res.status(503).json({ error: 'AI_CONFIG_MISSING', message: 'Chưa cấu hình model Gemini cho tác vụ tuning.' });
     }
@@ -3554,10 +3601,10 @@ app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
     const jobId = `tune_vbai_${Date.now()}`;
     const jobRecord = {
       jobId,
-      baseModel,
+      configuredModel,
       epochs,
       sampleCount,
-      status: 'SUBMITTED',
+      status: 'REGISTERED',
       targetEndpoint: `projects/gen-lang-client-0462350485/locations/asia-southeast1/models/vbai-legal-v1`,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -3566,7 +3613,8 @@ app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
 
     res.json({
       success: true,
-      message: `Đã kích hoạt phiên huấn luyện Google Vertex AI (${sampleCount} mẫu dữ liệu, Model nền: ${baseModel}).`,
+      message: `Đã đăng ký job tuning (${sampleCount} mẫu dữ liệu, model cấu hình: ${configuredModel}). Vertex AI tuning API chưa được triển khai; chưa bắt đầu huấn luyện.`,
+      status: 'NOT_IMPLEMENTED',
       job: jobRecord
     });
   } catch (err) {
@@ -4021,6 +4069,7 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
         ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
         provider_status: 200,
         attempted_models: attemptedModels,
+        document_templates: listDocumentTemplates(),
         final_model: finalModel,
         provider_error_reason: null,
         retried: attemptedModels.length > 1,

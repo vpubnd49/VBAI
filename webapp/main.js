@@ -72,7 +72,29 @@ function showPageLoading(container) {
   `;
 }
 
-export function navigateTo(page, initialQuery = '', initialMode = '') {
+function parseRouteFromHash() {
+  const rawHash = (window.location.hash || '').replace(/^#\/?/, '').trim();
+  if (!rawHash) return { page: 'dashboard', query: '', mode: '' };
+  
+  const [routePart, searchPart] = rawHash.split('?');
+  const page = routePart || 'dashboard';
+  let query = '';
+  let mode = '';
+  if (searchPart) {
+    try {
+      const params = new URLSearchParams(searchPart);
+      query = params.get('q') || '';
+      mode = params.get('mode') || '';
+    } catch (_) {}
+  }
+  return {
+    page: PAGE_TITLES[page] ? page : 'dashboard',
+    query,
+    mode,
+  };
+}
+
+export function navigateTo(page, initialQuery = '', initialMode = '', updateHash = true) {
   if (!page || !PAGE_TITLES[page]) {
     console.warn('Attempted to navigate to invalid page:', page);
     return;
@@ -80,22 +102,35 @@ export function navigateTo(page, initialQuery = '', initialMode = '') {
   
   const previousPage = state.currentPage;
   state.currentPage = page;
+
+  if (updateHash) {
+    let targetHash = `#${page}`;
+    const params = new URLSearchParams();
+    if (initialQuery) params.set('q', initialQuery);
+    if (initialMode && initialMode !== page) params.set('mode', initialMode);
+    const qs = params.toString();
+    if (qs) targetHash += `?${qs}`;
+    if (window.location.hash !== targetHash) {
+      window.location.hash = targetHash;
+    }
+  }
+
   // Update nav
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.page === page);
   });
 
-  if (previousPage === 'dashboard' && page === 'dashboard' && !window.firstLoad) {
-    window.location.reload();
-    return;
-  }
   window.firstLoad = false;
 
   // Update breadcrumb
-  document.getElementById('breadcrumb').innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[page]}</span>`;
+  const breadcrumb = document.getElementById('breadcrumb');
+  if (breadcrumb) {
+    breadcrumb.innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[page]}</span>`;
+  }
   // Render page
   renderPage(page, initialQuery, initialMode);
 }
+
 
 async function renderPage(page, initialQuery = '', initialMode = '') {
   const container = document.getElementById('page-content');
@@ -270,19 +305,24 @@ async function init() {
     const adminBtn = document.getElementById('nav-admin-panel');
     if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
 
-    state.currentPage = 'dashboard';
+    const initial = parseRouteFromHash();
+    state.currentPage = initial.page;
     try {
-      await renderPage(state.currentPage);
+      navigateTo(initial.page, initial.query, initial.mode, false);
       preloadModules();
-      const breadcrumb = document.getElementById('breadcrumb');
-      if (breadcrumb) breadcrumb.innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[state.currentPage]}</span>`;
-      document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.page === state.currentPage);
-      });
     } catch (err) {
       console.error('Render page failed after login:', err);
     }
   }
+
+  // Handle browser back/forward and hash changes
+  window.addEventListener('hashchange', () => {
+    if (!window.currentUser) return;
+    const { page, query, mode } = parseRouteFromHash();
+    if (page !== state.currentPage || query || mode) {
+      navigateTo(page, query, mode, false);
+    }
+  });
 
   async function handleUserLoggedOut() {
     window.currentUser = null;

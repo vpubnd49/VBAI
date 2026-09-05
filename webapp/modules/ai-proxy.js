@@ -193,6 +193,16 @@ async function getSystemConfigSafe() {
   return config;
 }
 
+export async function fetchDocumentTemplates(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.type) params.set('type', filters.type);
+  if (filters.keyword) params.set('keyword', filters.keyword);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  const response = await backendFetch(`/document-templates${suffix}`, { method: 'GET' });
+  if (!response.ok) throw new Error(await buildHttpErrorMessage(response, 'Không thể tải danh mục mẫu văn bản.'));
+  return response.json();
+}
+
 export async function adminFetch(path, options = {}) {
   const normalizedPath = String(path || '').startsWith('/api/')
     ? String(path).slice(4)

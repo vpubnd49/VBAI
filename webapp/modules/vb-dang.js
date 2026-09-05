@@ -4,10 +4,15 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType, UnderlineType, Header, PageNumber } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from './ui-utils.js';
+import { fetchDocumentTemplates } from './ai-proxy.js';
 
-
-
-
+let templateMeta = null;
+const loadTemplateMeta = async () => {
+  try {
+    const result = await fetchDocumentTemplates({ type: 'NGHI_QUYET' });
+    templateMeta = result.templates?.find((item) => item.id === 'nghi-quyet-du-thao') || result.templates?.[0] || null;
+  } catch (error) { console.warn('Không thể tải metadata mẫu Đảng:', error); }
+};
 
 const LOAI_VB = {
   nghi_quyet: 'NGHỊ QUYẾT', chi_thi: 'CHỈ THỊ', ket_luan: 'KẾT LUẬN',
@@ -31,6 +36,7 @@ let formState = { step: 1 };
 export function renderVBDang(container) {
   const now = new Date();
   formState = { step: 1, loai_van_ban: 'nghi_quyet', co_quan_cap_tren: '', co_quan_ban_hanh: '', so_ky_hieu: '', dia_danh: 'Lâm Đồng', ngay: String(now.getDate()).padStart(2, '0'), thang: String(now.getMonth() + 1).padStart(2, '0'), nam: String(now.getFullYear()), trich_yeu: '', noi_dung: '', quyen_han_ky: 'Ký trực tiếp', chuc_vu_ky: '', nguoi_ky: '', noi_nhan: '', kinh_gui: '', can_cu: '', dong_chuc_danh_1:'', dong_chuc_danh_2:'', dong_chuc_danh_3:'' };
+  void loadTemplateMeta().then(() => { if (container?.isConnected) renderStep(container); });
   renderStep(container);
 }
 
@@ -171,7 +177,8 @@ function renderStep4(sc, container) {
   const s = formState;
   const tenLoai = LOAI_VB[s.loai_van_ban] || '';
   sc.innerHTML = `
-    <div class="section-title">👁️ Bước 4: Xem trước & Tải file</div>
+     <div class="section-title">👁️ Bước 4: Xem trước & Tải file</div>
+     <div class="template-meta"><small>Mẫu: ${templateMeta?.title || 'Văn bản Đảng HD05'} · templateId: ${templateMeta?.id || 'catalog-default'} · templateVersion: ${templateMeta?.templateVersion || 'catalog-1'}</small></div>
     <div class="preview-container">
       <table class="preview-header-table"><tr>
         <td style="width:40%;text-align:center">
@@ -236,6 +243,10 @@ function renderStep4(sc, container) {
 
 async function generateDangDocx(s) {
   try {
+    const required = ['co_quan_ban_hanh', 'so_ky_hieu', 'ngay', 'thang', 'nam', 'trich_yeu', 'noi_dung'];
+    const missing = required.filter((field) => !String(s[field] || '').trim());
+    if (missing.length) { showToast(`Thiếu trường bắt buộc: ${missing.join(', ')}`, 'error'); return; }
+
     const children = [];
     // Header table
     const leftCells = [];

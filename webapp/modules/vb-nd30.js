@@ -6,7 +6,15 @@ import { saveAs } from 'file-saver';
 import { showToast } from './ui-utils.js';
 
 
-import { sendChatRequest } from './ai-proxy.js';
+import { sendChatRequest, fetchDocumentTemplates } from './ai-proxy.js';
+
+let templateMeta = null;
+const loadTemplateMeta = async () => {
+  try {
+    const result = await fetchDocumentTemplates({ type: 'THONG_BAO' });
+    templateMeta = result.templates?.find((item) => item.id === 'thong-bao-phan-cong-nhiem-vu') || result.templates?.[0] || null;
+  } catch (error) { console.warn('Không thể tải metadata mẫu NĐ30:', error); }
+};
 
 
 const LOAI_VB = {
@@ -26,6 +34,7 @@ let fs = {};
 export function renderVBND30(container) {
   const now = new Date();
   fs = { step:1, loai_van_ban:'thong_bao', co_quan_chu_quan:'', co_quan_ban_hanh:'', so_ky_hieu:'', dia_danh:'Lâm Đồng', ngay:String(now.getDate()).padStart(2, '0'),thang:String(now.getMonth() + 1).padStart(2, '0'),nam:String(now.getFullYear()), trich_yeu:'', noi_dung:'', quyen_han_ky:'Ký trực tiếp', chuc_vu_ky:'', nguoi_ky:'', noi_nhan:'', kinh_gui:'', can_cu:'', dong_chuc_danh_1:'', dong_chuc_danh_2:'', dong_chuc_danh_3:'' };
+  void loadTemplateMeta().then(() => { if (container?.isConnected) doRender(container); });
   doRender(container);
 }
 
@@ -242,7 +251,8 @@ QUY TẮC LIỆT KÊ (BẤT BUỘC):
 }
 
 function renderS4(sc,c) {
-  sc.innerHTML=`<div class="section-title">👁️ Xem trước & Tải file</div>
+   sc.innerHTML=`<div class="section-title">👁️ Xem trước & Tải file</div>
+     <div class="template-meta"><small>Mẫu: ${templateMeta?.title || 'Văn bản hành chính NĐ30'} · templateId: ${templateMeta?.id || 'catalog-default'} · templateVersion: ${templateMeta?.templateVersion || 'catalog-1'}</small></div>
     <div class="preview-container">
       <table class="preview-header-table"><tr>
         <td style="width:40%;text-align:center">${fs.co_quan_chu_quan?`<div style="font-size:13pt">${fs.co_quan_chu_quan}</div>`:''}<div style="font-size:13pt;font-weight:bold">${fs.co_quan_ban_hanh}</div><div style="border-top:1px solid #000;width:30%;margin:4px auto"></div><div style="font-size:13pt">${fs.so_ky_hieu||'Số: /...'}</div>${fs.loai_van_ban.toLowerCase()==='cong_van'&&fs.trich_yeu.trim()?`<div style="font-size:11pt;margin-top:4pt">${fs.trich_yeu.trim().toLowerCase().startsWith('v/v')?'':'V/v '}${fs.trich_yeu.trim()}</div>`:''}</td>
@@ -263,6 +273,10 @@ function renderS4(sc,c) {
 
 async function genND30() {
   try {
+    const required = ['co_quan_ban_hanh', 'so_ky_hieu', 'ngay', 'thang', 'nam', 'trich_yeu', 'noi_dung'];
+    const missing = required.filter((field) => !String(fs[field] || '').trim());
+    if (missing.length) { showToast(`Thiếu trường bắt buộc: ${missing.join(', ')}`, 'error'); return; }
+
     const ch=[];
     // Header
     const lc=[],rc=[];
