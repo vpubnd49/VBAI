@@ -285,8 +285,11 @@ export async function sendChatRequest(messages, model, options = {}) {
     if (response.status === 403) {
       throw new Error(`Bạn không có quyền sử dụng AI này: ${rawMessage}`);
     }
-    if (response.status === 429 || normalized.includes('quota') || normalized.includes('limit')) {
+    if (response.status === 429) {
       throw new Error('Hệ thống AI đã vượt hạn mức hoặc hết quota. Vui lòng liên hệ quản trị viên.');
+    }
+    if (response.status === 400 || response.status === 404 || normalized.includes('model') || normalized.includes('endpoint')) {
+      throw new Error(`Cấu hình Gemini hoặc model không hợp lệ: ${rawMessage || `HTTP ${response.status}`}`);
     }
     throw new Error(rawMessage || 'Không thể gọi dịch vụ AI.');
   }

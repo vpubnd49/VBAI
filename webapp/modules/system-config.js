@@ -250,7 +250,17 @@ export async function validateGeminiApiKey(options = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data?.message || `HTTP ${response.status}`);
+    const rawMessage = String(data?.message || data?.error || '').trim();
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Phiên quản trị không hợp lệ hoặc không đủ quyền. Vui lòng đăng nhập lại.');
+    }
+    if (response.status === 400 || response.status === 404) {
+      throw new Error(`Cấu hình Gemini, endpoint hoặc model không hợp lệ: ${rawMessage || `HTTP ${response.status}`}`);
+    }
+    if (response.status === 429) {
+      throw new Error('Endpoint Gemini đang giới hạn yêu cầu hoặc đã hết quota.');
+    }
+    throw new Error(rawMessage || `HTTP ${response.status}`);
   }
   return data;
 }
