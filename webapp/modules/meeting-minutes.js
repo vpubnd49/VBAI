@@ -12,7 +12,7 @@ import {
   getProxyModelIds,
   getProxyEndpointForContext,
 } from './ai-proxy.js';
-import { convertToWav } from './audio-utils.js';
+import { convertToWav, compressIfLargeWav } from './audio-utils.js';
 import { fetchSystemConfig } from './system-config.js';
 
 let systemConfigCache = null;
@@ -43,7 +43,9 @@ function getMeetingModelFallbackOrder() {
 }
 
 const PROCESSING_TEXT = "Đang xử lý......";
-const MAX_AUDIO_UPLOAD_MB = 500;
+// Keep the client limit aligned with the backend's default multipart limit.
+// Chunk upload is intentionally disabled until distributed assembly is implemented.
+const MAX_AUDIO_UPLOAD_MB = 25;
 const MAX_AUDIO_UPLOAD_BYTES = MAX_AUDIO_UPLOAD_MB * 1024 * 1024;
 
 let mediaRecorder = null;
@@ -239,8 +241,20 @@ function renderStep1(sc, c) {
 
   async function startRecording() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000,
+        },
+      });
+      const mimeCandidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+      const mimeType = mimeCandidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      mediaRecorder = mimeType
+        ? new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 32000 })
+        : new MediaRecorder(stream);
       audioChunks = [];
       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
       mediaRecorder.start(1000);
@@ -664,9 +678,14 @@ async function resolveMeetingAudioModelCandidates(context = "meeting") {
   const fallbackOrder = getMeetingModelFallbackOrder();
 
   if (ids.length) {
-    for (const target of fallbackOrder) {
-      const hit = pickBestAvailableModel(ids, target);
-      if (hit) preferred.push(hit);
+    if (fallbackOrder.length) {
+      for (const target of fallbackOrder) {
+        const hit = pickBestAvailableModel(ids, target);
+        if (hit) preferred.push(hit);
+      }
+    } else {
+      // No fallback list configured — use all available config model ids directly.
+      preferred.push(...ids);
     }
   }
 
@@ -741,9 +760,11 @@ async function processAudioWithProxy(file, progressEl) {
   const transcribeRouteLabel = 'Proxy';
   const provider = 'gemini';
 
-  // Không chuyển đổi âm thanh sang WAV nữa, giữ định dạng nén nhỏ gọn (m4a, aac, ogg, mp3, webm...)
-  // Gemini API chính thức hỗ trợ trực tiếp các định dạng này một cách tối ưu nhất.
-  let activeFile = file;
+  // Recorded WebM/Opus and other already-compressed formats bypass re-encoding.
+  let activeFile = await compressIfLargeWav(file, {
+    thresholdBytes: 20 * 1024 * 1024, // Only WAV/PCM above this threshold is re-encoded.
+    onProgress: (msg) => { if (progressEl) progressEl.textContent = msg; },
+  });
 
   const analysisContext = transcribeContext;
   const modelCandidates = await resolveMeetingAudioModelCandidates(transcribeContext);
@@ -758,8 +779,8 @@ async function processAudioWithProxy(file, progressEl) {
   const transcriptModel = chatModel;
   let transcript = '';
   let usedTranscriptModel = chatModel;
-  const transcribeTimeoutMs = Number(localStorage.getItem('vbai_transcribe_timeout_ms') || (activeFile.size > 30 * 1024 * 1024 ? '300000' : '120000'));
-  const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : (activeFile.size > 30 * 1024 * 1024 ? 300000 : 120000);
+  const transcribeTimeoutMs = Number(localStorage.getItem('vbai_transcribe_timeout_ms') || '120000');
+  const safeTranscribeTimeoutMs = Number.isFinite(transcribeTimeoutMs) && transcribeTimeoutMs >= 15000 ? transcribeTimeoutMs : 120000;
   const transcribeCandidates = modelCandidates;
 
   // Tạo hàm cập nhật tiến trình bóc băng song song chuyên nghiệp
@@ -786,7 +807,8 @@ async function processAudioWithProxy(file, progressEl) {
         progressEl.textContent = 'Đang bóc băng âm thanh...';
         transcript = await sendAudioTranscription(activeFile, modelCandidate, {
           context: transcribeContext, timeoutMs: safeTranscribeTimeoutMs,
-          chunkWhenLarge: true, maxBytes: 28 * 1024 * 1024,
+          chunkWhenLarge: false,
+          maxBytes: 25 * 1024 * 1024,
           onProgress: createProgressBar('Đang bóc băng'), prompt: TRANSCRIPTION_PROMPT
         });
         if (String(transcript || '').trim()) { usedTranscriptModel = modelCandidate; break; }

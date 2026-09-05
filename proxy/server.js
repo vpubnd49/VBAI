@@ -1833,17 +1833,102 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
   if (!resolved.apiKey || !resolved.endpoint || !resolved.model) {
     throw Object.assign(new Error('Gemini configuration is incomplete.'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
-  return executeGeminiNativeAudioTranscription({
+
+  let targetFilePath = filePath;
+  let targetMime = getCompatibleAudioMimeType(mimeType, filename);
+  let targetFilename = filename;
+  let tempCompressedFile = null;
+
+  try {
+    const fileStat = await fs.promises.stat(filePath).catch(() => ({ size: 0 }));
+    if (fileStat.size > 15 * 1024 * 1024) {
+      const ext = path.extname(filename || filePath).toLowerCase();
+      if (ext === '.wav' || ext === '.pcm' || ext === '.aiff' || ext === '.flac' || fileStat.size > 25 * 1024 * 1024) {
+        const compressedPath = path.join(os.tmpdir(), `vbai_compressed_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.mp3`);
+        try {
+          const { execFile } = require('child_process');
+          await new Promise((resolve, reject) => {
+            execFile('ffmpeg', ['-y', '-i', filePath, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '32k', compressedPath], { timeout: 45000 }, (err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          });
+          if (fs.existsSync(compressedPath)) {
+            const compStat = await fs.promises.stat(compressedPath);
+            console.log(`[FFmpeg Server] Auto-compressed ${(fileStat.size/1024/1024).toFixed(1)}MB -> ${(compStat.size/1024/1024).toFixed(1)}MB in seconds`);
+            targetFilePath = compressedPath;
+            targetMime = 'audio/mp3';
+            targetFilename = 'audio.mp3';
+            tempCompressedFile = compressedPath;
+          }
+        } catch (ffErr) {
+          console.warn('[FFmpeg Server] Fallback to original audio:', ffErr.message);
+        }
+      }
+    }
+
+    const isNativeGeminiEndpoint = resolved.endpoint.includes('generativelanguage.googleapis.com')
+      || resolved.endpoint.includes('aiplatform.googleapis.com');
+
+    if (isNativeGeminiEndpoint) {
+      const audioBuffer = await fs.promises.readFile(targetFilePath);
+      const result = await executeGeminiNativeAudioTranscription({
+        apiKey: resolved.apiKey,
+        modelName: resolved.model,
+        mimeType: targetMime,
+        filename: targetFilename,
+        prompt,
+        audioBuffer,
+      });
+      if (!result?.ok || !result.text) throw Object.assign(new Error('Gemini transcription failed.'), { status: result?.status || 502, code: 'GEMINI_TRANSCRIPTION_FAILED' });
+      return { text: result.text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'gemini_generate_content' } };
+    }
+
+    // OpenAI-compatible endpoint: send audio as base64 in chat/completions format
+    const audioBuffer = await fs.promises.readFile(targetFilePath);
+    const audioBase64 = audioBuffer.toString('base64');
+    const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
+
+    const fileSizeMb = Math.ceil(audioBuffer.length / (1024 * 1024));
+    const audioTimeoutMs = Math.min(Math.max(120000, 120000 + fileSizeMb * 1000), 600000);
+
+
+  const result = await executeGeminiCompatChatRequest({
     apiKey: resolved.apiKey,
+    endpoint: resolved.endpoint,
     modelName: resolved.model,
-    mimeType: getCompatibleAudioMimeType(mimeType, filename),
-    filename,
-    prompt,
-    audioBuffer: await fs.promises.readFile(filePath),
-  }).then((result) => {
-    if (!result?.ok || !result.text) throw Object.assign(new Error('Gemini transcription failed.'), { status: result?.status || 502, code: 'GEMINI_TRANSCRIPTION_FAILED' });
-    return { text: result.text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'gemini_generate_content' } };
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'text', text: customPrompt },
+        { type: 'input_audio', input_audio: { data: audioBase64, format: targetMime.split('/').pop() || 'mp3' } },
+      ],
+    }],
+    temperature: 0,
+    maxTokens: 16384,
+    requestTimeoutMs: audioTimeoutMs,
   });
+
+
+  if (!result.ok) {
+    throw Object.assign(new Error(`Audio transcription via OpenAI-compatible endpoint failed: ${result.message}`), {
+      status: result.status || 502,
+      code: 'OPENAI_COMPAT_TRANSCRIPTION_FAILED',
+    });
+  }
+
+  const text = typeof result === 'string' ? result
+    : (result?.choices?.[0]?.message?.content || result?.text || '');
+  if (!text) {
+    throw Object.assign(new Error('Transcription returned empty text.'), { status: 502, code: 'EMPTY_TRANSCRIPTION' });
+  }
+
+  return { text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'openai_compat_chat' } };
+  } finally {
+    if (tempCompressedFile) {
+      fs.unlink(tempCompressedFile, () => {});
+    }
+  }
 
   /* Legacy audio implementations removed. The native Gemini path above is the
    * sole active transcription implementation; Vertex Search remains unchanged. */
@@ -2087,7 +2172,8 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
 
 
 async function uploadToGeminiFiles({ apiKey, fileBuffer, mimeType, filename }) {
-  const initRes = await fetch(`${GEMINI_API_BASE}/../upload/v1beta/files?key=${encodeURIComponent(apiKey)}`, {
+  const uploadInitUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`;
+  const initRes = await fetch(uploadInitUrl, {
     method: 'POST',
     headers: {
       'X-Goog-Upload-Protocol': 'resumable',
@@ -2104,7 +2190,24 @@ async function uploadToGeminiFiles({ apiKey, fileBuffer, mimeType, filename }) {
   const uploadRes = await fetch(uploadUrl, { method: 'POST', headers: { 'Content-Length': String(fileBuffer.length), 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' }, body: fileBuffer });
   if (!uploadRes.ok) throw new Error(`Gemini Files API upload failed (${uploadRes.status})`);
   const data = await uploadRes.json();
-  return data.file || data;
+  const fileInfo = data.file || data;
+
+  // Poll state if PROCESSING (up to 15s)
+  let currentState = fileInfo.state;
+  let pollCount = 0;
+  while (currentState === 'PROCESSING' && pollCount < 10) {
+    await new Promise(r => setTimeout(r, 1500));
+    pollCount++;
+    try {
+      const checkRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${fileInfo.name}?key=${encodeURIComponent(apiKey)}`);
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        currentState = checkData.state;
+      }
+    } catch (_) {}
+  }
+
+  return fileInfo;
 }
 
 async function deleteFromGeminiFiles({ apiKey, fileName }) {
@@ -2219,7 +2322,7 @@ async function executeGeminiNativeAudioTranscription({
   }
 }
 
-async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, messages, temperature = 0.1, maxTokens = 64 }) {
+async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, messages, temperature = 0.1, maxTokens = 64, requestTimeoutMs = 15000 }) {
   const payload = {
     model: modelName,
     messages,
@@ -2231,7 +2334,8 @@ async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, mes
   const apiEndpoint = String(endpoint || '').trim().replace(/\/+$/, '');
   if (!apiEndpoint || !modelName || !apiKey) throw new Error('AI endpoint, model and API key are required.');
   
-  const fetchWithTimeout = async (url, options, timeoutMs = 15000) => {
+  const effectiveTimeout = Math.max(requestTimeoutMs, 15000);
+  const fetchWithTimeout = async (url, options, timeoutMs = effectiveTimeout) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -2254,13 +2358,13 @@ async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, mes
         'x-goog-api-key': apiKey,
       },
       body: JSON.stringify(payload),
-    }, 15000);
+    }, effectiveTimeout);
   } catch (err) {
     const isAbort = err.name === 'AbortError';
     return {
       ok: false,
       status: isAbort ? 408 : 502,
-      message: isAbort ? 'Yêu cầu kết nối nhà cung cấp AI bị quá hạn (Timeout 15s)' : `Lỗi kết nối nhà cung cấp AI: ${err.message}`,
+      message: isAbort ? `Yêu cầu kết nối nhà cung cấp AI bị quá hạn (Timeout ${Math.round(effectiveTimeout/1000)}s)` : `Lỗi kết nối nhà cung cấp AI: ${err.message}`,
       reason: isAbort ? 'TIMEOUT' : 'CONNECTION_ERROR',
     };
   }
@@ -2277,13 +2381,13 @@ async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, mes
           'x-goog-api-key': apiKey,
         },
         body: JSON.stringify(payload),
-      }, 15000);
+      }, effectiveTimeout);
     } catch (err) {
       const isAbort = err.name === 'AbortError';
       return {
         ok: false,
         status: isAbort ? 408 : 502,
-        message: isAbort ? 'Yêu cầu kết nối lại nhà cung cấp AI bị quá hạn (Timeout 15s)' : `Lỗi kết nối lại nhà cung cấp AI: ${err.message}`,
+        message: isAbort ? `Yêu cầu kết nối lại nhà cung cấp AI bị quá hạn (Timeout ${Math.round(effectiveTimeout/1000)}s)` : `Lỗi kết nối lại nhà cung cấp AI: ${err.message}`,
         reason: isAbort ? 'TIMEOUT' : 'CONNECTION_ERROR',
       };
     }

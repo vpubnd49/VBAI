@@ -354,7 +354,8 @@ export async function sendStructuredChatRequest(messages, model, options = {}) {
 }
 
 export async function sendAudioTranscription(file, model = '', options = {}) {
-  const chunkWhenLarge = options.chunkWhenLarge === true;
+  // The backend has no distributed chunk assembler; never send unusable part uploads.
+  const chunkWhenLarge = false;
   const configuredMaxBytes = Number(options.maxBytes);
   const maxBytes = Number.isFinite(configuredMaxBytes) && configuredMaxBytes > 0
     ? configuredMaxBytes
