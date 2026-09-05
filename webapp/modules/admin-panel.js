@@ -43,10 +43,70 @@ async function readResponsePayload(response) {
 
 function updateDatasetStats(container, total, sync = null) {
   const stat = container.querySelector('#stat-total-samples');
-  if (stat && Number.isFinite(Number(total))) stat.textContent = `${Number(total)} mẫu`;
+  if (stat && Number.isFinite(Number(total))) stat.textContent = `${Number(total).toLocaleString('vi-VN')} mẫu`;
   const syncStat = container.querySelector('#stat-sync-status');
-  if (syncStat && sync) syncStat.textContent = `parsed ${sync.parsedCaseCount || 0} / ingested ${sync.ingestedCaseCount || 0} / skipped ${sync.skippedCaseCount || 0}`;
+  if (syncStat && sync && sync.parsedCaseCount !== undefined) {
+    syncStat.textContent = `parsed ${sync.parsedCaseCount || 0} / ingested ${sync.ingestedCaseCount || 0} / skipped ${sync.skippedCaseCount || 0}`;
+  }
 }
+
+/** Cập nhật status card từ /sync-status API */
+async function refreshSyncStatus(container) {
+  try {
+    const res = await fetch('/api/admin/training-datasets/sync-status', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const totalEl = container.querySelector('#stat-total-samples');
+    if (totalEl && data.total) totalEl.textContent = `${data.total.toLocaleString('vi-VN')} mẫu`;
+
+    const dotEl = container.querySelector('#stat-sync-dot');
+    const statusEl = container.querySelector('#stat-sync-status');
+    const nextEl = container.querySelector('#stat-sync-next');
+    const lastEl = container.querySelector('#stat-sync-last');
+
+    if (data.syncRunning) {
+      if (dotEl) dotEl.style.background = '#f59e0b';
+      if (statusEl) statusEl.textContent = '⏳ Đang đồng bộ...';
+    } else {
+      if (dotEl) dotEl.style.background = '#059669';
+      if (statusEl) statusEl.textContent = 'Tự động – 15 phút/lần';
+    }
+
+    if (nextEl) {
+      const interval = (data.intervalMinutes || 15) * 60 * 1000;
+      const lastAt = data.lastSyncAt ? new Date(data.lastSyncAt) : null;
+      if (lastAt) {
+        const nextAt = new Date(lastAt.getTime() + interval);
+        const diffMs = nextAt - Date.now();
+        if (diffMs > 0) {
+          const mins = Math.floor(diffMs / 60000);
+          const secs = Math.floor((diffMs % 60000) / 1000);
+          nextEl.textContent = `⏱ Lần tới: ${mins}ph ${secs}s nữa`;
+        } else {
+          nextEl.textContent = '⏱ Sắp đồng bộ...';
+        }
+      }
+    }
+
+    if (lastEl && data.lastSyncAt) {
+      const lastAt = new Date(data.lastSyncAt);
+      const timeStr = lastAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const added = data.lastSyncIngested > 0 ? ` (+${data.lastSyncIngested} mẫu)` : ' (không mới)';
+      lastEl.textContent = `✓ Lúc ${timeStr}${added}`;
+    }
+  } catch (_) {}
+}
+
+/** Bắt đầu poll sync-status mỗi 30 giây, huỷ khi container rời DOM */
+function startSyncStatusPoller(container) {
+  refreshSyncStatus(container);
+  const timerId = setInterval(() => {
+    if (!document.contains(container)) { clearInterval(timerId); return; }
+    refreshSyncStatus(container);
+  }, 30 * 1000);
+}
+
 
 function setActionState(button, label, busy) {
   if (!button) return;
@@ -314,25 +374,35 @@ export function renderAdminPanel(container) {
             <div style="max-width:680px;">
               <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
                 <span style="font-size:1.5rem;">🤖</span>
-                <h3 style="margin:0; font-size:1.2rem; color:#0f766e; font-weight:800;">Trung Tâm Huấn Luyện AI & Tự Động Đồng Bộ vbaibot</h3>
+                <h3 style="margin:0; font-size:1.2rem; color:#0f766e; font-weight:800;">Dữ Liệu Tự Học – Dataset Huấn Luyện AI</h3>
               </div>
               <p style="margin:0; font-size:0.9rem; color:#334155; line-height:1.6;">
-                Tự động hóa toàn bộ quy trình: Thu thập dữ liệu chuẩn từ <strong>vpubnd49/vbaibot</strong> (Đơn vị hành chính 02 cấp, bộ test cases công vụ) → Xuất dataset → Kích hoạt huấn luyện tinh chỉnh (Supervised Fine-Tuning) trên <strong>Google Cloud Vertex AI</strong>.
+                Tự động thu thập & lưu trữ <strong>hội thoại thực tế Zalobot</strong> (4.900+ mẫu, cập nhật mỗi giờ) → Xuất JSONL để phân tích hoặc Fine-Tune sau khi dataset đủ lớn.
               </p>
             </div>
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <button type="button" id="sync-vbaibot-btn" class="btn btn-sm" style="padding:10px 16px; font-size:0.88rem; font-weight:700; background:#0284c7; color:white; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                🔄 Tự động đồng bộ vbaibot
+              <button type="button" id="sync-messages-btn" class="btn btn-sm" style="padding:10px 16px; font-size:0.88rem; font-weight:700; background:#0284c7; color:white; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px;" title="Đồng bộ hội thoại thực tế từ Zalobot (tự động mỗi giờ)">
+                💬 Đồng bộ hội thoại Zalobot
               </button>
-              <button type="button" id="trigger-tuning-btn" class="btn btn-sm" style="padding:10px 16px; font-size:0.88rem; font-weight:700; background:#059669; color:white; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                🚀 Kích hoạt Huấn luyện Vertex AI
+              <button type="button" id="sync-admin-divisions-btn" class="btn btn-sm" style="padding:10px 16px; font-size:0.88rem; font-weight:600; background:#64748b; color:white; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px;" title="Cập nhật dữ liệu đơn vị hành chính 02 cấp">
+                🗺️ Cập nhật ĐVHC
               </button>
               <button type="button" id="export-dataset-jsonl-btn" class="btn btn-secondary btn-sm" style="padding:10px 16px; font-size:0.88rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                📥 Xuất file JSONL
+                📥 Xuất JSONL
               </button>
               <button type="button" id="add-dataset-sample-btn" class="btn btn-sm" style="padding:10px 16px; font-size:0.88rem; font-weight:600; background:#008ca1; color:white; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px;">
-                ➕ Thêm mẫu chuẩn
+                ➕ Thêm mẫu
               </button>
+            </div>
+          </div>
+
+          <!-- Vertex AI Tuning Info Box -->
+          <div style="margin-top:14px; padding:12px 16px; background:#fffbeb; border:1px solid #f59e0b; border-radius:8px; display:flex; align-items:flex-start; gap:12px;">
+            <span style="font-size:1.3rem; flex-shrink:0;">💡</span>
+            <div style="font-size:0.85rem; color:#92400e; line-height:1.6;">
+              <strong>Về Vertex AI Fine-Tuning ($30–60 USD/lần):</strong> Hiện tại VBAI dùng RAG (tìm kiếm pháp luật real-time) – kiến thức không cần nhúng vào model weights.
+              Fine-Tuning chỉ cải thiện <em>phong cách trả lời</em>, không thêm kiến thức mới. Nên cân nhắc khi dataset >10.000 mẫu & hành vi bot chưa đúng ý.
+              <button type="button" id="trigger-tuning-btn" style="margin-left:12px; padding:4px 12px; font-size:0.8rem; background:transparent; border:1px solid #d97706; color:#92400e; border-radius:4px; cursor:pointer;">🚀 Kích hoạt nếu cần</button>
             </div>
           </div>
 
@@ -340,21 +410,20 @@ export function renderAdminPanel(container) {
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-top:20px;">
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Tổng mẫu huấn luyện</div>
-              <div id="stat-total-samples" style="font-size:1.4rem; font-weight:800; color:#0f766e; margin-top:2px;">38 mẫu</div>
+              <div id="stat-total-samples" style="font-size:1.4rem; font-weight:800; color:#0f766e; margin-top:2px;">4.901 mẫu</div>
             </div>
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
-              <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Đơn vị hành chính 02 cấp</div>
-              <div style="font-size:1.4rem; font-weight:800; color:#0284c7; margin-top:2px;">34 Tỉnh / 3.321 Xã</div>
+              <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Nguồn dữ liệu chính</div>
+              <div style="font-size:1rem; font-weight:800; color:#0284c7; margin-top:4px;">💬 Hội thoại Zalobot</div>
             </div>
-            <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
-              <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Mô hình đích Vertex AI</div>
-              <div id="stat-target-model" style="font-size:1.4rem; font-weight:800; color:#7c3aed; margin-top:2px;">Chưa cấu hình</div>
-            </div>
-            <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
+            <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #059669;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Trạng thái đồng bộ</div>
-              <div style="font-size:1rem; font-weight:700; color:#059669; margin-top:4px; display:flex; align-items:center; gap:4px;">
-                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#059669;"></span><span id="stat-sync-status">Đã kết nối vbaibot</span>
+              <div style="font-size:0.9rem; font-weight:700; color:#059669; margin-top:4px; display:flex; align-items:center; gap:6px;">
+                <span id="stat-sync-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#059669; flex-shrink:0;"></span>
+                <span id="stat-sync-status">Tự động – 15 phút/lần</span>
               </div>
+              <div id="stat-sync-next" style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">...</div>
+              <div id="stat-sync-last" style="font-size:0.75rem; color:#64748b; margin-top:2px;"></div>
             </div>
           </div>
 
@@ -403,6 +472,34 @@ export function renderAdminPanel(container) {
               <span id="dataset-page-indicator" style="font-size:0.88rem; font-weight:600">Trang 1 / 1</span>
               <button type="button" id="dataset-next-page-btn" class="btn btn-secondary btn-sm" style="padding:6px 12px; font-size:0.85rem">Tiếp ➡️</button>
             </div>
+          </div>
+        </div>
+
+        <!-- Tuning Jobs History Panel -->
+        <div class="panel-group" style="margin-bottom:20px; width:100%;" id="tuning-jobs-panel">
+          <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px;">
+            <div style="display:flex; align-items:center; gap:10px; font-size:1.05rem; font-weight:700;">
+              <span class="panel-header-icon">🏋️</span> Lịch Sử Tinh Chỉnh AI – Vertex AI Tuning Jobs
+            </div>
+            <button type="button" id="refresh-tuning-jobs-btn" class="btn btn-secondary btn-sm" style="padding:6px 14px; font-size:0.85rem; cursor:pointer">🔄 Làm mới</button>
+          </div>
+          <div class="panel-body" style="padding:0; overflow-x:auto">
+            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+              <thead>
+                <tr style="background:var(--bg-secondary,#f8fafc); border-bottom:1px solid var(--border-color,#cbd5e1); text-align:left;">
+                  <th style="padding:12px 14px; min-width:160px;">Job ID</th>
+                  <th style="padding:12px 14px; min-width:140px;">Base Model</th>
+                  <th style="padding:12px 14px; width:70px; text-align:center;">Mẫu</th>
+                  <th style="padding:12px 14px; width:60px; text-align:center;">Epochs</th>
+                  <th style="padding:12px 14px; min-width:130px;">Trạng thái</th>
+                  <th style="padding:12px 14px; min-width:120px;">Tạo lúc</th>
+                  <th style="padding:12px 14px; width:100px; text-align:center;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="tuning-jobs-table-body">
+                <tr><td colspan="7" style="padding:20px; text-align:center; color:var(--text-muted)">Đang tải lịch sử tuning jobs...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div><!-- END TAB 2: tab-training -->
@@ -579,22 +676,41 @@ export function renderAdminPanel(container) {
   });
 
   // 2. Training & Tuning Handlers
-  const syncVbaibotBtn = container.querySelector('#sync-vbaibot-btn');
-  if (syncVbaibotBtn) {
-    syncVbaibotBtn.addEventListener('click', async () => {
-      if (!confirm('Bạn có chắc chắn muốn bắt đầu đồng bộ CSDL hành chính và test cases mới nhất từ vpubnd49/vbaibot?')) return;
-      setActionState(syncVbaibotBtn, '🔄 Đang đồng bộ...', true);
+
+  // 💬 Sync vbaibot Messages (hội thoại thực - nguồn chính)
+  const syncMessagesBtn = container.querySelector('#sync-messages-btn');
+  if (syncMessagesBtn) {
+    syncMessagesBtn.addEventListener('click', async () => {
+      setActionState(syncMessagesBtn, '💬 Đang đồng bộ...', true);
       try {
-        const res = await adminFetch('/api/admin/training-datasets/sync-vbaibot', { method: 'POST' });
+        const res = await adminFetch('/api/admin/training-datasets/sync-vbaibot-messages', { method: 'POST', body: JSON.stringify({ limit: 3000 }) });
         const data = await readResponsePayload(res);
-        updateDatasetStats(container, undefined, data);
-        if (!res.ok && data.status !== 'PARTIAL') throw new Error(data.message || data.error || `HTTP ${res.status}`);
-        showToast(data.message || 'Đã đồng bộ vbaibot.', data.status === 'PARTIAL' ? 'warning' : 'success');
+        if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+        updateDatasetStats(container, data.total);
+        showToast(`✅ ${data.message}`, 'success');
         await loadDatasetSamples(container);
       } catch (err) {
-        showToast(err.message || 'Đồng bộ thất bại', 'error');
+        showToast('❌ Đồng bộ thất bại: ' + (err.message || 'Lỗi không xác định'), 'error');
       } finally {
-        setActionState(syncVbaibotBtn, '🔄 Tự động đồng bộ vbaibot', false);
+        setActionState(syncMessagesBtn, '💬 Đồng bộ hội thoại Zalobot', false);
+      }
+    });
+  }
+
+  // 🗺️ Sync admin divisions (ĐVHC 02 cấp)
+  const syncAdminDivisionsBtn = container.querySelector('#sync-admin-divisions-btn');
+  if (syncAdminDivisionsBtn) {
+    syncAdminDivisionsBtn.addEventListener('click', async () => {
+      setActionState(syncAdminDivisionsBtn, '🗺️ Đang cập nhật...', true);
+      try {
+        const res = await adminFetch('/api/admin/training-datasets/sync-admin-divisions', { method: 'POST' });
+        const data = await readResponsePayload(res);
+        if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+        showToast(`✅ ${data.message}`, 'success');
+      } catch (err) {
+        showToast('❌ Cập nhật ĐVHC thất bại: ' + (err.message || 'Lỗi không xác định'), 'error');
+      } finally {
+        setActionState(syncAdminDivisionsBtn, '🗺️ Cập nhật ĐVHC', false);
       }
     });
   }
@@ -602,21 +718,60 @@ export function renderAdminPanel(container) {
   const triggerTuningBtn = container.querySelector('#trigger-tuning-btn');
   if (triggerTuningBtn) {
     triggerTuningBtn.addEventListener('click', async () => {
-      if (!confirm('XÁC NHẬN: Bạn có chắc chắn muốn kích hoạt phiên huấn luyện tinh chỉnh (Supervised Fine-Tuning) trên Google Cloud Vertex AI?')) return;
+      // Inline confirm thay vì window.confirm() để hỗ trợ automation và UX tốt hơn
+      const totalSamples = container.querySelector('#stat-total-samples')?.textContent?.replace(/[^\d]/g,'') || '?';
+      const confirmed = await new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.id = 'tuning-confirm-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+        overlay.innerHTML = `
+          <div style="background:var(--bg-card,#1e293b);border-radius:16px;padding:32px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);border:1px solid var(--border-color,#334155);">
+            <div style="font-size:2rem;text-align:center;margin-bottom:12px;">🚀</div>
+            <h3 style="margin:0 0 12px;font-size:1.1rem;color:var(--text-primary,#f1f5f9);text-align:center;">Xác nhận Kích hoạt Huấn luyện</h3>
+            <p style="color:var(--text-secondary,#94a3b8);font-size:0.9rem;line-height:1.6;margin:0 0 16px;">
+              Vertex AI Supervised Fine-Tuning sẽ:<br>
+              1. Upload <strong>${totalSamples} mẫu</strong> JSONL lên GCS<br>
+              2. Tạo Vertex AI SFT Job (model: gemini-2.0-flash-001)<br>
+              3. Ghi nhật ký kết quả vào MongoDB
+            </p>
+            <p style="color:#f59e0b;font-size:0.85rem;margin:0 0 20px;">⚠️ Chi phí ước tính: $15–40 USD tùy số mẫu và epochs.</p>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+              <button id="tuning-confirm-cancel" style="padding:8px 20px;border:1px solid var(--border-color,#334155);background:transparent;color:var(--text-secondary,#94a3b8);border-radius:8px;cursor:pointer;font-size:0.9rem;">Hủy</button>
+              <button id="tuning-confirm-ok" style="padding:8px 24px;background:#059669;color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:700;">✅ Xác nhận kích hoạt</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#tuning-confirm-ok').onclick = () => { overlay.remove(); resolve(true); };
+        overlay.querySelector('#tuning-confirm-cancel').onclick = () => { overlay.remove(); resolve(false); };
+        overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(false); } };
+      });
+      if (!confirmed) return;
       setActionState(triggerTuningBtn, '🚀 Đang khởi tạo...', true);
       try {
-        const res = await adminFetch('/api/admin/training-datasets/trigger-tuning', { method: 'POST' });
+        const res = await adminFetch('/api/admin/training-datasets/trigger-tuning', { method: 'POST', body: JSON.stringify({ epochs: 4 }) });
         const data = await readResponsePayload(res);
-        if (!res.ok && data.status !== 'NOT_IMPLEMENTED') throw new Error(data.message || data.error || `HTTP ${res.status}`);
-        const status = data.status || data.job?.status || 'NOT_IMPLEMENTED';
-        showToast(`${data.message || 'Đã đăng ký yêu cầu tuning.'} [${status}]`, status === 'NOT_IMPLEMENTED' ? 'warning' : 'success');
+        if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+        showToast(`✅ ${data.message || 'Đã kích hoạt Vertex AI SFT job.'}`, 'success');
+        await loadTuningJobs(container);
       } catch (err) {
-        showToast(err.message || 'Khởi tạo thất bại', 'error');
+        showToast('❌ ' + (err.message || 'Khởi tạo thất bại'), 'error');
       } finally {
         setActionState(triggerTuningBtn, '🚀 Kích hoạt Huấn luyện Vertex AI', false);
       }
     });
   }
+
+  // Tuning Jobs table handlers
+  const refreshTuningJobsBtn = container.querySelector('#refresh-tuning-jobs-btn');
+  if (refreshTuningJobsBtn) {
+    refreshTuningJobsBtn.addEventListener('click', () => loadTuningJobs(container));
+  }
+
+  // Load jobs on tab open (fire-and-forget, renderAdminPanel is synchronous)
+  loadTuningJobs(container);
+
+  // ↻ Bắt đầu poll sync-status (mỗi 30 giây, dừng khi rời tab)
+  startSyncStatusPoller(container);
 
   const exportDatasetBtn = container.querySelector('#export-dataset-jsonl-btn');
   if (exportDatasetBtn) {
@@ -1770,5 +1925,103 @@ function renderDatasetTable(container) {
     } else {
       paginationControls.style.display = 'none';
     }
+  }
+}
+
+// ─── Tuning Jobs Loader ────────────────────────────────────────────────────
+
+function tuningJobStatusBadge(status) {
+  const map = {
+    'JOB_STATE_PENDING':    { bg:'#fef9c3', color:'#854d0e', label:'⏳ Đang chờ' },
+    'JOB_STATE_QUEUED':     { bg:'#fef9c3', color:'#854d0e', label:'🕐 Xếp hàng' },
+    'JOB_STATE_RUNNING':    { bg:'#dbeafe', color:'#1d4ed8', label:'⚙️ Đang chạy' },
+    'JOB_STATE_SUCCEEDED':  { bg:'#dcfce7', color:'#15803d', label:'✅ Hoàn thành' },
+    'JOB_STATE_FAILED':     { bg:'#fee2e2', color:'#b91c1c', label:'❌ Thất bại' },
+    'JOB_STATE_CANCELLED':  { bg:'#f1f5f9', color:'#64748b', label:'🚫 Đã hủy' },
+    'SUBMITTED':            { bg:'#dbeafe', color:'#1d4ed8', label:'📤 Đã gửi' },
+    'NOT_IMPLEMENTED':      { bg:'#f1f5f9', color:'#64748b', label:'⚠️ Chưa kết nối' },
+  };
+  const s = (status || 'SUBMITTED').toUpperCase().replace(/-/g,'_');
+  const entry = map[s] || { bg:'#f1f5f9', color:'#64748b', label: status || '?' };
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.75rem;font-weight:700;background:${entry.bg};color:${entry.color};">${entry.label}</span>`;
+}
+
+async function loadTuningJobs(container) {
+  const tbody = container.querySelector('#tuning-jobs-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="padding:16px; text-align:center; color:var(--text-muted)">Đang tải...</td></tr>';
+  try {
+    const res = await adminFetch('/api/admin/training-datasets/tuning-jobs', {});
+    if (!res.ok) throw new Error('Không thể tải tuning jobs');
+    const data = await res.json();
+    const jobs = data.jobs || [];
+    if (!jobs.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="padding:20px; text-align:center; color:var(--text-muted)">Chưa có tuning job nào. Bấm "Kích hoạt Huấn luyện Vertex AI" để bắt đầu.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = jobs.map(job => {
+      const createdAt = job.createdAt ? new Date(job.createdAt.$date || job.createdAt).toLocaleString('vi-VN') : '—';
+      const tunedModel = job.tunedModelName ? `<div style="font-size:0.72rem;color:#059669;margin-top:2px;">🤖 ${escapeHtml(job.tunedModelName)}</div>` : '';
+      const gcsLink = job.gcsUri ? `<a href="#" title="${escapeHtml(job.gcsUri)}" style="font-size:0.72rem;color:#0369a1;">📄 JSONL</a>` : '';
+      return `<tr style="border-bottom:1px solid var(--border-color,#e2e8f0);">
+        <td style="padding:12px 14px; font-family:monospace; font-size:0.82rem; color:#334155;">${escapeHtml(job.jobId || '—')}<br>${gcsLink}</td>
+        <td style="padding:12px 14px; font-size:0.82rem;">${escapeHtml(job.baseModel || '—')}${tunedModel}</td>
+        <td style="padding:12px 14px; text-align:center; font-weight:700;">${job.sampleCount ?? '—'}</td>
+        <td style="padding:12px 14px; text-align:center;">${job.epochs ?? '—'}</td>
+        <td style="padding:12px 14px;">${tuningJobStatusBadge(job.status)}</td>
+        <td style="padding:12px 14px; font-size:0.8rem; color:#64748b;">${createdAt}</td>
+        <td style="padding:12px 14px; text-align:center; display:flex; gap:4px; justify-content:center;">
+          <button class="btn-poll-status" data-job-id="${escapeHtml(job.jobId)}"
+            style="padding:4px 8px; font-size:0.75rem; background:#0284c7; color:white; border:none; border-radius:4px; cursor:pointer; white-space:nowrap;">
+            🔍 Cập nhật
+          </button>
+          ${['JOB_STATE_RUNNING','JOB_STATE_QUEUED','JOB_STATE_PENDING','SUBMITTED'].includes((job.status||'').toUpperCase()) ? `
+          <button class="btn-cancel-job" data-job-id="${escapeHtml(job.jobId)}"
+            style="padding:4px 8px; font-size:0.75rem; background:#dc2626; color:white; border:none; border-radius:4px; cursor:pointer;">
+            ✖
+          </button>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+
+    // Poll status buttons
+    tbody.querySelectorAll('.btn-poll-status').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const jobId = btn.dataset.jobId;
+        btn.disabled = true; btn.textContent = '⏳';
+        try {
+          const res = await adminFetch(`/api/admin/training-datasets/tuning-jobs/${jobId}/status`, {});
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+          showToast(`Job ${jobId}: ${data.status || '?'}`, 'success');
+          await loadTuningJobs(container);
+        } catch (e) {
+          showToast('Lỗi poll status: ' + e.message, 'error');
+          btn.disabled = false; btn.textContent = '🔍 Cập nhật';
+        }
+      });
+    });
+
+    // Cancel buttons
+    tbody.querySelectorAll('.btn-cancel-job').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const jobId = btn.dataset.jobId;
+        if (!confirm(`Hủy tuning job ${jobId}?`)) return;
+        btn.disabled = true; btn.textContent = '⏳';
+        try {
+          const res = await adminFetch(`/api/admin/training-datasets/tuning-jobs/${jobId}/cancel`, { method: 'POST' });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+          showToast(`Đã hủy job ${jobId}`, 'success');
+          await loadTuningJobs(container);
+        } catch (e) {
+          showToast('Lỗi hủy job: ' + e.message, 'error');
+          btn.disabled = false; btn.textContent = '✖';
+        }
+      });
+    });
+
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:20px; text-align:center; color:var(--danger,#dc2626)">Lỗi tải tuning jobs: ${escapeHtml(err.message)}</td></tr>`;
   }
 }

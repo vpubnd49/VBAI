@@ -105,6 +105,98 @@ const { safeFetch, validateUrlForSSRF } = require('./security/ssrf-guard');
 const { assertSafePathInside, hasTraversalMarkers, isSymbolicLink } = require('./security/path-guard');
 const fs = require('fs');
 const crypto = require('crypto');
+const { GoogleAuth } = require('google-auth-library');
+const GCS_TUNING_BUCKET = process.env.GCS_TUNING_BUCKET || 'vbai-tuning-datasets';
+const VERTEX_TUNING_PROJECT = process.env.VERTEX_TUNING_PROJECT || 'gen-lang-client-0462350485';
+const VERTEX_TUNING_LOCATION = process.env.VERTEX_TUNING_LOCATION || 'us-central1';
+const VERTEX_SA_KEY_FILE = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.join(__dirname, 'service-account.json');
+
+/** Lấy OAuth2 token dành riêng cho Vertex AI / GCS (dùng service account file). */
+async function getVertexToken() {
+  const auth = new GoogleAuth({
+    keyFile: VERTEX_SA_KEY_FILE,
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+  const token = await auth.getAccessToken();
+  if (!token) throw new Error('vertex_token_unavailable');
+  return token;
+}
+
+/**
+ * Upload buffer lên GCS qua REST API.
+ * @param {string} token - OAuth2 access token
+ * @param {Buffer} content - Nội dung file
+ * @param {string} objectName - Tên object trong bucket (vd: "runs/job123.jsonl")
+ * @param {string} contentType - MIME type
+ */
+async function uploadToGCS(token, content, objectName, contentType = 'application/json') {
+  const encodedName = encodeURIComponent(objectName);
+  const url = `https://storage.googleapis.com/upload/storage/v1/b/${GCS_TUNING_BUCKET}/o?uploadType=media&name=${encodedName}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': contentType,
+      'Content-Length': String(content.length),
+    },
+    body: content,
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`GCS upload thất bại (${res.status}): ${errText.substring(0, 300)}`);
+  }
+  return res.json();
+}
+
+/**
+ * Tạo Vertex AI Supervised Fine-Tuning job.
+ * @param {string} token
+ * @param {string} gcsUri - gs://bucket/object.jsonl
+ * @param {string} baseModel - vd: "gemini-2.0-flash-001"
+ * @param {number} epochCount
+ * @param {string} displayName
+ */
+async function createVertexTuningJob(token, gcsUri, baseModel, epochCount, displayName) {
+  const url = `https://${VERTEX_TUNING_LOCATION}-aiplatform.googleapis.com/v1/projects/${VERTEX_TUNING_PROJECT}/locations/${VERTEX_TUNING_LOCATION}/tuningJobs`;
+  const body = {
+    baseModel: baseModel,
+    supervisedTuningSpec: {
+      trainingDatasetUri: gcsUri,
+      hyperParameters: { epochCount: Number(epochCount) || 4 },
+    },
+    tunedModelDisplayName: displayName,
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Vertex AI Tuning Job thất bại (${res.status}): ${errText.substring(0, 500)}`);
+  }
+  return res.json();
+}
+
+/**
+ * Lấy trạng thái Vertex AI Tuning job.
+ * @param {string} token
+ * @param {string} vertexJobName - projects/.../locations/.../tuningJobs/<id>
+ */
+async function getVertexTuningJobStatus(token, vertexJobName) {
+  const url = `https://${VERTEX_TUNING_LOCATION}-aiplatform.googleapis.com/v1/${vertexJobName}`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + token },
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Get tuning job thất bại (${res.status}): ${errText.substring(0, 300)}`);
+  }
+  return res.json();
+}
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
@@ -3645,18 +3737,198 @@ app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
       return res.status(400).json({ error: 'DATASET_SCHEMA_INVALID', message: 'Dataset MongoDB trống hoặc có mẫu không đúng schema messages user/model.' });
     }
     const sampleCount = validSamples.length;
-    // Vertex AI tuning is intentionally not claimed until the real API integration exists.
-    return res.status(501).json({
-      success: false,
-      status: 'NOT_IMPLEMENTED',
-      error: 'NOT_IMPLEMENTED',
-      message: `Vertex AI tuning API chưa được tích hợp; không submit job và không ghi ai_tuning_jobs (model cấu hình: ${configuredModel}, ${sampleCount} mẫu hợp lệ).`,
-      configuredModel,
+
+    // ── Vertex AI Supervised Fine-Tuning ──────────────────────────────────
+    const jobId = 'tune_vbai_' + Date.now();
+    const version = 'v' + new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const displayName = `vbai-legal-${version}`;
+    const objectName = `runs/${jobId}.jsonl`;
+    const gcsUri = `gs://${GCS_TUNING_BUCKET}/${objectName}`;
+
+    // Serialize JSONL in memory from validated samples
+    const jsonlContent = Buffer.from(
+      validSamples.map(s => JSON.stringify({ messages: s.messages })).join('\n'),
+      'utf-8'
+    );
+
+    console.log(`[Tuning] Starting job ${jobId}: ${sampleCount} samples, ${epochs} epochs, model=${configuredModel}`);
+
+    // Step 1: Upload JSONL to GCS
+    let gcsObject;
+    try {
+      const token = await getVertexToken();
+      gcsObject = await uploadToGCS(token, jsonlContent, objectName, 'application/json');
+      console.log(`[Tuning] Uploaded ${objectName} to GCS: ${gcsObject.selfLink || gcsUri}`);
+    } catch (gcsErr) {
+      console.error('[Tuning] GCS upload error:', gcsErr.message);
+      return res.status(503).json({
+        success: false, error: 'GCS_UPLOAD_FAILED',
+        message: 'Không thể upload dataset lên GCS: ' + gcsErr.message,
+        jobId, gcsUri,
+      });
+    }
+
+    // Step 2: Create Vertex AI tuning job
+    let vertexJob;
+    try {
+      const token = await getVertexToken();
+      vertexJob = await createVertexTuningJob(token, gcsUri, configuredModel, epochs, displayName);
+      console.log(`[Tuning] Vertex AI job created: ${vertexJob.name}`);
+    } catch (vertexErr) {
+      console.error('[Tuning] Vertex AI job creation error:', vertexErr.message);
+      return res.status(503).json({
+        success: false, error: 'VERTEX_TUNING_FAILED',
+        message: 'Không thể tạo Vertex AI tuning job: ' + vertexErr.message,
+        jobId, gcsUri,
+      });
+    }
+
+    // Step 3: Persist job record to MongoDB
+    const jobDoc = {
+      jobId,
+      vertexJobName: vertexJob.name,
+      baseModel: configuredModel,
+      epochs: Number(epochs),
+      sampleCount,
+      gcsUri,
+      displayName,
+      status: vertexJob.state || 'JOB_STATE_PENDING',
+      vertexState: vertexJob.state,
+      tunedModelName: vertexJob.tunedModel?.model || null,
+      tunedModelEndpoint: vertexJob.tunedModel?.endpoint || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await db.collection('ai_tuning_jobs').insertOne(jobDoc);
+
+    return res.status(200).json({
+      success: true,
+      status: 'SUBMITTED',
+      jobId,
+      vertexJobName: vertexJob.name,
+      gcsUri,
+      sampleCount,
       epochs,
-      sampleCount
+      configuredModel,
+      displayName,
+      message: `Đã kích hoạt Vertex AI SFT job ${jobId}: ${sampleCount} mẫu, ${epochs} epochs, model ${configuredModel}. Theo dõi tại https://${VERTEX_TUNING_LOCATION}-aiplatform.googleapis.com/v1/${vertexJob.name}`,
+      timestamp: new Date().toISOString(),
     });
+
   } catch (err) {
     console.error('POST /api/admin/training-datasets/trigger-tuning error:', err);
+    res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// GET /api/admin/training-datasets/tuning-jobs
+app.get('/api/admin/training-datasets/tuning-jobs', async (req, res) => {
+  try {
+    await verifyAdminToken(req);
+    const db = await dbService.getDb();
+    const jobs = await db.collection('ai_tuning_jobs')
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .toArray();
+    res.json({ success: true, jobs });
+  } catch (err) {
+    console.error('GET /api/admin/training-datasets/tuning-jobs error:', err);
+    res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// GET /api/admin/training-datasets/tuning-jobs/:jobId/status  
+app.get('/api/admin/training-datasets/tuning-jobs/:jobId/status', async (req, res) => {
+  try {
+    await verifyAdminToken(req);
+    const { jobId } = req.params;
+    if (!jobId || !/^tune_vbai_\d+$/.test(jobId)) {
+      return res.status(400).json({ error: 'INVALID_JOB_ID', message: 'Job ID không hợp lệ.' });
+    }
+    const db = await dbService.getDb();
+    const jobDoc = await db.collection('ai_tuning_jobs').findOne({ jobId });
+    if (!jobDoc) {
+      return res.status(404).json({ error: 'JOB_NOT_FOUND', message: 'Không tìm thấy tuning job.' });
+    }
+    // Poll Vertex AI for current status
+    let vertexData = null;
+    let pollError = null;
+    if (jobDoc.vertexJobName) {
+      try {
+        const token = await getVertexToken();
+        vertexData = await getVertexTuningJobStatus(token, jobDoc.vertexJobName);
+        // Update status in MongoDB
+        const updatedFields = {
+          status: vertexData.state || jobDoc.status,
+          vertexState: vertexData.state,
+          updatedAt: new Date(),
+        };
+        if (vertexData.tunedModel?.model) updatedFields.tunedModelName = vertexData.tunedModel.model;
+        if (vertexData.tunedModel?.endpoint) updatedFields.tunedModelEndpoint = vertexData.tunedModel.endpoint;
+        if (vertexData.error) updatedFields.vertexError = vertexData.error;
+        await db.collection('ai_tuning_jobs').updateOne({ jobId }, { $set: updatedFields });
+        jobDoc.status = updatedFields.status;
+        jobDoc.tunedModelName = updatedFields.tunedModelName || jobDoc.tunedModelName;
+        jobDoc.tunedModelEndpoint = updatedFields.tunedModelEndpoint || jobDoc.tunedModelEndpoint;
+      } catch (e) {
+        pollError = e.message;
+        console.warn(`[TuningStatus] Poll error for ${jobId}: ${e.message}`);
+      }
+    }
+    res.json({
+      success: true,
+      jobId,
+      status: jobDoc.status,
+      vertexJobName: jobDoc.vertexJobName,
+      baseModel: jobDoc.baseModel,
+      sampleCount: jobDoc.sampleCount,
+      epochs: jobDoc.epochs,
+      gcsUri: jobDoc.gcsUri,
+      displayName: jobDoc.displayName,
+      tunedModelName: jobDoc.tunedModelName,
+      tunedModelEndpoint: jobDoc.tunedModelEndpoint,
+      createdAt: jobDoc.createdAt,
+      updatedAt: jobDoc.updatedAt,
+      vertexData: vertexData,
+      pollError,
+    });
+  } catch (err) {
+    console.error('GET /api/admin/training-datasets/tuning-jobs/:jobId/status error:', err);
+    res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+// POST /api/admin/training-datasets/tuning-jobs/:jobId/cancel
+app.post('/api/admin/training-datasets/tuning-jobs/:jobId/cancel', async (req, res) => {
+  try {
+    await verifyAdminToken(req);
+    const { jobId } = req.params;
+    if (!jobId || !/^tune_vbai_\d+$/.test(jobId)) {
+      return res.status(400).json({ error: 'INVALID_JOB_ID', message: 'Job ID không hợp lệ.' });
+    }
+    const db = await dbService.getDb();
+    const jobDoc = await db.collection('ai_tuning_jobs').findOne({ jobId });
+    if (!jobDoc) return res.status(404).json({ error: 'JOB_NOT_FOUND' });
+    if (!jobDoc.vertexJobName) return res.status(400).json({ error: 'NO_VERTEX_JOB' });
+
+    const token = await getVertexToken();
+    const cancelUrl = `https://${VERTEX_TUNING_LOCATION}-aiplatform.googleapis.com/v1/${jobDoc.vertexJobName}:cancel`;
+    const cancelRes = await fetch(cancelUrl, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (!cancelRes.ok && cancelRes.status !== 200) {
+      const errText = await cancelRes.text();
+      return res.status(cancelRes.status).json({ error: 'CANCEL_FAILED', message: errText.substring(0, 200) });
+    }
+    await db.collection('ai_tuning_jobs').updateOne({ jobId }, {
+      $set: { status: 'JOB_STATE_CANCELLED', updatedAt: new Date() }
+    });
+    res.json({ success: true, message: 'Đã gửi yêu cầu hủy job ' + jobId });
+  } catch (err) {
+    console.error('POST /api/admin/training-datasets/tuning-jobs/:jobId/cancel error:', err);
     res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
   }
 });

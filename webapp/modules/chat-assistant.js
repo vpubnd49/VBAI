@@ -4,6 +4,13 @@ import { parseUniversalFile } from './universal-doc-parser.js';
  */
 import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
+import { checkSpelling, renderSpellCheckResult } from './spell-checker.js';
+import { downloadHighlightedDocx } from './docx-highlighter.js';
+import {
+  listSessions, createSession, getSession, appendMessages,
+  deleteSession, renameSession, clearAllSessions,
+  saveActiveSessionId, getActiveSessionId, formatRelativeTime,
+} from './chat-sessions.js';
 
 import { firebaseConfig } from '../firebase-config.js';
 
@@ -3110,8 +3117,29 @@ export async function renderChatUI(container) {
   const savedModel = normalizeModelName(configSnapshot.gemini_model || '');
 
   container.innerHTML = `
-    <div class="chat-assistant-panel panel-group">
-      <div class="panel-header">
+    <div class="chat-full-layout" style="display:flex;height:100%;min-height:520px;gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--border);">
+
+      <!-- SIDEBAR -->
+      <div id="chat-sidebar" style="width:225px;min-width:0;background:var(--surface-alt,#f1f5f9);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;">
+        <div style="padding:10px 10px 6px;">
+          <button id="new-chat-btn" style="width:100%;padding:9px 14px;background:var(--primary,#0284c7);color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.83rem;font-weight:700;display:flex;align-items:center;gap:8px;justify-content:center;">
+            <span>✏️</span> Hội thoại mới
+          </button>
+        </div>
+        <div id="chat-session-list" style="flex:1;overflow-y:auto;padding:0 6px 6px;">
+          <div style="font-size:0.68rem;font-weight:700;color:var(--text-muted,#94a3b8);text-transform:uppercase;letter-spacing:0.05em;padding:8px 6px 4px;">Lịch sử</div>
+          <div id="session-list-items">
+            <div style="padding:10px 8px;color:var(--text-muted,#94a3b8);font-size:0.78rem;text-align:center;">⏳ Đang tải...</div>
+          </div>
+        </div>
+        <div style="padding:6px 10px 10px;border-top:1px solid var(--border);">
+          <button id="clear-all-sessions-btn" style="width:100%;padding:7px;background:transparent;color:var(--text-muted,#94a3b8);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:0.73rem;">🗑️ Xóa tất cả</button>
+        </div>
+      </div>
+
+      <!-- MAIN CHAT -->
+      <div class="chat-assistant-panel panel-group" style="flex:1;min-width:0;border:none;border-radius:0;">
+        <div class="panel-header">
         <div class="panel-header-icon">&#9878;</div>
         Tr\u1ee3 l\u00fd tra c\u1ee9u h\u00e0nh ch\u00ednh v\u00e0 ph\u00e1p lu\u1eadt
         <div style="flex:1"></div>
@@ -3129,13 +3157,16 @@ export async function renderChatUI(container) {
         <div id="chat-attachment-preview" class="chat-attachment-preview-area" style="display:none;"></div>
 
         <div class="chat-input-wrapper" style="display:flex; gap:8px; align-items:center;">
-          <input type="file" id="chat-file-input" accept=".pdf,.docx,.xlsx" style="display:none">
-          <button id="chat-attach-btn" class="btn btn-secondary" style="padding: 12px 14px; display:flex; align-items:center; justify-content:center; border-radius: 8px;" title="Đính kèm file (PDF, Word, Excel)">
+          <input type="file" id="chat-file-input" accept=".pdf,.docx,.xlsx,.xls,.csv,.txt,.doc" style="display:none">
+          <button id="chat-attach-btn" class="btn btn-secondary" style="padding: 12px 14px; display:flex; align-items:center; justify-content:center; border-radius: 8px;" title="Đính kèm file (PDF, Word, Excel, CSV)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
             </svg>
           </button>
-          <input type="text" id="chat-input" placeholder="Nh\u1eadp n\u1ed9i dung c\u1ea7n tra c\u1ee9u..." class="form-input chat-input-field">
+          <input type="text" id="chat-input" placeholder="Nhập nội dung cần tra cứu, hoặc dán văn bản để kiểm tra chính tả..." class="form-input chat-input-field">
+          <button id="chat-spell-btn" class="btn btn-secondary" style="padding:12px 14px;display:none;align-items:center;justify-content:center;border-radius:8px;border-color:#fca5a5;color:#dc2626;white-space:nowrap;font-size:0.82rem;" title="Kiểm tra chính tả văn bản đang nhập">
+            ✏️ Chính tả
+          </button>
           <button id="chat-send-btn" class="btn btn-primary chat-send-btn">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10l15-7.5L10 10l7.5 7.5L2.5 10z" fill="currentColor"/></svg>
           </button>
@@ -3146,6 +3177,8 @@ export async function renderChatUI(container) {
         <div class="chat-disclaimer" style="margin-top: 12px; padding: 10px; background: linear-gradient(135deg, rgba(37, 99, 235, 0.10), rgba(30, 64, 175, 0.08)); border-left: 3px solid #60a5fa; border-radius: 4px; font-size: 0.75rem; color: var(--text-secondary);">
           <strong>&#9888; C\u1ea2NH B\u00c1O R\u1ee6I RO:</strong> Tr\u1ee3 l\u00fd h\u00e0nh ch\u00ednh l\u00e0 c\u00f4ng c\u1ee5 h\u1ed7 tr\u1ee3 d\u1ef1a tr\u00ean AI, kh\u00f4ng thay th\u1ebf tr\u00e1ch nhi\u1ec7m c\u1ee7a c\u00e1n b\u1ed9, c\u00f4ng ch\u1ee9c trong vi\u1ec7c ki\u1ec3m tra, \u0111\u1ed1i chi\u1ebfu v\u1edbi v\u0103n b\u1ea3n ph\u00e1p lu\u1eadt ch\u00ednh th\u1ee9c. K\u1ebft qu\u1ea3 do AI cung c\u1ea5p ch\u1ec9 mang t\u00ednh ch\u1ea5t g\u1ee3i \u00fd, ng\u01b0\u1eddi d\u00f9ng c\u1ea7n ki\u1ec3m tra hi\u1ec7u l\u1ef1c v\u0103n b\u1ea3n tr\u01b0\u1edbc khi \u0111\u01b0a v\u00e0o d\u1ef1 th\u1ea3o.
         </div>
+      </div>
+    </div>
       </div>
     </div>
 
@@ -3237,6 +3270,96 @@ export async function renderChatUI(container) {
     </div>
   `;
 
+
+  // ── CHAT SESSIONS SIDEBAR LOGIC ────────────────────────────────────────
+  let currentSessionId = null;
+  const sessionListEl = container.querySelector('#session-list-items');
+  const activeTitleEl = container.querySelector('#chat-active-title');
+  const newChatBtn = container.querySelector('#new-chat-btn');
+  const clearAllBtn = container.querySelector('#clear-all-sessions-btn');
+
+  function renderSessionItem(session, isActive) {
+    const item = document.createElement('div');
+    item.dataset.sid = session._id;
+    item.style.cssText = `padding:8px 10px;border-radius:6px;cursor:pointer;font-size:0.8rem;background:${isActive ? 'var(--primary-light,rgba(2,132,199,0.12))' : 'transparent'};border-left:${isActive ? '3px solid var(--primary,#0284c7)' : '3px solid transparent'};color:var(--text-primary);display:flex;align-items:center;justify-content:space-between;gap:4px;transition:background 0.15s;`;
+    const textWrap = document.createElement('div');
+    textWrap.style.cssText = 'flex:1;min-width:0;';
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    titleEl.textContent = session.title || 'Hội thoại';
+    const timeEl = document.createElement('div');
+    timeEl.style.cssText = 'font-size:0.7rem;color:var(--text-muted,#94a3b8);margin-top:2px;';
+    timeEl.textContent = formatRelativeTime(session.updatedAt);
+    textWrap.appendChild(titleEl);
+    textWrap.appendChild(timeEl);
+    const delBtn = document.createElement('button');
+    delBtn.innerHTML = '✕';
+    delBtn.style.cssText = 'border:none;background:transparent;color:var(--text-muted,#94a3b8);cursor:pointer;font-size:0.75rem;padding:2px 4px;border-radius:4px;opacity:0;transition:opacity 0.15s;flex-shrink:0;';
+    item.appendChild(textWrap);
+    item.appendChild(delBtn);
+    item.addEventListener('mouseenter', () => { item.style.background = 'var(--primary-light,rgba(2,132,199,0.1))'; delBtn.style.opacity = '1'; });
+    item.addEventListener('mouseleave', () => { item.style.background = isActive ? 'var(--primary-light,rgba(2,132,199,0.12))' : 'transparent'; delBtn.style.opacity = '0'; });
+    item.addEventListener('click', (e) => { if (e.target === delBtn || delBtn.contains(e.target)) return; loadSession(session._id, session.title); });
+    delBtn.addEventListener('click', async (e) => { e.stopPropagation(); await deleteSession(session._id); if (currentSessionId === session._id) startNewChat(); else refreshSessionList(); });
+    return item;
+  }
+
+  async function refreshSessionList() {
+    if (!sessionListEl) return;
+    try {
+      const sessions = await listSessions();
+      sessionListEl.innerHTML = '';
+      if (!sessions.length) {
+        sessionListEl.innerHTML = '<div style="padding:12px 8px;color:var(--text-muted,#94a3b8);font-size:0.78rem;text-align:center;">Chưa có hội thoại nào</div>';
+        return;
+      }
+      sessions.forEach(s => sessionListEl.appendChild(renderSessionItem(s, s._id === currentSessionId)));
+    } catch(e) { console.warn('[Sessions]', e.message); }
+  }
+
+  async function loadSession(sessionId, title) {
+    try {
+      const session = await getSession(sessionId);
+      currentSessionId = sessionId;
+      saveActiveSessionId(sessionId);
+      if (activeTitleEl) activeTitleEl.textContent = title || session.title || 'Hội thoại';
+      // Re-render messages
+      if (msgsArea) {
+        msgsArea.innerHTML = '';
+        (session.messages || []).forEach(m => {
+          const div = document.createElement('div');
+          div.className = `chat-msg ${m.role === 'assistant' ? 'ai chat-msg-rich' : 'user'}`;
+          if (m.role === 'assistant') div.innerHTML = renderAssistantRichText(m.content);
+          else { div.style.whiteSpace = 'pre-wrap'; div.innerText = m.content; }
+          msgsArea.appendChild(div);
+        });
+        msgsArea.scrollTop = msgsArea.scrollHeight;
+      }
+      refreshSessionList();
+    } catch(e) { console.error('[LoadSession]', e); }
+  }
+
+  function startNewChat() {
+    currentSessionId = null;
+    saveActiveSessionId(null);
+    if (msgsArea) {
+      msgsArea.innerHTML = '<div class="chat-msg ai"><strong>Xin chào! Tôi là Trợ lý hành chính.</strong><br>Tôi hỗ trợ tra cứu các quy định pháp luật, xử lý nghiệp vụ hành chính và tổng hợp thông tin phục vụ công việc hằng ngày.</div>';
+    }
+    if (activeTitleEl) activeTitleEl.textContent = 'Hội thoại mới';
+    refreshSessionList();
+  }
+
+  if (newChatBtn) newChatBtn.addEventListener('click', startNewChat);
+  if (clearAllBtn) clearAllBtn.addEventListener('click', async () => {
+    if (!confirm('Xóa toàn bộ lịch sử hội thoại?')) return;
+    await clearAllSessions();
+    startNewChat();
+  });
+
+  // Khởi tạo: tải danh sách sessions
+  refreshSessionList();
+  // ── END SESSIONS SIDEBAR ──────────────────────────────────────────────────
+
   const msgsArea = container.querySelector('#chat-messages');
   const input = container.querySelector('#chat-input');
   const sendBtn = container.querySelector('#chat-send-btn');
@@ -3244,6 +3367,58 @@ export async function renderChatUI(container) {
   const fileInput = container.querySelector('#chat-file-input');
   const attachBtn = container.querySelector('#chat-attach-btn');
   const previewArea = container.querySelector('#chat-attachment-preview');
+  const spellBtn = container.querySelector('#chat-spell-btn');
+
+  // Show/hide spell button based on input length
+  if (spellBtn && input) {
+    input.addEventListener('input', () => {
+      const len = input.value.length;
+      if (len >= 200) {
+        spellBtn.style.display = 'flex';
+      } else {
+        spellBtn.style.display = 'none';
+      }
+    });
+
+    spellBtn.addEventListener('click', async () => {
+      const textToCheck = input.value.trim();
+      if (!textToCheck || textToCheck.length < 10) return;
+      spellBtn.disabled = true;
+      const origLabel = spellBtn.innerHTML;
+      spellBtn.textContent = '⏳...';
+      try {
+        const spellResult = await checkSpelling(textToCheck, {
+          onProgress: (msg) => { spellBtn.textContent = msg.slice(0, 20); }
+        });
+        const spellHtml = renderSpellCheckResult(spellResult);
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'chat-msg ai chat-msg-rich';
+        msgDiv.innerHTML = spellHtml;
+        msgsArea.appendChild(msgDiv);
+        msgsArea.scrollTop = msgsArea.scrollHeight;
+
+        if (spellResult.errorCount > 0) {
+          const exportBtn = document.createElement('button');
+          exportBtn.style.cssText = 'margin-top:10px;padding:8px 18px;background:#059669;color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:6px;';
+          exportBtn.innerHTML = '📥 Xuất DOCX đánh dấu đỏ';
+          exportBtn.onclick = async () => {
+            exportBtn.disabled = true; exportBtn.textContent = '⏳ Đang tạo file...';
+            try {
+              await downloadHighlightedDocx(textToCheck, spellResult, 'van-ban-nhap.docx');
+              exportBtn.textContent = '✅ Đã tải xuống!';
+            } catch(e) { exportBtn.textContent = '❌ ' + e.message; exportBtn.disabled = false; }
+          };
+          msgDiv.appendChild(exportBtn);
+        }
+      } catch(e) {
+        // eslint-disable-next-line no-console
+        console.error('[SpellBtn]', e);
+      } finally {
+        spellBtn.disabled = false;
+        spellBtn.innerHTML = origLabel;
+      }
+    });
+  }
 
   attachedFile = null; // Clear previous attachment when rendering new Chat UI
   
@@ -3328,7 +3503,103 @@ export async function renderChatUI(container) {
         };
         
         showToast('Đã đính kèm file thành công!');
-        
+
+        // === QUICK ACTIONS theo loại file ===
+        const isDoc = extLower.endsWith('.docx') || extLower.endsWith('.doc') || extLower.endsWith('.pdf') || extLower.endsWith('.txt');
+        const isSheet = extLower.endsWith('.xlsx') || extLower.endsWith('.xls') || extLower.endsWith('.csv');
+
+        let quickActionsHtml = '';
+        if (isDoc) {
+          quickActionsHtml = `
+            <div id="quick-actions-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;padding:8px 12px;background:rgba(2,132,199,0.06);border-radius:8px;border:1px dashed #bae6fd;">
+              <span style="font-size:0.78rem;color:#64748b;font-weight:600;align-self:center;">Thực hiện:</span>
+              <button class="qa-btn" data-action="spell" style="padding:5px 12px;font-size:0.8rem;background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;border-radius:20px;cursor:pointer;font-weight:600;">✏️ Kiểm tra chính tả</button>
+              <button class="qa-btn" data-action="summary" style="padding:5px 12px;font-size:0.8rem;background:#f0fdf4;color:#059669;border:1px solid #86efac;border-radius:20px;cursor:pointer;font-weight:600;">📝 Tóm tắt nội dung</button>
+              <button class="qa-btn" data-action="legal" style="padding:5px 12px;font-size:0.8rem;background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:20px;cursor:pointer;font-weight:600;">🏛️ Tra cứu pháp luật liên quan</button>
+              <button class="qa-btn" data-action="nd30" style="padding:5px 12px;font-size:0.8rem;background:#fdf4ff;color:#7c3aed;border:1px solid #d8b4fe;border-radius:20px;cursor:pointer;font-weight:600;">📊 Kiểm tra thể thức NĐ30</button>
+            </div>`;
+        } else if (isSheet) {
+          quickActionsHtml = `
+            <div id="quick-actions-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;padding:8px 12px;background:rgba(5,150,105,0.06);border-radius:8px;border:1px dashed #6ee7b7;">
+              <span style="font-size:0.78rem;color:#64748b;font-weight:600;align-self:center;">Thực hiện:</span>
+              <button class="qa-btn" data-action="stats" style="padding:5px 12px;font-size:0.8rem;background:#f0fdf4;color:#059669;border:1px solid #86efac;border-radius:20px;cursor:pointer;font-weight:600;">📊 Thống kê</button>
+              <button class="qa-btn" data-action="chart" style="padding:5px 12px;font-size:0.8rem;background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;border-radius:20px;cursor:pointer;font-weight:600;">📈 Vẽ biểu đồ</button>
+              <button class="qa-btn" data-action="report" style="padding:5px 12px;font-size:0.8rem;background:#fdf4ff;color:#7c3aed;border:1px solid #d8b4fe;border-radius:20px;cursor:pointer;font-weight:600;">📄 Xuất báo cáo</button>
+              <button class="qa-btn" data-action="anomaly" style="padding:5px 12px;font-size:0.8rem;background:#fffbeb;color:#d97706;border:1px solid #fcd34d;border-radius:20px;cursor:pointer;font-weight:600;">🔍 Tìm bất thường</button>
+            </div>`;
+        }
+
+        if (quickActionsHtml) {
+          const existingBar = previewArea.querySelector('#quick-actions-bar');
+          if (existingBar) existingBar.remove();
+          previewArea.insertAdjacentHTML('beforeend', quickActionsHtml);
+
+          // Handler cho Quick Action buttons
+          previewArea.querySelectorAll('.qa-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const action = btn.dataset.action;
+              const fileText = attachedFile?.text || '';
+              const fname = attachedFile?.name || 'van-ban';
+
+              if (action === 'spell') {
+                // Spell check trực tiếp
+                btn.disabled = true; btn.textContent = '⏳ Đang kiểm tra...';
+                try {
+                  let spellResult = null;
+                  spellResult = await checkSpelling(fileText, {
+                    onProgress: (msg) => { btn.textContent = msg.slice(0, 35); }
+                  });
+                  const spellHtml = renderSpellCheckResult(spellResult);
+
+                  // Thêm kết quả vào chat dưới dạng ai message
+                  const msgDiv = document.createElement('div');
+                  msgDiv.className = 'chat-msg ai chat-msg-rich';
+                  msgDiv.innerHTML = spellHtml;
+                  msgsArea.appendChild(msgDiv);
+                  msgsArea.scrollTop = msgsArea.scrollHeight;
+
+                  // Nút xuất DOCX nếu có lỗi
+                  if (spellResult && spellResult.errorCount > 0) {
+                    const exportBtn = document.createElement('button');
+                    exportBtn.style.cssText = 'margin-top:10px;padding:8px 18px;background:#059669;color:white;border:none;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:6px;';
+                    exportBtn.innerHTML = '📥 Xuất DOCX đánh dấu đỏ';
+                    exportBtn.onclick = async () => {
+                      exportBtn.disabled = true; exportBtn.textContent = '⏳ Đang tạo file...';
+                      try {
+                        await downloadHighlightedDocx(fileText, spellResult, fname);
+                        exportBtn.textContent = '✅ Đã tải xuống!';
+                      } catch(e) { exportBtn.textContent = '❌ Lỗi: ' + e.message; exportBtn.disabled = false; }
+                    };
+                    msgDiv.appendChild(exportBtn);
+                  }
+                } catch(e) {
+                  showToast('❌ Kiểm tra thất bại: ' + e.message, 'error');
+                } finally {
+                  btn.disabled = false; btn.innerHTML = '✏️ Kiểm tra chính tả';
+                }
+              } else {
+                // Các action khác: gửi lên chat
+                const prompts = {
+                  summary: `Hãy tóm tắt nội dung chính của file đính kèm.`,
+                  legal: `Hãy tra cứu các văn bản pháp luật liên quan đến nội dung trong file.`,
+                  nd30: `Hãy kiểm tra thể thức văn bản theo Nghị định 30/2020/NĐ-CP và chỉ ra những lỗi thể thức nếu có.`,
+                  stats: `Hãy thống kê tổng quan dữ liệu trong bảng tính: tổng số dòng, cột, giá trị trung bình, min, max của các cột số.`,
+                  chart: `Dựa vào dữ liệu, hãy đề xuất loại biểu đồ phù hợp nhất và mô tả xu hướng chính.`,
+                  report: `Hãy viết báo cáo tóm tắt dữ liệu theo định dạng báo cáo hành chính.`,
+                  anomaly: `Hãy tìm các bất thường trong dữ liệu: giá trị ngoại lệ, tự mâu thuẫn, truyền trống, truyền lạ.`,
+                };
+                const inputEl = container.querySelector('#chat-input, textarea[data-chat-input], .chat-input-textarea');
+                if (inputEl) {
+                  inputEl.value = prompts[action] || '';
+                  inputEl.dispatchEvent(new Event('input'));
+                  inputEl.focus();
+                }
+              }
+            });
+          });
+        }
+        // === END QUICK ACTIONS ===
+
       } catch (err) {
         console.error(err);
         attachedFile = null;
@@ -3590,10 +3861,13 @@ export async function renderChatUI(container) {
   const setAiMessageText = (targetDiv, text, isStreaming = false) => {
     if (!targetDiv) return;
     if (isStreaming) {
-      targetDiv.style.whiteSpace = 'pre-wrap';
-      targetDiv.textContent = text;
+      targetDiv.style.whiteSpace = 'normal';
+      targetDiv.innerHTML = renderAssistantRichText(text) + '<span class="stream-cursor">\u25ae</span>';
+      targetDiv.classList.add('chat-msg-streaming');
       return;
     }
+    // Streaming xong: bỏ cursor, render final markdown
+    targetDiv.classList.remove('chat-msg-streaming');
     targetDiv.style.whiteSpace = 'normal';
     targetDiv.innerHTML = renderAssistantRichText(text);
   };
@@ -3666,11 +3940,36 @@ export async function renderChatUI(container) {
     const aiMsgDiv = addMsg(loaderMsg, 'ai');
 
     try {
-      const finalAnswer = await sendMessage(queryText, (full) => {
+      // Auto-create session on first message
+    if (!currentSessionId) {
+      try {
+        const sess = await createSession(queryText);
+        currentSessionId = sess.sessionId;
+        saveActiveSessionId(sess.sessionId);
+        if (activeTitleEl) activeTitleEl.textContent = sess.title || queryText.slice(0, 40);
+      } catch(e) { console.warn('[AutoSession]', e); }
+    }
+
+    const finalAnswer = await sendMessage(queryText, (full) => {
         setAiMessageText(aiMsgDiv, full, true);
         msgsArea.scrollTop = msgsArea.scrollHeight;
       }, activeFileAttachment);
       setAiMessageText(aiMsgDiv, finalAnswer, false);
+      // Save to MongoDB session
+      if (currentSessionId && finalAnswer) {
+        appendMessages(currentSessionId, [
+          { role: 'user', content: queryText },
+          { role: 'assistant', content: finalAnswer },
+        ]).then(() => refreshSessionList()).catch(() => {});
+      }
+      // Save conversation to MongoDB
+      if (currentSessionId && finalAnswer) {
+        appendMessages(currentSessionId, [
+          { role: 'user', content: queryText },
+          { role: 'assistant', content: finalAnswer },
+        ]).then(() => refreshSessionList()).catch(console.warn);
+      }
+
       // Request identifiers and memory metadata stay in the internal response event/meta;
       // never append audit or runtime diagnostics to the assistant message shown to users.
       if (shouldAutoExportDocx(queryText)) {
