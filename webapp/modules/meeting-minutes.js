@@ -309,8 +309,11 @@ function renderStep1(sc, c) {
         const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
         mediaRecorder.stream.getTracks().forEach(t => t.stop());
         const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `VBAI_GhiAm_${timestampStr}.webm`;
-        const file = new File([audioBlob], filename, { type: mediaRecorder.mimeType });
+        const recordedMime = String(mediaRecorder.mimeType || audioBlob.type || '').toLowerCase();
+        // Prefer WebM/Opus; when a browser only exposes OGG, keep the extension aligned with MIME.
+        const recordedExtension = recordedMime.includes('ogg') ? 'ogg' : 'webm';
+        const filename = `VBAI_GhiAm_${timestampStr}.${recordedExtension}`;
+        const file = new File([audioBlob], filename, { type: mediaRecorder.mimeType || audioBlob.type });
         file.isRecorded = true;
         formState.audioFile = file;
 

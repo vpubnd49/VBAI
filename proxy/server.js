@@ -103,6 +103,9 @@ const os = require('os');
 const { safeFetch, validateUrlForSSRF } = require('./security/ssrf-guard');
 const { assertSafePathInside, hasTraversalMarkers, isSymbolicLink } = require('./security/path-guard');
 const fs = require('fs');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
 
 const UPLOAD_TEMP_DIR = path.join(os.tmpdir(), 'vbai-transcribe-uploads');
 if (!fs.existsSync(UPLOAD_TEMP_DIR)) {
@@ -1834,100 +1837,66 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
     throw Object.assign(new Error('Gemini configuration is incomplete.'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
 
-  let targetFilePath = filePath;
-  let targetMime = getCompatibleAudioMimeType(mimeType, filename);
-  let targetFilename = filename;
-  let tempCompressedFile = null;
-
+  let tempNormalizedFile = null;
   try {
-    const fileStat = await fs.promises.stat(filePath).catch(() => ({ size: 0 }));
-    if (fileStat.size > 15 * 1024 * 1024) {
-      const ext = path.extname(filename || filePath).toLowerCase();
-      if (ext === '.wav' || ext === '.pcm' || ext === '.aiff' || ext === '.flac' || fileStat.size > 25 * 1024 * 1024) {
-        const compressedPath = path.join(os.tmpdir(), `vbai_compressed_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.mp3`);
-        try {
-          const { execFile } = require('child_process');
-          await new Promise((resolve, reject) => {
-            execFile('ffmpeg', ['-y', '-i', filePath, '-vn', '-ac', '1', '-ar', '16000', '-b:a', '32k', compressedPath], { timeout: 45000 }, (err) => {
-              if (err) reject(err);
-              else resolve();
-            });
-          });
-          if (fs.existsSync(compressedPath)) {
-            const compStat = await fs.promises.stat(compressedPath);
-            console.log(`[FFmpeg Server] Auto-compressed ${(fileStat.size/1024/1024).toFixed(1)}MB -> ${(compStat.size/1024/1024).toFixed(1)}MB in seconds`);
-            targetFilePath = compressedPath;
-            targetMime = 'audio/mp3';
-            targetFilename = 'audio.mp3';
-            tempCompressedFile = compressedPath;
-          }
-        } catch (ffErr) {
-          console.warn('[FFmpeg Server] Fallback to original audio:', ffErr.message);
-        }
+    await fs.promises.stat(filePath);
+    const probeArgs = ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_type', '-of', 'default=nw=1:nk=1', filePath];
+    try {
+      const probe = await execFileAsync('ffprobe', probeArgs, { timeout: 10000, maxBuffer: 4096 });
+      if (!String(probe.stdout || '').trim()) {
+        throw Object.assign(new Error('Input contains no audio track.'), { code: 'AUDIO_TRACK_NOT_FOUND' });
       }
+    } catch (err) {
+      if (err.code === 'AUDIO_TRACK_NOT_FOUND') {
+        throw Object.assign(new Error(err.message), { status: 422, code: 'AUDIO_NORMALIZATION_FAILED' });
+      }
+      // ffprobe is optional; ffmpeg remains the authoritative decode/track check.
     }
 
+    const normalizedPath = path.join(os.tmpdir(), `vbai-audio-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp3`);
+    try {
+      await execFileAsync('ffmpeg', [
+        '-hide_banner', '-loglevel', 'error', '-y', '-i', filePath, '-vn',
+        '-map', '0:a:0', '-ac', '1', '-ar', '16000', '-b:a', '32k', '-f', 'mp3', normalizedPath,
+      ], { timeout: 45000, maxBuffer: 16 * 1024 });
+      const normalizedStat = await fs.promises.stat(normalizedPath);
+      if (!normalizedStat.size) throw new Error('ffmpeg produced an empty MP3.');
+      tempNormalizedFile = normalizedPath;
+    } catch (err) {
+      await fs.promises.unlink(normalizedPath).catch(() => {});
+      throw Object.assign(new Error(`Audio normalization with ffmpeg failed: ${err.message}`), {
+        status: 422, code: 'AUDIO_NORMALIZATION_FAILED',
+      });
+    }
+
+    const audioBuffer = await fs.promises.readFile(tempNormalizedFile);
+    const targetMime = 'audio/mpeg';
+    const targetFilename = 'audio.mp3';
     const isNativeGeminiEndpoint = resolved.endpoint.includes('generativelanguage.googleapis.com')
       || resolved.endpoint.includes('aiplatform.googleapis.com');
 
     if (isNativeGeminiEndpoint) {
-      const audioBuffer = await fs.promises.readFile(targetFilePath);
-      const result = await executeGeminiNativeAudioTranscription({
-        apiKey: resolved.apiKey,
-        modelName: resolved.model,
-        mimeType: targetMime,
-        filename: targetFilename,
-        prompt,
-        audioBuffer,
-      });
+      const result = await executeGeminiNativeAudioTranscription({ apiKey: resolved.apiKey, modelName: resolved.model, mimeType: targetMime, filename: targetFilename, prompt, audioBuffer });
       if (!result?.ok || !result.text) throw Object.assign(new Error('Gemini transcription failed.'), { status: result?.status || 502, code: 'GEMINI_TRANSCRIPTION_FAILED' });
       return { text: result.text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'gemini_generate_content' } };
     }
 
-    // OpenAI-compatible endpoint: send audio as base64 in chat/completions format
-    const audioBuffer = await fs.promises.readFile(targetFilePath);
-    const audioBase64 = audioBuffer.toString('base64');
     const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
-
     const fileSizeMb = Math.ceil(audioBuffer.length / (1024 * 1024));
-    const audioTimeoutMs = Math.min(Math.max(120000, 120000 + fileSizeMb * 1000), 600000);
-
-
-  const result = await executeGeminiCompatChatRequest({
-    apiKey: resolved.apiKey,
-    endpoint: resolved.endpoint,
-    modelName: resolved.model,
-    messages: [{
-      role: 'user',
-      content: [
+    const audioTimeoutMs = Math.min(600000, Math.max(120000, 120000 + fileSizeMb * 1000));
+    const result = await executeGeminiCompatChatRequest({
+      apiKey: resolved.apiKey, endpoint: resolved.endpoint, modelName: resolved.model,
+      messages: [{ role: 'user', content: [
         { type: 'text', text: customPrompt },
-        { type: 'input_audio', input_audio: { data: audioBase64, format: targetMime.split('/').pop() || 'mp3' } },
-      ],
-    }],
-    temperature: 0,
-    maxTokens: 16384,
-    requestTimeoutMs: audioTimeoutMs,
-  });
-
-
-  if (!result.ok) {
-    throw Object.assign(new Error(`Audio transcription via OpenAI-compatible endpoint failed: ${result.message}`), {
-      status: result.status || 502,
-      code: 'OPENAI_COMPAT_TRANSCRIPTION_FAILED',
+        { type: 'input_audio', input_audio: { data: audioBuffer.toString('base64'), format: 'mp3' } },
+      ] }], temperature: 0, maxTokens: 16384, requestTimeoutMs: audioTimeoutMs,
     });
-  }
-
-  const text = typeof result === 'string' ? result
-    : (result?.choices?.[0]?.message?.content || result?.text || '');
-  if (!text) {
-    throw Object.assign(new Error('Transcription returned empty text.'), { status: 502, code: 'EMPTY_TRANSCRIPTION' });
-  }
-
-  return { text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'openai_compat_chat' } };
+    if (!result.ok) throw Object.assign(new Error(`Audio transcription via OpenAI-compatible endpoint failed: ${result.message}`), { status: result.status || 502, code: 'OPENAI_COMPAT_TRANSCRIPTION_FAILED' });
+    const text = typeof result === 'string' ? result : (result?.choices?.[0]?.message?.content || result?.choices?.[0]?.text || result?.output_text || result?.text || '');
+    if (!text) throw Object.assign(new Error('Transcription returned empty text.'), { status: 502, code: 'EMPTY_TRANSCRIPTION' });
+    return { text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'openai_compat_chat' } };
   } finally {
-    if (tempCompressedFile) {
-      fs.unlink(tempCompressedFile, () => {});
-    }
+    if (tempNormalizedFile) await fs.promises.unlink(tempNormalizedFile).catch(() => {});
   }
 
   /* Legacy audio implementations removed. The native Gemini path above is the
@@ -2355,7 +2324,6 @@ async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, mes
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify(payload),
     }, effectiveTimeout);
@@ -2378,7 +2346,6 @@ async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, mes
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
-          'x-goog-api-key': apiKey,
         },
         body: JSON.stringify(payload),
       }, effectiveTimeout);
