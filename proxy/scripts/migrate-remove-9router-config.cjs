@@ -1,127 +1,108 @@
 /**
- * One-time Firestore Migration Script: Remove 9Router Legacy Configuration Fields.
+ * Legacy AI configuration migration from an exported JSON snapshot to MongoDB.
  *
  * Usage:
- *   Dry-run mode (default, no changes written):
- *     node proxy/scripts/migrate-remove-9router-config.cjs --dry-run
+ *   node proxy/scripts/migrate-remove-9router-config.cjs --input path/to/export.json
+ *   node proxy/scripts/migrate-remove-9router-config.cjs --input path/to/export.json --apply
  *
- *   Apply changes to Firestore:
- *     node proxy/scripts/migrate-remove-9router-config.cjs --apply
+ * Dry-run is the default. The source export is never modified or deleted.
  */
-const {
-  FieldValue,
-  getFirebaseFirestore,
-  initializeFirebaseApp,
-} = require('../services/firebase-admin.service');
+'use strict';
 
-async function runMigration() {
-  const args = process.argv.slice(2);
-  const isApply = args.includes('--apply');
-  const isDryRun = !isApply || args.includes('--dry-run');
+const fs = require('node:fs');
+const path = require('node:path');
+const dbService = require('../services/db.service');
 
-  console.log(`[Firestore Migration] Starting 9Router Removal Cleanup`);
-  console.log(`[Mode]: ${isDryRun ? 'DRY-RUN (Safe mode, no changes will be written)' : 'APPLY (Writing changes to Firestore)'}\n`);
+const args = process.argv.slice(2);
+const isApply = args.includes('--apply');
+const inputIndex = args.indexOf('--input');
+const inputPath = inputIndex >= 0 ? args[inputIndex + 1] : null;
 
-  const projectArg = args.find((a) => a.startsWith('--project='));
-  const projectId = projectArg
-    ? projectArg.split('=')[1].trim()
-    : (process.env.FIREBASE_PROJECT_ID || process.env.GCP_PROJECT || 'gen-lang-client-0462350485');
-
-  console.log(`[Target Project ID]: ${projectId}`);
-
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-    : null;
-  initializeFirebaseApp({ projectId, serviceAccount });
-  const db = getFirebaseFirestore();
-  const configRef = db.collection('config').doc('system');
-
-  const snap = await configRef.get();
-  if (!snap.exists) {
-    console.log('[Firestore Migration] Document config/system does not exist.');
-    process.exit(0);
-  }
-
-  const data = snap.data() || {};
-  console.log('[Current Fields in config/system]:', Object.keys(data));
-
-  const legacyFieldsToRemove = [
-    'nine_router_api_key',
-    'nine_router_endpoint',
-    'nine_router_model',
-    'nine_router_models',
-    'has_nine_router_key',
-  ];
-
-  const PROTECTED_FIELDS = [
-    'gemini_api_key',
-    'gemini_endpoint',
-    'gemini_model',
-    'transcribe_model',
-    'vertex_project_id',
-    'vertex_location',
-    'search_engine_id',
-    'system_prompt',
-  ];
-
-  const beforeSnapshot = {};
-  for (const pf of PROTECTED_FIELDS) {
-    beforeSnapshot[pf] = data[pf];
-  }
-
-  const fieldsToDelete = [];
-  for (const field of legacyFieldsToRemove) {
-    if (data[field] !== undefined) {
-      fieldsToDelete.push(field);
-    }
-  }
-
-  console.log(`\n[Legacy 9Router Fields to be deleted] (${fieldsToDelete.length}):`, fieldsToDelete);
-
-  const updates = {};
-  for (const field of fieldsToDelete) {
-    updates[field] = FieldValue.delete();
-  }
-
-  // Handle provider transition if active provider was 9router
-  if (data.active_provider === '9router') {
-    updates.active_provider = 'gemini';
-    console.log('[Provider Migration] Active provider set from 9router -> gemini');
-  }
-  if (data.active_chat_provider === '9router') {
-    updates.active_chat_provider = 'gemini';
-    console.log('[Provider Migration] Active chat provider set from 9router -> gemini');
-  }
-
-  // Protected fields integrity check
-  for (const pf of PROTECTED_FIELDS) {
-    if (updates[pf] !== undefined) {
-      throw new Error(`[CRITICAL SECURITY FAILURE] Migration attempted to mutate protected field: ${pf}`);
-    }
-    if (beforeSnapshot[pf] !== data[pf]) {
-      throw new Error(`[CRITICAL SECURITY FAILURE] Protected field ${pf} mutated during snapshot inspection`);
-    }
-  }
-
-  if (isDryRun) {
-    console.log('\n[DRY-RUN Complete] Verified 0 writes executed to Firestore.');
-    console.log('To apply these changes, run with: node proxy/scripts/migrate-remove-9router-config.cjs --apply');
-    process.exit(0);
-  }
-
-  if (fieldsToDelete.length === 0 && Object.keys(updates).length === 0) {
-    console.log('\n[APPLY Complete] Document config/system is already clean. No changes needed.');
-    process.exit(0);
-  }
-
-  updates.updated_at = FieldValue.serverTimestamp();
-  updates.updated_by = 'migration_script_gemini_only_v1';
-
-  await configRef.update(updates);
-  console.log('\n[APPLY Complete] Successfully updated config/system in Firestore. Legacy 9Router fields removed.');
+if (!inputPath || inputPath.startsWith('--')) {
+  throw new Error('--input requires an export JSON path');
 }
 
-runMigration().catch((err) => {
-  console.error('[Firestore Migration ERROR]:', err);
-  process.exit(1);
+const LEGACY_FIELDS = [
+  'nine_router_api_key',
+  'nine_router_endpoint',
+  'nine_router_model',
+  'nine_router_models',
+  'has_nine_router_key',
+  'active_provider',
+  'active_chat_provider',
+];
+const PROTECTED_FIELDS = [
+  'gemini_api_key',
+  'gemini_endpoint',
+  'gemini_model',
+  'transcribe_model',
+  'meeting_model',
+  'vertex_project_id',
+  'vertex_location',
+  'search_engine_id',
+  'system_prompt',
+];
+
+function readExport(filePath) {
+  const source = JSON.parse(fs.readFileSync(path.resolve(filePath), 'utf8'));
+  return source.collections && typeof source.collections === 'object'
+    ? source.collections
+    : source;
+}
+
+function getConfigRows(exported) {
+  const rows = Array.isArray(exported.config) ? exported.config : [];
+  return rows.filter((row) => row && (row._id === 'system' || row.id === 'system' || row.documentId === 'system'));
+}
+
+function sanitizeConfig(source) {
+  const document = { ...source };
+  delete document.id;
+  delete document.documentId;
+  if (!document._id) document._id = 'system';
+  for (const field of LEGACY_FIELDS) delete document[field];
+  document.updated_at = new Date();
+  document.updated_by = 'legacy_config_migration_mongo';
+  return document;
+}
+
+async function runMigration() {
+  const exported = readExport(inputPath);
+  const rows = getConfigRows(exported);
+  const summary = { examined: rows.length, changed: 0, skipped: 0 };
+
+  console.log('=== Legacy AI configuration export -> MongoDB ===');
+  console.log(`Mode: ${isApply ? 'APPLY (MongoDB writes enabled)' : 'DRY-RUN (read-only)'}`);
+  console.log(`Input: ${path.resolve(inputPath)}`);
+
+  for (const row of rows) {
+    const changedFields = LEGACY_FIELDS.filter((field) => row[field] !== undefined);
+    if (changedFields.length === 0) {
+      summary.skipped++;
+      continue;
+    }
+    const document = sanitizeConfig(row);
+    for (const field of PROTECTED_FIELDS) {
+      if (document[field] !== row[field]) {
+        throw new Error(`Protected field changed during migration: ${field}`);
+      }
+    }
+    summary.changed++;
+    console.log(`[${isApply ? 'APPLY' : 'DRY-RUN'}] config/system remove: ${changedFields.join(', ')}`);
+    if (isApply) {
+      const db = await dbService.getDb();
+      await db.collection('config').replaceOne({ _id: 'system' }, document, { upsert: true });
+    }
+  }
+
+  if (!rows.length) console.log('No config/system document found in export.');
+  console.log(`Examined: ${summary.examined}`);
+  console.log(`Changed: ${summary.changed}`);
+  console.log(`Skipped: ${summary.skipped}`);
+  console.log(isApply ? 'MongoDB migration complete; source export was not modified.' : 'Dry-run complete; zero MongoDB writes executed.');
+}
+
+runMigration().catch((error) => {
+  console.error(`[Migration ERROR]: ${error.message}`);
+  process.exitCode = 1;
 });

@@ -1,8 +1,8 @@
 /**
  * Pagination Utilities (Corrective V2)
  *
- * Implements versioned cursor-based pagination for Firestore collections.
- * Cursors encode (createdAt, docId) to ensure stable ordering.
+ * Implements versioned cursor-based pagination for MongoDB collections.
+ * Cursors encode (timestamp, document ID) to ensure stable ordering.
  *
  * Sorting: created_at DESC, then document ID DESC.
  */
@@ -12,13 +12,14 @@ const CURSOR_VERSION = 1;
 
 /**
  * Encode a pagination cursor from a document
- * @param {Object} doc - Firestore document data with created_at and id
+ * @param {Object} doc - MongoDB document data with created_at/timestamp and id
  * @returns {string} Base64-encoded versioned cursor
  */
 function encodeCursor(doc) {
-  const createdAt = doc.created_at?.toDate?.()
-    ? doc.created_at.toDate().toISOString()
-    : (doc.created_at || new Date().toISOString());
+  const rawCreatedAt = doc.created_at ?? doc.timestamp;
+  const createdAt = rawCreatedAt?.toDate?.()
+    ? rawCreatedAt.toDate().toISOString()
+    : (rawCreatedAt instanceof Date ? rawCreatedAt.toISOString() : (rawCreatedAt || new Date().toISOString()));
   const payload = JSON.stringify({
     v: CURSOR_VERSION,
     t: new Date(createdAt).toISOString(),
@@ -71,7 +72,7 @@ const SAFE_HISTORY_FIELDS = [
 
 /**
  * Strip unsafe fields from a document for API response
- * @param {Object} doc - Raw Firestore document data
+ * @param {Object} doc - Raw MongoDB document data
  * @returns {Object} Sanitized document
  */
 function sanitizeHistoryDoc(doc, { includeAdminEmail = false } = {}) {

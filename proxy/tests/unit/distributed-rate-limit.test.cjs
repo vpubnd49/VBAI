@@ -4,9 +4,9 @@
  * Verifies:
  * - No in-memory ipLimits/userLimits Maps in server.js
  * - No fallbackStore in rate-limit middleware
- * - 503 when Firestore not initialized (fail-close)
- * - 503 when Firestore transaction throws (fail-close)
- * - 429 when quota exceeded via mock Firestore
+ * - 503 when MongoDB not initialized (fail-close)
+ * - 503 when MongoDB transaction throws (fail-close)
+ * - 429 when quota exceeded via mock MongoDB
  * - Admin user bypasses limits
  * - PII hashing (no raw UID/IP in stored keys)
  * - Mock requests have headers: {} (no crash)
@@ -52,37 +52,36 @@ ok(!rateLimitContent.includes('fallbackStore'), 'rate-limit.middleware has NO fa
 ok(!rateLimitContent.includes('new Map()'), 'rate-limit.middleware has NO in-memory Map');
 ok(!rateLimitContent.includes('_checkFallback'), 'rate-limit.middleware has NO _checkFallback method');
 
-// 2. Fail-close when Firestore not initialized
-console.log('\n--- 2. Fail-Close: Firestore Not Initialized ---');
+// 2. Fail-close when MongoDB not initialized
+console.log('\n--- 2. Fail-Close: MongoDB Not Initialized ---');
 (async () => {
-  const limiter = new DistributedRateLimiter(null); // no Firestore client
+  const limiter = new DistributedRateLimiter(null); // no MongoDB client
   const req = { headers: {}, socket: { remoteAddress: '10.0.0.1' } };
   const decoded = { uid: 'user_test_123', admin: false };
 
   const res1 = await limiter.checkRateLimit(req, decoded, { ipLimit: 20, userLimit: 50 });
-  ok(res1.allowed === false, 'No Firestore: request NOT allowed');
-  ok(res1.status === 503, 'No Firestore: status is 503');
-  ok(res1.error === 'Service Unavailable', 'No Firestore: error is Service Unavailable');
+  ok(res1.allowed === false, 'No MongoDB: request NOT allowed');
+  ok(res1.status === 503, 'No MongoDB: status is 503');
+  ok(res1.error === 'Service Unavailable', 'No MongoDB: error is Service Unavailable');
 
-  // 3. Fail-close when Firestore transaction throws
-  console.log('\n--- 3. Fail-Close: Firestore Transaction Error ---');
-  const brokenFirestore = {
+  // 3. Fail-close when MongoDB transaction throws
+  console.log('\n--- 3. Fail-Close: MongoDB Transaction Error ---');
+  const brokenMongoDB = {
     collection: () => ({ doc: () => ({}) }),
     runTransaction: async () => { throw new Error('SIMULATED_FAILURE'); },
   };
-  const mockFieldValue = { increment: () => ({}) };
-
-  const limiter2 = new DistributedRateLimiter(brokenFirestore, mockFieldValue);
+  const brokenMongo = { checkAndIncrementRateLimit: async () => { throw new Error('SIMULATED_FAILURE'); } };
+  const limiter2 = new DistributedRateLimiter(brokenMongo);
   const res2 = await limiter2.checkRateLimit(req, decoded, { ipLimit: 20, userLimit: 50 });
-  ok(res2.allowed === false, 'Firestore error: request NOT allowed');
-  ok(res2.status === 503, 'Firestore error: status is 503');
-  ok(res2.error === 'Service Unavailable', 'Firestore error: error is Service Unavailable');
-  ok(typeof res2.retryAfterSeconds === 'number', 'Firestore error: retryAfterSeconds present');
+  ok(res2.allowed === false, 'MongoDB error: request NOT allowed');
+  ok(res2.status === 503, 'MongoDB error: status is 503');
+  ok(res2.error === 'Service Unavailable', 'MongoDB error: error is Service Unavailable');
+  ok(typeof res2.retryAfterSeconds === 'number', 'MongoDB error: retryAfterSeconds present');
 
-  // 4. 429 when quota exceeded via mock Firestore
-  console.log('\n--- 4. 429: Quota Exceeded via Mock Firestore ---');
+  // 4. 429 when quota exceeded via mock MongoDB
+  console.log('\n--- 4. 429: Quota Exceeded via Mock MongoDB ---');
   let callCount = 0;
-  const mockFirestore = {
+  const mockMongoDB = {
     collection: () => ({
       doc: () => ({}),
     }),
@@ -102,7 +101,10 @@ console.log('\n--- 2. Fail-Close: Firestore Not Initialized ---');
     },
   };
 
-  const limiter3 = new DistributedRateLimiter(mockFirestore, mockFieldValue);
+  const mockMongo = {
+    checkAndIncrementRateLimit: async ({ type }) => ({ allowed: type !== 'user', count: 100 }),
+  };
+  const limiter3 = new DistributedRateLimiter(mockMongo);
   const res3 = await limiter3.checkRateLimit(req, decoded, { ipLimit: 20, userLimit: 5 });
   ok(res3.allowed === false, '429: request NOT allowed when count >= limit');
   ok(res3.status === 429, '429: status is 429');
@@ -112,11 +114,11 @@ console.log('\n--- 2. Fail-Close: Firestore Not Initialized ---');
   console.log('\n--- 5. Admin & Canary Bypass ---');
   const adminDecoded = { uid: 'admin_123', admin: true };
   const resAdmin = await limiter.checkRateLimit(req, adminDecoded, { ipLimit: 1, userLimit: 1 });
-  ok(resAdmin.allowed === true, 'Admin user bypasses rate limits even with no Firestore');
+  ok(resAdmin.allowed === true, 'Admin user bypasses rate limits even with no MongoDB');
 
   const canaryDecoded = { uid: 'canary-bot', canary: true };
   const resCanary = await limiter.checkRateLimit(req, canaryDecoded, { ipLimit: 1, userLimit: 1 });
-  ok(resCanary.allowed === true, 'Canary token bypasses rate limits even with no Firestore');
+  ok(resCanary.allowed === true, 'Canary token bypasses rate limits even with no MongoDB');
 
   // 6. PII hashing verification
   console.log('\n--- 6. PII Hashing ---');

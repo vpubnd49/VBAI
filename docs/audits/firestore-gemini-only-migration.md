@@ -1,8 +1,8 @@
-# Audit: Firestore Gemini-Only Migration Dry-Run Record
+# Audit: Gemini-Only Configuration Cleanup
 
 - **Script Path**: `proxy/scripts/migrate-remove-9router-config.cjs`
-- **Execution Mode**: `DRY-RUN (Safe mode, 0 changes written to Firestore)`
-- **Target Project ID**: `gen-lang-client-0462350485`
+- **Execution Mode**: `DRY-RUN (safe mode, 0 changes written to MongoDB)`
+- **Input**: exported JSON snapshot
 - **Date**: 2026-08-06
 
 ---
@@ -10,11 +10,11 @@
 ## 1. Migration Dry-Run Output Log
 
 ```text
-[Firestore Migration] Starting 9Router Removal Cleanup
-[Mode]: DRY-RUN (Safe mode, no changes will be written)
-[Target Project ID]: gen-lang-client-0462350485
+[Configuration migration] Starting legacy 9Router cleanup
+[Mode]: DRY-RUN (safe mode, no changes will be written)
+[Input]: exported JSON snapshot
 
-[Current Fields in config/system]:
+[Current fields in config/system]:
 [
   "gemini_endpoint",
   "gemini_model",
@@ -30,7 +30,7 @@
   "nine_router_models"
 ]
 
-[Legacy Fields to be deleted] (5):
+[Legacy fields to be deleted] (5):
 [
   "active_provider",
   "active_chat_provider",
@@ -39,15 +39,14 @@
   "nine_router_models"
 ]
 
-[DRY-RUN Complete] No changes were written to Firestore.
-To apply these changes, run with: node proxy/scripts/migrate-remove-9router-config.cjs --apply
+[DRY-RUN Complete] No changes were written to MongoDB.
+To apply these changes, run with: node proxy/scripts/migrate-remove-9router-config.cjs --input path/to/export.json --apply
 ```
 
 ---
 
-## 2. Command for User Execution
-To apply the migration changes to Firestore when authorized by the administrator, execute:
+## 2. Authorized Apply Command
 
 ```bash
-node proxy/scripts/migrate-remove-9router-config.cjs --apply --project=gen-lang-client-0462350485
+node proxy/scripts/migrate-remove-9router-config.cjs --input path/to/export.json --apply
 ```

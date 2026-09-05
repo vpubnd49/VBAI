@@ -15,12 +15,6 @@ const {
   initializeApp,
 } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const {
-  FieldPath,
-  FieldValue,
-  Timestamp,
-  getFirestore,
-} = require('firebase-admin/firestore');
 
 let firebaseApp = null;
 
@@ -78,18 +72,10 @@ function getFirebaseAuth() {
   return getAuth(initFirebase());
 }
 
-function getFirebaseFirestore() {
-  return getFirestore(initFirebase());
-}
-
 module.exports = {
-  FieldPath,
-  FieldValue,
-  Timestamp,
   applicationDefault,
   getFirebaseApp,
   getFirebaseAuth,
-  getFirebaseFirestore,
   initFirebase,
   initializeFirebaseApp,
   parseServiceAccount,

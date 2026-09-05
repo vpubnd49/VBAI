@@ -1,9 +1,7 @@
 import { marked } from 'marked';
 import { showToast } from './ui-utils.js';
 import { sendChatRequest, sendWebExtractRequest, sendWebSearchRequest } from './ai-proxy.js';
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { firebaseConfig } from '../firebase-config.js';
+
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
 
@@ -241,20 +239,10 @@ ${TEMPLATE_CSS}
 `;
 }
 
-function logToFirestore(meta) {
-  try {
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const db = getFirestore(app);
-    addDoc(collection(db, 'search_logs'), {
-      query: `[Xuất PDF] ${meta.soHieuVanBan} — ${meta.tieuDeChinh}`,
-      model: "PDF Publisher", 
-      userEmail: window.currentUser?.email || 'Unknown', 
-      timestamp: serverTimestamp()
-    }).catch(() => {});
-  } catch (e) {
-    console.warn("Lỗi ghi log Firestore:", e);
-  }
+function logApplicationActivity() {
+  // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
 }
+
 
 // Helper for parsing inline markdown formatted text (**bold**, *italic*)
 function parseInline(text, font, size, baseOptions = {}) {
@@ -871,17 +859,8 @@ CẤU TRÚC BẮT BUỘC:
       
       showToast('Đã tạo xong Markdown!', 'success');
 
-      // Log to firestore
-      try {
-        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        const db = getFirestore(app);
-        addDoc(collection(db, 'search_logs'), {
-          query: `[PDF Publisher AI] Tạo tài liệu từ: ${query}`,
-          model: "PDF Publisher AI", 
-          userEmail: window.currentUser?.email || 'Unknown', 
-          timestamp: serverTimestamp()
-        }).catch(() => {});
-      } catch (e) {}
+      // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
+
       
     } catch (e) {
       console.error(e);
@@ -948,17 +927,7 @@ CẤU TRÚC BẮT BUỘC:
       saveAs(blob, filename);
       showToast('✓ Đã xuất file Word thành công!', 'success');
       
-      // Ghi log hoạt động xuất Word vào Firestore
-      try {
-        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        const db = getFirestore(app);
-        addDoc(collection(db, 'search_logs'), {
-          query: `[Xuất Word] ${meta.soHieuVanBan} — ${meta.tieuDeChinh}`,
-          model: "PDF Publisher", 
-          userEmail: window.currentUser?.email || 'Unknown', 
-          timestamp: serverTimestamp()
-        }).catch(() => {});
-      } catch(e) {}
+      // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
     } catch (e) {
       console.error(e);
       showToast('Lỗi xuất Word: ' + e.message, 'error');
@@ -973,10 +942,10 @@ CẤU TRÚC BẮT BUỘC:
       btnRender.click();
     }
     
-    // Ghi log hoạt động xuất bản vào Firestore
+    // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
     try {
-      const meta = processMarkdown(txtInput.value);
-      logToFirestore(meta);
+      processMarkdown(txtInput.value);
+      logApplicationActivity();
     } catch(e) {}
 
     setTimeout(() => {

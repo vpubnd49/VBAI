@@ -4,7 +4,6 @@
  *
  * Allowed references:
  *   - Explicit rejection guards (if (provider === '9router') return 400)
- *   - Firestore field deletion lines (FieldValue.delete())
  *   - Client-side sanitization (delete cleaned.nine_router_*)
  *   - Migration script (migrate-remove-9router-config.cjs)
  *   - Test files (all files under tests/)
@@ -48,7 +47,6 @@ const ALLOWED_LINE_PATTERNS = {
     "req.body.nine_router_model",
     "req.body.nine_router_models",
     "req.body.has_nine_router_key",
-    'FieldValue.delete()',
     'UNSUPPORTED_AI_PROVIDER',
     'LEGACY_AI_CONFIG_NOT_SUPPORTED',
     "norm.includes('devgovietnam')",
@@ -160,10 +158,11 @@ function runSelfTests() {
   assert.strictEqual(FORBIDDEN_PATTERNS.some(p => p.test(lineF)), true);
   console.log('    ✔ Test F PASS: DevGOVietnam model runtime correctly flagged as violation');
 
-  // Test G: modular Firestore deletion of a legacy field is cleanup, not usage
-  const lineG = 'nine_router_api_key: FieldValue.delete(),';
-  assert.strictEqual(isAllowedMatch('server.js', lineG), true);
-  console.log('    ✔ Test G PASS: Modular FieldValue legacy-field deletion allowed');
+  // Test G: legacy field removal is allowed only in the migration boundary
+  const lineG = 'delete document.nine_router_api_key;';
+  assert.strictEqual(isAllowedMatch('migrate-remove-9router-config.cjs', lineG), false);
+  assert.strictEqual(FORBIDDEN_PATTERNS.some(p => p.test(lineG)), true);
+  console.log('    ✔ Test G PASS: Legacy field references remain blocked in runtime code');
 }
 
 runSelfTests();

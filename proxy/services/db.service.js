@@ -1,12 +1,13 @@
 /**
  * VBAI Local MongoDB Database Service
- * Replaces Firestore with local high-performance MongoDB on VPS.
+ * Provides local high-performance MongoDB access for application data.
  */
 'use strict';
 
 let MongoClient;
+let ObjectId;
 try {
-  ({ MongoClient } = require('mongodb'));
+  ({ MongoClient, ObjectId } = require('mongodb'));
 } catch (error) {
   MongoClient = null;
 }
@@ -42,6 +43,16 @@ async function getDb() {
     await db.collection('users').createIndex({ uid: 1 }, { unique: true, sparse: true }).catch(() => {});
     await db.collection('search_logs').createIndex({ timestamp: -1 }).catch(() => {});
     await db.collection('search_logs').createIndex({ user_id: 1, timestamp: -1 }).catch(() => {});
+    await db.collection('rate_limits').createIndex({ key: 1 }, { unique: true }).catch(() => {});
+    await db.collection('rate_limits').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }).catch(() => {});
+    await db.collection('stats').createIndex({ _id: 1 }, { unique: true }).catch(() => {});
+    await db.collection('config').createIndex({ _id: 1 }, { unique: true }).catch(() => {});
+    await db.collection('known_documents').createIndex({ document_number: 1 }, { unique: true, sparse: true }).catch(() => {});
+    await db.collection('known_documents').createIndex({ normalized_document_number: 1 }, { unique: true, sparse: true }).catch(() => {});
+    await db.collection('known_documents').createIndex({ issue_date: -1, _id: -1 }).catch(() => {});
+    await db.collection('crawler_logs').createIndex({ started_at: -1 }).catch(() => {});
+    await db.collection('training_datasets').createIndex({ createdAt: -1, _id: -1 }).catch(() => {});
+    await db.collection('ai_tuning_jobs').createIndex({ createdAt: -1, _id: -1 }).catch(() => {});
 
     isConnecting = false;
     return db;
@@ -64,8 +75,10 @@ async function getUserByEmail(email) {
 async function getUserById(idOrUid) {
   if (!idOrUid) return null;
   const database = await getDb();
+  const value = String(idOrUid);
+  const ids = ObjectId && ObjectId.isValid(value) ? [idOrUid, new ObjectId(value)] : [idOrUid];
   return await database.collection('users').findOne({
-    $or: [{ _id: idOrUid }, { uid: idOrUid }, { id: idOrUid }]
+    $or: [{ _id: { $in: ids } }, { uid: value }, { id: value }]
   });
 }
 
@@ -208,11 +221,12 @@ async function getSearchLogs(filter = {}, limit = 50, cursor = null) {
   if (cursor) {
     const cursorTime = new Date(cursor.createdAt || cursor);
     const cursorId = cursor.docId ? String(cursor.docId) : null;
+    const cursorObjectId = cursorId && ObjectId.isValid(cursorId) ? new ObjectId(cursorId) : cursorId;
     if (!Number.isNaN(cursorTime.getTime())) {
       query.$and = [
         ...(query.$and || []),
         cursorId
-          ? { $or: [{ timestamp: { $lt: cursorTime } }, { timestamp: cursorTime, _id: { $lt: cursorId } }] }
+          ? { $or: [{ timestamp: { $lt: cursorTime } }, { timestamp: cursorTime, _id: { $lt: cursorObjectId } }] }
           : { timestamp: { $lt: cursorTime } },
       ];
     }
@@ -259,6 +273,23 @@ async function getVisitStats() {
   return Number(stats?.count || 0);
 }
 
+async function checkAndIncrementRateLimit({ key, type, limit }) {
+  if (!key || !type || !Number.isFinite(Number(limit))) throw new Error('Invalid rate-limit parameters');
+  const database = await getDb();
+  const now = new Date();
+  const result = await database.collection('rate_limits').findOneAndUpdate(
+    { _id: key },
+    { $inc: { count: 1 }, $setOnInsert: { key, type, createdAt: now, expiresAt: new Date(now.getTime() + 172800000) } },
+    { upsert: true, returnDocument: 'after' }
+  );
+  const count = Number(result?.count || 0);
+  if (count > Number(limit)) {
+    await database.collection('rate_limits').updateOne({ _id: key }, { $inc: { count: -1 } });
+    return { allowed: false, count: count - 1 };
+  }
+  return { allowed: true, count };
+}
+
 async function incrementVisitStats() {
   const database = await getDb();
   const res = await database.collection('stats').findOneAndUpdate(
@@ -303,6 +334,7 @@ module.exports = {
   deleteSearchLogs,
   getVisitStats,
   incrementVisitStats,
+  checkAndIncrementRateLimit,
   getWebSearchHotIndex,
   updateWebSearchHotIndex,
 };

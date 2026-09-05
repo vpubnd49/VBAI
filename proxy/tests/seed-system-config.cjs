@@ -1,12 +1,6 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const {
-  FieldValue,
-  getFirebaseFirestore,
-  initializeFirebaseApp,
-} = require('../services/firebase-admin.service');
+const dbService = require('../services/db.service');
 
 function getEnv(name, fallback = '') {
   return String(process.env[name] || fallback).trim();
@@ -20,26 +14,9 @@ function mustGetEnv(name) {
   return value;
 }
 
-function loadServiceAccount() {
-  const rawInline = getEnv('FIREBASE_SERVICE_ACCOUNT');
-  if (rawInline) {
-    return JSON.parse(rawInline);
-  }
-
-  const credentialPath = getEnv('GOOGLE_APPLICATION_CREDENTIALS');
-  if (!credentialPath) {
-    throw new Error('Missing GOOGLE_APPLICATION_CREDENTIALS (path to service account json).');
-  }
-  const absPath = path.resolve(credentialPath);
-  return JSON.parse(fs.readFileSync(absPath, 'utf8'));
-}
-
 async function main() {
-  const projectId = mustGetEnv('FIREBASE_PROJECT_ID');
-  const geminiApiKey = mustGetEnv('GEMINI_API_KEY');
+  const projectId = mustGetEnv('VERTEX_PROJECT_ID');
   const webSearchProvider = getEnv('WEB_SEARCH_PROVIDER', 'vertex_search');
-  const googleSearchKey = getEnv('GOOGLE_SEARCH_KEY');
-  const googleSearchCx = getEnv('GOOGLE_SEARCH_CX');
   const vertexProjectId = getEnv('VERTEX_PROJECT_ID', projectId);
   const vertexLocation = getEnv('VERTEX_LOCATION', 'global');
   const vertexDataStoreId = getEnv('VERTEX_DATA_STORE_ID');
@@ -58,28 +35,18 @@ async function main() {
     throw new Error('WEB_SEARCH_PROVIDER must be vertex_search');
   }
 
-  const serviceAccount = loadServiceAccount();
-
-  initializeFirebaseApp({ serviceAccount, projectId });
-
-  const db = getFirebaseFirestore();
-  const ref = db.doc('config/system');
-
-  const now = new Date().toISOString();
-  await ref.set({
+  const now = new Date();
+  await dbService.updateSystemConfig({
     active_provider: 'gemini',
-    gemini_api_key: geminiApiKey,
     gemini_model: geminiModel,
     transcribe_model: transcribeModel,
     web_search_provider: webSearchProvider,
     web_search_mode: webSearchMode,
-    google_search_key: googleSearchKey || FieldValue.delete(),
-    google_search_cx: googleSearchCx || FieldValue.delete(),
-    google_search_configured: !!(googleSearchKey && googleSearchCx),
-    vertex_project_id: vertexProjectId || FieldValue.delete(),
+    google_search_configured: false,
+    vertex_project_id: vertexProjectId,
     vertex_location: vertexLocation || 'global',
-    vertex_data_store_id: vertexDataStoreId || FieldValue.delete(),
-    vertex_serving_config: vertexServingConfig || FieldValue.delete(),
+    vertex_data_store_id: vertexDataStoreId,
+    vertex_serving_config: vertexServingConfig,
     vertex_search_configured: !!(vertexProjectId && (vertexServingConfig || vertexDataStoreId)),
     web_search_fallback_sources: {
       vbpl: true,
@@ -90,16 +57,16 @@ async function main() {
     },
     updated_at: now,
     updated_by: getEnv('UPDATED_BY', 'seed-system-config.cjs'),
-  }, { merge: true });
+  });
 
-  const snap = await ref.get();
-  const data = snap.data() || {};
+  const data = await dbService.getSystemConfig(true);
   const maskedGemini = data.gemini_api_key ? `${String(data.gemini_api_key).slice(0, 6)}...` : '';
   const maskedGoogle = data.google_search_key ? `${String(data.google_search_key).slice(0, 6)}...` : '';
 
+
   console.log('Seed completed:');
-  console.log(`- project_id: ${projectId}`);
-  console.log(`- doc_path: config/system`);
+  console.log(`- vertex_project_id: ${projectId}`);
+  console.log('- storage: MongoDB config/system');
   console.log(`- active_provider: ${data.active_provider}`);
   console.log(`- gemini_model: ${data.gemini_model}`);
   console.log(`- web_search_provider: ${data.web_search_provider}`);

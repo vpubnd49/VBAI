@@ -100,7 +100,7 @@ ok(sanitized.user_email === undefined, 'user_email STRIPPED to avoid PII');
 console.log('\n--- 4. Source-Level Privacy Checks ---');
 const serverPath = path.join(__dirname, '..', '..', 'server.js');
 const serverContent = fs.readFileSync(serverPath, 'utf8');
-ok(serverContent.includes("where('user_id',"), 'search_logs filters by user_id');
+ok(serverContent.includes("{ user_id: decoded.uid }"), 'search_logs filters by user_id through Mongo repository');
 
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
 if (failed > 0) process.exit(1);

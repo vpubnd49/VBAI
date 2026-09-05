@@ -129,7 +129,7 @@ jobs:
         run: |
           set -euo pipefail
           docker run --rm --entrypoint node vbai-proxy-pr -e "try{require.resolve('@google-cloud/storage');process.exit(1)}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}"
-          docker run --rm --entrypoint node vbai-proxy-pr -e "require('firebase-admin/app');require('firebase-admin/auth');require('firebase-admin/firestore')"
+          docker run --rm --entrypoint node vbai-proxy-pr -e "require('firebase-admin/app');require('firebase-admin/auth')"
 
   merge-gate:
     name: Required merge gate

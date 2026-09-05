@@ -98,7 +98,7 @@ export function renderAdminPanel(container) {
                         <span>Xác nhận key khi lưu cấu hình</span>
                       </label>
                     </div>
-                    <small class="config-hint" style="display:block; margin-top:4px; color:var(--text-muted, #64748b);">Khóa API được lưu an toàn trong Secret Manager/Firestore</small>
+                    <small class="config-hint" style="display:block; margin-top:4px; color:var(--text-muted, #64748b);">Khóa API được lưu an toàn trong Secret Manager/MongoDB</small>
                     <small id="gemini-key-verify-status" class="config-hint" style="display:block; margin-top:4px;"></small>
                   </div>
 

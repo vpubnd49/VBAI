@@ -4,10 +4,9 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType, UnderlineType, Header, PageNumber } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from './ui-utils.js';
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-import { firebaseConfig } from '../firebase-config.js';
+
+
 
 
 const LOAI_VB = {
@@ -307,17 +306,8 @@ async function generateDangDocx(s) {
     saveAs(blob, `${s.loai_van_ban}_dang_hd05.docx`);
     showToast('✓ Đã tải file DOCX thành công!');
     
-    // Log to Firestore
-    try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      addDoc(collection(db, 'search_logs'), {
-        query: `[Tạo VB Đảng HD05] ${LOAI_VB[s.loai_van_ban]} - ${s.trich_yeu}`,
-        model: "Local DOCX Generator",
-        userEmail: window.currentUser?.email || 'Unknown',
-        timestamp: serverTimestamp()
-      }).catch(e => console.warn(e));
-    } catch(e) {}
+    // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
+
   } catch(e) { console.error(e); showToast('Lỗi tạo file: '+e.message, 'error'); }
 }
 

@@ -2,16 +2,17 @@
  * Distributed Rate Limiting Middleware (Phase 5)
  *
  * Implements atomic distributed rate limiting across Cloud Run instances.
- * Stores rate limit state in Firestore (`rate_limits` collection) with automatic TTL.
+ * Stores rate limit state in MongoDB through the dbService abstraction with automatic TTL.
  * Uses UID as primary key and sanitized IP as fallback.
  * Returns HTTP 429 + Retry-After headers when quota is exceeded.
  */
 'use strict';
 
 const crypto = require('crypto');
+const dbService = require('../services/db.service');
 
 /**
- * SHA-256 hash a key to avoid storing raw PII (UID/IP) in Firestore
+ * SHA-256 hash a key to avoid storing raw PII (UID/IP) in MongoDB
  */
 function hashKey(input) {
   return crypto.createHash('sha256').update(String(input)).digest('hex').substring(0, 32);
@@ -40,17 +41,15 @@ function getClientIp(req) {
 
 /**
  * Distributed Rate Limiter
- * Strictly atomic Firestore-backed rate limiter with fail-close semantics.
+ * Strictly atomic MongoDB-backed rate limiter with fail-close semantics.
  */
 class DistributedRateLimiter {
-  constructor(firestoreDb = null, fieldValue = null) {
-    this.firestoreDb = firestoreDb;
-    this.fieldValue = fieldValue;
+  constructor(databaseService = dbService) {
+    this.databaseService = databaseService;
   }
 
-  setFirestore(firestoreDb, fieldValue) {
-    this.firestoreDb = firestoreDb;
-    this.fieldValue = fieldValue;
+  setDatabaseService(databaseService) {
+    this.databaseService = databaseService;
   }
 
   /**
@@ -73,9 +72,9 @@ class DistributedRateLimiter {
     const clientIp = getClientIp(req);
     const uid = decoded?.uid || null;
 
-    // Fail-close: if Firestore admin is not initialized, block requests
-    if (!this.firestoreDb || !this.fieldValue || typeof this.fieldValue.increment !== 'function') {
-      console.error('[rate-limit] Firebase Admin/Firestore not initialized — fail-close 503');
+    // Fail-close: rate limiting requires the MongoDB-backed atomic operation.
+    if (!this.databaseService || typeof this.databaseService.checkAndIncrementRateLimit !== 'function') {
+      console.error('[rate-limit] MongoDB rate limiter not initialized — fail-close 503');
       return {
         allowed: false,
         status: 503,
@@ -86,86 +85,31 @@ class DistributedRateLimiter {
     }
 
     try {
-      const db = this.firestoreDb;
-
-      // 1. User Account Rate Limit Check
+      const checks = [];
       if (uid) {
         const hashedUid = hashKey(uid);
-        const userDocRef = db.collection('rate_limits').doc(`user_${hashedUid}_${today}`);
-        const userCheck = await db.runTransaction(async (transaction) => {
-          const doc = await transaction.get(userDocRef);
-          if (!doc.exists) {
-            transaction.set(userDocRef, {
-              key: hashedUid,
-              type: 'user',
-              count: 1,
-              date: today,
-              expiresAt: new Date(Date.now() + 86400000 * 2), // 48h TTL
-            });
-            return { allowed: true, count: 1 };
-          }
-          const data = doc.data();
-          if (data.count >= userLimit) {
-            return { allowed: false, count: data.count, type: 'user' };
-          }
-          transaction.update(userDocRef, {
-            count: this.fieldValue.increment(1),
-          });
-          return { allowed: true, count: data.count + 1 };
-        });
-
-        if (!userCheck.allowed) {
-          return {
-            allowed: false,
-            status: 429,
-            error: 'Too Many Requests',
-            message: `Tài khoản của bạn đã vượt quá giới hạn ${userLimit} lượt truy cập hôm nay.`,
-            retryAfterSeconds: 3600,
-          };
-        }
+        checks.push({ key: `user_${hashedUid}_${today}`, type: 'user', limit: userLimit });
       }
-
-      // 2. IP Rate Limit Check
       if (clientIp) {
         const hashedIp = hashKey(clientIp);
-        const ipDocRef = db.collection('rate_limits').doc(`ip_${hashedIp}_${today}`);
-        const ipCheck = await db.runTransaction(async (transaction) => {
-          const doc = await transaction.get(ipDocRef);
-          if (!doc.exists) {
-            transaction.set(ipDocRef, {
-              key: hashedIp,
-              type: 'ip',
-              count: 1,
-              date: today,
-              expiresAt: new Date(Date.now() + 86400000 * 2), // 48h TTL
-            });
-            return { allowed: true, count: 1 };
-          }
-          const data = doc.data();
-          if (data.count >= ipLimit) {
-            return { allowed: false, count: data.count, type: 'ip' };
-          }
-          transaction.update(ipDocRef, {
-            count: this.fieldValue.increment(1),
-          });
-          return { allowed: true, count: data.count + 1 };
-        });
-
-        if (!ipCheck.allowed) {
+        checks.push({ key: `ip_${hashedIp}_${today}`, type: 'ip', limit: ipLimit });
+      }
+      for (const check of checks) {
+        const result = await this.databaseService.checkAndIncrementRateLimit(check);
+        if (!result.allowed) {
           return {
             allowed: false,
             status: 429,
             error: 'Too Many Requests',
-            message: `IP của bạn đã vượt quá giới hạn ${ipLimit} lượt truy cập hôm nay.`,
+            message: `${check.type === 'user' ? 'Tài khoản' : 'IP'} của bạn đã vượt quá giới hạn ${check.limit} lượt truy cập hôm nay.`,
             retryAfterSeconds: 3600,
           };
         }
       }
-
       return { allowed: true };
     } catch (err) {
-      // FAIL-CLOSE: Firestore failure on high-cost endpoints returns 503, not fail-open
-      console.error('[rate-limit] Distributed transaction failed (fail-close):', err.message);
+      // FAIL-CLOSE: MongoDB failure on high-cost endpoints returns 503.
+      console.error('[rate-limit] MongoDB atomic operation failed (fail-close):', err.message);
       return {
         allowed: false,
         status: 503,

@@ -245,7 +245,7 @@ jobs:
           IMAGE="${{ steps.images.outputs.proxy_image }}@${{ steps.images.outputs.proxy_digest }}"
           docker pull "$IMAGE"
           docker run --rm --entrypoint node "$IMAGE" -e "try{require.resolve('@google-cloud/storage');process.exit(1)}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}"
-          docker run --rm --entrypoint node "$IMAGE" -e "require('firebase-admin/app');require('firebase-admin/auth');require('firebase-admin/firestore')"
+          docker run --rm --entrypoint node "$IMAGE" -e "require('firebase-admin/app');require('firebase-admin/auth')"
 
       - name: Attest proxy image
         uses: actions/attest-build-provenance@v2

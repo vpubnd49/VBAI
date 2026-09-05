@@ -50,9 +50,10 @@ ok(
 
 ok(searchHistoryBlock.includes('req.query.limit'), 'Accepts limit query parameter');
 ok(searchHistoryBlock.includes('req.query.cursor'), 'Accepts cursor query parameter');
-ok(searchHistoryBlock.includes('startAfter'), 'Uses Firestore startAfter for deterministic cursor pagination');
+ok(searchHistoryBlock.includes('dbService.getSearchLogs'), 'Uses Mongo repository for deterministic cursor pagination');
+ok(!searchHistoryBlock.includes('startAfter'), 'Does not use legacy database cursor pagination');
 ok(searchHistoryBlock.includes('pagination:'), 'Returns pagination metadata object in response');
-ok(searchHistoryBlock.includes('nextCursor:'), 'Returns nextCursor identifier for pagination chaining');
+ok(searchHistoryBlock.includes('nextCursor'), 'Returns nextCursor identifier for pagination chaining');
 ok(/\bhasMore\s*[:,]/.test(searchHistoryBlock), 'Returns hasMore boolean flag');
 
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);

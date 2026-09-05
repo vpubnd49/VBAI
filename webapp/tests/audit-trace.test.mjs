@@ -14,9 +14,9 @@ const serverJs = fs.readFileSync(path.join(proxyRoot, 'server.js'), 'utf8');
 
 assert.ok(serverJs.includes("app.get('/api/stats/visits'"), 'proxy/server.js MUST contain GET /api/stats/visits route');
 assert.ok(serverJs.includes("app.post('/api/stats/visits/session'"), 'proxy/server.js MUST contain POST /api/stats/visits/session route');
-assert.ok(serverJs.includes('FieldValue.increment(1)'), 'POST /api/stats/visits/session MUST perform atomic FieldValue.increment(1)');
-assert.ok(serverJs.includes('{ merge: true }'), 'POST /api/stats/visits/session MUST use merge: true to avoid document overwrite');
-assert.ok(serverJs.includes("db.collection('stats').doc('visits')"), 'Visit counter MUST target stats/visits collection/doc');
+assert.ok(serverJs.includes('dbService.incrementVisitStats'), 'POST /api/stats/visits/session MUST use Mongo atomic increment');
+assert.ok(!serverJs.includes('FieldValue.increment(1)'), 'Visit counter MUST not use Firestore sentinel');
+assert.ok(!serverJs.includes("db.collection('stats').doc('visits')"), 'Visit counter MUST not target Firestore stats document');
 
 // 2. Verify backend centralized search audit trace in POST /api/chat
 assert.ok(serverJs.includes("delete req.body.trace"), 'Backend MUST strip/internalize trace metadata before model payload creation');

@@ -60,18 +60,18 @@ function terminate(child) {
   assert.doesNotMatch(serverSource, /require\(['"]firebase-admin['"]\)/);
   assert.doesNotMatch(serverSource, /\badmin\.(?:auth|firestore|credential|initializeApp|app|apps)\b/);
   assert.match(serverSource, /getFirebaseAuth\(\)/);
-  assert.match(serverSource, /getFirebaseFirestore\(\)/);
+  assert.doesNotMatch(serverSource, /getFirebaseFirestore|FieldValue|FieldPath|Timestamp|firebase-admin\/firestore/);
   assert.match(serverSource, /initLegalResearchRouter\(getFirebaseAuth\(\)\)/);
   assert.match(authSource, /authClient\.verifyIdToken\(token\)/);
   assert.doesNotMatch(authSource, /adminApp\.auth\(\)/);
-  assert.match(limiterSource, /setFirestore\(firestoreDb, fieldValue\)/);
+  assert.match(limiterSource, /setDatabaseService\(databaseService\)/);
   assert.doesNotMatch(limiterSource, /this\.adminApp/);
 
   const service = require(path.join(proxyRoot, 'services/firebase-admin.service.js'));
   const app = service.initFirebase();
   assert.ok(app && typeof app.name === 'string');
   assert.equal(typeof service.getFirebaseAuth().verifyIdToken, 'function');
-  assert.equal(typeof service.getFirebaseFirestore().collection, 'function');
+  assert.equal(typeof service.getFirebaseAuth().getUser, 'function');
 
   const port = await getFreePort();
   const childEnv = {

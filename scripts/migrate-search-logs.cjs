@@ -1,145 +1,99 @@
 /**
- * Firestore Migration Script (Corrective V2)
- *
- * Migrates search_logs collection to standardize field names.
- * Default mode: DRY-RUN (reads and reports, no writes).
- * Use --apply to execute actual Firestore batch writes.
+ * Firestore export -> MongoDB migration (DRY-RUN by default).
  *
  * Usage:
- *   node scripts/migrate-search-logs.cjs           # dry-run
- *   node scripts/migrate-search-logs.cjs --apply    # live migration
+ *   node scripts/migrate-search-logs.cjs --input path/to/firestore_collections.json
+ *   node scripts/migrate-search-logs.cjs --input path/to/firestore_collections.json --apply
+ *
+ * --apply is mandatory for writes. This script never deletes source data.
  */
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
+let ObjectId;
+try {
+  ({ ObjectId } = require('../proxy/node_modules/mongodb'));
+} catch (_) {
+  ObjectId = class ObjectIdFallback {
+    constructor(value) { this.value = String(value); }
+    toString() { return this.value; }
+    static isValid(value) { return /^[a-f\d]{24}$/i.test(String(value)); }
+  };
+}
+const dbService = require('../proxy/services/db.service');
 
 const IS_APPLY = process.argv.includes('--apply');
+const inputIndex = process.argv.indexOf('--input');
+const inputPath = inputIndex >= 0 ? process.argv[inputIndex + 1] : path.join(__dirname, '..', 'backup_database', 'firestore_collections.json');
+if (inputIndex >= 0 && (!process.argv[inputIndex + 1] || process.argv[inputIndex + 1].startsWith('--'))) {
+  throw new Error('--input requires a Firestore export JSON path');
+}
+const COLLECTIONS = ['config', 'search_logs', 'stats', 'users', 'training_datasets', 'known_documents', 'crawler_logs', 'ai_tuning_jobs'];
 
-console.log('=== Firestore Migration: search_logs ===');
-console.log(`Mode: ${IS_APPLY ? 'APPLY (live writes)' : 'DRY-RUN (read-only)'}`);
-console.log('');
-
-async function run() {
-  let admin;
-  try {
-    admin = require('firebase-admin');
-  } catch (err) {
-    console.error('firebase-admin not installed. Run npm ci first.');
-    process.exit(1);
+function normalizeValue(value) {
+  if (value && typeof value === 'object' && value._seconds !== undefined) {
+    return new Date(Number(value._seconds) * 1000 + Math.floor(Number(value._nanoseconds || 0) / 1e6));
   }
-
-  // Initialize Firebase Admin
-  const saPath = path.join(__dirname, '..', 'proxy', 'service-account.json');
-  const fs = require('fs');
-  if (!fs.existsSync(saPath)) {
-    console.error(`Service account not found at ${saPath}`);
-    console.log('Migration cannot proceed without Firebase credentials.');
-    process.exit(1);
+  if (Array.isArray(value)) return value.map(normalizeValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]));
   }
-
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(require(saPath)),
-    });
-  }
-
-  const db = admin.firestore();
-  const COLLECTION = 'search_logs';
-  const BATCH_SIZE = 500;
-
-  let examined = 0;
-  let changed = 0;
-  let skipped = 0;
-  let failed = 0;
-
-  const snapshot = await db.collection(COLLECTION).get();
-  console.log(`Total documents in ${COLLECTION}: ${snapshot.size}`);
-  console.log('');
-
-  let batch = IS_APPLY ? db.batch() : null;
-  let batchCount = 0;
-
-  for (const doc of snapshot.docs) {
-    examined++;
-    const data = doc.data();
-    const updates = {};
-    let needsUpdate = false;
-
-    // Standardize: user_email -> only keep user_id
-    if (data.user_email && !data.user_id) {
-      // Old docs had user_email but no user_id
-      skipped++;
-      continue; // Cannot migrate without UID
-    }
-
-    // Standardize: ensure created_at exists
-    if (!data.created_at && data.timestamp) {
-      updates.created_at = data.timestamp;
-      needsUpdate = true;
-    }
-
-    // Remove deprecated fields
-    const deprecatedFields = ['ip_address', 'raw_provider_response', 'userEmail'];
-    for (const field of deprecatedFields) {
-      if (data[field] !== undefined) {
-        updates[field] = admin.firestore.FieldValue.delete();
-        needsUpdate = true;
-      }
-    }
-
-    if (!needsUpdate) {
-      skipped++;
-      continue;
-    }
-
-    changed++;
-    if (IS_APPLY) {
-      batch.update(doc.ref, updates);
-      batchCount++;
-
-      if (batchCount >= BATCH_SIZE) {
-        try {
-          await batch.commit();
-          console.log(`  Committed batch of ${batchCount} updates`);
-        } catch (err) {
-          console.error(`  Batch commit failed: ${err.message}`);
-          failed += batchCount;
-        }
-        batch = db.batch();
-        batchCount = 0;
-      }
-    } else {
-      console.log(`  [DRY-RUN] Would update ${doc.id}: ${JSON.stringify(updates)}`);
-    }
-  }
-
-  // Commit remaining
-  if (IS_APPLY && batchCount > 0) {
-    try {
-      await batch.commit();
-      console.log(`  Committed final batch of ${batchCount} updates`);
-    } catch (err) {
-      console.error(`  Final batch commit failed: ${err.message}`);
-      failed += batchCount;
-    }
-  }
-
-  console.log('');
-  console.log('=== Migration Summary ===');
-  console.log(`Examined: ${examined}`);
-  console.log(`Changed:  ${changed}`);
-  console.log(`Skipped:  ${skipped}`);
-  console.log(`Failed:   ${failed}`);
-  console.log(`Mode:     ${IS_APPLY ? 'APPLIED' : 'DRY-RUN'}`);
-
-  if (!IS_APPLY && changed > 0) {
-    console.log('\nRe-run with --apply to execute these changes.');
-  }
-
-  process.exit(failed > 0 ? 1 : 0);
+  return value;
 }
 
-run().catch((err) => {
-  console.error('Migration failed:', err);
-  process.exit(1);
-});
+function normalizeDocument(collection, source) {
+  const doc = normalizeValue({ ...source });
+  const sourceId = doc._id ?? doc.id ?? doc.documentId;
+  if (sourceId && ObjectId.isValid(String(sourceId))) doc._id = new ObjectId(String(sourceId));
+  else if (sourceId) doc._id = String(sourceId);
+  else delete doc._id;
+  if (collection === 'search_logs') {
+    doc.timestamp = new Date(doc.timestamp || doc.created_at || Date.now());
+    doc.created_at = new Date(doc.created_at || doc.timestamp);
+    delete doc.userEmail;
+    delete doc.ip_address;
+    delete doc.raw_provider_response;
+  }
+  if (collection === 'known_documents' && doc.document_number) {
+    doc.normalized_document_number = String(doc.document_number).trim().replace(/\s+/g, ' ').toUpperCase();
+  }
+  return doc;
+}
+
+function readExport(filePath) {
+  const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return raw.collections && typeof raw.collections === 'object' ? raw.collections : raw;
+}
+
+async function run() {
+  if (!fs.existsSync(inputPath)) throw new Error(`Firestore export not found: ${inputPath}`);
+  const exported = readExport(inputPath);
+  const summary = { examined: 0, changed: 0, skipped: 0, failed: 0 };
+  console.log(`=== Firestore export -> MongoDB migration ===\nMode: ${IS_APPLY ? 'APPLY' : 'DRY-RUN (read-only)'}\nInput: ${inputPath}`);
+  for (const collection of COLLECTIONS) {
+    const rows = Array.isArray(exported[collection]) ? exported[collection] : [];
+    for (const row of rows) {
+      summary.examined++;
+      try {
+        const doc = normalizeDocument(collection, row);
+        if (!doc._id) { summary.skipped++; continue; }
+        summary.changed++;
+        if (IS_APPLY) {
+          const db = await dbService.getDb();
+          await db.collection(collection).replaceOne({ _id: doc._id }, doc, { upsert: true });
+        } else {
+          console.log(`[DRY-RUN] ${collection}/${String(doc._id)}`);
+        }
+      } catch (error) {
+        summary.failed++;
+        console.error(`[FAILED] ${collection}: ${error.message}`);
+      }
+    }
+  }
+  console.log(`Examined: ${summary.examined}\nChanged: ${summary.changed}\nSkipped: ${summary.skipped}\nFailed: ${summary.failed}`);
+  if (IS_APPLY) console.log('Apply completed; source Firestore export was not modified or deleted.');
+  process.exitCode = summary.failed ? 1 : 0;
+}
+
+run().catch((error) => { console.error(`Migration failed: ${error.message}`); process.exitCode = 1; });

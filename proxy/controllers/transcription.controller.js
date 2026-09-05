@@ -87,7 +87,7 @@ function createTranscribeHandler(deps) {
         return res.status(400).json({ error: 'audio file is required (multipart field: audio)' });
       }
 
-      // Chunked upload handling — Fail-closed 501 until GCS+Firestore distributed storage is wired
+      // Chunked upload handling — fail-closed 501 until distributed MongoDB storage is wired
       if (partNum || totalNum || uploadId || req.body?.part || req.body?.total || req.query?.part || req.query?.uploadId) {
         cleanupTempFile(tempFilePath);
         return res.status(501).json({

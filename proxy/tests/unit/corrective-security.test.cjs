@@ -85,7 +85,7 @@ if (fs.existsSync(deployPath)) {
 
 // 5. Rate Limiter Fail-Close & PII Hashing
 console.log('\n--- 5. Rate Limiter Fail-Close & PII Hashing ---');
-ok(rateLimitContent.includes('status: 503'), 'Returns 503 on Firestore failure');
+ok(rateLimitContent.includes('status: 503'), 'Returns 503 on MongoDB failure');
 ok(!rateLimitContent.includes('fallbackStore'), 'No fallbackStore');
 ok(!rateLimitContent.includes('new Map()'), 'No in-memory Map');
 ok(rateLimitContent.includes('hashKey'), 'hashKey function present');
@@ -95,7 +95,8 @@ ok(rateLimitContent.includes("crypto.createHash('sha256')"), 'SHA-256 hashing');
 console.log('\n--- 6. Pagination & Privacy ---');
 ok(serverContent.includes('encodeCursor'), 'server.js uses encodeCursor');
 ok(serverContent.includes('sanitizeHistoryDoc'), 'server.js uses sanitizeHistoryDoc');
-ok(serverContent.includes("orderBy('created_at', 'desc')"), 'Orders by created_at DESC');
+const dbServiceContent = fs.readFileSync(path.join(__dirname, '..', '..', 'services', 'db.service.js'), 'utf8');
+ok(dbServiceContent.includes("sort({ timestamp: -1, _id: -1 })"), 'Orders by Mongo timestamp and ID DESC');
 
 // 7. User-Controlled Deep Fetch Redirect Hardening
 console.log('\n--- 7. Deep Fetch Redirect Hardening ---');

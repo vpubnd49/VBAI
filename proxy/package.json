@@ -13,10 +13,13 @@
     "test:legal-smoke": "node tests/runtime-legal-smoke.cjs",
     "test:all": "node tests/run-all.cjs",
     "test:mint-token": "node tests/mint-firebase-id-token.cjs",
-    "config:seed": "node tests/seed-system-config.cjs"
+    "config:seed:mongo": "node tests/seed-system-config.cjs",
+    "users:check:mongo": "node check-mongo-users.js",
+    "logs:count:mongo": "node count-mongo-logs.js",
+    "logs:seed:mongo": "node seed-mongo-logs.js",
+    "config:model:mongo": "node update-mongo-config-model.js"
   },
   "dependencies": {
-    "@google-cloud/firestore": "8.7.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "express": "^4.19.2",

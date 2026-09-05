@@ -49,13 +49,9 @@ const {
   normalizeResponseMeta,
 } = require('./services/chat-behavior.service');
 const {
-  FieldPath,
-  FieldValue,
-  Timestamp,
   applicationDefault,
   getFirebaseApp,
   getFirebaseAuth,
-  getFirebaseFirestore,
   initFirebase,
 } = require('./services/firebase-admin.service');
 
@@ -2560,38 +2556,16 @@ function getClientIp(req) {
 const { rateLimiterInstance, getTodayString } = require('./middleware/rate-limit.middleware');
 
 async function checkRateLimit(req, decoded) {
-  // Bind modular Firestore dependencies to the distributed limiter.
-  rateLimiterInstance.setFirestore(getFirebaseFirestore(), FieldValue);
+  // MongoDB is the sole application-data store. Failure is handled fail-closed.
   return await rateLimiterInstance.checkRateLimit(req, decoded, { ipLimit: 20, userLimit: 50 });
 }
 
-// Firestore collection/refs
-function getSystemConfigRef() {
-  return getFirebaseFirestore().doc('config/system');
-}
-
-// Bộ nhớ đệm (cache) cho cấu hình hệ thống để tối ưu tốc độ và giảm truy vấn Firestore liên tục
-let systemConfigCache = null;
-let systemConfigCacheExpiresAt = 0;
-const SYSTEM_CONFIG_CACHE_TTL_MS = 3 * 60 * 1000; // Lưu cache trong 3 phút
-
 async function getCachedSystemConfig() {
-  try {
-    return await dbService.getSystemConfig();
-  } catch (e) {
-    const snap = await getSystemConfigRef().get();
-    return snap.exists ? snap.data() : {};
-  }
+  return await dbService.getSystemConfig();
 }
 
 function invalidateSystemConfigCache() {
-  try {
-    dbService.getSystemConfig(true);
-  } catch (_) {}
-}
-
-function getWebSearchHotIndexRef() {
-  return getFirebaseFirestore().doc('config/web_search_hot_index');
+  dbService.getSystemConfig(true).catch(() => {});
 }
 
 // Health check
@@ -2726,9 +2700,7 @@ app.get('/api/stats/visits', async (req, res) => {
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const db = getFirebaseFirestore();
-    const snap = await db.collection('stats').doc('visits').get();
-    const count = snap.exists ? Number(snap.data()?.count || 0) : 0;
+    const count = await dbService.getVisitStats();
     return res.json({ count });
   } catch (err) {
     console.error('GET /api/stats/visits error:', err);
@@ -2744,17 +2716,7 @@ app.post('/api/stats/visits/session', async (req, res) => {
     if (!decoded) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const db = getFirebaseFirestore();
-    const visitRef = db.collection('stats').doc('visits');
-    await visitRef.set(
-      {
-        count: FieldValue.increment(1),
-        updated_at: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-    const snap = await visitRef.get();
-    const count = snap.exists ? Number(snap.data()?.count || 0) : 0;
+    const count = await dbService.incrementVisitStats();
     return res.json({ count });
   } catch (err) {
     console.error('POST /api/stats/visits/session error:', err);
@@ -2901,8 +2863,7 @@ app.post('/api/admin/ingest-vertex', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
     }
 
-    const snap = await getSystemConfigRef().get();
-    const config = snap.exists ? snap.data() || {} : {};
+    const config = await dbService.getSystemConfig(true);
 
     const projectId = String(req.body?.vertex_project_id || config.vertex_project_id || 'gen-lang-client-0462350485').trim();
     const location = String(req.body?.vertex_location || config.vertex_location || 'global').trim();
@@ -3093,11 +3054,10 @@ app.get('/api/admin/web-search-health', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
     }
 
-    const snap = await getSystemConfigRef().get();
-    if (!snap.exists) {
+    const config = await dbService.getSystemConfig(true);
+    if (!config || !config._id) {
       return res.status(404).json({ error: 'System config not found' });
     }
-    const config = snap.data();
     const provider = sanitizeWebSearchProvider(config.web_search_provider);
     const mode = sanitizeWebSearchMode(config.web_search_mode);
     const probe = await probeWebSearchProvider(config);
@@ -3207,11 +3167,10 @@ app.post('/api/admin/web-search-ingest', async (req, res) => {
       return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
     }
 
-    const snap = await getSystemConfigRef().get();
-    if (!snap.exists) {
+    const config = await dbService.getSystemConfig(true);
+    if (!config || !config._id) {
       return res.status(404).json({ error: 'System config not found' });
     }
-    const config = snap.data();
     const result = await runOfficialHotIndexIngest(config, decoded.email || decoded.uid);
     if (!result.success) {
       return res.status(503).json({ error: 'Ingest unavailable', message: result.message || 'ingest_failed', details: result });
@@ -3254,7 +3213,7 @@ app.post('/api/admin/delete-user', async (req, res) => {
       if (authErr.code === 'auth/user-not-found' || 
           String(authErr.message || '').includes('no user record') || 
           String(authErr.code || '').includes('user-not-found')) {
-        console.warn(`User ${uid} not found in Firebase Auth, but successfully deleted from Firestore.`);
+        console.warn(`User ${uid} not found in Firebase Auth, but successfully deleted from MongoDB.`);
       } else {
         throw authErr;
       }
@@ -3375,23 +3334,7 @@ app.get('/api/admin/training-datasets', async (req, res) => {
   try {
     await verifyAdminToken(req);
     const db = await dbService.getDb();
-    let samples = [];
-    if (db) {
-      samples = await db.collection('training_datasets').find({}).sort({ createdAt: -1 }).toArray();
-    }
-    // Fallback if DB empty: read local JSONL
-    if (samples.length === 0) {
-      const jsonlPath = path.join(__dirname, 'data', 'vbai_tuning_dataset.jsonl');
-      if (fs.existsSync(jsonlPath)) {
-        const lines = fs.readFileSync(jsonlPath, 'utf-8').split('\n').filter(Boolean);
-        samples = lines.map((l, idx) => {
-          try {
-            const parsed = JSON.parse(l);
-            return { _id: `local_${idx}`, ...parsed, createdAt: new Date() };
-          } catch { return null; }
-        }).filter(Boolean);
-      }
-    }
+    const samples = await db.collection('training_datasets').find({}).sort({ createdAt: -1, _id: -1 }).toArray();
     res.json({ success: true, total: samples.length, data: samples });
   } catch (err) {
     console.error('GET /api/admin/training-datasets error:', err);
@@ -3419,10 +3362,8 @@ app.post('/api/admin/training-datasets', async (req, res) => {
       updatedAt: new Date()
     };
     const db = await dbService.getDb();
-    if (db) {
-      const result = await db.collection('training_datasets').insertOne(sample);
-      sample._id = result.insertedId;
-    }
+    const result = await db.collection('training_datasets').insertOne(sample);
+    sample._id = result.insertedId;
     res.json({ success: true, message: 'Training sample created successfully', data: sample });
   } catch (err) {
     console.error('POST /api/admin/training-datasets error:', err);
@@ -3436,14 +3377,9 @@ app.delete('/api/admin/training-datasets/:id', async (req, res) => {
     await verifyAdminToken(req);
     const { id } = req.params;
     const db = await dbService.getDb();
-    if (db) {
-      const { ObjectId } = require('mongodb');
-      try {
-        await db.collection('training_datasets').deleteOne({ _id: new ObjectId(id) });
-      } catch {
-        await db.collection('training_datasets').deleteOne({ _id: id });
-      }
-    }
+    const { ObjectId } = require('mongodb');
+    const ids = ObjectId.isValid(id) ? [new ObjectId(id), id] : [id];
+    await db.collection('training_datasets').deleteOne({ _id: { $in: ids } });
     res.json({ success: true, message: 'Deleted training sample successfully' });
   } catch (err) {
     console.error('DELETE /api/admin/training-datasets error:', err);
@@ -3456,18 +3392,7 @@ app.get('/api/admin/training-datasets/export-jsonl', async (req, res) => {
   try {
     await verifyAdminToken(req);
     const db = await dbService.getDb();
-    let samples = [];
-    if (db) {
-      samples = await db.collection('training_datasets').find({}).toArray();
-    }
-    if (samples.length === 0) {
-      const jsonlPath = path.join(__dirname, 'data', 'vbai_tuning_dataset.jsonl');
-      if (fs.existsSync(jsonlPath)) {
-        res.setHeader('Content-Type', 'application/x-jsonlines');
-        res.setHeader('Content-Disposition', 'attachment; filename="vbai_gemini_tuning.jsonl"');
-        return res.sendFile(jsonlPath);
-      }
-    }
+    const samples = await db.collection('training_datasets').find({}).toArray();
     const jsonlContent = samples.map(s => JSON.stringify({
       messages: s.messages || [
         { role: 'user', content: s.userPrompt || '' },
@@ -3559,9 +3484,7 @@ app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    if (db) {
-      await db.collection('ai_tuning_jobs').insertOne(jobRecord);
-    }
+    await db.collection('ai_tuning_jobs').insertOne(jobRecord);
 
     res.json({
       success: true,
@@ -3992,7 +3915,7 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
           verifiedEvidenceCount: 0,
           totalEvidenceCount: 0,
            requestId: req.requestId || null,
-           created_at: FieldValue.serverTimestamp()
+           created_at: new Date()
          });
       } catch (logErr) {
         console.warn('[search_logs] Audit trace error log failed:', logErr.message);
@@ -4067,9 +3990,8 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
       }
     }
 
-    // Centralized Search Audit Trace logging to Firestore search_logs collection
+    // Centralized Search Audit Trace logging to MongoDB search_logs collection
     try {
-      const db = getFirebaseFirestore();
       const verifiedCount = legalContext?.evidenceBundle?.verifiedCount ||
         (citationValidation?.validCitationsCount) || 0;
       const totalCount = legalContext?.evidenceBundle?.documents?.length ||
@@ -6265,8 +6187,8 @@ async function getWebSearchHotIndexData(forceReload = false) {
     return webSearchHotIndexMem.data;
   }
   try {
-    const snap = await getWebSearchHotIndexRef().get();
-    const data = snap.exists ? normalizeHotIndexData(snap.data()) : normalizeHotIndexData({});
+    const stored = await dbService.getWebSearchHotIndex();
+    const data = normalizeHotIndexData(stored || {});
     webSearchHotIndexMem = {
       loadedAt: now,
       data,
@@ -6330,7 +6252,7 @@ async function updateWebSearchHotIndex({
     if (docKey) nextData.by_doc[docKey] = entry;
     nextData.by_query = pruneHotIndexBucket(nextData.by_query, 140);
     nextData.by_doc = pruneHotIndexBucket(nextData.by_doc, 220);
-    await getWebSearchHotIndexRef().set(nextData, { merge: true });
+    await dbService.updateWebSearchHotIndex(nextData);
     webSearchHotIndexMem = {
       loadedAt: now,
       data: nextData,
@@ -7251,11 +7173,11 @@ async function runOfficialHotIndexIngest(config = {}, requestedBy = 'system') {
   }
 
   const hotIndexData = await getWebSearchHotIndexData(true);
-  await getWebSearchHotIndexRef().set({
+  await dbService.updateWebSearchHotIndex({
     ...hotIndexData,
     last_ingest_at_ms: Date.now(),
     last_ingest_by: String(requestedBy || 'system'),
-  }, { merge: true });
+  });
 
   return {
     success: true,
@@ -7425,58 +7347,6 @@ app.get('/api/search-history', async (req, res) => {
     const nextCursor = hasMore && visibleLogs.length ? encodeCursor({ id: String(visibleLogs[visibleLogs.length - 1]._id), created_at: visibleLogs[visibleLogs.length - 1].timestamp }) : null;
     return res.json({ success: true, isAdmin: requesterIsAdmin, logs, pagination: { pageSize, hasMore, nextCursor } });
 
-    /* Legacy Firestore fallback retained below for reference; MongoDB is canonical. */
-    /*
-    let snapshot;
-    try {
-      let queryRef = db.collection('search_logs');
-      if (!requesterIsAdmin) {
-        queryRef = queryRef.where('user_id', '==', decoded.uid);
-      }
-      queryRef = queryRef.orderBy('created_at', 'desc').orderBy(FieldPath.documentId(), 'desc');
-
-      if (cursorParam && cursorValidation.decoded) {
-        const { createdAt, docId } = cursorValidation.decoded;
-        const cursorTimestamp = Timestamp.fromDate(new Date(createdAt));
-        queryRef = queryRef.startAfter(cursorTimestamp, docId);
-      }
-
-      snapshot = await queryRef.limit(pageSize + 1).get();
-    } catch (queryErr) {
-      console.warn('[search-history] Ordered query failed, falling back to base fetch:', queryErr.message);
-      let baseRef = db.collection('search_logs');
-      if (!requesterIsAdmin) {
-        baseRef = baseRef.where('user_id', '==', decoded.uid);
-      }
-      snapshot = await baseRef.limit(pageSize + 1).get();
-    }
-
-    const logs = [];
-    let hasMore = false;
-    let nextCursor = null;
-
-    let docCount = 0;
-    snapshot.forEach(docSnap => {
-      docCount++;
-      if (docCount > pageSize) {
-        hasMore = true;
-        return;
-      }
-      const data = docSnap.data();
-      // Use safe field allowlist — no ...data spread
-      const sanitized = sanitizeHistoryDoc(Object.assign({ id: docSnap.id }, data));
-      logs.push(sanitized);
-      // Encode versioned cursor for last visible doc
-      nextCursor = encodeCursor({ id: docSnap.id, created_at: data.created_at });
-    });
-
-    return res.json({
-      success: true,
-      isAdmin: requesterIsAdmin,
-      logs,
-      pagination: { pageSize, hasMore, nextCursor: hasMore ? nextCursor : null }
-    });
-    */
   } catch (err) {
     console.error('GET /api/search-history error:', err);
     return res.status(500).json({ error: 'Internal server error', message: err.message });

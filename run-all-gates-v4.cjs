@@ -800,7 +800,7 @@ async function runGate24() {
 
       const firebaseSubpaths = runDocker([
         'run', '--rm', '--entrypoint', 'node', imageName, '-e',
-        "require('firebase-admin/app');require('firebase-admin/auth');require('firebase-admin/firestore')"
+        "require('firebase-admin/app');require('firebase-admin/auth')"
       ], 60000);
       if (processBlockedReason(firebaseSubpaths.record)) {
         throw Object.assign(new Error(processBlockedReason(firebaseSubpaths.record)), { infrastructureBlocked: true });

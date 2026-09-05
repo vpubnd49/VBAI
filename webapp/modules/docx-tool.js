@@ -4,10 +4,7 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from './ui-utils.js';
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-import { firebaseConfig } from '../firebase-config.js';
 
 
 export function renderDocxTool(container) {
@@ -95,17 +92,8 @@ export function renderDocxTool(container) {
       saveAs(blob, `${title.replace(/[^a-zA-Z0-9À-ỹ]/g, '_')}.docx`);
       showToast('✓ Đã tạo file DOCX!');
 
-      // Log to Firestore
-      try {
-        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        const db = getFirestore(app);
-        addDoc(collection(db, 'search_logs'), {
-          query: `[Tạo DOCX Nhanh] Tiêu đề: ${title}`,
-          model: "Local DOCX Generator",
-          userEmail: window.currentUser?.email || 'Unknown',
-          timestamp: serverTimestamp()
-        }).catch(e => console.warn(e));
-      } catch(e) {}
+      // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
+
 
     } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
   });
@@ -132,17 +120,8 @@ async function analyzeDocx(file, container) {
     container.querySelector('#docx-xml-content').textContent = formatted;
     showToast(`✓ Đã phân tích: ${file.name}`);
 
-    // Log to Firestore
-    try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      addDoc(collection(db, 'search_logs'), {
-        query: `[Phân tích XML DOCX] Tên file: ${file.name}`,
-        model: "Local DOCX Parser",
-        userEmail: window.currentUser?.email || 'Unknown',
-        timestamp: serverTimestamp()
-      }).catch(e => console.warn(e));
-    } catch(e) {}
+    // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
+
 
   } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
 }

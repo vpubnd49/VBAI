@@ -8,9 +8,6 @@ import { showToast } from './ui-utils.js';
 import { sendChatRequest } from './ai-proxy.js';
 import { fetchSystemConfig } from './system-config.js';
 import { SPELLING_ERRORS, CAPITALIZATION_RULES, TITLE_CONTEXT_RULES, OFFICIAL_TITLES, WHITELIST } from './vn-dictionary.js';
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { firebaseConfig } from '../firebase-config.js';
 
 let checkState = { file: null, fileName: '', paragraphs: [], errors: [], docType: 'unknown', formatErrors: [], xmlDoc: null, rawXml: '' };
 
@@ -88,7 +85,7 @@ async function processFile(file, container) {
     
     progressEl.style.display = 'none';
     renderResults(container);
-    logToFirestore(file.name, checkState.errors.length, checkState.formatErrors.length);
+    logSpellCheckResult(file.name, checkState.errors.length, checkState.formatErrors.length);
   } catch (e) { 
     console.error(e); 
     showToast('Lỗi: ' + e.message, 'error'); 
@@ -671,14 +668,7 @@ async function exportReport() {
   } catch (e) { showToast('Lỗi: ' + e.message, 'error'); }
 }
 
-function logToFirestore(fileName, spellCount, formatCount) {
-  try {
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const db = getFirestore(app);
-    addDoc(collection(db, 'search_logs'), {
-      query: `[Kiểm Tra VB] ${fileName} — ${spellCount} lỗi CT, ${formatCount} lỗi TT`,
-      model: "Spell Check Engine", userEmail: window.currentUser?.email || 'Unknown', timestamp: serverTimestamp()
-    }).catch(() => {});
-  } catch (e) {}
+function logSpellCheckResult() {
+  // Results remain local to the document workflow; application data writes belong to the proxy/MongoDB.
 }
 

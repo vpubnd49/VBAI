@@ -4,9 +4,8 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType, Header, PageNumber } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from './ui-utils.js';
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { firebaseConfig } from '../firebase-config.js';
+
+
 import { sendChatRequest } from './ai-proxy.js';
 
 
@@ -307,17 +306,8 @@ async function genND30() {
     saveAs(blob,`${fs.loai_van_ban}_hc_nd30.docx`);
     showToast('✅ Đã tải file DOCX thành công!');
     
-    // Log to Firestore
-    try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      addDoc(collection(db, 'search_logs'), {
-        query: `[Tạo VB Hành Chính NĐ30] ${LOAI_VB[fs.loai_van_ban]} - ${fs.trich_yeu}`,
-        model: "Local DOCX Generator",
-        userEmail: window.currentUser?.email || 'Unknown',
-        timestamp: serverTimestamp()
-      }).catch(e => console.warn(e));
-    } catch(e) {}
+    // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
+
   } catch(e){console.error(e);showToast('Lỗi: '+e.message,'error');}
 }
 export function handleVBND30Action(){}

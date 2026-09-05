@@ -2,12 +2,9 @@
  * PDF & Image OCR Tool Module — Upload & extract text from PDF or images
  */
 import { showToast } from './ui-utils.js';
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { sendChatRequest } from './ai-proxy.js';
 import { fetchSystemConfig } from './system-config.js';
 
-import { firebaseConfig } from '../firebase-config.js';
 
 const OCR_PROMPT = `Bạn là chuyên gia OCR tiếng Việt. Hãy đọc và trích xuất NGUYÊN VĂN TOÀN BỘ nội dung chữ tiếng Việt có trong các hình ảnh tài liệu này.
 
@@ -114,17 +111,7 @@ async function handleImage(file, container) {
 
     showToast('✓ Đã quét OCR ảnh thành công!');
 
-    // Log
-    try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      addDoc(collection(db, 'search_logs'), {
-        query: `[OCR Ảnh] ${file.name}`,
-        model: `${model} (OCR)`,
-        userEmail: window.currentUser?.email || 'Unknown',
-        timestamp: serverTimestamp()
-      }).catch(e => console.warn(e));
-    } catch(e) {}
+    // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
 
   } catch (e) {
     console.error(e);
@@ -192,17 +179,7 @@ async function handlePdf(file, container) {
       navigator.clipboard.writeText(currentText).then(() => showToast('Đã copy nội dung!')).catch(() => showToast('Không thể copy', 'error'));
     });
 
-    // Log to Firestore
-    try {
-      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-      const db = getFirestore(app);
-      addDoc(collection(db, 'search_logs'), {
-        query: `[Xử lý PDF] Trích xuất file: ${file.name} (${pdf.numPages} trang)`,
-        model: "Local PDF Extractor",
-        userEmail: window.currentUser?.email || 'Unknown',
-        timestamp: serverTimestamp()
-      }).catch(e => console.warn(e));
-    } catch(e) {}
+    // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
 
   } catch (e) {
     console.error(e);
@@ -213,8 +190,6 @@ async function handlePdf(file, container) {
 
 async function runPdfOcr(pdf, file, textContentArea, ocrBtn, container) {
   try {
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const db = getFirestore(app);
     const content = [{ type: "text", text: OCR_PROMPT }];
     
     // Render up to 15 pages at scale 2.0 for better quality
@@ -243,13 +218,7 @@ async function runPdfOcr(pdf, file, textContentArea, ocrBtn, container) {
     showToast('✓ Đã quét OCR thành công!');
     if (ocrBtn) ocrBtn.style.display = 'none';
     
-    // Log OCR usage
-    addDoc(collection(db, 'search_logs'), {
-      query: `[OCR PDF] Quét ảnh Scan: ${file.name} (${limitPages} trang)`,
-      model: `${model} (OCR)`,
-      userEmail: window.currentUser?.email || 'Unknown',
-      timestamp: serverTimestamp()
-    }).catch(e => console.warn(e));
+    // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
 
   } catch (err) {
     textContentArea.textContent = 'Lỗi OCR: ' + err.message;

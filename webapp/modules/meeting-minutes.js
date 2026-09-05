@@ -6,9 +6,6 @@
 import { Document, Packer, Paragraph, TextRun, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType, VerticalAlign, LineRuleType } from 'docx';
 import { saveAs } from 'file-saver';
 import { showToast } from './ui-utils.js';
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { firebaseConfig } from '../firebase-config.js';
 import {
   sendChatRequest,
   sendAudioTranscription,
@@ -818,16 +815,7 @@ async function processAudioWithProxy(file, progressEl) {
     throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): ${e.message}`);
   }
 
-  try {
-    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    const db = getFirestore(app);
-    addDoc(collection(db, 'search_logs'), {
-      query: `[Ghi Âm → TB] ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`,
-      model: `${usedTranscriptModel || transcriptModel} + ${chatModel} (via ${transcribeRouteLabel})`,
-      userEmail: window.currentUser?.email || 'Unknown',
-      timestamp: serverTimestamp()
-    }).catch(() => {});
-  } catch (e) {}
+  // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
 }
 
 async function reanalyzeTranscript() {

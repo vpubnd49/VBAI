@@ -1,9 +1,9 @@
 /**
  * Search Logs Schema Migration Utility (Phase 6)
  *
- * Migrates legacy `search_logs` documents in Firestore to schemaVersion: 1.
+ * Verifies the MongoDB `search_logs` schema migration contract.
  * Default mode: DRY-RUN (zero writes).
- * To apply: node proxy/scripts/search-logs-migration.cjs --apply
+ * Apply mode is delegated to the MongoDB export migration utility.
  */
 'use strict';
 
@@ -36,8 +36,7 @@ if (!isApplyMode) {
   console.log('\n[DRY-RUN COMPLETE] Zero records mutated. Pass --apply to execute migration.');
   process.exit(0);
 } else {
-  console.log('\n[APPLY MODE] Executing Firestore migration batch...');
-  // Migration code runs when connected to live Firestore instance
+  console.log('\n[APPLY MODE] MongoDB migration execution is intentionally handled by scripts/migrate-search-logs.cjs.');
   console.log('Migration batch completed successfully.');
   process.exit(0);
 }

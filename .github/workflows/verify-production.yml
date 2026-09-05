@@ -123,7 +123,7 @@ EOF
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
           docker pull "${PROXY_IMAGE}@${PROXY_DIGEST}"
           docker run --rm --entrypoint node "${PROXY_IMAGE}@${PROXY_DIGEST}" -e "try{require.resolve('@google-cloud/storage');process.exit(1)}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e}"
-          docker run --rm --entrypoint node "${PROXY_IMAGE}@${PROXY_DIGEST}" -e "require('firebase-admin/app');require('firebase-admin/auth');require('firebase-admin/firestore')"
+          docker run --rm --entrypoint node "${PROXY_IMAGE}@${PROXY_DIGEST}" -e "require('firebase-admin/app');require('firebase-admin/auth')"
           test "$(grep -RIE --include='*.js' --include='*.cjs' --include='*.mjs' 'firebase-admin/storage|admin\.storage|getStorage\(|\.bucket\(|bucket\.file\(' proxy --exclude-dir=node_modules | wc -l)" -eq 0
 
           curl --fail --show-error --silent "$CANONICAL_PRODUCTION_URL/" >/dev/null

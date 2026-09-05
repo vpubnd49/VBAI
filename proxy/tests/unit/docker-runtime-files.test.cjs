@@ -78,12 +78,9 @@ assert.match(
   'server.js must have inline web-extract handler'
 );
 
-// 5. Mandatory V6 Deployed Tree & Storage Exclusions Contract
+// 5. Deployed Tree & Storage Exclusions Contract
 const pkg = JSON.parse(read('package.json'));
-assert.ok(
-  pkg.dependencies && pkg.dependencies['@google-cloud/firestore'] === '8.7.1',
-  '@google-cloud/firestore must be direct production dependency 8.7.1'
-);
+assert.ok(!pkg.dependencies?.['@google-cloud/firestore'], 'Firestore SDK must not be a production dependency');
 
 assert.ok(
   dockerfile.includes('npm ci --omit=dev --omit=optional'),
@@ -94,8 +91,7 @@ assert.ok(
 assert.doesNotThrow(() => {
   require('firebase-admin/app');
   require('firebase-admin/auth');
-  require('firebase-admin/firestore');
-}, 'firebase-admin subpaths (/app, /auth, /firestore) must load cleanly');
+}, 'Firebase Admin Auth subpaths (/app, /auth) must load cleanly');
 
 // firebase-admin 14 runtime must use modular clients, never removed namespace APIs.
 assert.doesNotMatch(server, /require\(['"]firebase-admin['"]\)/, 'server.js must not import the legacy firebase-admin namespace');
