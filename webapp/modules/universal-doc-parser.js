@@ -177,6 +177,65 @@ async function parseDocxFile(file, statusCallback) {
 }
 
 /**
+ * Parse Word 97-2003 (.doc) binary format via mammoth.js
+ * Mammoth.js hỗ trợ cả .docx lẫn .doc, dùng làm fallback an toàn
+ */
+async function parseDocFile(file, statusCallback) {
+  statusCallback('Đang nạp bộ giải mã tệp Word cũ (.doc)...');
+
+  // Thử dùng mammoth.js (hỗ trợ cả .doc binary và .docx)
+  if (!window.mammoth) {
+    await loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js');
+  }
+
+  statusCallback('Đang trích xuất nội dung văn bản Word (.doc)...');
+  const arrayBuffer = await file.arrayBuffer();
+
+  let resultText = `📄 [NỘI DUNG VĂN BẢN WORD CŨ: ${file.name}]\n\n`;
+  let tableCount = 0;
+  let paragraphCount = 0;
+
+  try {
+    // Trích xuất raw text (giữ bảng biểu dạng văn bản)
+    const result = await window.mammoth.extractRawText({ arrayBuffer });
+    const rawText = result.value || '';
+
+    if (rawText.trim().length < 10) {
+      throw new Error('Không trích xuất được nội dung từ file .doc này.');
+    }
+
+    // Đếm đoạn văn
+    const lines = rawText.split('\n').filter(l => l.trim());
+    paragraphCount = lines.length;
+
+    resultText += rawText;
+
+    // Cảnh báo nếu có thông điệp lỗi từ mammoth
+    if (result.messages && result.messages.length > 0) {
+      const warnings = result.messages.filter(m => m.type === 'warning').slice(0, 3);
+      if (warnings.length > 0) {
+        resultText += `\n\n[Lưu ý: ${warnings.map(w => w.message).join('; ')}]`;
+      }
+    }
+  } catch (mammothErr) {
+    // Fallback: thử parse như DOCX (nếu file thực ra là DOCX đổi tên)
+    try {
+      statusCallback('Thử phân tích theo định dạng DOCX...');
+      const fallback = await parseDocxFile(file, statusCallback);
+      return { ...fallback, type: 'doc' };
+    } catch (_) {
+      throw new Error(`Không thể đọc file .doc: ${mammothErr.message}. File có thể bị hỏng hoặc được mã hóa.`);
+    }
+  }
+
+  return {
+    text: resultText,
+    type: 'doc',
+    meta: { paragraphCount, tableCount },
+  };
+}
+
+/**
  * Parse PDF (.pdf) with OCR AI Fallback
  */
 async function parsePdfFile(file, statusCallback) {
@@ -251,7 +310,11 @@ export async function parseUniversalFile(file, statusCallback = () => {}) {
   if (['.docx'].includes(ext)) {
     return await parseDocxFile(file, statusCallback);
   }
-  
+
+  if (['.doc'].includes(ext)) {
+    return await parseDocFile(file, statusCallback);
+  }
+
   if (['.pdf'].includes(ext)) {
     return await parsePdfFile(file, statusCallback);
   }
@@ -268,5 +331,5 @@ export async function parseUniversalFile(file, statusCallback = () => {}) {
     };
   }
 
-  throw new Error(`Định dạng tệp "${ext}" chưa được hỗ trợ. Vui lòng tải file .docx, .xlsx, .xls, .csv, .pdf hoặc .txt.`);
+  throw new Error(`Định dạng tệp "${ext}" chưa được hỗ trợ. Vui lòng tải file .doc, .docx, .xlsx, .xls, .csv, .pdf hoặc .txt.`);
 }
