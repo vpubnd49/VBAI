@@ -324,7 +324,7 @@ export function renderAdminPanel(container) {
             </div>
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Mô hình đích Vertex AI</div>
-              <div style="font-size:1.4rem; font-weight:800; color:#7c3aed; margin-top:2px;">gemini-2.0-flash</div>
+              <div id="stat-target-model" style="font-size:1.4rem; font-weight:800; color:#7c3aed; margin-top:2px;">gemini-3.8-flash-high</div>
             </div>
             <div style="background:white; padding:14px 18px; border-radius:8px; border:1px solid #cbd5e1;">
               <div style="font-size:0.8rem; color:#64748b; font-weight:600;">Trạng thái đồng bộ</div>
@@ -1071,8 +1071,10 @@ setInputValue(geminiModelInput, config.gemini_model || '');
       if (togglegeminiKeyBtn) togglegeminiKeyBtn.textContent = 'Hiện key';
       setgeminiKeyVerifyStatus(config.has_gemini_key ? 'Đã lưu gemini API key. Bạn có thể xác nhận lại bất cứ lúc nào.' : 'Chưa có gemini API key.');
       updategeminiRuntimeWarning(geminiModelInput ? geminiModelInput.value : '', !!config.has_gemini_key);
-      geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
-      renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
+       geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
+       renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
+       const targetModelEl = container.querySelector('#stat-target-model');
+       if (targetModelEl) targetModelEl.textContent = config.gemini_model || 'gemini-3.8-flash-high';
 
       // Load other configs
       setInputValue(transcribeModelInput, config.transcribe_model || config.gemini_model || '');

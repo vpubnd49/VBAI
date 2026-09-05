@@ -3462,7 +3462,11 @@ app.post('/api/admin/training-datasets/sync-vbaibot', async (req, res) => {
 app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
   try {
     await verifyAdminToken(req);
-    const { baseModel = 'gemini-2.0-flash-001', epochs = 4 } = req.body || {};
+    const { baseModel, epochs = 4 } = req.body || {};
+    const configuredModel = String(baseModel || (await dbService.getSystemConfig())?.gemini_model || '').trim();
+    if (!configuredModel) {
+      return res.status(503).json({ error: 'AI_CONFIG_MISSING', message: 'Chưa cấu hình model Gemini cho tác vụ tuning.' });
+    }
     
     // Check if tuning dataset exists
     const jsonlPath = path.join(__dirname, 'data', 'vbai_tuning_dataset.jsonl');
