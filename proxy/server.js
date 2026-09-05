@@ -42,6 +42,13 @@ const { createTranscriptionRouter } = require('./routers/transcription.router');
 const { loadBosungMetadataIndex } = require('./legal/repositories/bosung-metadata-index');
 const { searchAdministrativeDivisions } = require('./services/administrative-division.service');
 const { ingestVbaibotTurn, maskPII, isQualitySample } = require('./services/vbaibot-ingestion.service');
+const { syncVbaibotMessages } = require('./services/vbaibot-messages-sync.service');
+
+// Global auto-sync stats (shared between route and cron)
+let _lastSyncAt = null;
+let _lastSyncIngested = 0;
+let _lastSyncTotal = 0;
+let _syncRunning = false;
 const { listTemplates: listDocumentTemplates, select: selectDocumentTemplate } = require('./services/document-template.service');
 const { runCrawlerTask, getCrawlerStatus, initCrawlerScheduler } = require('./services/legal-crawler.service');
 const {
@@ -3651,65 +3658,64 @@ function extractEvalSamples(sourceText, sourceFile) {
   return { parsedCases: cases.length, samples };
 }
 
-// POST /api/admin/training-datasets/sync-vbaibot
-app.post('/api/admin/training-datasets/sync-vbaibot', async (req, res) => {
+// POST /api/admin/training-datasets/sync-admin-divisions
+// Chi sync administrative_divisions.json (bỏ eval-cases - không hiệu qua)
+app.post('/api/admin/training-datasets/sync-admin-divisions', async (req, res) => {
   try {
     await verifyAdminToken(req);
-    console.log('[DatasetSync] Starting sync with vpubnd49/vbaibot...');
     const adminUrl = 'https://raw.githubusercontent.com/vpubnd49/vbaibot/main/data/administrative_divisions.json';
-    const evalFiles = ['eval-cases-cach-noi.ts', 'eval-cases-tool.ts', 'eval-cases-memory.ts', 'eval-cases.ts'];
-    let syncedSourceCount = 0;
-    let parsedCaseCount = 0;
-    let ingestedCaseCount = 0;
-    let skippedCaseCount = 0;
-    const missingSources = [];
-    let newAdminCount = 0;
-    const evalSamples = [];
     const adminRes = await fetch(adminUrl, { headers: { 'User-Agent': 'VBAI-Server' } });
-    if (adminRes.ok) {
-      const adminJson = await adminRes.json();
-      const savePath = path.join(__dirname, 'data', 'administrative_divisions.json');
-      fs.writeFileSync(savePath, JSON.stringify(adminJson, null, 2), 'utf-8');
-      newAdminCount = Array.isArray(adminJson.provinces) ? adminJson.provinces.length : 0;
-    } else {
-      missingSources.push('data/administrative_divisions.json');
-    }
-    for (const ef of evalFiles) {
-      const efRes = await fetch(`https://raw.githubusercontent.com/vpubnd49/vbaibot/main/evals/${ef}`, { headers: { 'User-Agent': 'VBAI-Server' } });
-      if (!efRes.ok) { missingSources.push(ef); continue; }
-      const efText = await efRes.text();
-      const parsed = extractEvalSamples(efText, ef);
-      syncedSourceCount++;
-      parsedCaseCount += parsed.parsedCases;
-      skippedCaseCount += parsed.parsedCases - parsed.samples.length;
-      evalSamples.push(...parsed.samples);
-      // Raw GitHub source is canonical; local files are only a trace of last sync.
-      const saveEfPath = path.join(__dirname, 'data', 'evals_source', ef);
-      fs.mkdirSync(path.dirname(saveEfPath), { recursive: true });
-      fs.writeFileSync(saveEfPath, efText, 'utf-8');
-    }
-    const db = await dbService.getDb();
-    if (evalSamples.length) {
-      const result = await db.collection('training_datasets').bulkWrite(evalSamples.map((sample) => ({
-        updateOne: { filter: { sourceHash: sample.sourceHash }, update: { $setOnInsert: sample }, upsert: true },
-      })));
-      ingestedCaseCount = result.upsertedCount || 0;
-    }
-    const snapshotSamples = await db.collection('training_datasets').find({}).toArray();
-    const jsonlPath = path.join(__dirname, 'data', 'vbai_tuning_dataset.jsonl');
-    assertSafePathInside(jsonlPath, path.join(__dirname, 'data'));
-    fs.writeFileSync(jsonlPath, snapshotSamples.map((sample) => JSON.stringify({ messages: sample.messages })).join('\n'), 'utf-8');
-    const status = parsedCaseCount === 0 || missingSources.length > 0 ? 'PARTIAL' : 'SYNCED';
-    const syncManifest = { status, syncedSourceCount, parsedCaseCount, ingestedCaseCount, skippedCaseCount, missingSources, snapshotPath: 'data/vbai_tuning_dataset.jsonl', updatedAt: new Date() };
-    await db.collection('vbaibot_sync_metadata').insertOne({ type: 'training-dataset', ...syncManifest });
-    res.status(status === 'PARTIAL' ? 502 : 200).json({
-      success: status === 'SYNCED', status, syncedSourceCount, parsedCaseCount, ingestedCaseCount, skippedCaseCount, missingSources, newAdminCount,
-      message: `Đồng bộ nguồn ${status === 'PARTIAL' ? 'một phần' : 'thành công'}: ${newAdminCount} tỉnh thành, ${syncedSourceCount}/${evalFiles.length} nguồn eval, parsed ${parsedCaseCount}, ingested ${ingestedCaseCount}, skipped ${skippedCaseCount}.`,
-      timestamp: new Date().toISOString()
-    });
+    if (!adminRes.ok) return res.status(502).json({ error: 'Cannot fetch administrative_divisions.json', status: adminRes.status });
+    const adminJson = await adminRes.json();
+    const savePath = path.join(__dirname, 'data', 'administrative_divisions.json');
+    fs.writeFileSync(savePath, JSON.stringify(adminJson, null, 2), 'utf-8');
+    const provinceCount = Array.isArray(adminJson.provinces) ? adminJson.provinces.length : 0;
+    res.json({ success: true, provinceCount, message: 'Cap nhat ' + provinceCount + ' tinh thanh thanh cong.' });
   } catch (err) {
-    console.error('POST /api/admin/training-datasets/sync-vbaibot error:', err);
-    res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// GET /api/admin/training-datasets/sync-status
+app.get('/api/admin/training-datasets/sync-status', async (req, res) => {
+  try {
+    const mongoDb = await dbService.getDb();
+    const total = await mongoDb.collection('training_datasets').countDocuments();
+    const meta = await mongoDb.collection('vbaibot_sync_metadata').findOne({ type: 'vbaibot-messages-sync' });
+    const bySource = await mongoDb.collection('training_datasets').aggregate([
+      { $group: { _id: '$source', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]).toArray();
+    res.json({
+      total,
+      bySource,
+      lastSyncAt: _lastSyncAt,
+      lastSyncIngested: _lastSyncIngested,
+      lastSyncTotal: _lastSyncTotal,
+      syncRunning: _syncRunning,
+      lastSyncedMessageId: meta ? meta.lastSyncedMessageId : 0,
+      intervalMinutes: 15,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/admin/training-datasets/sync-vbaibot-messages
+app.post('/api/admin/training-datasets/sync-vbaibot-messages', async (req, res) => {
+  try {
+    await verifyAdminToken(req);
+    const mongoDb = await dbService.getDb();
+    const limit = Math.min(5000, Number(req.body && req.body.limit) || 2000);
+    const result = await syncVbaibotMessages(mongoDb, { limit, verbose: true });
+    const total = await mongoDb.collection('training_datasets').countDocuments();
+    const msg = 'Dong bo messages: +' + result.ingested + ' mau moi, bo qua ' + result.skipped + '. Dataset: ' + total + ' mau.';
+    console.log('[sync-messages]', msg);
+    res.json({ success: true, ingested: result.ingested, skipped: result.skipped, total, lastId: result.lastId, errors: result.errors.length ? result.errors.slice(0,5) : undefined, message: msg });
+  } catch (err) {
+    console.error('POST /api/admin/training-datasets/sync-vbaibot-messages error:', err);
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -3745,9 +3751,18 @@ app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
     const objectName = `runs/${jobId}.jsonl`;
     const gcsUri = `gs://${GCS_TUNING_BUCKET}/${objectName}`;
 
-    // Serialize JSONL in memory from validated samples
+    // Serialize JSONL in Gemini GenerateContent format (required for Vertex AI SFT)
+    // Ref: https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-supervised-tuning-prepare
+    function toGeminiContents(messages) {
+      return {
+        contents: messages.map(m => ({
+          role: m.role === 'model' ? 'model' : 'user',
+          parts: [{ text: String(m.content || '') }],
+        })),
+      };
+    }
     const jsonlContent = Buffer.from(
-      validSamples.map(s => JSON.stringify({ messages: s.messages })).join('\n'),
+      validSamples.map(s => JSON.stringify(toGeminiContents(s.messages))).join('\n'),
       'utf-8'
     );
 
@@ -3772,7 +3787,20 @@ app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
     let vertexJob;
     try {
       const token = await getVertexToken();
-      vertexJob = await createVertexTuningJob(token, gcsUri, configuredModel, epochs, displayName);
+      // Override: Vertex AI SFT chỉ hỗ trợ gemini-2.0-flash-001, gemini-1.5-pro-002
+      // gemini-2.5-flash và gemini-2.5-pro chưa hỗ trợ SFT (2026-09)
+      const SUPPORTED_SFT_MODELS = [
+        'gemini-2.0-flash-001',
+        'gemini-1.5-pro-002',
+        'gemini-1.5-flash-002',
+      ];
+      const sftModel = SUPPORTED_SFT_MODELS.includes(configuredModel)
+        ? configuredModel
+        : 'gemini-2.0-flash-001';
+      if (sftModel !== configuredModel) {
+        console.warn(`[Tuning] Model "${configuredModel}" không hỗ trợ SFT → dùng "${sftModel}" thay thế`);
+      }
+      vertexJob = await createVertexTuningJob(token, gcsUri, sftModel, epochs, displayName);
       console.log(`[Tuning] Vertex AI job created: ${vertexJob.name}`);
     } catch (vertexErr) {
       console.error('[Tuning] Vertex AI job creation error:', vertexErr.message);
@@ -3787,7 +3815,8 @@ app.post('/api/admin/training-datasets/trigger-tuning', async (req, res) => {
     const jobDoc = {
       jobId,
       vertexJobName: vertexJob.name,
-      baseModel: configuredModel,
+      baseModel: sftModel || configuredModel,
+      configuredModel,
       epochs: Number(epochs),
       sampleCount,
       gcsUri,
@@ -3934,6 +3963,248 @@ app.post('/api/admin/training-datasets/tuning-jobs/:jobId/cancel', async (req, r
 });
 
 // POST: Chat completion proxy
+
+// ════════════════════════════════════════════════════════
+// CHAT SESSIONS – Bộ nhớ hội thoại lâu dài (ChatGPT-style)
+// ════════════════════════════════════════════════════════
+
+/** Lấy userId từ token hoặc anon-uuid header */
+async function getChatUserId(req) {
+  // Thử Firebase token
+  try {
+    const auth = await verifyIdToken(req);
+    if (auth && auth.uid) return auth.uid;
+  } catch (_) {}
+  // Fallback: anon-uuid từ header X-Anon-Id
+  const anonId = req.headers['x-anon-id'];
+  if (anonId && /^[a-f0-9-]{20,40}$/.test(anonId)) return 'anon:' + anonId;
+  return 'anon:unknown';
+}
+
+/** Sinh tiêu đề tự động từ tin nhắn đầu */
+function autoTitle(text = '') {
+  const clean = text.replace(/[\n\r]+/g, ' ').trim();
+  return clean.length > 60 ? clean.slice(0, 57) + '...' : (clean || 'Hội thoại mới');
+}
+
+// GET /api/chat/sessions – danh sách sessions (tối đa 50)
+app.get('/api/chat/sessions', async (req, res) => {
+  try {
+    const userId = await getChatUserId(req);
+    const mongoDb = await dbService.getDb();
+    const sessions = await mongoDb.collection('chat_sessions')
+      .find({ userId }, {
+        projection: { messages: 0 }, // không lấy messages, chỉ lấy meta
+        sort: { updatedAt: -1 },
+        limit: 50,
+      }).toArray();
+    res.json({ sessions });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/chat/sessions – tạo session mới
+app.post('/api/chat/sessions', async (req, res) => {
+  try {
+    const userId = await getChatUserId(req);
+    const { title, firstMessage } = req.body || {};
+    const mongoDb = await dbService.getDb();
+    const now = new Date();
+    const doc = {
+      userId,
+      title: title || autoTitle(firstMessage || '') || 'Hội thoại mới',
+      messages: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const result = await mongoDb.collection('chat_sessions').insertOne(doc);
+    res.json({ sessionId: result.insertedId.toString(), ...doc });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/chat/sessions/:id – lấy messages của session
+app.get('/api/chat/sessions/:id', async (req, res) => {
+  try {
+    const userId = await getChatUserId(req);
+    const { ObjectId } = require('mongodb');
+    const mongoDb = await dbService.getDb();
+    const session = await mongoDb.collection('chat_sessions').findOne({
+      _id: new ObjectId(req.params.id),
+      userId,
+    });
+    if (!session) return res.status(404).json({ error: 'Không tìm thấy hội thoại.' });
+    res.json({ session });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// PUT /api/chat/sessions/:id/messages – append 1 hoặc nhiều messages
+app.put('/api/chat/sessions/:id/messages', async (req, res) => {
+  try {
+    const userId = await getChatUserId(req);
+    const { ObjectId } = require('mongodb');
+    const mongoDb = await dbService.getDb();
+    const { messages } = req.body || {};
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'messages là mảng không rỗng.' });
+    }
+    const now = new Date();
+    const msgsToAdd = messages.map(m => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: String(m.content || ''),
+      timestamp: now,
+    }));
+    // Tự sinh title từ tin nhắn user đầu tiên nếu session chưa có title
+    const userMsg = msgsToAdd.find(m => m.role === 'user');
+    await mongoDb.collection('chat_sessions').updateOne(
+      { _id: new ObjectId(req.params.id), userId },
+      {
+        $push: { messages: { $each: msgsToAdd } },
+        $set: { updatedAt: now },
+        $setOnInsert: { title: autoTitle(userMsg?.content || '') },
+      }
+    );
+    // Cập nhật title nếu title vẫn là mặc định
+    if (userMsg) {
+      await mongoDb.collection('chat_sessions').updateOne(
+        { _id: new ObjectId(req.params.id), userId, title: 'Hội thoại mới' },
+        { $set: { title: autoTitle(userMsg.content) } }
+      );
+    }
+    res.json({ ok: true, added: msgsToAdd.length });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// PATCH /api/chat/sessions/:id/title – đổi tên
+app.patch('/api/chat/sessions/:id/title', async (req, res) => {
+  try {
+    const userId = await getChatUserId(req);
+    const { ObjectId } = require('mongodb');
+    const mongoDb = await dbService.getDb();
+    const { title } = req.body || {};
+    if (!title) return res.status(400).json({ error: 'Thiếu title.' });
+    await mongoDb.collection('chat_sessions').updateOne(
+      { _id: new ObjectId(req.params.id), userId },
+      { $set: { title: String(title).slice(0, 80), updatedAt: new Date() } }
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// DELETE /api/chat/sessions/:id – xóa session
+app.delete('/api/chat/sessions/:id', async (req, res) => {
+  try {
+    const userId = await getChatUserId(req);
+    const { ObjectId } = require('mongodb');
+    const mongoDb = await dbService.getDb();
+    await mongoDb.collection('chat_sessions').deleteOne({
+      _id: new ObjectId(req.params.id),
+      userId,
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// DELETE /api/chat/sessions – xóa TẤT CẢ sessions của user
+app.delete('/api/chat/sessions', async (req, res) => {
+  try {
+    const userId = await getChatUserId(req);
+    const mongoDb = await dbService.getDb();
+    const result = await mongoDb.collection('chat_sessions').deleteMany({ userId });
+    res.json({ ok: true, deleted: result.deletedCount });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
+// ════════════════════════════════════════════════════════
+// POST /api/parse-doc – Server-side .doc parser (Word 97-2003)
+// Sử dụng antiword (ưu tiên) hoặc catdoc làm fallback
+// upload dùng diskStorage → file đã được lưu tại req.file.path
+// ════════════════════════════════════════════════════════
+app.post('/api/parse-doc', upload.single('file'), async (req, res) => {
+  const { execFile } = require('child_process');
+  const fsp = require('fs').promises;
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'Chưa có file .doc được gửi lên.' });
+  }
+
+  // diskStorage: file đã được lưu vào req.file.path (UPLOAD_TEMP_DIR)
+  const filePath = req.file.path;
+
+  // Thử antiword trước
+  function runAntiword(fp) {
+    return new Promise((resolve, reject) => {
+      execFile('antiword', ['-w', '0', fp], {
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 15000,
+        env: { ...process.env, ANTIWORDHOME: '/usr/share/antiword' },
+      }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr || err.message));
+        resolve(stdout);
+      });
+    });
+  }
+
+  // Fallback: catdoc
+  function runCatdoc(fp) {
+    return new Promise((resolve, reject) => {
+      execFile('catdoc', ['-w', fp], {
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 15000,
+      }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr || err.message));
+        resolve(stdout);
+      });
+    });
+  }
+
+  let text = '';
+  let method = 'antiword';
+  try {
+    text = await runAntiword(filePath);
+  } catch (e1) {
+    try {
+      method = 'catdoc';
+      text = await runCatdoc(filePath);
+    } catch (e2) {
+      await fsp.unlink(filePath).catch(() => {});
+      return res.status(422).json({
+        error: `Không thể đọc file .doc. antiword: ${e1.message}. catdoc: ${e2.message}`
+      });
+    }
+  }
+
+  // Dọn file tạm
+  await fsp.unlink(filePath).catch(() => {});
+
+  if (!text || text.trim().length < 5) {
+    return res.status(422).json({
+      error: 'File .doc không có nội dung văn bản đọc được. Có thể file bị mã hóa hoặc chỉ chứa ảnh.'
+    });
+  }
+
+  res.json({
+    ok: true,
+    method,
+    text: text.trim(),
+    charCount: text.trim().length,
+    fileName: req.file.originalname,
+  });
+});
+
 app.post('/api/chat', async (req, res) => {
   try {
     initFirebase();
@@ -7862,5 +8133,30 @@ app.listen(PORT, HOST, () => {
   } catch (e) {
     console.warn('[Crawler] Could not initialize scheduler on startup:', e.message);
   }
+  // === Auto-sync vbaibot messages moi gio ===
+  const AUTO_SYNC_INTERVAL = 15 * 60 * 1000; // 15 phut / lan
+async function runAutoSyncMessages() {
+    if (_syncRunning) return;
+    _syncRunning = true;
+    try {
+      const mongoDb = await dbService.getDb();
+      const result = await syncVbaibotMessages(mongoDb, { limit: 3000, verbose: false });
+      _lastSyncAt = new Date();
+      _lastSyncIngested = result.ingested;
+      _lastSyncTotal = await mongoDb.collection('training_datasets').countDocuments();
+      if (result.ingested > 0) {
+        console.log('[Auto-Sync] +' + result.ingested + ' mau moi, tong: ' + _lastSyncTotal + ', lastId: ' + result.lastId);
+      }
+    } catch (e) {
+      console.error('[Auto-Sync Messages] Error:', e.message);
+    } finally {
+      _syncRunning = false;
+    }
+  }
+  // Chay ngay khi khoi dong (sau 5 giay de cho MongoDB connect)
+  setTimeout(runAutoSyncMessages, 5000);
+  // Sau do lap lai moi gio
+  setInterval(runAutoSyncMessages, AUTO_SYNC_INTERVAL);
+  console.log('[Auto-Sync Messages] Scheduled: every 15 minutes');
   console.log(`VBAI Proxy listening on port ${PORT}`);
 });
