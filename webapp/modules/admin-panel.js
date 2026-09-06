@@ -102,7 +102,8 @@ async function refreshSyncStatus(container) {
 function startSyncStatusPoller(container) {
   refreshSyncStatus(container);
   const timerId = setInterval(() => {
-    if (!document.contains(container)) { clearInterval(timerId); return; }
+    const isAttached = container?.isConnected ?? (document?.body?.contains ? document.body.contains(container) : true);
+    if (!isAttached) { clearInterval(timerId); return; }
     refreshSyncStatus(container);
   }, 30 * 1000);
 }
