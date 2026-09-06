@@ -3306,109 +3306,526 @@ input:checked + .slider-round:before {
 }
 
 /* ============================================
-   MOBILE RESPONSIVE FIXES
+   ADMIN & FORM ENHANCEMENTS
+   ============================================ */
+.admin-tab-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--border-default, #e2e8f0);
+  padding-bottom: 2px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-tab-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.admin-tab-btn {
+  padding: 12px 20px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  border: none;
+  background: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.admin-tab-btn:hover {
+  color: var(--brand-primary);
+  background: var(--bg-hover, #f1f9fa);
+}
+
+.admin-tab-btn.active {
+  font-weight: 700;
+  border-bottom: 3px solid var(--brand-primary, #008ca1);
+  color: var(--brand-primary, #008ca1);
+  background: transparent;
+}
+
+.config-key-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.config-key-input {
+  flex: 1 1 260px;
+  min-width: 200px;
+}
+
+.config-key-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.manual-ingest-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+}
+
+/* Global Table & Content Safeguards */
+table {
+  max-width: 100%;
+}
+
+.panel-body table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* Quick Actions Grid - Desktop 5 columns */
+@media (min-width: 1025px) {
+  .legal-quick-actions {
+    grid-template-columns: repeat(5, 1fr) !important;
+    max-width: 1100px;
+    gap: 14px;
+  }
+}
+
+/* ============================================
+   TABLET RESPONSIVE (max-width: 1024px)
+   ============================================ */
+@media (max-width: 1024px) {
+  .page-content {
+    padding: 20px 16px 36px;
+  }
+
+  .legal-search-two-panel {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .legal-side-evidence-panel {
+    max-height: 500px;
+  }
+
+  .legal-quick-actions {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+  }
+
+  .dashboard-container-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .dashboard-right-col {
+    position: static;
+  }
+}
+
+/* ============================================
+   MOBILE & TABLET PORTRAIT (max-width: 768px)
    ============================================ */
 @media (max-width: 768px) {
   /* Prevent horizontal overflow globally */
-  html, body {
-    overflow-x: hidden;
+  html, body, #app, .main-content {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
   }
 
+  .page-content {
+    padding: 12px 10px 24px;
+  }
+
+  /* Top Bar */
+  .top-bar {
+    height: 50px;
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .btn-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+  }
+
+  .breadcrumb-item {
+    font-size: 0.82rem;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  .dalat-time {
+    padding: 4px 8px;
+    font-size: 0.74rem;
+  }
+
+  .clock-region {
+    display: none;
+  }
+
+  /* Legal Home Hero */
   .legal-home-wrapper {
-    padding: 0 8px;
+    padding: 0 4px;
     overflow-x: hidden;
   }
 
   .legal-home-hero {
-    padding: 16px 4px;
+    padding: 16px 4px 20px;
   }
 
-  /* Hero titles */
   .hero-main-title {
-    font-size: 1.4rem;
+    font-size: 1.45rem;
+    line-height: 1.35;
   }
 
   .hero-sub-title {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
+    margin-bottom: 20px;
   }
 
-  /* Search box: stack input and button vertically */
+  .legal-home-search-box {
+    margin-bottom: 20px;
+  }
+
   .search-box-inner {
-    flex-wrap: wrap;
-    padding: 8px;
+    flex-direction: column;
+    padding: 10px;
     gap: 8px;
+    align-items: stretch;
   }
 
   .home-search-input {
     font-size: 0.92rem;
     min-width: 0;
     width: 100%;
+    padding: 8px 4px;
   }
 
   .home-search-btn {
     width: 100%;
-    padding: 10px 16px;
-    font-size: 0.9rem;
+    padding: 11px 16px;
+    font-size: 0.92rem;
+    justify-content: center;
   }
 
   .search-box-icon {
     display: none;
   }
 
-  /* Quick action cards: 2 columns on mobile */
+  /* Quick action cards: 2 balanced columns */
   .legal-quick-actions {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px;
   }
 
   .quick-action-card {
     padding: 12px 8px;
+    min-height: 96px;
+    justify-content: center;
+    text-align: center;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
 
   .action-title {
     font-size: 0.78rem;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.3;
   }
 
   .action-sub {
     font-size: 0.65rem;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.25;
   }
 
-  /* Info columns */
-  .home-info-columns {
-    gap: 12px;
+  /* Legal Search Page Mobile Layout */
+  .legal-search-header-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin-bottom: 12px;
   }
 
-  .home-card-panel {
-    padding: 14px;
+  .legal-search-main-title {
+    font-size: 1.25rem !important;
   }
 
-  /* Ancillary grid: single column */
-  .ancillary-grid {
-    grid-template-columns: 1fr;
-    gap: 8px;
+  .legal-search-sub-title {
+    font-size: 0.82rem !important;
   }
 
-  .ancillary-card {
-    padding: 12px;
+  .effective-date-bar {
+    width: 100% !important;
+    justify-content: space-between !important;
+    box-sizing: border-box;
   }
 
-  /* Section heads */
-  .section-head-row h2 {
-    font-size: 1rem;
-  }
-
-  /* Legal principles list */
-  .legal-principles-list li {
+  .effective-date-picker {
+    flex: 1;
+    max-width: 180px;
     font-size: 0.82rem;
   }
 
-  /* Footer */
-  .legal-pro-footer {
-    padding: 16px 8px;
-    font-size: 0.78rem;
+  .legal-query-box-card {
+    padding: 12px;
   }
 
-  /* Citation popover on mobile */
+  .legal-query-input-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .legal-search-input-field {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    font-size: 0.9rem !important;
+    padding: 10px 12px !important;
+    min-height: 42px;
+  }
+
+  #legal-file-btn {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-height: 40px !important;
+    justify-content: center !important;
+  }
+
+  .legal-search-submit-btn {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-height: 40px !important;
+    justify-content: center !important;
+  }
+
+  .legal-mode-chips {
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .mode-chip {
+    font-size: 0.74rem;
+    padding: 4px 8px;
+  }
+
+  .legal-answer-wrapper {
+    padding: 14px 12px !important;
+  }
+
+  /* Chat Assistant Mobile Layout: Convert sidebar to clean horizontal session bar */
+  .chat-full-layout {
+    flex-direction: column !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  #chat-sidebar {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 90px !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-subtle, #cbd5e1) !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    background: var(--surface-soft, #f8fafc) !important;
+  }
+
+  #chat-sidebar > div:first-child {
+    padding: 0 !important;
+    flex-shrink: 0;
+  }
+
+  #new-chat-btn {
+    padding: 6px 10px !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap !important;
+  }
+
+  #chat-session-list {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    scrollbar-width: none !important;
+  }
+
+  #chat-session-list::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  #chat-session-list > div:first-child {
+    display: none !important;
+  }
+
+  #session-list-items {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
+  }
+
+  #session-list-items > div {
+    padding: 6px 10px !important;
+    flex-shrink: 0 !important;
+    font-size: 0.76rem !important;
+  }
+
+  #chat-sidebar > div:last-child {
+    display: none !important;
+  }
+
+  .chat-assistant-panel {
+    height: auto !important;
+    flex: 1 1 0 !important;
+    min-height: 380px !important;
+    max-height: none !important;
+  }
+
+  .chat-assistant-panel .panel-body {
+    padding: 10px;
+  }
+
+  .chat-messages-area {
+    padding: 10px;
+    gap: 8px;
+    min-height: 200px;
+  }
+
+  .chat-msg {
+    font-size: 0.82rem;
+    padding: 8px 10px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .chat-input-wrapper {
+    gap: 6px !important;
+  }
+
+  .chat-input-field {
+    height: 38px !important;
+    font-size: 0.82rem !important;
+  }
+
+  #chat-attach-btn,
+  .chat-send-btn {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+  }
+
+  .chat-disclaimer {
+    font-size: 0.68rem !important;
+    padding: 8px !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Admin Panel Mobile */
+  .admin-tab-btn {
+    padding: 10px 14px !important;
+    font-size: 0.84rem !important;
+  }
+
+  .config-key-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .config-key-input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .config-key-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .config-key-actions .btn {
+    padding: 8px 4px !important;
+    font-size: 0.78rem !important;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .manual-ingest-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .manual-ingest-row input,
+  .manual-ingest-row select,
+  .manual-ingest-row button {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .config-section-card {
+    padding: 14px 12px !important;
+  }
+
+  /* Spell Check & Drafting Mobile */
+  .sc-summary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .sc-summary-card {
+    padding: 10px 8px !important;
+  }
+
+  .preview-container {
+    padding: 16px 10px !important;
+    font-size: 10.5pt !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .steps-bar {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 6px;
+  }
+
+  .steps-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .step-indicator {
+    padding: 6px 8px !important;
+    font-size: 0.75rem !important;
+    white-space: nowrap;
+  }
+
+  /* Citation Popover Mobile */
   .citation-popover {
     position: fixed;
     left: 8px !important;
@@ -3420,35 +3837,63 @@ input:checked + .slider-round:before {
     transform: none;
     z-index: 9999;
   }
-
-  /* Top bar breadcrumb */
-  .breadcrumb-item {
-    font-size: 0.82rem;
-  }
-
-  /* Hero brand header */
-  .hero-brand-header {
-    gap: 8px;
-  }
-
-  .hero-tagline-badge {
-    font-size: 0.68rem;
-    padding: 4px 10px;
-  }
-
-  .legal-pro-main-logo {
-    height: 48px;
-  }
 }
 
-/* Extra small screens (< 400px) */
-@media (max-width: 400px) {
-  .legal-quick-actions {
-    grid-template-columns: 1fr;
+/* ============================================
+   EXTRA SMALL MOBILE (max-width: 480px)
+   ============================================ */
+@media (max-width: 480px) {
+  .page-content {
+    padding: 8px 6px 20px;
   }
 
   .hero-main-title {
-    font-size: 1.2rem;
+    font-size: 1.22rem;
+    line-height: 1.3;
+  }
+
+  .hero-brand-header {
+    gap: 6px;
+  }
+
+  .hero-tagline-badge {
+    font-size: 0.62rem;
+    padding: 3px 8px;
+  }
+
+  .legal-pro-main-logo {
+    height: 38px;
+  }
+
+  .legal-quick-actions {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px;
+  }
+
+  .quick-action-card {
+    padding: 10px 6px;
+  }
+
+  .action-title {
+    font-size: 0.74rem;
+  }
+
+  .action-sub {
+    font-size: 0.6rem;
+  }
+
+  #legal-file-btn,
+  .legal-search-submit-btn {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+  }
+
+  .config-key-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .sc-summary-grid {
+    grid-template-columns: 1fr !important;
   }
 
   .panel-card-head {
@@ -3456,4 +3901,31 @@ input:checked + .slider-round:before {
     align-items: flex-start;
     gap: 6px;
   }
+
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 10px;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
 }
+
+/* ============================================
+   TINY SCREENS (< 360px)
+   ============================================ */
+@media (max-width: 360px) {
+  .legal-quick-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+}
+

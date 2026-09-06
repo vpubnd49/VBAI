@@ -23,7 +23,8 @@ function updateClock() {
   const el = document.getElementById('dalat-clock');
   if (!el) return;
   const now = new Date();
-  el.textContent = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' • Lâm Đồng';
+  const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  el.innerHTML = `<span class="clock-time">${timeStr}</span><span class="clock-region"> • Lâm Đồng</span>`;
 }
 setInterval(updateClock, 1000);
 

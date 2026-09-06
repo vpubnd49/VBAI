@@ -131,17 +131,17 @@ export function renderAdminPanel(container) {
       </div>
 
       <!-- 2. Modern Full-Width Tab Navigation -->
-      <div class="admin-tab-nav" style="display:flex; gap:10px; margin-bottom:24px; border-bottom:2px solid var(--border-default, #e2e8f0); padding-bottom:2px; width:100%; box-sizing:border-box; overflow-x:auto;">
-        <button type="button" class="admin-tab-btn active" data-tab="tab-config" style="padding:12px 24px; font-weight:700; font-size:0.95rem; border:none; background:none; border-bottom:3px solid var(--brand-primary, #008ca1); color:var(--brand-primary, #008ca1); cursor:pointer; display:flex; align-items:center; gap:8px; margin-bottom:-2px; white-space:nowrap; transition: all 0.2s;">
+      <div class="admin-tab-nav">
+        <button type="button" class="admin-tab-btn active" data-tab="tab-config">
           ⚙️ Cấu hình AI & Hệ thống
         </button>
-        <button type="button" class="admin-tab-btn" data-tab="tab-training" style="padding:12px 24px; font-weight:600; font-size:0.95rem; border:none; background:none; border-bottom:3px solid transparent; color:var(--text-secondary, #64748b); cursor:pointer; display:flex; align-items:center; gap:8px; margin-bottom:-2px; white-space:nowrap; transition: all 0.2s;">
+        <button type="button" class="admin-tab-btn" data-tab="tab-training">
           📊 Dữ liệu Huấn luyện & Tuning (vbaibot)
         </button>
-        <button type="button" class="admin-tab-btn" data-tab="tab-logs" style="padding:12px 24px; font-weight:600; font-size:0.95rem; border:none; background:none; border-bottom:3px solid transparent; color:var(--text-secondary, #64748b); cursor:pointer; display:flex; align-items:center; gap:8px; margin-bottom:-2px; white-space:nowrap; transition: all 0.2s;">
+        <button type="button" class="admin-tab-btn" data-tab="tab-logs">
           🛡️ Vết Tra Cứu (Audit Logs)
         </button>
-        <button type="button" class="admin-tab-btn" data-tab="tab-users" style="padding:12px 24px; font-weight:600; font-size:0.95rem; border:none; background:none; border-bottom:3px solid transparent; color:var(--text-secondary, #64748b); cursor:pointer; display:flex; align-items:center; gap:8px; margin-bottom:-2px; white-space:nowrap; transition: all 0.2s;">
+        <button type="button" class="admin-tab-btn" data-tab="tab-users">
           👥 Tài khoản Hệ thống
         </button>
       </div>
@@ -149,7 +149,7 @@ export function renderAdminPanel(container) {
       <!-- TAB 1: AI & SYSTEM CONFIG (FULL-WIDTH HORIZONTAL SECTIONS) -->
       <div id="tab-config" class="admin-tab-content active" style="width:100%;">
         <div class="panel-group admin-config-panel" style="margin-bottom:20px; width:100%;">
-          <div class="panel-header" style="display:flex; align-items:center; justify-content:space-between; padding:16px 24px;">
+          <div class="panel-header" style="display:flex; align-items:center; justify-content:space-between; padding:16px 24px; flex-wrap:wrap; gap:10px;">
             <div style="display:flex; align-items:center; gap:10px; font-size:1.05rem; font-weight:700;">
               <span class="panel-header-icon">⚙️</span> Cấu hình AI Hệ thống
             </div>
@@ -170,11 +170,13 @@ export function renderAdminPanel(container) {
                   
                   <div class="form-group" style="margin-bottom:16px;">
                     <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">gemini API Key</label>
-                    <div class="config-inline-row" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                      <input type="password" id="gemini_api_key" class="form-input config-inline-grow" placeholder="AIza... (Để trống nếu không đổi)" style="flex:1; min-width:280px; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
-                      <button type="button" id="toggle-gemini-key-btn" class="btn btn-secondary btn-sm" style="padding:8px 14px;">Hiện key</button>
-                      <button type="button" id="verify-gemini-key-btn" class="btn btn-primary btn-sm" style="padding:8px 16px; background:var(--brand-primary, #008ca1); color:white; border:none; border-radius:6px;">✓ Xác nhận key</button>
-                      <button type="button" id="clear-gemini-key-btn" class="btn btn-danger btn-sm" style="padding:8px 14px; background:#dc2626; color:white; border:none; border-radius:6px;">🗑️ Xóa key</button>
+                    <div class="config-inline-row config-key-row">
+                      <input type="password" id="gemini_api_key" class="form-input config-inline-grow config-key-input" placeholder="AIza... (Để trống nếu không đổi)">
+                      <div class="config-key-actions">
+                        <button type="button" id="toggle-gemini-key-btn" class="btn btn-secondary btn-sm">Hiện key</button>
+                        <button type="button" id="verify-gemini-key-btn" class="btn btn-primary btn-sm">✓ Xác nhận key</button>
+                        <button type="button" id="clear-gemini-key-btn" class="btn btn-danger btn-sm">🗑️ Xóa key</button>
+                      </div>
                     </div>
                     <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
                       <label style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; cursor:pointer;">
@@ -247,15 +249,15 @@ export function renderAdminPanel(container) {
                   </div>
                   <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--border-subtle, #cbd5e1);">
                     <div style="font-size:0.85rem; font-weight:700; color:var(--text-primary); margin-bottom:8px;">⚡ Nạp nhanh văn bản quy phạm pháp luật vào hệ thống:</div>
-                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                      <input type="text" id="manual-ingest-number" class="form-input" placeholder="Số hiệu (VD: 327/2026/NĐ-CP)" style="flex:1; min-width:140px; font-size:0.85rem; padding:8px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
-                      <input type="text" id="manual-ingest-title" class="form-input" placeholder="Tên văn bản / Trích yếu" style="flex:2; min-width:220px; font-size:0.85rem; padding:8px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
-                      <select id="manual-ingest-status" class="form-input" style="width:140px; font-size:0.85rem; padding:8px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
+                    <div class="manual-ingest-row" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                      <input type="text" id="manual-ingest-number" class="form-input" placeholder="Số hiệu (VD: 327/2026/NĐ-CP)" style="flex:1 1 140px; min-width:120px; font-size:0.85rem; padding:8px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
+                      <input type="text" id="manual-ingest-title" class="form-input" placeholder="Tên văn bản / Trích yếu" style="flex:2 1 200px; min-width:160px; font-size:0.85rem; padding:8px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
+                      <select id="manual-ingest-status" class="form-input" style="flex:0 1 140px; min-width:110px; font-size:0.85rem; padding:8px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
                         <option value="Còn hiệu lực">Còn hiệu lực</option>
                         <option value="Hết hiệu lực">Hết hiệu lực</option>
                         <option value="Chưa có hiệu lực">Chưa hiệu lực</option>
                       </select>
-                      <button type="button" id="manual-ingest-btn" class="btn btn-secondary btn-sm" style="font-size:0.85rem; padding:8px 16px; border-radius:6px; cursor:pointer;">+ Nạp văn bản</button>
+                      <button type="button" id="manual-ingest-btn" class="btn btn-secondary btn-sm" style="font-size:0.85rem; padding:8px 16px; border-radius:6px; cursor:pointer; white-space:nowrap;">+ Nạp văn bản</button>
                     </div>
                   </div>
                 </section>
