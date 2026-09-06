@@ -109,9 +109,10 @@ async function syncVbaibotMessages(mongoDb, options = {}) {
   const allMsgsByThread = {};
 
   for (const threadId of threadIds) {
-    // Lấy tối đa 200 messages mỗi thread để build context
+    // Lấy toàn bộ messages trong thread (không giới hạn) để tránh bỏ sót
+    // assistant messages nằm sau vị trí 200 → no_thread false-positive
     const msgs = vbaibotDb.prepare(
-      'SELECT id, role, content, created_at FROM messages WHERE thread_id=? ORDER BY id ASC LIMIT 200'
+      'SELECT id, role, content, created_at FROM messages WHERE thread_id=? ORDER BY id ASC'
     ).all(threadId);
     allMsgsByThread[threadId] = msgs;
   }
