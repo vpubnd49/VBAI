@@ -15,8 +15,8 @@ const VBAIBOT_DB_PATH = process.env.VBAIBOT_DB_PATH || '/var/www/vbaibot/data/za
 
 // Config chất lượng
 const MIN_USER_LEN = 5;      // tin nhắn user tối thiểu
-const MIN_BOT_LEN = 50;      // response bot tối thiểu (loại "ok", "dạ")
-const MAX_BOT_LEN = 8000;    // giới hạn trên (loại response quá dài, thường là raw data)
+const MIN_BOT_LEN = 20;      // response bot tối thiểu
+const MAX_BOT_LEN = 15000;   // giới hạn trên (nới rộng để không bỏ sót responses)
 const MAX_CONTEXT_TURNS = 3; // số turn ngữ cảnh trước đó
 
 /**
@@ -101,7 +101,7 @@ async function syncVbaibotMessages(mongoDb, options = {}) {
 
   if (assistantMsgs.length === 0) {
     vbaibotDb.close();
-    return { ingested: 0, skipped: 0, lastId: lastSyncedId, errors: [] };
+    return { ingested: 0, skipped: 0, lastId: lastSyncedId, errors: [], skipReasons: {} };
   }
 
   // Lấy tất cả messages trong các threads liên quan để build context
@@ -120,6 +120,7 @@ async function syncVbaibotMessages(mongoDb, options = {}) {
   let skipped = 0;
   let maxId = lastSyncedId;
   const errors = [];
+  const skipReasons = { short_bot: 0, long_bot: 0, no_user: 0, low_quality: 0, dedup: 0, no_thread: 0 };
 
   // Process từng assistant message
   for (const aMsg of assistantMsgs) {
@@ -127,13 +128,13 @@ async function syncVbaibotMessages(mongoDb, options = {}) {
       if (aMsg.id > maxId) maxId = aMsg.id;
 
       const botContent = (aMsg.content || '').trim();
-      if (!botContent || botContent.length < MIN_BOT_LEN) { skipped++; continue; }
-      if (botContent.length > MAX_BOT_LEN) { skipped++; continue; }
+      if (!botContent || botContent.length < MIN_BOT_LEN) { skipped++; skipReasons.short_bot++; continue; }
+      if (botContent.length > MAX_BOT_LEN) { skipped++; skipReasons.long_bot++; continue; }
 
       // Tìm vị trí của assistant message trong thread
       const threadMsgs = allMsgsByThread[aMsg.thread_id] || [];
       const myIdx = threadMsgs.findIndex(m => m.id === aMsg.id);
-      if (myIdx === -1) { skipped++; continue; }
+      if (myIdx === -1) { skipped++; skipReasons.no_thread++; continue; }
 
       // Tìm user message liền trước
       let userMsg = null;
@@ -144,15 +145,15 @@ async function syncVbaibotMessages(mongoDb, options = {}) {
         }
       }
 
-      if (!userMsg) { skipped++; continue; }
+      if (!userMsg) { skipped++; skipReasons.no_user++; continue; }
 
       const userContent = (userMsg.content || '').trim();
-      if (!isQuality(userContent, botContent)) { skipped++; continue; }
+      if (!isQuality(userContent, botContent)) { skipped++; skipReasons.low_quality++; continue; }
 
       // Check dedup
       const externalId = 'vbaibot-msg:' + aMsg.account_id + ':' + aMsg.id;
       const exists = await col.countDocuments({ externalId });
-      if (exists > 0) { skipped++; continue; }
+      if (exists > 0) { skipped++; skipReasons.dedup++; continue; }
 
       // Build conversation với ngữ cảnh (multi-turn)
       const messages = [];
@@ -215,7 +216,9 @@ async function syncVbaibotMessages(mongoDb, options = {}) {
 
   try { vbaibotDb.close(); } catch (_) {}
 
-  return { ingested, skipped, lastId: maxId, errors };
+  if (verbose) console.log('[messages-sync] skipReasons:', JSON.stringify(skipReasons));
+
+  return { ingested, skipped, lastId: maxId, errors, skipReasons };
 }
 
 module.exports = { syncVbaibotMessages };
