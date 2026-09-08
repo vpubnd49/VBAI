@@ -509,10 +509,8 @@ async function crawlPhaplyNet() {
         if (detailRes && detailRes.ok) {
           const detailHtml = decodeHtmlEntities(await detailRes.text());
           const h1Match = detailHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-          const metaDescMatch = detailHtml.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
-          const paragraphs = (detailHtml.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [])
-            .map(p => p.replace(/<[^>]+>/g, '').trim())
-            .filter(p => p.length > 35 && !p.includes('Chia sẻ') && !p.includes('Bình luận'));
+          const sapoMatch = detailHtml.match(/class=["'][^"']*(?:sapo|summary|lead|the-article-sapo)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|p)>/i);
+          const contentMatch = detailHtml.match(/class=["'][^"']*(?:article-content|sp-detail-content|the-article-body|content_detail)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
 
           if (h1Match && h1Match[1]) {
             const cleanH1 = h1Match[1].replace(/<[^>]+>/g, '').trim();
@@ -521,17 +519,21 @@ async function crawlPhaplyNet() {
             }
           }
 
-          let desc = metaDescMatch ? metaDescMatch[1].trim() : '';
-          if (desc.includes('cập nhật tin tức') || desc.includes('tin nóng') || desc.includes('tin hot')) {
-            desc = '';
+          let sapo = sapoMatch ? sapoMatch[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() : '';
+          let bodyParagraphs = [];
+          if (contentMatch) {
+            bodyParagraphs = (contentMatch[1].match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [])
+              .map(p => p.replace(/<[^>]+>/g, '').trim())
+              .filter(p => p.length > 40 && !p.includes('Chia sẻ') && !p.includes('Bình luận'));
           }
-          const validParagraphs = paragraphs.filter(p => !p.includes('Diễn đàn - Luật gia') && !p.includes('Thông tin đầu tư') && !p.includes('Bên khung cửa tư pháp') && !p.includes('giờ trước'));
-          const bodySnippet = validParagraphs.slice(0, 4).join('\n\n');
-          if (bodySnippet || desc) {
-            item.noi_dung_chi_tiet = [desc, bodySnippet].filter(Boolean).join('\n\n');
-            if (desc && desc.length > 30) {
-              item.tom_tat_chinh_sach = desc;
-            }
+
+          if (sapo && sapo.length > 30) {
+            item.tom_tat_chinh_sach = sapo;
+          }
+
+          const detailParts = [sapo, ...bodyParagraphs.slice(0, 4)].filter(Boolean);
+          if (detailParts.length > 0) {
+            item.noi_dung_chi_tiet = detailParts.join('\n\n');
           }
           if (!item.tom_tat_chinh_sach || item.tom_tat_chinh_sach.includes('cập nhật tin tức') || item.tom_tat_chinh_sach.startsWith('ngày ')) {
             item.tom_tat_chinh_sach = item.title;
