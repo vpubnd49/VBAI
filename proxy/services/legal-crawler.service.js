@@ -521,13 +521,20 @@ async function crawlPhaplyNet() {
             }
           }
 
-          const desc = metaDescMatch ? metaDescMatch[1].trim() : '';
-          const bodySnippet = paragraphs.slice(0, 4).join('\n\n');
+          let desc = metaDescMatch ? metaDescMatch[1].trim() : '';
+          if (desc.includes('cập nhật tin tức') || desc.includes('tin nóng') || desc.includes('tin hot')) {
+            desc = '';
+          }
+          const validParagraphs = paragraphs.filter(p => !p.includes('Diễn đàn - Luật gia') && !p.includes('Thông tin đầu tư') && !p.includes('Bên khung cửa tư pháp') && !p.includes('giờ trước'));
+          const bodySnippet = validParagraphs.slice(0, 4).join('\n\n');
           if (bodySnippet || desc) {
             item.noi_dung_chi_tiet = [desc, bodySnippet].filter(Boolean).join('\n\n');
             if (desc && desc.length > 30) {
               item.tom_tat_chinh_sach = desc;
             }
+          }
+          if (!item.tom_tat_chinh_sach || item.tom_tat_chinh_sach.includes('cập nhật tin tức') || item.tom_tat_chinh_sach.startsWith('ngày ')) {
+            item.tom_tat_chinh_sach = item.title;
           }
         }
       } catch (_) {}
