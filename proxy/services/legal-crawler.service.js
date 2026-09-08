@@ -152,6 +152,26 @@ function detectIssuer(text) {
 }
 
 /**
+ * Decode HTML entities (&#xHEX;, &#DEC;, &amp; etc.) to proper Unicode characters.
+ * Government HTML pages encode Vietnamese diacritics as HTML entities.
+ */
+function decodeHtmlEntities(str) {
+  if (!str) return '';
+  return str
+    // Decode hex entities: &#x1EED; -> ử
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    // Decode decimal entities: &#7917; -> ử
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    // Decode common named entities
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+}
+
+/**
  * Universal HTML document extractor – scans the ENTIRE raw HTML for document numbers
  * instead of just parsing <a> tag text content.
  * This is critical because government sites embed doc numbers in URLs, attributes,
@@ -162,10 +182,13 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
   const items = [];
   const seen = new Set();
 
+  // Pre-decode the entire HTML so that doc numbers with entities (e.g. N&#x110;-CP) are found
+  const decodedHtml = decodeHtmlEntities(rawHtml);
+
   // Global regex to find all document numbers anywhere in the HTML
   const DOC_NUM_GLOBAL = /(\d{1,4}\/\d{4}\/(?:N\u0110-CP|N\u0111-CP|ND-CP|QH\d+|NQ-QH\d+|UBTVQH\d+|Q\u0110-TTg|QD-TTg|TT-[A-Z\u01100-9\-]+|TTLT-[A-Z\u01100-9\-]+|NQ-CP|Q\u0110-UBND|QD-UBND|NQ-H\u0110ND|NQ-HDND|CT-UBND|VBHN-[A-Z\u01100-9\-]+))/gi;
 
-  const allMatches = rawHtml.match(DOC_NUM_GLOBAL) || [];
+  const allMatches = decodedHtml.match(DOC_NUM_GLOBAL) || [];
 
   for (const rawMatch of allMatches) {
     const docNum = normalizeDocumentNumber(rawMatch);
@@ -176,10 +199,10 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
 
     seen.add(docNum);
 
-    // Try to find surrounding context for title
+    // Try to find surrounding context for title (use decoded HTML)
     const escDocNum = rawMatch.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
     const contextRegex = new RegExp('.{0,200}' + escDocNum + '.{0,200}', 'i');
-    const contextMatch = rawHtml.match(contextRegex);
+    const contextMatch = decodedHtml.match(contextRegex);
     let contextText = contextMatch ? contextMatch[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
 
     // Extract a meaningful title from context
