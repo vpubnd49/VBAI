@@ -524,7 +524,7 @@ async function crawlPhaplyNet() {
           if (contentMatch) {
             bodyParagraphs = (contentMatch[1].match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [])
               .map(p => p.replace(/<[^>]+>/g, '').trim())
-              .filter(p => p.length > 40 && !p.includes('Chia sẻ') && !p.includes('Bình luận'));
+              .filter(p => p.length > 40 && !p.includes('Chia sẻ') && !p.includes('Bình luận') && !p.includes('Giấy phép') && !p.includes('Cơ quan chủ quản') && !p.includes('Tên miền') && !p.includes('T&ecirc;n miền') && !p.includes('giờ trước'));
           }
 
           if (sapo && sapo.length > 30) {
@@ -670,11 +670,18 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
           betterTitle = cleanDocTitle;
         }
 
-        const betterSummary = (doc.tom_tat_chinh_sach && doc.tom_tat_chinh_sach.length > 30 && !doc.tom_tat_chinh_sach.startsWith('ngày '))
-          ? doc.tom_tat_chinh_sach
-          : (existing.tom_tat_chinh_sach || existing.summary || doc.tom_tat_chinh_sach || betterTitle);
+        const isBoilerplate = (txt) => Boolean(txt && (txt.includes('Giấy phép') || txt.includes('Cơ quan chủ quản') || txt.includes('Tên miền') || txt.includes('T&ecirc;n miền') || txt.includes('giờ trước')));
 
-        const betterDetail = doc.noi_dung_chi_tiet || existing.noi_dung_chi_tiet || betterSummary;
+        const betterSummary = (!isBoilerplate(doc.tom_tat_chinh_sach) && doc.tom_tat_chinh_sach && doc.tom_tat_chinh_sach.length > 30 && !doc.tom_tat_chinh_sach.startsWith('ngày '))
+          ? doc.tom_tat_chinh_sach
+          : (existing.tom_tat_chinh_sach || existing.summary || betterTitle);
+
+        let betterDetail = existing.noi_dung_chi_tiet;
+        if (!betterDetail || isBoilerplate(betterDetail)) {
+          betterDetail = (!isBoilerplate(doc.noi_dung_chi_tiet) && doc.noi_dung_chi_tiet) ? doc.noi_dung_chi_tiet : betterSummary;
+        } else if (doc.noi_dung_chi_tiet && !isBoilerplate(doc.noi_dung_chi_tiet) && doc.noi_dung_chi_tiet.length > betterDetail.length) {
+          betterDetail = doc.noi_dung_chi_tiet;
+        }
 
         const mergedUrls = Array.from(new Set([
           ...(Array.isArray(existing.official_source_urls) ? existing.official_source_urls : []),
