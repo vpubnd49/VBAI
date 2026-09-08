@@ -319,7 +319,31 @@ async function crawlCongbaoVanbanMoi() {
   return extractDocumentsFromRawHtml(html, url, 'congbao.chinhphu.vn/van-ban-moi');
 }
 
-
+/**
+ * Source 8: phaply.net.vn - Legal news site
+ * Reliably lists recent NĐ-CP, TT, QĐ with doc numbers in static HTML
+ */
+async function crawlPhaplyNet() {
+  const items = [];
+  const urls = [
+    'https://phaply.net.vn/',
+    'https://phaply.net.vn/category/van-ban-phap-luat/',
+  ];
+  for (const url of urls) {
+    try {
+      const res = await fetchWithRetry(url);
+      if (!res.ok) continue;
+      const html = await res.text();
+      const docs = extractDocumentsFromRawHtml(html, url, 'phaply.net.vn');
+      for (const d of docs) {
+        if (!items.some(i => i.document_number === d.document_number)) {
+          items.push(d);
+        }
+      }
+    } catch (e) { /* skip */ }
+  }
+  return items;
+}
 
 
 /**
@@ -336,6 +360,7 @@ async function crawlOfficialSources() {
     { name: 'congbao.chinhphu.vn', fn: crawlCongbao, scope: 'central' },
     { name: 'congbao (van ban moi)', fn: crawlCongbaoVanbanMoi, scope: 'central' },
     { name: 'baochinhphu.vn', fn: crawlBaochinhphu, scope: 'central' },
+    { name: 'phaply.net.vn', fn: crawlPhaplyNet, scope: 'central' },
     { name: 'lamdong.gov.vn/sites/qppl', fn: crawlLamDongQPPL, scope: 'local_lamdong' },
   ];
 
