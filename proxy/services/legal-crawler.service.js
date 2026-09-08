@@ -140,14 +140,36 @@ function detectDocType(text, docNum) {
 }
 
 /**
- * Detect issuer from text
+ * Detect issuer from text and document number with strict hierarchy
  */
-function detectIssuer(text) {
-  if (/UBND tỉnh|ủy ban nhân dân tỉnh/i.test(text)) return 'UBND tỉnh Lâm Đồng';
-  if (/HĐND tỉnh|hội đồng nhân dân tỉnh/i.test(text)) return 'HĐND tỉnh Lâm Đồng';
-  if (/chính phủ/i.test(text)) return 'Chính phủ';
-  if (/quốc hội/i.test(text)) return 'Quốc hội';
-  if (/thủ tướng/i.test(text)) return 'Thủ tướng Chính phủ';
+function detectIssuer(text, docNum = '') {
+  const combined = `${text || ''} ${docNum || ''}`.toUpperCase();
+  // Central authorities (highest hierarchy: Decrees are Government, Laws are NA)
+  if (/NĐ-CP|NQ-CP/i.test(combined)) return 'Chính phủ';
+  if (/QH\d+|NQ-QH/i.test(combined) || combined.startsWith('LUẬT')) return 'Quốc hội';
+  if (/UBTVQH/i.test(combined)) return 'Ủy ban Thường vụ Quốc hội';
+  if (/QĐ-TTG|CĐ-TTG|CT-TTG/i.test(combined)) return 'Thủ tướng Chính phủ';
+  if (/QĐ-UBND|UBND TỈNH|ỦY BAN NHÂN DÂN TỈNH/i.test(combined)) return 'UBND tỉnh Lâm Đồng';
+  if (/NQ-HĐND|HĐND TỈNH|HỘI ĐỒNG NHÂN DÂN TỈNH/i.test(combined)) return 'HĐND tỉnh Lâm Đồng';
+
+  // Ministries & Ministerial-level agencies (for Thông tư, Quyết định của Bộ)
+  if (/BGDĐT|BGDDT|BỘ GIÁO DỤC/i.test(combined)) return 'Bộ Giáo dục và Đào tạo';
+  if (/BTC|BỘ TÀI CHÍNH/i.test(combined)) return 'Bộ Tài chính';
+  if (/BCA|BỘ CÔNG AN/i.test(combined)) return 'Bộ Công an';
+  if (/BQP|BỘ QUỐC PHÒNG/i.test(combined)) return 'Bộ Quốc phòng';
+  if (/BTP|BỘ TƯ PHÁP/i.test(combined)) return 'Bộ Tư pháp';
+  if (/BYT|BỘ Y TẾ/i.test(combined)) return 'Bộ Y tế';
+  if (/BXD|BỘ XÂY DỰNG/i.test(combined)) return 'Bộ Xây dựng';
+  if (/BKHCN|BỘ KHOA HỌC/i.test(combined)) return 'Bộ Khoa học và Công nghệ';
+  if (/BCT|BỘ CÔNG THƯƠNG/i.test(combined)) return 'Bộ Công Thương';
+  if (/BNV|BỘ NỘI VỤ/i.test(combined)) return 'Bộ Nội vụ';
+  if (/BGTVT|BỘ GIAO THÔNG/i.test(combined)) return 'Bộ Giao thông vận tải';
+  if (/BNN|BỘ NÔNG NGHIỆP/i.test(combined)) return 'Bộ Nông nghiệp và Phát triển nông thôn';
+  if (/NHNN|NGÂN HÀNG NHÀ NƯỚC/i.test(combined)) return 'Ngân hàng Nhà nước Việt Nam';
+
+  if (/CHÍNH PHỦ/i.test(combined)) return 'Chính phủ';
+  if (/QUỐC HỘI/i.test(combined)) return 'Quốc hội';
+  if (/THỦ TƯỚNG/i.test(combined)) return 'Thủ tướng Chính phủ';
   return 'Cơ quan nhà nước';
 }
 
@@ -172,56 +194,127 @@ function decodeHtmlEntities(str) {
 }
 
 /**
- * Helper to find the best title, direct link, and dates for a document from decoded HTML
+ * Strip script, style, noscript, svg, and comment blocks from HTML
+ * to prevent inline Javascript or CSS from polluting document titles or metadata.
  */
-function findBestTitleAndLink(decodedHtml, rawMatch, baseUrl) {
+function sanitizeHtml(html) {
+  if (!html || typeof html !== 'string') return '';
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ');
+}
+
+/**
+ * Strict validator to reject any text containing Javascript code, JSON-LD fragments, CSS, or markup
+ */
+function isCodeOrCorruptedText(str) {
+  if (!str || typeof str !== 'string') return true;
+  const s = str.trim();
+  if (s.length < 5) return true;
+  if (/dataLayer|function\s*\(|gtag\(|_govaq|@context|schema\.org|document\.getElementById|\.addEventListener|\$\(document\)|var\s+\w+|const\s+\w+|let\s+\w+|window\.|\.css\(|\.attr\(|\.split\(|\.indexOf\(|setInterval\(|setTimeout\(/i.test(s)) {
+    return true;
+  }
+  if (s.startsWith('{') || s.startsWith('[') || /"@[a-z]+"\s*:/i.test(s) || /"name"\s*:/i.test(s)) {
+    return true;
+  }
+  if (/\{[^}]*(?:cursor|display|padding|margin|color|background|border)\s*:[^}]*\}/i.test(s)) {
+    return true;
+  }
+  if (/<[a-z]+[^>]*>|<\/[a-z]+>/i.test(s)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Helper to find the best title, direct link, and dates for a document from sanitized, decoded HTML
+ * using a localized context window around the match rather than spanning across tags.
+ */
+function findBestTitleAndLink(cleanHtml, rawMatch, baseUrl) {
   const esc = rawMatch.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+  const idx = cleanHtml.indexOf(rawMatch);
+  if (idx === -1) {
+    return { title: '', detailUrl: baseUrl, issueDate: null, effectiveDate: null, summary: '' };
+  }
+
+  // Take a localized context window of 800 chars before and 600 chars after
+  const start = Math.max(0, idx - 800);
+  const end = Math.min(cleanHtml.length, idx + 600);
+  const local = cleanHtml.slice(start, end);
+  const relIdx = idx - start;
+
+  const beforeSnippet = local.slice(0, relIdx);
+  const afterSnippet = local.slice(relIdx);
+
   let title = '';
   let detailUrl = baseUrl;
+  let summary = '';
 
-  // 1. Check if enclosed in an <a> tag with title attribute or text
-  const aRegex = new RegExp('<a\\b([^>]*)>([\\s\\S]*?)<\\/a>', 'gi');
-  let m;
-  while ((m = aRegex.exec(decodedHtml)) !== null) {
-    const fullTag = m[0];
-    const attrs = m[1];
-    const text = m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (fullTag.includes(rawMatch) || text.includes(rawMatch)) {
-      const titleAttrMatch = attrs.match(/title=["']([^"']+)["']/i);
-      const titleAttr = titleAttrMatch ? titleAttrMatch[1].trim() : '';
+  // 1. Direct enclosing tag (p, li, td, div, option)
+  const openTagMatch = beforeSnippet.match(/<([a-zA-Z0-9]+)\b([^>]*)>(?![\s\S]*<[a-zA-Z0-9]+)/);
+  if (openTagMatch) {
+    const tagName = openTagMatch[1].toLowerCase();
+    const afterCloseRegex = new RegExp(`<\/${tagName}>`, 'i');
+    const closeMatch = afterSnippet.match(afterCloseRegex);
+    if (closeMatch) {
+      const fullInside = beforeSnippet.slice(openTagMatch.index) + afterSnippet.slice(0, closeMatch.index + closeMatch[0].length);
+      const cleanInside = fullInside.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!isCodeOrCorruptedText(cleanInside) && cleanInside.length >= 15) {
+        summary = cleanInside;
+        title = cleanInside;
+      }
+    }
+  }
 
-      const hrefMatch = attrs.match(/href=["']([^"']+)["']/i);
-      if (hrefMatch && hrefMatch[1] && !hrefMatch[1].startsWith('javascript:') && !hrefMatch[1].startsWith('#')) {
+  // 2. Look for preceding headline or link within the local block (e.g. <div class="title"><a href="...">TITLE</a></div>)
+  const aMatches = Array.from(beforeSnippet.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi));
+  if (aMatches.length > 0) {
+    const lastA = aMatches[aMatches.length - 1];
+    const attrs = lastA[1];
+    const aText = lastA[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const hrefM = attrs.match(/href=["']([^"']+)["']/i);
+    if (hrefM && hrefM[1] && !hrefM[1].startsWith('javascript:') && !hrefM[1].startsWith('#')) {
+      try {
+        detailUrl = new URL(hrefM[1], baseUrl).href;
+      } catch (_) {}
+    }
+    if (aText.length >= 15 && !isCodeOrCorruptedText(aText)) {
+      title = aText;
+    }
+  }
+
+  // 3. Check if an <a> tag directly contains rawMatch
+  const directAMatches = Array.from(local.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi));
+  for (const m of directAMatches) {
+    if (m[0].includes(rawMatch)) {
+      const text = m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (text.length >= 15 && !isCodeOrCorruptedText(text)) {
+        title = text;
+      }
+      const hrefM = m[1].match(/href=["']([^"']+)["']/i);
+      if (hrefM && hrefM[1] && !hrefM[1].startsWith('javascript:') && !hrefM[1].startsWith('#')) {
         try {
-          detailUrl = new URL(hrefMatch[1], baseUrl).href;
+          detailUrl = new URL(hrefM[1], baseUrl).href;
         } catch (_) {}
       }
-
-      const cand = titleAttr.length >= text.length ? titleAttr : text;
-      if (cand.length > title.length) {
-        title = cand;
-      }
     }
   }
 
-  // 2. Check heading or paragraph if title is still weak
-  if (!title || title.length < 20) {
-    const hRegex = new RegExp('<(h[1-4]|p|li|td)[^>]*>([\\s\\S]*?' + esc + '[\\s\\S]*?)<\\/\\1>', 'gi');
-    let hm;
-    while ((hm = hRegex.exec(decodedHtml)) !== null) {
-      const clean = hm[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (clean.length > title.length) {
-        title = clean;
+  // 4. Highest priority: check for explicit document title patterns in local text
+  // e.g. "Thông tư số 106/2026/TT-BTC về đăng ký hoạt động của Ngân hàng Chính sách xã hội"
+  const cleanLocalText = local.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const explicitTitleRegex = new RegExp('(?:Thông tư|Nghị định|Quyết định|Luật|Nghị quyết|Chỉ thị)(?:\\s+số)?\\s*' + esc + '\\s*[:\\-–—]?\\s*(?:về|quy định|sửa đổi|ban hành|hướng dẫn)[^;\\n.<]{10,250}', 'i');
+  const expMatch = cleanLocalText.match(explicitTitleRegex);
+  if (expMatch) {
+    const candidate = expMatch[0].trim();
+    if (!isCodeOrCorruptedText(candidate) && candidate.length > 20) {
+      title = candidate;
+      if (!summary || summary.length < candidate.length) {
+        summary = candidate;
       }
-    }
-  }
-
-  // 3. Fallback to surrounding text window
-  if (!title || title.length < 15) {
-    const ctxRegex = new RegExp('.{0,250}' + esc + '.{0,250}', 'i');
-    const cm = decodedHtml.match(ctxRegex);
-    if (cm) {
-      title = cm[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     }
   }
 
@@ -231,10 +324,15 @@ function findBestTitleAndLink(decodedHtml, rawMatch, baseUrl) {
     .replace(/\s+/g, ' ')
     .trim();
 
+  // Reject gazette volume titles or corrupted code
+  if (title.startsWith('Công báo số') || title.startsWith('Công báo điện tử') || isCodeOrCorruptedText(title) || title.length < 10) {
+    title = '';
+  }
+
   // Extract issue date if found in text
   let issueDate = null;
-  const dateM = title.match(/ngày\s+(\d{1,2})\s*(?:tháng|\/|\-)\s*(\d{1,2})\s*(?:năm|\/|\-)\s*(\d{4})/i)
-    || decodedHtml.match(new RegExp(esc + '.{0,100}ngày\\s+(\\d{1,2})\\s*(?:tháng|\\/|\\-)\\s*(\\d{1,2})\\s*(?:năm|\\/|\\-)\\s*(\\d{4})', 'i'));
+  const dateM = (title + ' ' + summary).match(/ngày\s+(\d{1,2})\s*(?:tháng|\/|\-)\s*(\d{1,2})\s*(?:năm|\/|\-)\s*(\d{4})/i)
+    || local.match(/ngày\s+(\d{1,2})\s*(?:tháng|\/|\-)\s*(\d{1,2})\s*(?:năm|\/|\-)\s*(\d{4})/i);
   if (dateM) {
     const d = String(dateM[1]).padStart(2, '0');
     const mo = String(dateM[2]).padStart(2, '0');
@@ -244,8 +342,8 @@ function findBestTitleAndLink(decodedHtml, rawMatch, baseUrl) {
 
   // Extract effective date if present
   let effectiveDate = null;
-  const effM = title.match(/hiệu lực (?:từ )?ngày\s+(\d{1,2})\s*(?:tháng|\/|\-)\s*(\d{1,2})\s*(?:năm|\/|\-)\s*(\d{4})/i)
-    || decodedHtml.match(new RegExp(esc + '.{0,150}hiệu lực (?:từ )?ngày\\s+(\\d{1,2})\\s*(?:tháng|\\/|\\-)\\s*(\\d{1,2})\\s*(?:năm|\\/|\\-)\\s*(\\d{4})', 'i'));
+  const effM = (title + ' ' + summary).match(/hiệu lực (?:từ )?ngày\s+(\d{1,2})\s*(?:tháng|\/|\-)\s*(\d{1,2})\s*(?:năm|\/|\-)\s*(\d{4})/i)
+    || local.match(/hiệu lực (?:từ )?ngày\s+(\d{1,2})\s*(?:tháng|\/|\-)\s*(\d{1,2})\s*(?:năm|\/|\-)\s*(\d{4})/i);
   if (effM) {
     const d = String(effM[1]).padStart(2, '0');
     const mo = String(effM[2]).padStart(2, '0');
@@ -253,11 +351,11 @@ function findBestTitleAndLink(decodedHtml, rawMatch, baseUrl) {
     effectiveDate = `${y}-${mo}-${d}`;
   }
 
-  return { title, detailUrl, issueDate, effectiveDate };
+  return { title, detailUrl, issueDate, effectiveDate, summary };
 }
 
 /**
- * Universal HTML document extractor – scans the ENTIRE raw HTML for document numbers
+ * Universal HTML document extractor – scans the ENTIRE sanitized HTML for document numbers
  * with intelligent trích yếu extraction, direct link resolution, and date parsing.
  */
 function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
@@ -265,8 +363,9 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
   const items = [];
   const seen = new Set();
 
-  // Pre-decode the entire HTML so that doc numbers with entities (e.g. N&#x110;-CP) are found
-  const decodedHtml = decodeHtmlEntities(rawHtml);
+  // Strip script, style, comment blocks FIRST before entity decoding
+  const sanitizedHtml = sanitizeHtml(rawHtml);
+  const decodedHtml = decodeHtmlEntities(sanitizedHtml);
 
   // Global regex to find all document numbers anywhere in the HTML
   const DOC_NUM_GLOBAL = /(\d{1,4}\/\d{4}\/(?:N\u0110-CP|N\u0111-CP|ND-CP|QH\d+|NQ-QH\d+|UBTVQH\d+|Q\u0110-TTg|QD-TTg|TT-[A-Z\u01100-9\-]+|TTLT-[A-Z\u01100-9\-]+|NQ-CP|Q\u0110-UBND|QD-UBND|NQ-H\u0110ND|NQ-HDND|CT-UBND|VBHN-[A-Z\u01100-9\-]+))/gi;
@@ -282,12 +381,17 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
 
     seen.add(docNum);
 
-    const { title: extractedTitle, detailUrl, issueDate, effectiveDate } = findBestTitleAndLink(decodedHtml, rawMatch, baseUrl);
+    const { title: extractedTitle, detailUrl, issueDate, effectiveDate, summary } = findBestTitleAndLink(decodedHtml, rawMatch, baseUrl);
 
-    // If extracted title is empty or too short, generate a clean fallback
+    // If extracted title is empty or corrupted, generate a clean fallback
     let finalTitle = extractedTitle;
-    if (!finalTitle || finalTitle.length < 10) {
+    if (!finalTitle || finalTitle.length < 10 || isCodeOrCorruptedText(finalTitle)) {
       finalTitle = `Văn bản quy phạm pháp luật số ${docNum}`;
+    }
+
+    let finalSummary = summary || finalTitle;
+    if (isCodeOrCorruptedText(finalSummary) || finalSummary.length < 10) {
+      finalSummary = finalTitle;
     }
 
     const docType = detectDocType(finalTitle, docNum);
@@ -302,12 +406,13 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
       document_type: docType,
       topic_aliases,
       query_patterns,
-      issuer: detectIssuer(finalTitle),
+      issuer: detectIssuer(finalTitle, docNum),
       issue_date: resolvedIssueDate,
       effective_date: resolvedEffectiveDate,
       effective_status: 'in_force',
       status_as_of: now.toISOString().split('T')[0],
-      tom_tat_chinh_sach: finalTitle,
+      tom_tat_chinh_sach: finalSummary,
+      noi_dung_chi_tiet: finalSummary,
       official_source_urls: [detailUrl || baseUrl],
       source_feed: sourceFeedName,
       crawled_at: now
@@ -462,7 +567,7 @@ async function crawlPhaplyNet() {
             document_type: docType,
             topic_aliases,
             query_patterns,
-            issuer: detectIssuer(title || desc),
+            issuer: detectIssuer(title || desc, dm),
             issue_date: issueDate,
             effective_date: issueDate,
             effective_status: 'in_force',
@@ -660,21 +765,24 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
         const cleanDocTitle = (doc.title || '').replace(/[">]+$/g, '').trim();
         const cleanExistingTitle = (existing.title || '').replace(/[">]+$/g, '').trim();
 
-        const docTitleIsSubstantial = cleanDocTitle.length > 20 && !cleanDocTitle.startsWith('Văn bản') && !cleanDocTitle.startsWith('ngày ');
-        const existingTitleIsSubstantial = cleanExistingTitle.length > 20 && !cleanExistingTitle.startsWith('Văn bản') && !cleanExistingTitle.startsWith('ngày ');
+        const docTitleIsSubstantial = !isCodeOrCorruptedText(cleanDocTitle) && cleanDocTitle.length > 20 && !cleanDocTitle.startsWith('Văn bản') && !cleanDocTitle.startsWith('ngày ');
+        const existingTitleIsSubstantial = !isCodeOrCorruptedText(cleanExistingTitle) && cleanExistingTitle.length > 20 && !cleanExistingTitle.startsWith('Văn bản') && !cleanExistingTitle.startsWith('ngày ');
 
-        let betterTitle = cleanExistingTitle;
+        let betterTitle = `Văn bản quy phạm pháp luật số ${doc.document_number}`;
+        if (existingTitleIsSubstantial) {
+          betterTitle = cleanExistingTitle;
+        }
         if (docTitleIsSubstantial) {
           betterTitle = cleanDocTitle;
-        } else if (!existingTitleIsSubstantial && cleanDocTitle) {
+        } else if (!existingTitleIsSubstantial && cleanDocTitle && !isCodeOrCorruptedText(cleanDocTitle) && cleanDocTitle.length >= 10) {
           betterTitle = cleanDocTitle;
         }
 
-        const isBoilerplate = (txt) => Boolean(txt && (txt.includes('Giấy phép') || txt.includes('Cơ quan chủ quản') || txt.includes('Tên miền') || txt.includes('T&ecirc;n miền') || txt.includes('giờ trước')));
+        const isBoilerplate = (txt) => Boolean(!txt || isCodeOrCorruptedText(txt) || txt.includes('Giấy phép') || txt.includes('Cơ quan chủ quản') || txt.includes('Tên miền') || txt.includes('T&ecirc;n miền') || txt.includes('giờ trước'));
 
         const betterSummary = (!isBoilerplate(doc.tom_tat_chinh_sach) && doc.tom_tat_chinh_sach && doc.tom_tat_chinh_sach.length > 30 && !doc.tom_tat_chinh_sach.startsWith('ngày '))
           ? doc.tom_tat_chinh_sach
-          : (existing.tom_tat_chinh_sach || existing.summary || betterTitle);
+          : ((!isBoilerplate(existing.tom_tat_chinh_sach) && existing.tom_tat_chinh_sach) || (!isBoilerplate(existing.summary) && existing.summary) || betterTitle);
 
         let betterDetail = existing.noi_dung_chi_tiet;
         if (!betterDetail || isBoilerplate(betterDetail)) {
@@ -761,15 +869,22 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
       totalKnownDocs: totalCount,
       message: messageStr,
       sourceHealth: crawlResult.sourceHealth,
-      recentDocuments: recentList.map(d => ({
-        document_number: d.document_number || d.documentNumber,
-        title: d.title || d.titleHint || d.trich_yeu,
-        document_type: d.document_type || d.documentType,
-        issuer: d.issuer,
-        issue_date: d.issue_date || d.issueDate,
-        effective_status: d.effective_status || d.effectiveStatus,
-        crawled_at: d.crawled_at || d.updated_at
-      }))
+      recentDocuments: recentList.map(d => {
+        const num = d.document_number || d.documentNumber;
+        let t = (d.title || d.titleHint || d.trich_yeu || '').replace(/[">]+$/g, '').trim();
+        if (!t || isCodeOrCorruptedText(t)) {
+          t = `Văn bản quy phạm pháp luật số ${num}`;
+        }
+        return {
+          document_number: num,
+          title: t,
+          document_type: d.document_type || d.documentType,
+          issuer: d.issuer,
+          issue_date: d.issue_date || d.issueDate,
+          effective_status: d.effective_status || d.effectiveStatus,
+          crawled_at: d.crawled_at || d.updated_at
+        };
+      })
     };
 
     // Log to crawler_logs
@@ -895,15 +1010,22 @@ async function getCrawlerStatus() {
     return {
       ...lastCrawlStatus,
       totalKnownDocs: totalCount,
-      recentDocuments: recentList.map(d => ({
-        document_number: d.document_number || d.documentNumber,
-        title: d.title || d.titleHint || d.trich_yeu,
-        document_type: d.document_type || d.documentType,
-        issuer: d.issuer,
-        issue_date: d.issue_date || d.issueDate,
-        effective_status: d.effective_status || d.effectiveStatus,
-        crawled_at: d.crawled_at || d.updated_at
-      }))
+      recentDocuments: recentList.map(d => {
+        const num = d.document_number || d.documentNumber;
+        let t = (d.title || d.titleHint || d.trich_yeu || '').replace(/[">]+$/g, '').trim();
+        if (!t || isCodeOrCorruptedText(t)) {
+          t = `Văn bản quy phạm pháp luật số ${num}`;
+        }
+        return {
+          document_number: num,
+          title: t,
+          document_type: d.document_type || d.documentType,
+          issuer: d.issuer,
+          issue_date: d.issue_date || d.issueDate,
+          effective_status: d.effective_status || d.effectiveStatus,
+          crawled_at: d.crawled_at || d.updated_at
+        };
+      })
     };
   } catch (e) {
     return lastCrawlStatus;
@@ -918,8 +1040,8 @@ async function cleanGarbageDocuments() {
     const db = await getDb();
     const result = await db.collection('known_documents').deleteMany({
       $or: [
-        { document_number: { $regex: /GM|CV|TB|BC|TTr|KH/i } },
-        { documentNumber: { $regex: /GM|CV|TB|BC|TTr|KH/i } },
+        { document_number: { $regex: /^\/|GM|CV|TB|BC|TTr|KH|KL|PA|ĐA/i } },
+        { documentNumber: { $regex: /^\/|GM|CV|TB|BC|TTr|KH|KL|PA|ĐA/i } },
         { document_number: "330/2026/NĐ-CP" },
         { documentNumber: "330/2026/NĐ-CP" },
         { title: { $regex: /Mời họp Phiên họp|Giấy mời/i } }

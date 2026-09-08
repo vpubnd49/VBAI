@@ -12,6 +12,22 @@ let cachedBosung = null;
 let cachedMongoDocuments = new Map();
 let lastMongoSync = 0;
 
+function isCodeOrCorruptedText(str) {
+  if (!str || typeof str !== 'string') return true;
+  const s = str.trim();
+  if (s.length < 5) return true;
+  if (/dataLayer|function\s*\(|gtag\(|_govaq|@context|schema\.org|document\.getElementById|\.addEventListener|\$\(document\)|var\s+\w+|const\s+\w+|let\s+\w+|window\.|\.css\(|\.attr\(|\.split\(|\.indexOf\(|setInterval\(|setTimeout\(/i.test(s)) {
+    return true;
+  }
+  if (s.startsWith('{') || s.startsWith('[') || /"@[a-z]+"\s*:/i.test(s) || /"name"\s*:/i.test(s)) {
+    return true;
+  }
+  if (/\{[^}]*(?:cursor|display|padding|margin|color|background|border)\s*:[^}]*\}/i.test(s)) {
+    return true;
+  }
+  return false;
+}
+
 async function syncMongoDocuments(forceReload = false) {
   const now = Date.now();
   if (!forceReload && (now - lastMongoSync < 60000) && cachedMongoDocuments.size > 0) {
@@ -30,13 +46,26 @@ async function syncMongoDocuments(forceReload = false) {
       if (!docNum) continue;
       const target = normalizeDocumentNumber(docNum);
       if (target) {
+        let cleanTitle = (d.title || d.titleHint || d.trich_yeu || '').replace(/[">]+$/g, '').trim();
+        if (!cleanTitle || isCodeOrCorruptedText(cleanTitle)) {
+          cleanTitle = `Văn bản quy phạm pháp luật số ${docNum}`;
+        }
+        let cleanSummary = (d.tom_tat_chinh_sach || d.summary || '').replace(/[">]+$/g, '').trim();
+        if (!cleanSummary || isCodeOrCorruptedText(cleanSummary)) {
+          cleanSummary = cleanTitle;
+        }
+        let cleanDetail = (d.noi_dung_chi_tiet || cleanSummary).replace(/[">]+$/g, '').trim();
+        if (!cleanDetail || isCodeOrCorruptedText(cleanDetail)) {
+          cleanDetail = cleanSummary;
+        }
+
         newMap.set(target, {
           id: String(d._id || 'mongo_' + target),
           document_number: docNum,
-          title: (d.title || d.titleHint || d.trich_yeu || `Văn bản ${docNum}`).replace(/[">]+$/g, '').trim(),
+          title: cleanTitle,
           document_type: d.document_type || d.loai_van_ban || 'van_ban',
-          topic_aliases: Array.isArray(d.topic_aliases) ? d.topic_aliases : [],
-          query_patterns: Array.isArray(d.query_patterns) ? d.query_patterns : [],
+          topic_aliases: Array.isArray(d.topic_aliases) ? d.topic_aliases.filter(a => !isCodeOrCorruptedText(a)) : [],
+          query_patterns: Array.isArray(d.query_patterns) ? d.query_patterns.filter(p => !isCodeOrCorruptedText(p)) : [],
           issuer: d.issuer || 'Chính phủ',
           issue_date: d.issue_date || d.issueDate || d.ngay_ban_hanh || null,
           effective_date: d.effective_date || d.effectiveDate || d.ngay_hieu_luc || null,
@@ -46,8 +75,8 @@ async function syncMongoDocuments(forceReload = false) {
           amends: d.amends || d.sua_doi_cho || [],
           superseded_by: d.superseded_by || [],
           official_source_urls: Array.isArray(d.official_source_urls) ? d.official_source_urls : [],
-          tom_tat_chinh_sach: (d.tom_tat_chinh_sach || d.summary || '').replace(/[">]+$/g, '').trim(),
-          noi_dung_chi_tiet: (d.noi_dung_chi_tiet || d.tom_tat_chinh_sach || d.summary || '').replace(/[">]+$/g, '').trim(),
+          tom_tat_chinh_sach: cleanSummary,
+          noi_dung_chi_tiet: cleanDetail,
           chapterArticleSummary: d.tom_tat_chuong_dieu || d.chapterArticleSummary || '',
           tom_tat_chuong_dieu: d.tom_tat_chuong_dieu || d.chapterArticleSummary || '',
           can_cu_phap_ly: d.can_cu_phap_ly || [],
