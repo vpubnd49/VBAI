@@ -267,11 +267,33 @@ async function crawlLamDongQPPL() {
   const res = await fetchWithRetry(url);
   if (!res.ok) return [];
   const html = await res.text();
-  // SharePoint pages embed data in JSON within data-sp-webpartdata attributes
-  // Decode HTML entities that SharePoint uses
   const decoded = html.replace(/&amp;/g, '&').replace(/&quot;/g, '"')
     .replace(/&#58;/g, ':').replace(/&#123;/g, '{').replace(/&#125;/g, '}');
   return extractDocumentsFromRawHtml(decoded, url, 'lamdong.gov.vn/sites/qppl');
+}
+
+/**
+ * Source 6: chinhphu.vn/Default.aspx?tabid=73 - VB chi dao dieu hanh
+ * This page contains NĐ-CP, QĐ-TTg and other important government documents
+ */
+async function crawlChinhphuVBCD() {
+  const url = 'https://chinhphu.vn/Default.aspx?tabid=73';
+  const res = await fetchWithRetry(url);
+  if (!res.ok) return [];
+  const html = await res.text();
+  return extractDocumentsFromRawHtml(html, url, 'chinhphu.vn/vb-chi-dao');
+}
+
+/**
+ * Source 7: congbao.chinhphu.vn/van-ban-moi - Newly published gazette documents
+ * Contains latest TT, NĐ, Luật published in the Official Gazette
+ */
+async function crawlCongbaoVanbanMoi() {
+  const url = 'https://congbao.chinhphu.vn/van-ban-moi';
+  const res = await fetchWithRetry(url);
+  if (!res.ok) return [];
+  const html = await res.text();
+  return extractDocumentsFromRawHtml(html, url, 'congbao.chinhphu.vn/van-ban-moi');
 }
 
 
@@ -287,7 +309,9 @@ async function crawlOfficialSources() {
   const sources = [
     { name: 'vanban.chinhphu.vn', fn: crawlVanbanChinhphu, scope: 'central' },
     { name: 'chinhphu.vn (trang chu)', fn: crawlChinhphuHomepage, scope: 'central' },
+    { name: 'chinhphu.vn (VB chi dao)', fn: crawlChinhphuVBCD, scope: 'central' },
     { name: 'congbao.chinhphu.vn', fn: crawlCongbao, scope: 'central' },
+    { name: 'congbao (van ban moi)', fn: crawlCongbaoVanbanMoi, scope: 'central' },
     { name: 'baochinhphu.vn', fn: crawlBaochinhphu, scope: 'central' },
     { name: 'lamdong.gov.vn/sites/qppl', fn: crawlLamDongQPPL, scope: 'local_lamdong' },
   ];
