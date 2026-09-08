@@ -229,8 +229,9 @@ export function renderAdminPanel(container) {
                     <span id="crawler-status-badge" style="font-size:0.8rem; padding:4px 12px; border-radius:12px; background:#e0f2fe; color:#0369a1; font-weight:700;">Sẵn sàng</span>
                   </div>
                   <div style="font-size:0.88rem; color:var(--text-muted, #475569); margin-bottom:16px; line-height:1.5;">
-                    Robot chạy tự động định kỳ mỗi <strong>15 phút</strong> từ Cổng TTĐT Chính phủ (<code>vanban.chinhphu.vn</code>, <code>xaydungchinhsach.chinhphu.vn</code>, <code>chinhphu.vn</code>) và Cơ sở dữ liệu quốc gia về văn bản pháp luật để tự động cập nhật các Luật, Nghị định, Thông tư mới nhất.
+                    Robot chạy tự động định kỳ mỗi <strong>15 phút</strong> từ Cổng TTĐT Chính phủ (<code>vanban.chinhphu.vn</code>, <code>chinhphu.vn</code>, <code>congbao.chinhphu.vn</code>, <code>baochinhphu.vn</code>) và <strong>VBQPPL tỉnh Lâm Đồng</strong> (<code>lamdong.gov.vn/sites/qppl</code>) để tự động cập nhật các Luật, Nghị định, Thông tư, QĐ-UBND, NQ-HĐND mới nhất.
                   </div>
+                  <div id="crawler-source-health"></div>
                   <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center;">
                     <button type="button" id="crawler-trigger-btn" class="btn btn-primary btn-sm" style="background:#0f766e; border:none; padding:8px 16px; border-radius:6px; color:white; font-weight:600; display:flex; align-items:center; gap:6px; cursor:pointer;">
                       🔄 Kích hoạt Robot cào văn bản ngay
@@ -1496,17 +1497,45 @@ setInputValue(geminiModelInput, config.gemini_model || '');
       }
       const data = await res.json();
       if (crawlerBadge) {
-        crawlerBadge.textContent = data.status === 'running' ? '⏳ Đang quét...' : `🟢 Sẵn sàng (${data.totalKnownDocs || 0} văn bản)`;
-        crawlerBadge.style.background = data.status === 'running' ? '#fef3c7' : '#e0f2fe';
-        crawlerBadge.style.color = data.status === 'running' ? '#92400e' : '#0369a1';
+        if (data.status === 'running') {
+          crawlerBadge.textContent = '⏳ Đang quét...';
+          crawlerBadge.style.background = '#fef3c7';
+          crawlerBadge.style.color = '#92400e';
+        } else if (data.status === 'all_sources_failed') {
+          crawlerBadge.textContent = '🔴 Tất cả nguồn đều lỗi!';
+          crawlerBadge.style.background = '#fee2e2';
+          crawlerBadge.style.color = '#991b1b';
+        } else {
+          crawlerBadge.textContent = `🟢 Sẵn sàng (${data.totalKnownDocs || 0} văn bản)`;
+          crawlerBadge.style.background = '#e0f2fe';
+          crawlerBadge.style.color = '#0369a1';
+        }
       }
       if (typeof crawlerMsg !== 'undefined' && crawlerMsg && data.message) {
         crawlerMsg.textContent = data.message;
       }
       if (crawlerStats) {
-        const lastRunStr = data.lastRun ? new Date(data.lastRun).toLocaleTimeString('vi-VN') : 'Mới cập nhật';
+        const lastRunStr = data.lastRunAt ? new Date(data.lastRunAt).toLocaleTimeString('vi-VN') : (data.lastRun ? new Date(data.lastRun).toLocaleTimeString('vi-VN') : 'Mới cập nhật');
         crawlerStats.textContent = `Lần quét: ${lastRunStr} | CSDL: ${data.totalKnownDocs || 0} văn bản`;
       }
+
+      // Render source health indicators
+      const healthContainer = formEl.querySelector('#crawler-source-health');
+      if (healthContainer && Array.isArray(data.sourceHealth) && data.sourceHealth.length > 0) {
+        const healthHtml = data.sourceHealth.map(src => {
+          const icon = src.status === 'ok' ? '🟢' : '🔴';
+          const countStr = src.status === 'ok' ? ` (${src.itemCount} VB, ${src.responseTimeMs}ms)` : ` – ${escapeHtml(src.error || 'Lỗi')}`;
+          const scopeLabel = src.scope === 'local_lamdong' ? ' 🏛️' : '';
+          return `<div style="padding:3px 0; font-size:0.88em;">${icon} ${escapeHtml(src.name)}${scopeLabel}${countStr}</div>`;
+        }).join('');
+        healthContainer.innerHTML = `<div style="margin-top:8px; padding:10px; border-radius:8px; background:var(--surface-secondary, #f8fafc); border:1px solid var(--border-color, #e2e8f0);">
+          <strong style="font-size:0.85em; color:var(--text-muted);">📡 Trạng thái nguồn dữ liệu:</strong>
+          ${healthHtml}
+        </div>`;
+      } else if (healthContainer) {
+        healthContainer.innerHTML = '';
+      }
+
       cachedRecentDocs = Array.isArray(data.recentDocuments) ? data.recentDocuments : [];
       renderDocsList();
     } catch (err) {

@@ -2,7 +2,12 @@ const { safeFetch } = require('../security/ssrf-guard');
 /**
  * VBAI Real-Time Legal Crawler & Continuous Auto-Ingestion Service
  * Automated multi-source crawling and indexing of ONLY NEWEST laws, decrees, circulars, and official gazettes.
- * Sources: vanban.chinhphu.vn, xaydungchinhsach.chinhphu.vn, congbao.chinhphu.vn, chinhphu.vn, quochoi.vn, vbpl.vn
+ * Sources (2026-09 updated):
+ *   - vanban.chinhphu.vn (HTML scrape – document listing page)
+ *   - chinhphu.vn (HTML scrape – homepage VB links)
+ *   - congbao.chinhphu.vn (HTML scrape – official gazette)
+ *   - baochinhphu.vn (HTML scrape – successor of xaydungchinhsach)
+ *   - lamdong.gov.vn/sites/qppl (SharePoint HTML – Lâm Đồng province QPPL)
  */
 const path = require('path');
 const fs = require('fs');
@@ -19,7 +24,8 @@ let lastCrawlStatus = {
   updatedItems: 0,
   totalKnownDocs: 0,
   message: 'Chưa có lượt chạy cào dữ liệu nào gần đây.',
-  recentDocuments: []
+  recentDocuments: [],
+  sourceHealth: []
 };
 
 // Strict validation: Only accept valid Vietnamese Legal Normative Document numbers (VBQPPL)
@@ -31,14 +37,18 @@ function isValidLegalDocNumber(docNum) {
   if (/\b(?:GM|CV|TB|BC|TTr|KH|KL|PA)-/i.test(s)) return false;
   
   // Valid VBQPPL suffixes according to Law on Promulgation of Legal Documents:
-  // - Luật, Nghị quyết Quốc hội: QH15, NQ-QH15
-  // - Nghị quyết UBTVQH: UBTVQH15, NQ-UBTVQH15
-  // - Nghị định Chính phủ: NĐ-CP
-  // - Quyết định Thủ tướng: QĐ-TTg
-  // - Thông tư các Bộ/Ngành: TT-BCA, TT-BNV, TT-BTP, TT-BTC, TT-BKHĐT, TT-BKHCN, v.v.
-  // - Thông tư liên tịch: TTLT-...
-  // - Quyết định/Nghị quyết địa phương: QĐ-UBND, NQ-HĐND
-  return /\d+\/(?:\d{4}|\d{2})\/(?:NĐ-CP|QH\d+|NQ-QH\d+|UBTVQH\d+|QĐ-TTg|TT-[A-ZĐ0-9\-]+|TTLT-[A-ZĐ0-9\-]+|NQ-CP|QĐ-UBND|NQ-HĐND)/i.test(s) || /luật\s+số\s+\d+/i.test(s);
+  // Central government:
+  //   - Luật, Nghị quyết Quốc hội: QH15, NQ-QH15
+  //   - Nghị quyết UBTVQH: UBTVQH15, NQ-UBTVQH15
+  //   - Nghị định Chính phủ: NĐ-CP
+  //   - Quyết định Thủ tướng: QĐ-TTg
+  //   - Thông tư các Bộ/Ngành: TT-BCA, TT-BNV, TT-BTP, TT-BTC, TT-BKHĐT, TT-BKHCN, v.v.
+  //   - Thông tư liên tịch: TTLT-...
+  // Local government (tỉnh/thành phố):
+  //   - Quyết định UBND: QĐ-UBND
+  //   - Nghị quyết HĐND: NQ-HĐND
+  //   - Chỉ thị UBND: CT-UBND
+  return /\d+\/(?:\d{4}|\d{2})\/(?:NĐ-CP|QH\d+|NQ-QH\d+|UBTVQH\d+|QĐ-TTg|TT-[A-ZĐ0-9\-]+|TTLT-[A-ZĐ0-9\-]+|NQ-CP|QĐ-UBND|NQ-HĐND|NQ-HDND|CT-UBND)/i.test(s) || /luật\s+số\s+\d+/i.test(s);
 }
 
 // Generate topic aliases and query patterns for fast lookup
@@ -64,6 +74,9 @@ function generateAliasesAndPatterns(docNum, title, summary) {
     } else if (typeCode.startsWith('QĐ-')) {
       aliases.push(`quyết định ${num}`, `quyết định ${num}/${year}`, `quyết định số ${num}`);
       patterns.push(`quyet dinh ${num}`, `quyet dinh ${num}/${year}`, `quyet dinh so ${num}`);
+    } else if (typeCode === 'NQ-HĐND' || typeCode === 'NQ-HDND') {
+      aliases.push(`nghị quyết ${num}`, `nghị quyết ${num}/${year}`, `nghị quyết HĐND ${num}`);
+      patterns.push(`nghi quyet ${num}`, `nghi quyet ${num}/${year}`, `nghi quyet hdnd ${num}`);
     }
   }
 
@@ -84,157 +97,442 @@ function generateAliasesAndPatterns(docNum, title, summary) {
 }
 
 /**
- * Fetch and extract ONLY NEWEST legal documents from official government feeds & gazettes
+ * Fetch with retry – retries once on failure after a short delay
  */
-/**
- * Fetch and extract ONLY NEWEST legal documents from official government feeds & gazettes (Fast Parallel Ingestion)
- */
-async function crawlOfficialSources() {
-  const discoveredDocs = [];
-  const now = new Date();
-  const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
-  const cutoffDate = new Date(now.getTime() - SIXTY_DAYS_MS);
-
-  const sources = [
-    {
-      name: 'Báo điện tử Chính phủ - Xây dựng Chính sách',
-      url: 'https://xaydungchinhsach.chinhphu.vn/rss/home.rss',
-      type: 'rss'
-    },
-    {
-      name: 'Cổng Thông tin điện tử Chính phủ - Văn bản mới',
-      url: 'https://vanban.chinhphu.vn/rss/home.rss',
-      type: 'rss'
-    },
-    {
-      name: 'Cổng Thông tin điện tử Chính phủ - Trang chủ',
-      url: 'https://chinhphu.vn/rss/home.rss',
-      type: 'rss'
-    },
-    {
-      name: 'Chính phủ - Văn bản chỉ đạo điều hành',
-      url: 'https://xaydungchinhsach.chinhphu.vn/van-ban-chi-dao-dieu-hanh.htm',
-      type: 'html'
-    }
-  ];
-
-  // Fetch all official sources concurrently in parallel (Max 5s timeout per source)
-  const fetchPromises = sources.map(async (src) => {
+async function fetchWithRetry(url, options = {}, retries = 1) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
-      const res = await safeFetch(src.url, {
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const res = await safeFetch(url, {
+        ...options,
         signal: controller.signal,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 VBAI-Legal-Crawler/3.0',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 VBAI-Legal-Crawler/4.0',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.5',
+          ...(options.headers || {})
         }
       });
       clearTimeout(timeoutId);
-
-      if (!res.ok) return [];
-      const rawText = await res.text();
-      const items = [];
-
-      if (src.type === 'rss') {
-        const itemMatches = rawText.match(/<item>[\s\S]*?<\/item>/gi) || [];
-        for (const itemXml of itemMatches) {
-          const titleMatch = itemXml.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || itemXml.match(/<title>([\s\S]*?)<\/title>/i);
-          const linkMatch = itemXml.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/i) || itemXml.match(/<link>([\s\S]*?)<\/link>/i);
-          const descMatch = itemXml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || itemXml.match(/<description>([\s\S]*?)<\/description>/i);
-          const pubDateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
-
-          const title = (titleMatch ? titleMatch[1] : '').replace(/<[^>]+>/g, '').trim();
-          const link = (linkMatch ? linkMatch[1] : '').trim();
-          const desc = (descMatch ? descMatch[1] : '').replace(/<[^>]+>/g, '').trim();
-          const pubDate = pubDateMatch ? new Date(pubDateMatch[1]) : now;
-
-          if (pubDate < cutoffDate && pubDate.getFullYear() < now.getFullYear()) {
-            continue;
-          }
-
-          if (!title) continue;
-
-          const combinedText = `${title} ${desc}`;
-          const docNum = extractFullDocumentNumber(combinedText);
-
-          if (!isValidLegalDocNumber(docNum)) {
-            continue;
-          }
-
-          let docType = 'van_ban';
-          if (/nghị định/i.test(combinedText) || /NĐ-CP/i.test(docNum)) docType = 'nghi_dinh';
-          else if (/thông tư/i.test(combinedText) || /TT-/i.test(docNum)) docType = 'thong_tu';
-          else if (/luật/i.test(combinedText) || /QH/i.test(docNum)) docType = 'luat';
-          else if (/quyết định/i.test(combinedText) || /QĐ-/i.test(docNum)) docType = 'quyet_dinh';
-          else if (/nghị quyết/i.test(combinedText) || /NQ-/i.test(docNum)) docType = 'nghi_quyet';
-
-          const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, title, desc);
-
-          items.push({
-            document_number: docNum,
-            title: title,
-            document_type: docType,
-            topic_aliases,
-            query_patterns,
-            issuer: /chính phủ/i.test(combinedText) ? 'Chính phủ' : (/quốc hội/i.test(combinedText) ? 'Quốc hội' : (/thủ tướng/i.test(combinedText) ? 'Thủ tướng Chính phủ' : 'Cơ quan nhà nước')),
-            issue_date: pubDate.toISOString().split('T')[0],
-            effective_date: pubDate.toISOString().split('T')[0],
-            effective_status: 'in_force',
-            status_as_of: now.toISOString().split('T')[0],
-            tom_tat_chinh_sach: desc || title,
-            official_source_urls: [link || src.url],
-            source_feed: src.name,
-            crawled_at: now
-          });
-        }
-      } else if (src.type === 'html') {
-        const linkMatches = rawText.match(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi) || [];
-        for (const aTag of linkMatches) {
-          const textMatch = aTag.match(/>([^<]+)</);
-          const linkMatch = aTag.match(/href=["']([^"']+)["']/i);
-          const title = textMatch ? textMatch[1].trim() : '';
-          const link = linkMatch ? linkMatch[1].trim() : '';
-
-          if (!title || title.length < 15) continue;
-          const docNum = extractFullDocumentNumber(title);
-          if (!isValidLegalDocNumber(docNum)) continue;
-
-          let fullLink = link;
-          if (link && !link.startsWith('http')) {
-            fullLink = `https://xaydungchinhsach.chinhphu.vn${link.startsWith('/') ? '' : '/'}${link}`;
-          }
-
-          let docType = 'van_ban';
-          if (/nghị định/i.test(title) || /NĐ-CP/i.test(docNum)) docType = 'nghi_dinh';
-          else if (/thông tư/i.test(title) || /TT-/i.test(docNum)) docType = 'thong_tu';
-          else if (/luật/i.test(title) || /QH/i.test(docNum)) docType = 'luat';
-          else if (/quyết định/i.test(title) || /QĐ-/i.test(docNum)) docType = 'quyet_dinh';
-          else if (/nghị quyết/i.test(title) || /NQ-/i.test(docNum)) docType = 'nghi_quyet';
-
-          const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, title, '');
-
-          items.push({
-            document_number: docNum,
-            title: title,
-            document_type: docType,
-            topic_aliases,
-            query_patterns,
-            issuer: /chính phủ/i.test(title) ? 'Chính phủ' : (/quốc hội/i.test(title) ? 'Quốc hội' : (/thủ tướng/i.test(title) ? 'Thủ tướng Chính phủ' : 'Cơ quan nhà nước')),
-            issue_date: now.toISOString().split('T')[0],
-            effective_date: now.toISOString().split('T')[0],
-            effective_status: 'in_force',
-            status_as_of: now.toISOString().split('T')[0],
-            tom_tat_chinh_sach: title,
-            official_source_urls: [fullLink],
-            source_feed: src.name,
-            crawled_at: now
-          });
-        }
+      return res;
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
       }
+      throw err;
+    }
+  }
+}
+
+/**
+ * Detect document type from text and document number
+ */
+function detectDocType(text, docNum) {
+  if (/nghị định/i.test(text) || /NĐ-CP/i.test(docNum)) return 'nghi_dinh';
+  if (/thông tư/i.test(text) || /TT-/i.test(docNum)) return 'thong_tu';
+  if (/luật/i.test(text) || /QH/i.test(docNum)) return 'luat';
+  if (/quyết định/i.test(text) || /QĐ-/i.test(docNum)) return 'quyet_dinh';
+  if (/nghị quyết/i.test(text) || /NQ-/i.test(docNum)) return 'nghi_quyet';
+  if (/chỉ thị/i.test(text) || /CT-/i.test(docNum)) return 'chi_thi';
+  return 'van_ban';
+}
+
+/**
+ * Detect issuer from text
+ */
+function detectIssuer(text) {
+  if (/UBND tỉnh|ủy ban nhân dân tỉnh/i.test(text)) return 'UBND tỉnh Lâm Đồng';
+  if (/HĐND tỉnh|hội đồng nhân dân tỉnh/i.test(text)) return 'HĐND tỉnh Lâm Đồng';
+  if (/chính phủ/i.test(text)) return 'Chính phủ';
+  if (/quốc hội/i.test(text)) return 'Quốc hội';
+  if (/thủ tướng/i.test(text)) return 'Thủ tướng Chính phủ';
+  return 'Cơ quan nhà nước';
+}
+
+/**
+ * Source 1: vanban.chinhphu.vn – HTML document listing page (replaces dead RSS)
+ */
+async function crawlVanbanChinhphu() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const url = `https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=0&classid=0&TypeSearch=0&KeySearch=&KeyOganization=0&OrganizationSearch=&Keyword=&KeyOrganization=&SignerName=&FieldNum=&Year=${year}&MonthPublish=0&LoaiVanBan=0&IssuedDateFrom=&IssuedDateTo=&EffectedDateFrom=&EffectedDateTo=&PublishStatus=1`;
+
+  const res = await fetchWithRetry(url);
+  if (!res.ok) return [];
+
+  const rawText = await res.text();
+  const items = [];
+
+  // Parse document links from the listing page HTML
+  // The page contains <a> tags with document titles and links to detail pages
+  const linkMatches = rawText.match(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi) || [];
+  for (const aTag of linkMatches) {
+    const textMatch = aTag.match(/>([^<]+)</);
+    const linkMatch = aTag.match(/href=["']([^"']+)["']/i);
+    const title = textMatch ? textMatch[1].trim() : '';
+    const link = linkMatch ? linkMatch[1].trim() : '';
+
+    if (!title || title.length < 15) continue;
+    const docNum = extractFullDocumentNumber(title);
+    if (!isValidLegalDocNumber(docNum)) continue;
+
+    let fullLink = link;
+    if (link && !link.startsWith('http')) {
+      fullLink = `https://vanban.chinhphu.vn${link.startsWith('/') ? '' : '/'}${link}`;
+    }
+
+    const docType = detectDocType(title, docNum);
+    const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, title, '');
+
+    items.push({
+      document_number: docNum,
+      title: title,
+      document_type: docType,
+      topic_aliases,
+      query_patterns,
+      issuer: detectIssuer(title),
+      issue_date: now.toISOString().split('T')[0],
+      effective_date: now.toISOString().split('T')[0],
+      effective_status: 'in_force',
+      status_as_of: now.toISOString().split('T')[0],
+      tom_tat_chinh_sach: title,
+      official_source_urls: [fullLink],
+      source_feed: 'vanban.chinhphu.vn – Danh sách VB ban hành',
+      crawled_at: now
+    });
+  }
+
+  // Also try to extract from table rows if present
+  const rowMatches = rawText.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+  for (const row of rowMatches) {
+    const cellTexts = (row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || []).map(td => td.replace(/<[^>]+>/g, '').trim());
+    const combinedText = cellTexts.join(' ');
+    if (combinedText.length < 10) continue;
+
+    const docNum = extractFullDocumentNumber(combinedText);
+    if (!isValidLegalDocNumber(docNum)) continue;
+    // Avoid duplicates
+    if (items.some(i => i.document_number === docNum)) continue;
+
+    const linkInRow = row.match(/href=["']([^"']+)["']/i);
+    let fullLink = '';
+    if (linkInRow) {
+      fullLink = linkInRow[1].startsWith('http') ? linkInRow[1] : `https://vanban.chinhphu.vn${linkInRow[1].startsWith('/') ? '' : '/'}${linkInRow[1]}`;
+    }
+
+    const titleHint = cellTexts.find(c => c.length > 20) || combinedText.slice(0, 200);
+    const docType = detectDocType(combinedText, docNum);
+    const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, titleHint, '');
+
+    items.push({
+      document_number: docNum,
+      title: titleHint,
+      document_type: docType,
+      topic_aliases,
+      query_patterns,
+      issuer: detectIssuer(combinedText),
+      issue_date: now.toISOString().split('T')[0],
+      effective_date: now.toISOString().split('T')[0],
+      effective_status: 'in_force',
+      status_as_of: now.toISOString().split('T')[0],
+      tom_tat_chinh_sach: titleHint,
+      official_source_urls: [fullLink || `https://vanban.chinhphu.vn`],
+      source_feed: 'vanban.chinhphu.vn – Bảng VB',
+      crawled_at: now
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Source 2: chinhphu.vn homepage – scrape VB links from the main page
+ */
+async function crawlChinhphuHomepage() {
+  const now = new Date();
+  const res = await fetchWithRetry('https://chinhphu.vn');
+  if (!res.ok) return [];
+
+  const rawText = await res.text();
+  const items = [];
+
+  const linkMatches = rawText.match(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi) || [];
+  for (const aTag of linkMatches) {
+    const textMatch = aTag.match(/>([^<]+)</);
+    const linkMatch = aTag.match(/href=["']([^"']+)["']/i);
+    const title = textMatch ? textMatch[1].trim() : '';
+    const link = linkMatch ? linkMatch[1].trim() : '';
+
+    if (!title || title.length < 15) continue;
+    const docNum = extractFullDocumentNumber(title);
+    if (!isValidLegalDocNumber(docNum)) continue;
+
+    let fullLink = link;
+    if (link && !link.startsWith('http')) {
+      fullLink = `https://chinhphu.vn${link.startsWith('/') ? '' : '/'}${link}`;
+    }
+
+    const docType = detectDocType(title, docNum);
+    const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, title, '');
+
+    items.push({
+      document_number: docNum,
+      title: title,
+      document_type: docType,
+      topic_aliases,
+      query_patterns,
+      issuer: detectIssuer(title),
+      issue_date: now.toISOString().split('T')[0],
+      effective_date: now.toISOString().split('T')[0],
+      effective_status: 'in_force',
+      status_as_of: now.toISOString().split('T')[0],
+      tom_tat_chinh_sach: title,
+      official_source_urls: [fullLink],
+      source_feed: 'chinhphu.vn – Trang chủ',
+      crawled_at: now
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Source 3: congbao.chinhphu.vn – Official Gazette
+ */
+async function crawlCongbao() {
+  const now = new Date();
+  const res = await fetchWithRetry('https://congbao.chinhphu.vn');
+  if (!res.ok) return [];
+
+  const rawText = await res.text();
+  const items = [];
+
+  const linkMatches = rawText.match(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi) || [];
+  for (const aTag of linkMatches) {
+    const textMatch = aTag.match(/>([^<]+)</);
+    const linkMatch = aTag.match(/href=["']([^"']+)["']/i);
+    const title = textMatch ? textMatch[1].trim() : '';
+    const link = linkMatch ? linkMatch[1].trim() : '';
+
+    if (!title || title.length < 10) continue;
+    const docNum = extractFullDocumentNumber(title);
+    if (!isValidLegalDocNumber(docNum)) continue;
+
+    let fullLink = link;
+    if (link && !link.startsWith('http')) {
+      fullLink = `https://congbao.chinhphu.vn${link.startsWith('/') ? '' : '/'}${link}`;
+    }
+
+    const docType = detectDocType(title, docNum);
+    const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, title, '');
+
+    items.push({
+      document_number: docNum,
+      title: title,
+      document_type: docType,
+      topic_aliases,
+      query_patterns,
+      issuer: detectIssuer(title),
+      issue_date: now.toISOString().split('T')[0],
+      effective_date: now.toISOString().split('T')[0],
+      effective_status: 'in_force',
+      status_as_of: now.toISOString().split('T')[0],
+      tom_tat_chinh_sach: title,
+      official_source_urls: [fullLink],
+      source_feed: 'congbao.chinhphu.vn – Công báo',
+      crawled_at: now
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Source 4: baochinhphu.vn (successor of xaydungchinhsach.chinhphu.vn)
+ */
+async function crawlBaochinhphu() {
+  const now = new Date();
+  const res = await fetchWithRetry('https://baochinhphu.vn');
+  if (!res.ok) return [];
+
+  const rawText = await res.text();
+  const items = [];
+
+  const linkMatches = rawText.match(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi) || [];
+  for (const aTag of linkMatches) {
+    const textMatch = aTag.match(/>([^<]+)</);
+    const linkMatch = aTag.match(/href=["']([^"']+)["']/i);
+    const title = textMatch ? textMatch[1].trim() : '';
+    const link = linkMatch ? linkMatch[1].trim() : '';
+
+    if (!title || title.length < 15) continue;
+    const docNum = extractFullDocumentNumber(title);
+    if (!isValidLegalDocNumber(docNum)) continue;
+
+    let fullLink = link;
+    if (link && !link.startsWith('http')) {
+      fullLink = `https://baochinhphu.vn${link.startsWith('/') ? '' : '/'}${link}`;
+    }
+
+    const docType = detectDocType(title, docNum);
+    const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, title, '');
+
+    items.push({
+      document_number: docNum,
+      title: title,
+      document_type: docType,
+      topic_aliases,
+      query_patterns,
+      issuer: detectIssuer(title),
+      issue_date: now.toISOString().split('T')[0],
+      effective_date: now.toISOString().split('T')[0],
+      effective_status: 'in_force',
+      status_as_of: now.toISOString().split('T')[0],
+      tom_tat_chinh_sach: title,
+      official_source_urls: [fullLink],
+      source_feed: 'baochinhphu.vn',
+      crawled_at: now
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Source 5: lamdong.gov.vn/sites/qppl – Lâm Đồng province QPPL (SharePoint)
+ * Scrapes the QPPL page and VB Chỉ đạo điều hành links
+ */
+async function crawlLamDongQPPL() {
+  const now = new Date();
+  const items = [];
+
+  // Fetch the main QPPL page
+  const res = await fetchWithRetry('https://lamdong.gov.vn/sites/qppl/SitePages/Home.aspx');
+  if (!res.ok) return [];
+
+  const rawText = await res.text();
+
+  // The SharePoint page embeds data in JSON within data-sp-webpartdata attributes
+  // Extract any document links from the rendered HTML
+  const linkMatches = rawText.match(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi) || [];
+  for (const aTag of linkMatches) {
+    const textMatch = aTag.match(/>([^<]+)</);
+    const linkMatch = aTag.match(/href=["']([^"']+)["']/i);
+    const title = textMatch ? textMatch[1].trim() : '';
+    const link = linkMatch ? linkMatch[1].trim() : '';
+
+    if (!title || title.length < 10) continue;
+    const docNum = extractFullDocumentNumber(title);
+    if (!isValidLegalDocNumber(docNum)) continue;
+
+    let fullLink = link;
+    if (link && !link.startsWith('http')) {
+      fullLink = `https://lamdong.gov.vn${link.startsWith('/') ? '' : '/'}${link}`;
+    }
+
+    const docType = detectDocType(title, docNum);
+    const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, title, '');
+
+    items.push({
+      document_number: docNum,
+      title: title,
+      document_type: docType,
+      topic_aliases,
+      query_patterns,
+      issuer: /HĐND|hội đồng nhân dân/i.test(title) ? 'HĐND tỉnh Lâm Đồng' : 'UBND tỉnh Lâm Đồng',
+      issue_date: now.toISOString().split('T')[0],
+      effective_date: now.toISOString().split('T')[0],
+      effective_status: 'in_force',
+      status_as_of: now.toISOString().split('T')[0],
+      tom_tat_chinh_sach: title,
+      official_source_urls: [fullLink || 'https://lamdong.gov.vn/sites/qppl/SitePages/Home.aspx'],
+      source_feed: 'lamdong.gov.vn – VBQPPL tỉnh Lâm Đồng',
+      crawled_at: now
+    });
+  }
+
+  // Also try to extract document numbers from the embedded JSON data
+  const jsonMatches = rawText.match(/data-sp-webpartdata="([^"]+)"/gi) || [];
+  for (const jsonAttr of jsonMatches) {
+    const decoded = jsonAttr.replace(/data-sp-webpartdata="/i, '').replace(/"$/, '')
+      .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#58;/g, ':')
+      .replace(/&#123;/g, '{').replace(/&#125;/g, '}');
+    const docNums = decoded.match(/\d{1,4}\/\d{4}\/[A-ZĐa-zđ0-9\-]+/gi) || [];
+    for (const dn of docNums) {
+      const normalized = normalizeDocumentNumber(dn);
+      if (!isValidLegalDocNumber(normalized)) continue;
+      if (items.some(i => i.document_number === normalized)) continue;
+
+      const docType = detectDocType(decoded, normalized);
+      const { topic_aliases, query_patterns } = generateAliasesAndPatterns(normalized, '', '');
+
+      items.push({
+        document_number: normalized,
+        title: `Văn bản ${normalized} – tỉnh Lâm Đồng`,
+        document_type: docType,
+        topic_aliases,
+        query_patterns,
+        issuer: 'UBND tỉnh Lâm Đồng',
+        issue_date: now.toISOString().split('T')[0],
+        effective_date: now.toISOString().split('T')[0],
+        effective_status: 'in_force',
+        status_as_of: now.toISOString().split('T')[0],
+        tom_tat_chinh_sach: `Văn bản QPPL số ${normalized}`,
+        official_source_urls: ['https://lamdong.gov.vn/sites/qppl/SitePages/Home.aspx'],
+        source_feed: 'lamdong.gov.vn – VBQPPL tỉnh Lâm Đồng',
+        crawled_at: now
+      });
+    }
+  }
+
+  return items;
+}
+
+
+/**
+ * Fetch and extract legal documents from all official sources (Fast Parallel Ingestion with Health Tracking)
+ */
+async function crawlOfficialSources() {
+  const discoveredDocs = [];
+  const sourceHealth = [];
+
+  const sources = [
+    { name: 'vanban.chinhphu.vn – Danh sách VB ban hành', fn: crawlVanbanChinhphu, scope: 'central' },
+    { name: 'chinhphu.vn – Trang chủ', fn: crawlChinhphuHomepage, scope: 'central' },
+    { name: 'congbao.chinhphu.vn – Công báo', fn: crawlCongbao, scope: 'central' },
+    { name: 'baochinhphu.vn', fn: crawlBaochinhphu, scope: 'central' },
+    { name: 'lamdong.gov.vn – VBQPPL tỉnh Lâm Đồng', fn: crawlLamDongQPPL, scope: 'local_lamdong' },
+  ];
+
+  // Fetch all sources concurrently in parallel
+  const fetchPromises = sources.map(async (src) => {
+    const startTime = Date.now();
+    try {
+      const items = await src.fn();
+      const elapsed = Date.now() - startTime;
+      sourceHealth.push({
+        name: src.name,
+        scope: src.scope,
+        status: 'ok',
+        itemCount: items.length,
+        responseTimeMs: elapsed,
+        error: null
+      });
+      console.log(`[Crawler] ✅ ${src.name}: ${items.length} documents (${elapsed}ms)`);
       return items;
     } catch (err) {
-      console.warn(`[Crawler] Source ${src.name} fetch failed or timed out:`, err.message);
+      const elapsed = Date.now() - startTime;
+      sourceHealth.push({
+        name: src.name,
+        scope: src.scope,
+        status: 'error',
+        itemCount: 0,
+        responseTimeMs: elapsed,
+        error: err.message
+      });
+      console.warn(`[Crawler] ❌ ${src.name} failed (${elapsed}ms):`, err.message);
       return [];
     }
   });
@@ -253,7 +551,17 @@ async function crawlOfficialSources() {
       uniqueMap.set(d.document_number, d);
     }
   }
-  return Array.from(uniqueMap.values());
+
+  const failedCount = sourceHealth.filter(s => s.status === 'error').length;
+  const totalSources = sourceHealth.length;
+
+  return {
+    documents: Array.from(uniqueMap.values()),
+    sourceHealth,
+    failedCount,
+    totalSources,
+    allFailed: failedCount === totalSources
+  };
 }
 
 /**
@@ -271,7 +579,8 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
 
   try {
     const db = await getDb();
-    const discovered = await crawlOfficialSources();
+    const crawlResult = await crawlOfficialSources();
+    const discovered = crawlResult.documents;
 
     let newCount = 0;
     let updatedCount = 0;
@@ -327,15 +636,27 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
       .limit(10)
       .toArray();
 
+    // Determine overall status based on source health
+    let statusStr = 'idle';
+    let messageStr = `Đã hoàn tất quét văn bản mới nhất: ${newCount} văn bản mới, ${updatedCount} văn bản cập nhật. Tổng văn bản quy phạm pháp luật: ${totalCount}.`;
+
+    if (crawlResult.allFailed) {
+      statusStr = 'all_sources_failed';
+      messageStr = `⚠️ CẢNH BÁO: Tất cả ${crawlResult.totalSources} nguồn dữ liệu đều thất bại! Kiểm tra kết nối mạng hoặc các trang web nguồn có thể đã thay đổi cấu trúc.`;
+    } else if (crawlResult.failedCount > 0) {
+      messageStr += ` (${crawlResult.failedCount}/${crawlResult.totalSources} nguồn bị lỗi)`;
+    }
+
     lastCrawlStatus = {
       lastRunAt: startedAt,
       completedAt: new Date(),
-      status: 'idle',
+      status: statusStr,
       itemsIngested: newCount + updatedCount,
       newItems: newCount,
       updatedItems: updatedCount,
       totalKnownDocs: totalCount,
-      message: `Đã hoàn tất quét văn bản mới nhất: ${newCount} văn bản mới, ${updatedCount} văn bản cập nhật. Tổng văn bản quy phạm pháp luật: ${totalCount}.`,
+      message: messageStr,
+      sourceHealth: crawlResult.sourceHealth,
       recentDocuments: recentList.map(d => ({
         document_number: d.document_number || d.documentNumber,
         title: d.title || d.titleHint || d.trich_yeu,
@@ -355,10 +676,12 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
       new_count: newCount,
       updated_count: updatedCount,
       total_count: totalCount,
-      status: 'success'
+      source_health: crawlResult.sourceHealth,
+      failed_sources: crawlResult.failedCount,
+      status: crawlResult.allFailed ? 'all_sources_failed' : 'success'
     });
 
-    console.log(`[Crawler] Completed: ${newCount} new, ${updatedCount} updated. Total: ${totalCount}`);
+    console.log(`[Crawler] Completed: ${newCount} new, ${updatedCount} updated. Total: ${totalCount}. Sources: ${crawlResult.totalSources - crawlResult.failedCount}/${crawlResult.totalSources} OK`);
     return {
       success: true,
       ...lastCrawlStatus
