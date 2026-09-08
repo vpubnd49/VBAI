@@ -2641,32 +2641,60 @@ app.get('/api/document-metadata', async (req, res) => {
       }
     }
 
-    // Check MongoDB known_documents collection
+    // Check MongoDB known_documents collection with full metadata resolution
     try {
       const { getDb } = require('./services/db.service');
+      const { normalizeDocumentNumber } = require('./legal/domain/document-number');
       const db = await getDb();
       const cleanQ = q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const mongoDoc = await db.collection('known_documents').findOne({
-        $or: [
-          { document_number: { $regex: new RegExp(cleanQ, 'i') } },
-          { title: { $regex: new RegExp(cleanQ, 'i') } },
-          { topic_aliases: { $regex: new RegExp(cleanQ, 'i') } }
-        ]
-      });
+      const normQ = normalizeDocumentNumber(q.trim());
+
+      const orClauses = [
+        { document_number: { $regex: new RegExp(cleanQ, 'i') } },
+        { normalized_number: { $regex: new RegExp(cleanQ, 'i') } },
+        { title: { $regex: new RegExp(cleanQ, 'i') } },
+        { topic_aliases: { $regex: new RegExp(cleanQ, 'i') } },
+        { query_patterns: { $regex: new RegExp(cleanQ.toLowerCase(), 'i') } }
+      ];
+
+      if (normQ) {
+        orClauses.unshift(
+          { document_number: normQ },
+          { normalized_number: normQ },
+          { documentNumber: normQ }
+        );
+      }
+
+      const mongoDoc = await db.collection('known_documents').findOne({ $or: orClauses });
       if (mongoDoc && (mongoDoc.document_number || mongoDoc.documentNumber)) {
         const dNum = mongoDoc.document_number || mongoDoc.documentNumber;
+        const rawTitle = (mongoDoc.title || mongoDoc.titleHint || mongoDoc.trich_yeu || '').replace(/[">]+$/g, '').trim();
+        const rawSummary = (mongoDoc.tom_tat_chinh_sach || mongoDoc.summary || '').replace(/[">]+$/g, '').trim();
+        const rawDetail = (mongoDoc.noi_dung_chi_tiet || rawSummary || rawTitle).replace(/[">]+$/g, '').trim();
+
         return res.json({
           found: true,
           documentNumber: dNum,
           known_document: {
             documentNumber: dNum,
-            title: mongoDoc.title || mongoDoc.titleHint || mongoDoc.trich_yeu,
+            title: rawTitle || `Văn bản số ${dNum}`,
+            document_type: mongoDoc.document_type || 'van_ban',
             issuer: mongoDoc.issuer || 'Chính phủ',
+            issue_date: mongoDoc.issue_date || mongoDoc.issueDate || mongoDoc.ngay_ban_hanh,
+            effective_date: mongoDoc.effective_date || mongoDoc.effectiveDate || mongoDoc.ngay_hieu_luc,
+            effective_status: mongoDoc.effective_status || mongoDoc.effectiveStatus || 'in_force',
             ngay_ban_hanh: mongoDoc.issue_date || mongoDoc.issueDate || mongoDoc.ngay_ban_hanh,
             ngay_hieu_luc: mongoDoc.effective_date || mongoDoc.effectiveDate || mongoDoc.ngay_hieu_luc,
             tinh_trang_hieu_luc: mongoDoc.effective_status || mongoDoc.effectiveStatus || 'co_hieu_luc',
             thay_the_cho: mongoDoc.replaces || mongoDoc.thay_the_cho || [],
-            tom_tat_chinh_sach: mongoDoc.tom_tat_chinh_sach || mongoDoc.summary || ''
+            sua_doi_cho: mongoDoc.amends || mongoDoc.sua_doi_cho || [],
+            nguoi_ky: mongoDoc.nguoi_ky || mongoDoc.signer || null,
+            tom_tat_chinh_sach: rawSummary || rawTitle,
+            summary: rawSummary || rawTitle,
+            noi_dung_chi_tiet: rawDetail,
+            tom_tat_chuong_dieu: mongoDoc.tom_tat_chuong_dieu || mongoDoc.chapterArticleSummary || '',
+            can_cu_phap_ly: mongoDoc.can_cu_phap_ly || [],
+            official_source_urls: mongoDoc.official_source_urls || []
           },
           recent_documents: recentDocsList
         });

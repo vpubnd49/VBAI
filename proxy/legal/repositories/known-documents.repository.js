@@ -9,8 +9,66 @@ const { loadBosungMetadataIndex } = require('./bosung-metadata-index');
 
 let cachedDocuments = null;
 let cachedBosung = null;
+let cachedMongoDocuments = new Map();
+let lastMongoSync = 0;
+
+async function syncMongoDocuments(forceReload = false) {
+  const now = Date.now();
+  if (!forceReload && (now - lastMongoSync < 60000) && cachedMongoDocuments.size > 0) {
+    return cachedMongoDocuments;
+  }
+  try {
+    const { getDb } = require('../../services/db.service');
+    const db = await getDb();
+    const docs = await db.collection('known_documents')
+      .find({ document_number: { $not: /\.docx$|\.doc$|\.pdf$/i } })
+      .toArray();
+
+    const newMap = new Map();
+    for (const d of docs) {
+      const docNum = d.document_number || d.documentNumber;
+      if (!docNum) continue;
+      const target = normalizeDocumentNumber(docNum);
+      if (target) {
+        newMap.set(target, {
+          id: String(d._id || 'mongo_' + target),
+          document_number: docNum,
+          title: (d.title || d.titleHint || d.trich_yeu || `Văn bản ${docNum}`).replace(/[">]+$/g, '').trim(),
+          document_type: d.document_type || d.loai_van_ban || 'van_ban',
+          topic_aliases: Array.isArray(d.topic_aliases) ? d.topic_aliases : [],
+          query_patterns: Array.isArray(d.query_patterns) ? d.query_patterns : [],
+          issuer: d.issuer || 'Chính phủ',
+          issue_date: d.issue_date || d.issueDate || d.ngay_ban_hanh || null,
+          effective_date: d.effective_date || d.effectiveDate || d.ngay_hieu_luc || null,
+          effective_status: d.effective_status || d.effectiveStatus || 'in_force',
+          status_as_of: d.status_as_of || null,
+          replaces: d.replaces || d.thay_the_cho || [],
+          amends: d.amends || d.sua_doi_cho || [],
+          superseded_by: d.superseded_by || [],
+          official_source_urls: Array.isArray(d.official_source_urls) ? d.official_source_urls : [],
+          tom_tat_chinh_sach: (d.tom_tat_chinh_sach || d.summary || '').replace(/[">]+$/g, '').trim(),
+          noi_dung_chi_tiet: (d.noi_dung_chi_tiet || d.tom_tat_chinh_sach || d.summary || '').replace(/[">]+$/g, '').trim(),
+          chapterArticleSummary: d.tom_tat_chuong_dieu || d.chapterArticleSummary || '',
+          tom_tat_chuong_dieu: d.tom_tat_chuong_dieu || d.chapterArticleSummary || '',
+          can_cu_phap_ly: d.can_cu_phap_ly || [],
+          nguoi_ky: d.nguoi_ky || d.signer || null,
+          verification_status: 'verified',
+          review_state: 'published',
+          source: 'mongodb_known_documents',
+          match_type: 'direct'
+        });
+      }
+    }
+    cachedMongoDocuments = newMap;
+    lastMongoSync = now;
+  } catch (_) {}
+  return cachedMongoDocuments;
+}
 
 function loadKnownDocuments(forceReload = false) {
+  if (Date.now() - lastMongoSync > 300000) {
+    syncMongoDocuments().catch(() => {});
+  }
   if (cachedDocuments && !forceReload) {
     return cachedDocuments;
   }
@@ -124,6 +182,11 @@ function findKnownDocumentByNumber(docNumber = '') {
   if (!docNumber) return null;
   const target = normalizeDocumentNumber(docNumber);
   if (!target) return null;
+
+  // 0. Search MongoDB cached documents first (latest crawled docs)
+  if (cachedMongoDocuments && cachedMongoDocuments.has(target)) {
+    return cachedMongoDocuments.get(target);
+  }
 
   // 1. Search known-documents.json first
   const docs = loadKnownDocuments();
@@ -385,6 +448,27 @@ function findByTopicInBosung(topic = '') {
     // Silently ignore if bosung is not available
   }
 
+  // Search cached MongoDB documents
+  if (cachedMongoDocuments && cachedMongoDocuments.size > 0) {
+    for (const doc of cachedMongoDocuments.values()) {
+      const dn = String(doc.document_number || '');
+      if (dn.startsWith(numStr + '/') || dn === numStr) {
+        if (docType && doc.document_type !== docType) continue;
+        if (yearFilter && !dn.includes('/' + yearFilter + '/')) continue;
+        if (!results.some(r => normalizeDocumentNumber(r.documentNumber) === normalizeDocumentNumber(dn))) {
+          results.push({
+            documentNumber: dn,
+            title: doc.title || '',
+            documentType: doc.document_type || '',
+            issuer: doc.issuer || '',
+            effectiveStatus: doc.effective_status || 'in_force',
+            source: 'mongodb_known_documents',
+          });
+        }
+      }
+    }
+  }
+
   return results;
 }
 
@@ -396,4 +480,5 @@ module.exports = {
   validateKnownDocumentRegistry,
   findByPartialNumber,
   findByTopicInBosung,
+  syncMongoDocuments,
 };

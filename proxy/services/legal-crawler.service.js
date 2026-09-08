@@ -172,10 +172,93 @@ function decodeHtmlEntities(str) {
 }
 
 /**
+ * Helper to find the best title, direct link, and dates for a document from decoded HTML
+ */
+function findBestTitleAndLink(decodedHtml, rawMatch, baseUrl) {
+  const esc = rawMatch.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+  let title = '';
+  let detailUrl = baseUrl;
+
+  // 1. Check if enclosed in an <a> tag with title attribute or text
+  const aRegex = new RegExp('<a\\b([^>]*)>([\\s\\S]*?)<\\/a>', 'gi');
+  let m;
+  while ((m = aRegex.exec(decodedHtml)) !== null) {
+    const fullTag = m[0];
+    const attrs = m[1];
+    const text = m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (fullTag.includes(rawMatch) || text.includes(rawMatch)) {
+      const titleAttrMatch = attrs.match(/title=["']([^"']+)["']/i);
+      const titleAttr = titleAttrMatch ? titleAttrMatch[1].trim() : '';
+
+      const hrefMatch = attrs.match(/href=["']([^"']+)["']/i);
+      if (hrefMatch && hrefMatch[1] && !hrefMatch[1].startsWith('javascript:') && !hrefMatch[1].startsWith('#')) {
+        try {
+          detailUrl = new URL(hrefMatch[1], baseUrl).href;
+        } catch (_) {}
+      }
+
+      const cand = titleAttr.length >= text.length ? titleAttr : text;
+      if (cand.length > title.length) {
+        title = cand;
+      }
+    }
+  }
+
+  // 2. Check heading or paragraph if title is still weak
+  if (!title || title.length < 20) {
+    const hRegex = new RegExp('<(h[1-4]|p|li|td)[^>]*>([\\s\\S]*?' + esc + '[\\s\\S]*?)<\\/\\1>', 'gi');
+    let hm;
+    while ((hm = hRegex.exec(decodedHtml)) !== null) {
+      const clean = hm[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (clean.length > title.length) {
+        title = clean;
+      }
+    }
+  }
+
+  // 3. Fallback to surrounding text window
+  if (!title || title.length < 15) {
+    const ctxRegex = new RegExp('.{0,250}' + esc + '.{0,250}', 'i');
+    const cm = decodedHtml.match(ctxRegex);
+    if (cm) {
+      title = cm[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+  }
+
+  // Clean title: remove HTML residues, quotes, brackets
+  title = title
+    .replace(/^["'\s>–—\-:]+|["'\s<–—\-:]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Extract issue date if found in text
+  let issueDate = null;
+  const dateM = title.match(/ngày\s+(\d{1,2})\s*(?:tháng|\/|\-)\s*(\d{1,2})\s*(?:năm|\/|\-)\s*(\d{4})/i)
+    || decodedHtml.match(new RegExp(esc + '.{0,100}ngày\\s+(\\d{1,2})\\s*(?:tháng|\\/|\\-)\\s*(\\d{1,2})\\s*(?:năm|\\/|\\-)\\s*(\\d{4})', 'i'));
+  if (dateM) {
+    const d = String(dateM[1]).padStart(2, '0');
+    const mo = String(dateM[2]).padStart(2, '0');
+    const y = dateM[3];
+    issueDate = `${y}-${mo}-${d}`;
+  }
+
+  // Extract effective date if present
+  let effectiveDate = null;
+  const effM = title.match(/hiệu lực (?:từ )?ngày\s+(\d{1,2})\s*(?:tháng|\/|\-)\s*(\d{1,2})\s*(?:năm|\/|\-)\s*(\d{4})/i)
+    || decodedHtml.match(new RegExp(esc + '.{0,150}hiệu lực (?:từ )?ngày\\s+(\\d{1,2})\\s*(?:tháng|\\/|\\-)\\s*(\\d{1,2})\\s*(?:năm|\\/|\\-)\\s*(\\d{4})', 'i'));
+  if (effM) {
+    const d = String(effM[1]).padStart(2, '0');
+    const mo = String(effM[2]).padStart(2, '0');
+    const y = effM[3];
+    effectiveDate = `${y}-${mo}-${d}`;
+  }
+
+  return { title, detailUrl, issueDate, effectiveDate };
+}
+
+/**
  * Universal HTML document extractor – scans the ENTIRE raw HTML for document numbers
- * instead of just parsing <a> tag text content.
- * This is critical because government sites embed doc numbers in URLs, attributes,
- * table cells, and various HTML elements, not just clean <a> text.
+ * with intelligent trích yếu extraction, direct link resolution, and date parsing.
  */
 function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
   const now = new Date();
@@ -199,39 +282,33 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
 
     seen.add(docNum);
 
-    // Try to find surrounding context for title (use decoded HTML)
-    const escDocNum = rawMatch.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
-    const contextRegex = new RegExp('.{0,200}' + escDocNum + '.{0,200}', 'i');
-    const contextMatch = decodedHtml.match(contextRegex);
-    let contextText = contextMatch ? contextMatch[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+    const { title: extractedTitle, detailUrl, issueDate, effectiveDate } = findBestTitleAndLink(decodedHtml, rawMatch, baseUrl);
 
-    // Extract a meaningful title from context
-    let title = '';
-    if (contextText.length > 30) {
-      // Try to extract the meaningful part after the doc number
-      const afterNum = contextText.split(rawMatch)[1] || '';
-      const cleaned = afterNum.replace(/^\s*[:;,.\-–]\s*/, '').trim();
-      title = cleaned.length > 10 ? cleaned.slice(0, 200) : contextText.slice(0, 200);
-    } else {
-      title = `Van ban ${docNum}`;
+    // If extracted title is empty or too short, generate a clean fallback
+    let finalTitle = extractedTitle;
+    if (!finalTitle || finalTitle.length < 10) {
+      finalTitle = `Văn bản quy phạm pháp luật số ${docNum}`;
     }
 
-    const docType = detectDocType(contextText || title, docNum);
-    const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, title, '');
+    const docType = detectDocType(finalTitle, docNum);
+    const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, finalTitle, '');
+
+    const resolvedIssueDate = issueDate || now.toISOString().split('T')[0];
+    const resolvedEffectiveDate = effectiveDate || resolvedIssueDate;
 
     items.push({
       document_number: docNum,
-      title: title,
+      title: finalTitle,
       document_type: docType,
       topic_aliases,
       query_patterns,
-      issuer: detectIssuer(contextText || title),
-      issue_date: now.toISOString().split('T')[0],
-      effective_date: now.toISOString().split('T')[0],
+      issuer: detectIssuer(finalTitle),
+      issue_date: resolvedIssueDate,
+      effective_date: resolvedEffectiveDate,
       effective_status: 'in_force',
       status_as_of: now.toISOString().split('T')[0],
-      tom_tat_chinh_sach: title,
-      official_source_urls: [baseUrl],
+      tom_tat_chinh_sach: finalTitle,
+      official_source_urls: [detailUrl || baseUrl],
       source_feed: sourceFeedName,
       crawled_at: now
     });
@@ -320,16 +397,96 @@ async function crawlCongbaoVanbanMoi() {
 }
 
 /**
- * Source 8: phaply.net.vn - Legal news site
- * Reliably lists recent NĐ-CP, TT, QĐ with doc numbers in static HTML
+/**
+ * Source: phaply.net.vn - Legal news and analysis site
+ * Crawls RSS feeds (structured titles, descriptions, direct links) and HTML category pages.
+ * Fetches detail pages for discovered documents to extract comprehensive trích yếu & key provisions.
  */
 async function crawlPhaplyNet() {
   const items = [];
-  const urls = [
-    'https://phaply.net.vn/',
-    'https://phaply.net.vn/category/van-ban-phap-luat/',
+  const now = new Date();
+
+  // 1. RSS Feeds - fast, structured, clean Unicode titles & summaries
+  const rssFeeds = [
+    'https://phaply.net.vn/rss/chinh-sach-moi.rss',
+    'https://phaply.net.vn/rss/xay-dung-phap-luat.rss',
+    'https://phaply.net.vn/rss/tin-moi.rss',
+    'https://phaply.net.vn/rss/su-kien-chinh-sach.rss',
+    'https://phaply.net.vn/rss/dien-dan-luat-gia.rss'
   ];
-  for (const url of urls) {
+
+  for (const feedUrl of rssFeeds) {
+    try {
+      const res = await fetchWithRetry(feedUrl);
+      if (!res.ok) continue;
+      const xml = decodeHtmlEntities(await res.text());
+      const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/gi) || [];
+
+      for (const b of itemBlocks) {
+        const titleMatch = b.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/i) || b.match(/<title>([\s\S]*?)<\/title>/i);
+        const linkMatch = b.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/i) || b.match(/<link>([\s\S]*?)<\/link>/i);
+        const descMatch = b.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/i) || b.match(/<description>([\s\S]*?)<\/description>/i);
+        const pubMatch = b.match(/<pubDate>([\s\S]*?)<\/pubDate>/i);
+
+        const title = titleMatch ? titleMatch[1].trim() : '';
+        const link = linkMatch ? linkMatch[1].trim() : '';
+        const desc = descMatch ? descMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+
+        const combined = `${title} ${desc}`;
+        const DOC_NUM_GLOBAL = /(\d{1,4}\/\d{4}\/(?:N\u0110-CP|N\u0111-CP|ND-CP|QH\d+|NQ-QH\d+|UBTVQH\d+|Q\u0110-TTg|QD-TTg|TT-[A-Z\u01100-9\-]+|TTLT-[A-Z\u01100-9\-]+|NQ-CP|Q\u0110-UBND|QD-UBND|NQ-H\u0110ND|NQ-HDND|CT-UBND|VBHN-[A-Z\u01100-9\-]+))/gi;
+        const docMatches = combined.match(DOC_NUM_GLOBAL) || [];
+
+        for (const rawDm of docMatches) {
+          const dm = normalizeDocumentNumber(rawDm);
+          if (!dm || !isValidLegalDocNumber(dm)) continue;
+          if (items.some(i => i.document_number === dm)) continue;
+
+          let issueDate = now.toISOString().split('T')[0];
+          if (pubMatch && pubMatch[1]) {
+            try {
+              const d = new Date(pubMatch[1]);
+              if (!isNaN(d.getTime())) issueDate = d.toISOString().split('T')[0];
+            } catch (_) {}
+          }
+          const dateM = combined.match(/ngày\s+(\d{1,2})\s*(?:tháng|\/|\-)\s*(\d{1,2})\s*(?:năm|\/|\-)\s*(\d{4})/i);
+          if (dateM) {
+            issueDate = `${dateM[3]}-${String(dateM[2]).padStart(2, '0')}-${String(dateM[1]).padStart(2, '0')}`;
+          }
+
+          const docType = detectDocType(title || desc, dm);
+          const { topic_aliases, query_patterns } = generateAliasesAndPatterns(dm, title, desc);
+
+          items.push({
+            document_number: dm,
+            title: title || `Văn bản quy phạm pháp luật số ${dm}`,
+            document_type: docType,
+            topic_aliases,
+            query_patterns,
+            issuer: detectIssuer(title || desc),
+            issue_date: issueDate,
+            effective_date: issueDate,
+            effective_status: 'in_force',
+            status_as_of: now.toISOString().split('T')[0],
+            tom_tat_chinh_sach: desc || title,
+            noi_dung_chi_tiet: desc || title,
+            official_source_urls: [link || feedUrl],
+            source_feed: 'phaply.net.vn/rss',
+            crawled_at: now
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 2. HTML category and homepage scraping
+  const htmlUrls = [
+    'https://phaply.net.vn/',
+    'https://phaply.net.vn/c/xay-dung-phap-luat',
+    'https://phaply.net.vn/c/gop-y-chinh-sach',
+    'https://phaply.net.vn/category/van-ban-phap-luat/'
+  ];
+
+  for (const url of htmlUrls) {
     try {
       const res = await fetchWithRetry(url);
       if (!res.ok) continue;
@@ -340,27 +497,62 @@ async function crawlPhaplyNet() {
           items.push(d);
         }
       }
-    } catch (e) { /* skip */ }
+    } catch (_) {}
   }
+
+  // 3. Deep detail enrichment: for items with specific article links, fetch detail page
+  for (const item of items) {
+    const detailLink = item.official_source_urls?.[0];
+    if (detailLink && detailLink.startsWith('http') && !detailLink.endsWith('.rss') && !detailLink.endsWith('.aspx') && detailLink !== 'https://phaply.net.vn/') {
+      try {
+        const detailRes = await fetchWithRetry(detailLink, {}, 0);
+        if (detailRes && detailRes.ok) {
+          const detailHtml = decodeHtmlEntities(await detailRes.text());
+          const h1Match = detailHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+          const metaDescMatch = detailHtml.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
+          const paragraphs = (detailHtml.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [])
+            .map(p => p.replace(/<[^>]+>/g, '').trim())
+            .filter(p => p.length > 35 && !p.includes('Chia sẻ') && !p.includes('Bình luận'));
+
+          if (h1Match && h1Match[1]) {
+            const cleanH1 = h1Match[1].replace(/<[^>]+>/g, '').trim();
+            if (cleanH1.length > item.title.length) {
+              item.title = cleanH1;
+            }
+          }
+
+          const desc = metaDescMatch ? metaDescMatch[1].trim() : '';
+          const bodySnippet = paragraphs.slice(0, 4).join('\n\n');
+          if (bodySnippet || desc) {
+            item.noi_dung_chi_tiet = [desc, bodySnippet].filter(Boolean).join('\n\n');
+            if (desc && desc.length > 30) {
+              item.tom_tat_chinh_sach = desc;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
   return items;
 }
 
-
 /**
  * Fetch and extract legal documents from all official sources (Fast Parallel Ingestion with Health Tracking)
+ * Prioritizes high-veracity and comprehensive legal sources.
  */
 async function crawlOfficialSources() {
   const discoveredDocs = [];
   const sourceHealth = [];
 
   const sources = [
+    { name: 'phaply.net.vn (chuyen trang phap ly)', fn: crawlPhaplyNet, scope: 'central' },
+    { name: 'congbao.chinhphu.vn', fn: crawlCongbao, scope: 'central' },
+    { name: 'congbao (van ban moi)', fn: crawlCongbaoVanbanMoi, scope: 'central' },
     { name: 'vanban.chinhphu.vn', fn: crawlVanbanChinhphu, scope: 'central' },
     { name: 'chinhphu.vn (trang chu)', fn: crawlChinhphuHomepage, scope: 'central' },
     { name: 'chinhphu.vn (VB chi dao)', fn: crawlChinhphuVBCD, scope: 'central' },
-    { name: 'congbao.chinhphu.vn', fn: crawlCongbao, scope: 'central' },
-    { name: 'congbao (van ban moi)', fn: crawlCongbaoVanbanMoi, scope: 'central' },
     { name: 'baochinhphu.vn', fn: crawlBaochinhphu, scope: 'central' },
-    { name: 'phaply.net.vn', fn: crawlPhaplyNet, scope: 'central' },
     { name: 'lamdong.gov.vn/sites/qppl', fn: crawlLamDongQPPL, scope: 'local_lamdong' },
   ];
 
@@ -453,16 +645,54 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
         ]
       });
 
+      const nowStr = startedAt.toISOString().split('T')[0];
       if (existing) {
+        // Smart non-destructive merge: preserve richer information and clean up any broken titles
+        const cleanDocTitle = (doc.title || '').replace(/[">]+$/g, '').trim();
+        const cleanExistingTitle = (existing.title || '').replace(/[">]+$/g, '').trim();
+
+        const docTitleIsSubstantial = cleanDocTitle.length > 20 && !cleanDocTitle.startsWith('Văn bản') && !cleanDocTitle.startsWith('ngày ');
+        const existingTitleIsSubstantial = cleanExistingTitle.length > 20 && !cleanExistingTitle.startsWith('Văn bản') && !cleanExistingTitle.startsWith('ngày ');
+
+        let betterTitle = cleanExistingTitle;
+        if (docTitleIsSubstantial) {
+          betterTitle = cleanDocTitle;
+        } else if (!existingTitleIsSubstantial && cleanDocTitle) {
+          betterTitle = cleanDocTitle;
+        }
+
+        const betterSummary = (doc.tom_tat_chinh_sach && doc.tom_tat_chinh_sach.length > 30 && !doc.tom_tat_chinh_sach.startsWith('ngày '))
+          ? doc.tom_tat_chinh_sach
+          : (existing.tom_tat_chinh_sach || existing.summary || doc.tom_tat_chinh_sach || betterTitle);
+
+        const betterDetail = doc.noi_dung_chi_tiet || existing.noi_dung_chi_tiet || betterSummary;
+
+        const mergedUrls = Array.from(new Set([
+          ...(Array.isArray(existing.official_source_urls) ? existing.official_source_urls : []),
+          ...(Array.isArray(doc.official_source_urls) ? doc.official_source_urls : [])
+        ])).filter(u => u && !u.endsWith('.rss'));
+
+        // Issue date: prefer parsed date over today's fallback date
+        let finalIssueDate = doc.issue_date;
+        if (finalIssueDate === nowStr && existing.issue_date && existing.issue_date !== nowStr) {
+          finalIssueDate = existing.issue_date;
+        }
+
         await db.collection('known_documents').updateOne(
           { _id: existing._id },
           {
             $set: {
               ...doc,
+              title: betterTitle,
+              tom_tat_chinh_sach: betterSummary,
+              summary: betterSummary,
+              noi_dung_chi_tiet: betterDetail,
+              official_source_urls: mergedUrls.length > 0 ? mergedUrls : [doc.official_source_urls?.[0] || 'https://phaply.net.vn/'],
               documentNumber: doc.document_number,
-              issueDate: doc.issue_date,
-              effectiveDate: doc.effective_date,
-              effectiveStatus: doc.effective_status,
+              issue_date: finalIssueDate,
+              issueDate: finalIssueDate,
+              effectiveDate: doc.effective_date || existing.effective_date || finalIssueDate,
+              effectiveStatus: doc.effective_status || existing.effective_status || 'in_force',
               normalized_number: normNum,
               updated_at: new Date()
             }
@@ -538,6 +768,12 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
       failed_sources: crawlResult.failedCount,
       status: crawlResult.allFailed ? 'all_sources_failed' : 'success'
     });
+
+    // Refresh in-memory known documents repository cache
+    try {
+      const { syncMongoDocuments } = require('../legal/repositories/known-documents.repository');
+      await syncMongoDocuments(true);
+    } catch (_) {}
 
     console.log(`[Crawler] Completed: ${newCount} new, ${updatedCount} updated. Total: ${totalCount}. Sources: ${crawlResult.totalSources - crawlResult.failedCount}/${crawlResult.totalSources} OK`);
     return {
