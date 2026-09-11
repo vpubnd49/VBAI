@@ -13,6 +13,10 @@ let currentUsersPage = 1;
 let currentDatasetPage = 1;
 const ITEMS_PER_PAGE = 10;
 
+let adminLogsAutoPoll = true;
+let adminUsersAutoPoll = true;
+let adminPollTimerId = null;
+
 const DEFAULT_FALLBACK_SOURCES = {
   vbpl: true,
   chinhphu: true,
@@ -105,6 +109,34 @@ function startSyncStatusPoller(container) {
     const isAttached = container?.isConnected ?? (document?.body?.contains ? document.body.contains(container) : true);
     if (!isAttached) { clearInterval(timerId); return; }
     refreshSyncStatus(container);
+  }, 30 * 1000);
+}
+
+/** Bắt đầu poll vết tra cứu và tài khoản hệ thống mỗi 30 giây cho tab đang kích hoạt */
+function startAdminAutoPoller(container) {
+  if (adminPollTimerId) {
+    clearInterval(adminPollTimerId);
+    adminPollTimerId = null;
+  }
+
+  adminPollTimerId = setInterval(async () => {
+    const isAttached = container?.isConnected ?? (document?.body?.contains ? document.body.contains(container) : true);
+    if (!isAttached) {
+      if (adminPollTimerId) {
+        clearInterval(adminPollTimerId);
+        adminPollTimerId = null;
+      }
+      return;
+    }
+
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+
+    const activeTab = container.querySelector('.admin-tab-btn.active')?.dataset?.tab;
+    if (activeTab === 'tab-logs' && adminLogsAutoPoll && currentPage === 1) {
+      await loadLogs(container, null, true);
+    } else if (activeTab === 'tab-users' && adminUsersAutoPoll && currentUsersPage === 1) {
+      await loadUsers(container, true);
+    }
   }, 30 * 1000);
 }
 
@@ -511,11 +543,15 @@ export function renderAdminPanel(container) {
       <!-- TAB 3: AUDIT LOGS -->
       <div id="tab-logs" class="admin-tab-content" style="display:none; width:100%;">
         <div class="panel-group" style="margin-bottom:20px; width:100%;">
-          <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px;">
+          <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; flex-wrap:wrap; gap:10px;">
             <div style="display:flex; align-items:center; gap:10px; font-size:1.05rem; font-weight:700;">
               <span class="panel-header-icon">🛡️</span> Quản Trị Hệ Thống - Vết Tra Cứu (Mới nhất)
             </div>
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <button type="button" id="toggle-admin-logs-poll-btn" class="btn btn-secondary btn-sm" style="display:flex; align-items:center; gap:6px; font-size:0.85rem;" title="Bật/Tắt tự động làm mới mỗi 30s">
+                <span class="poll-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; transition:background 0.2s;"></span>
+                <span class="poll-text">Tự động: BẬT (30s)</span>
+              </button>
               <button type="button" id="delete-all-logs-btn" class="btn btn-danger btn-sm" style="padding:6px 12px; font-size:0.85rem;">🗑️ Xóa tất cả</button>
               <button type="button" id="refresh-logs-btn" class="btn btn-secondary btn-sm" style="padding:6px 12px; font-size:0.85rem;">🔄 Làm mới</button>
             </div>
@@ -547,11 +583,17 @@ export function renderAdminPanel(container) {
       <!-- TAB 4: USERS -->
       <div id="tab-users" class="admin-tab-content" style="display:none; width:100%;">
         <div class="panel-group" style="margin-bottom:20px; width:100%;">
-          <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px;">
+          <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; flex-wrap:wrap; gap:10px;">
             <div style="display:flex; align-items:center; gap:10px; font-size:1.05rem; font-weight:700;">
               <span class="panel-header-icon">👥</span> Danh sách Tài khoản Hệ thống
             </div>
-            <button type="button" id="refresh-users-btn" class="btn btn-secondary btn-sm" style="padding:6px 12px; font-size:0.85rem;">🔄 Làm mới</button>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <button type="button" id="toggle-admin-users-poll-btn" class="btn btn-secondary btn-sm" style="display:flex; align-items:center; gap:6px; font-size:0.85rem;" title="Bật/Tắt tự động làm mới mỗi 30s">
+                <span class="poll-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; transition:background 0.2s;"></span>
+                <span class="poll-text">Tự động: BẬT (30s)</span>
+              </button>
+              <button type="button" id="refresh-users-btn" class="btn btn-secondary btn-sm" style="padding:6px 12px; font-size:0.85rem;">🔄 Làm mới</button>
+            </div>
           </div>
           <div class="panel-body" style="padding:0; overflow-x:auto">
             <table style="width:100%; border-collapse: collapse; font-size:0.88rem">
@@ -777,6 +819,9 @@ export function renderAdminPanel(container) {
   // ↻ Bắt đầu poll sync-status (mỗi 30 giây, dừng khi rời tab)
   startSyncStatusPoller(container);
 
+  // ↻ Bắt đầu poll Vết tra cứu và Tài khoản (mỗi 30 giây, dừng khi rời tab)
+  startAdminAutoPoller(container);
+
   const exportDatasetBtn = container.querySelector('#export-dataset-jsonl-btn');
   if (exportDatasetBtn) {
     exportDatasetBtn.addEventListener('click', async () => {
@@ -895,6 +940,44 @@ export function renderAdminPanel(container) {
 
   container.querySelector('#refresh-logs-btn').addEventListener('click', () => loadLogs(container));
   container.querySelector('#refresh-users-btn').addEventListener('click', () => loadUsers(container));
+
+  // Toggle Auto-Poll for Logs
+  const toggleLogsPollBtn = container.querySelector('#toggle-admin-logs-poll-btn');
+  if (toggleLogsPollBtn) {
+    toggleLogsPollBtn.addEventListener('click', () => {
+      adminLogsAutoPoll = !adminLogsAutoPoll;
+      const dot = toggleLogsPollBtn.querySelector('.poll-dot');
+      const text = toggleLogsPollBtn.querySelector('.poll-text');
+      if (adminLogsAutoPoll) {
+        if (dot) dot.style.background = '#10b981';
+        if (text) text.textContent = 'Tự động: BẬT (30s)';
+        showToast('Đã BẬT tự động cập nhật vết tra cứu (mỗi 30s)', 'success');
+      } else {
+        if (dot) dot.style.background = '#94a3b8';
+        if (text) text.textContent = 'Tự động: TẮT';
+        showToast('Đã TẮT tự động cập nhật vết tra cứu', 'info');
+      }
+    });
+  }
+
+  // Toggle Auto-Poll for Users
+  const toggleUsersPollBtn = container.querySelector('#toggle-admin-users-poll-btn');
+  if (toggleUsersPollBtn) {
+    toggleUsersPollBtn.addEventListener('click', () => {
+      adminUsersAutoPoll = !adminUsersAutoPoll;
+      const dot = toggleUsersPollBtn.querySelector('.poll-dot');
+      const text = toggleUsersPollBtn.querySelector('.poll-text');
+      if (adminUsersAutoPoll) {
+        if (dot) dot.style.background = '#10b981';
+        if (text) text.textContent = 'Tự động: BẬT (30s)';
+        showToast('Đã BẬT tự động cập nhật tài khoản (mỗi 30s)', 'success');
+      } else {
+        if (dot) dot.style.background = '#94a3b8';
+        if (text) text.textContent = 'Tự động: TẮT';
+        showToast('Đã TẮT tự động cập nhật tài khoản', 'info');
+      }
+    });
+  }
 
   container.querySelector('#prev-page-btn').addEventListener('click', () => {
     if (currentPage > 1) {
@@ -1716,7 +1799,7 @@ function renderModelChips(listEl, models, type, onChange = null) {
   });
 }
 
-async function loadLogs(container, cursor = null) {
+async function loadLogs(container, cursor = null, isSilent = false) {
   const tbody = container.querySelector('#logs-table-body');
   try {
     const { backendFetch } = await import('./ai-proxy.js');
@@ -1730,7 +1813,9 @@ async function loadLogs(container, cursor = null) {
     const logsList = Array.isArray(resData.logs) ? resData.logs : [];
     
     if (logsList.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Chưa có vết tra cứu nào được ghi nhận.</td></tr>`;
+      if (!isSilent) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Chưa có vết tra cứu nào được ghi nhận.</td></tr>`;
+      }
       return;
     }
 
@@ -1738,7 +1823,7 @@ async function loadLogs(container, cursor = null) {
       id: item.id,
       data: {
         timestamp: item.created_at || item.timestamp,
-          userEmail: item.user_email || (item.user_id ? `User ${String(item.user_id).slice(0, 8)}` : 'anonymous'),
+        userEmail: item.user_email || (item.user_id ? `User ${String(item.user_id).slice(0, 8)}` : 'anonymous'),
         query: item.query || '',
         action: item.query || '',
         model: item.model || null,
@@ -1755,6 +1840,10 @@ async function loadLogs(container, cursor = null) {
     nextPageCursor = resData.pagination?.nextCursor || null;
     renderPage(container);
   } catch (error) {
+    if (isSilent) {
+      console.warn('Admin Vết tra cứu: Tự động cập nhật thất bại (giữ dữ liệu cũ):', error.message);
+      return;
+    }
     console.error('Error loading logs:', error);
     if (tbody) {
       tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--status-error-text, #dc2626)">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
@@ -1765,8 +1854,7 @@ async function loadLogs(container, cursor = null) {
 function renderPage(container) {
   const tbody = container.querySelector('#logs-table-body');
   if (!tbody) return;
-  const start = (currentPage - 1) * ITEMS_PER_PAGE;
-  const pageLogs = allLogs.slice(start, start + ITEMS_PER_PAGE);
+  const pageLogs = allLogs;
   tbody.innerHTML = pageLogs.length > 0 ? pageLogs.map((item) => {
     const userDisplay = item.data.userEmail || item.data.user || 'anonymous';
     const queryDisplay = item.data.query || item.data.action || '';
@@ -1814,14 +1902,16 @@ function renderPage(container) {
   }
 }
 
-async function loadUsers(container) {
+async function loadUsers(container, isSilent = false) {
   const tbody = container.querySelector('#users-table-body');
   try {
     const requestedPage = currentUsersPage;
     const resp = await adminFetch(`/api/admin/users?page=${requestedPage}&limit=${ITEMS_PER_PAGE}`, {});
     const result = await resp.json();
     if (!resp.ok || !result.success || !Array.isArray(result.users) || result.users.length === 0) {
-       tbody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--text-muted)">${resp.ok ? 'Không có dữ liệu (Hệ thống trả về 0 bản ghi)' : 'Không thể tải danh sách người dùng'}</td></tr>`;
+      if (!isSilent) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--text-muted)">${resp.ok ? 'Không có dữ liệu (Hệ thống trả về 0 bản ghi)' : 'Không thể tải danh sách người dùng'}</td></tr>`;
+      }
       return;
     }
     allUsers = result.users.map((u) => ({ id: u.uid || u._id, data: { ...u, createdAt: u.created_at || u.createdAt, lastLogin: u.last_login_at || u.lastLogin } }));
@@ -1831,6 +1921,10 @@ async function loadUsers(container) {
     }
     renderUsersPage(container);
   } catch (error) {
+    if (isSilent) {
+      console.warn('Admin Tài khoản: Tự động cập nhật thất bại (giữ dữ liệu cũ):', error.message);
+      return;
+    }
     console.error('Error loading users:', error);
     if (tbody) {
       tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--status-error-text, #dc2626)">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
@@ -1841,8 +1935,7 @@ async function loadUsers(container) {
 function renderUsersPage(container) {
   const tbody = container.querySelector('#users-table-body');
   if (!tbody) return;
-  const start = (currentUsersPage - 1) * ITEMS_PER_PAGE;
-  const pageUsers = allUsers.slice(start, start + ITEMS_PER_PAGE);
+  const pageUsers = allUsers;
   tbody.innerHTML = pageUsers.length > 0 ? pageUsers.map((item) => {
     const email = item.data.email || item.data.username || '';
     const name = item.data.displayName || item.data.fullName || item.data.name || '';

@@ -18,20 +18,32 @@ let historyState = {
   filterQuery: '',
   filterMode: 'all',
   isLoading: false,
+  autoRefresh: true,
+  pollTimerId: null
 };
 
 export async function renderSearchHistory(container, navigateToCallback) {
   if (!container) return;
 
+  // Dọn dẹp timer cũ nếu có
+  if (historyState.pollTimerId) {
+    clearInterval(historyState.pollTimerId);
+    historyState.pollTimerId = null;
+  }
+
   container.innerHTML = `
     <div class="search-history-workspace" style="padding: 20px; max-width: 1200px; margin: 0 auto;">
       <!-- Header Bar -->
-      <div class="search-history-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+      <div class="search-history-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap:wrap; gap:12px;">
         <div>
           <h1 style="font-size:1.5rem; font-weight:700; color:var(--text-primary); margin:0 0 6px 0;">📜 Lịch sử Tra cứu Pháp luật</h1>
           <p style="font-size:0.9rem; color:var(--text-secondary); margin:0;">Nhật ký tra cứu và căn cứ pháp lý được lưu trữ realtime từ hệ thống.</p>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="toggle-history-autorefresh-btn" class="btn btn-secondary" style="display:flex; align-items:center; gap:6px; font-size:0.85rem;" title="Bật/Tắt tự động làm mới mỗi 30s">
+            <span class="poll-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; transition:background 0.2s;"></span>
+            <span class="poll-text">Tự động: BẬT (30s)</span>
+          </button>
           <button id="delete-all-history-btn" class="btn btn-secondary" style="display:flex; align-items:center; gap:6px; color:var(--danger,#DC2626); border-color:var(--danger,#DC2626);">
             <span>🗑️</span> <span>Xóa tất cả</span>
           </button>
@@ -115,6 +127,25 @@ export async function renderSearchHistory(container, navigateToCallback) {
     applyFilterAndRender(container, navigateToCallback);
   });
 
+  // Auto-Refresh Toggle Button
+  const autoRefreshBtn = container.querySelector('#toggle-history-autorefresh-btn');
+  if (autoRefreshBtn) {
+    autoRefreshBtn.addEventListener('click', () => {
+      historyState.autoRefresh = !historyState.autoRefresh;
+      const dot = autoRefreshBtn.querySelector('.poll-dot');
+      const text = autoRefreshBtn.querySelector('.poll-text');
+      if (historyState.autoRefresh) {
+        if (dot) dot.style.background = '#10b981';
+        if (text) text.textContent = 'Tự động: BẬT (30s)';
+        showToast('Đã BẬT tự động làm mới lịch sử (mỗi 30s)', 'success');
+      } else {
+        if (dot) dot.style.background = '#94a3b8';
+        if (text) text.textContent = 'Tự động: TẮT';
+        showToast('Đã TẮT tự động làm mới lịch sử', 'info');
+      }
+    });
+  }
+
   refreshBtn.addEventListener('click', () => {
     fetchLogs(container, navigateToCallback);
   });
@@ -163,10 +194,43 @@ export async function renderSearchHistory(container, navigateToCallback) {
 
   // Initial Fetch
   await fetchLogs(container, navigateToCallback);
+
+  // Khởi chạy vòng lặp Polling 30s
+  startHistoryPoller(container, navigateToCallback);
 }
 
-async function fetchLogs(container, navigateToCallback, cursor = null) {
-  historyState.isLoading = true;
+function startHistoryPoller(container, navigateToCallback) {
+  if (historyState.pollTimerId) {
+    clearInterval(historyState.pollTimerId);
+    historyState.pollTimerId = null;
+  }
+
+  historyState.pollTimerId = setInterval(async () => {
+    // 1. Kiểm tra container còn gắn trong DOM không
+    const isAttached = container?.isConnected ?? (document?.body?.contains ? document.body.contains(container) : true);
+    if (!isAttached) {
+      if (historyState.pollTimerId) {
+        clearInterval(historyState.pollTimerId);
+        historyState.pollTimerId = null;
+      }
+      return;
+    }
+
+    // 2. Kiểm tra cờ autoRefresh
+    if (!historyState.autoRefresh) return;
+
+    // 3. Tạm dừng nếu tab trình duyệt đang bị ẩn (Page Visibility API)
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+
+    // 4. Chỉ tự động cập nhật khi người dùng đang ở trang 1 và không trong trạng thái tải
+    if (historyState.currentPage === 1 && !historyState.isLoading) {
+      await fetchLogs(container, navigateToCallback, null, true);
+    }
+  }, 30 * 1000);
+}
+
+async function fetchLogs(container, navigateToCallback, cursor = null, isSilent = false) {
+  if (!isSilent) historyState.isLoading = true;
   try {
     const { backendFetch } = await import('./ai-proxy.js');
     const params = new URLSearchParams({ limit: String(historyState.pageSize) });
@@ -181,7 +245,7 @@ async function fetchLogs(container, navigateToCallback, cursor = null) {
     historyState.logs = (Array.isArray(data.logs) ? data.logs : []).map(raw => ({
       id: raw.id,
       query: raw.query || '',
-       user: raw.user_email || (raw.user_id ? `User ${String(raw.user_id).slice(0, 8)}` : 'anonymous'),
+      user: raw.user_email || (raw.user_id ? `User ${String(raw.user_id).slice(0, 8)}` : 'anonymous'),
       userId: raw.user_id || null,
       mode: raw.mode || 'legal-search',
       feature: raw.feature || 'legal-search',
@@ -198,9 +262,18 @@ async function fetchLogs(container, navigateToCallback, cursor = null) {
     historyState.isAdmin = data.isAdmin === true;
     historyState.nextCursor = data.pagination?.nextCursor || null;
     historyState.hasMore = data.pagination?.hasMore === true || !!historyState.nextCursor;
-    historyState.filteredLogs = historyState.logs;
-    renderTablePage(container, navigateToCallback);
+    
+    if (historyState.filterQuery || historyState.filterMode !== 'all') {
+      applyFilterAndRender(container, navigateToCallback);
+    } else {
+      historyState.filteredLogs = historyState.logs;
+      renderTablePage(container, navigateToCallback);
+    }
   } catch (err) {
+    if (isSilent) {
+      console.warn('Lịch sử tra cứu: Tự động cập nhật không thành công (giữ nguyên dữ liệu cũ):', err.message);
+      return;
+    }
     console.error('Lỗi khi tải search_logs:', err);
     const tbody = container.querySelector('#history-table-body');
     if (tbody) {
@@ -213,7 +286,7 @@ async function fetchLogs(container, navigateToCallback, cursor = null) {
       `;
     }
   } finally {
-    historyState.isLoading = false;
+    if (!isSilent) historyState.isLoading = false;
   }
 }
 

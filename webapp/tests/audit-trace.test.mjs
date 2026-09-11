@@ -80,4 +80,15 @@ const adminPanelJs = fs.readFileSync(path.join(webappRoot, 'modules/admin-panel.
 assert.ok(adminPanelJs.includes('item.data.userEmail || item.data.user'), 'admin-panel.js MUST handle legacy user fields');
 assert.ok(adminPanelJs.includes('item.data.query || item.data.action'), 'admin-panel.js MUST handle legacy query fields');
 
-console.log('PASS: All Visit Counter & Search Audit Trace regression assertions passed successfully.');
+// 10. Verify Real-time Auto-Polling (30s) & Page Visibility Integration
+assert.ok(searchHistoryJs.includes('startHistoryPoller'), 'search-history.js MUST implement startHistoryPoller');
+assert.ok(searchHistoryJs.includes('toggle-history-autorefresh-btn'), 'search-history.js MUST have toggle-history-autorefresh-btn');
+assert.ok(searchHistoryJs.includes("document.visibilityState === 'hidden'"), 'search-history.js MUST respect Page Visibility API');
+
+assert.ok(adminPanelJs.includes('startAdminAutoPoller'), 'admin-panel.js MUST implement startAdminAutoPoller');
+assert.ok(adminPanelJs.includes('toggle-admin-logs-poll-btn'), 'admin-panel.js MUST have toggle-admin-logs-poll-btn');
+assert.ok(adminPanelJs.includes('toggle-admin-users-poll-btn'), 'admin-panel.js MUST have toggle-admin-users-poll-btn');
+assert.ok(adminPanelJs.includes("document.visibilityState === 'hidden'"), 'admin-panel.js MUST respect Page Visibility API');
+assert.ok(!adminPanelJs.includes('allUsers.slice(start, start + ITEMS_PER_PAGE)'), 'admin-panel.js MUST NOT do double-slicing on paginated users');
+
+console.log('PASS: All Visit Counter, Auto-Polling & Search Audit Trace regression assertions passed successfully.');
