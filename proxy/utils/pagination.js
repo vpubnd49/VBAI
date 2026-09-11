@@ -64,10 +64,10 @@ function validateCursor(cursor) {
  * Strips prompt, email, token, and provider payloads.
  */
 const SAFE_HISTORY_FIELDS = [
-  // Audit metadata only. Never return raw prompts, email addresses, or provider payloads.
+  // Audit metadata only. Never return raw prompts, token, or provider payloads.
   'id', 'created_at', 'timestamp', 'feature', 'mode',
   'status', 'verified_count', 'evidence_count', 'verifiedEvidenceCount', 'totalEvidenceCount',
-  'requestId', 'effectiveDate', 'model', 'errorMessage', 'user_id', 'query', 'query_preview', 'user_email',
+  'requestId', 'effectiveDate', 'model', 'errorMessage', 'user_id', 'query', 'query_preview', 'user_email', 'user_name'
 ];
 
 /**
@@ -81,10 +81,11 @@ function sanitizeAuditQuery(value = '') {
     .join('');
 }
 
-function sanitizeHistoryDoc(doc, { includeAdminEmail = false } = {}) {
+function sanitizeHistoryDoc(doc, { includeAdminEmail = false, requesterUid = null } = {}) {
   const safe = {};
+  const isOwnerOrAdmin = Boolean(includeAdminEmail || (requesterUid && doc.user_id && String(doc.user_id) === String(requesterUid)));
   for (const field of SAFE_HISTORY_FIELDS) {
-    if (field === 'user_email' && !includeAdminEmail) continue;
+    if ((field === 'user_email' || field === 'user_name') && !isOwnerOrAdmin) continue;
     if (doc[field] !== undefined) safe[field] = doc[field];
   }
   if (safe.query !== undefined) safe.query = sanitizeAuditQuery(safe.query);

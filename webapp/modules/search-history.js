@@ -242,22 +242,34 @@ async function fetchLogs(container, navigateToCallback, cursor = null, isSilent 
     }
 
     const data = await response.json();
-    historyState.logs = (Array.isArray(data.logs) ? data.logs : []).map(raw => ({
-      id: raw.id,
-      query: raw.query || '',
-      user: raw.user_email || (raw.user_id ? `User ${String(raw.user_id).slice(0, 8)}` : 'anonymous'),
-      userId: raw.user_id || null,
-      mode: raw.mode || 'legal-search',
-      feature: raw.feature || 'legal-search',
-      model: raw.model || '',
-      effectiveDate: raw.effectiveDate || null,
-      status: raw.status || 'success',
-      createdAt: raw.created_at || raw.timestamp,
-      verifiedCount: typeof raw.verified_count === 'number' ? raw.verified_count : (typeof raw.verifiedEvidenceCount === 'number' ? raw.verifiedEvidenceCount : 0),
-      totalCount: typeof raw.evidence_count === 'number' ? raw.evidence_count : (typeof raw.totalEvidenceCount === 'number' ? raw.totalEvidenceCount : 0),
-      requestId: raw.requestId || raw.request_id || null,
-      errorMessage: raw.errorMessage || null
-    }));
+    historyState.logs = (Array.isArray(data.logs) ? data.logs : []).map(raw => {
+      const currentEmail = window.currentUser?.email;
+      const currentName = window.currentUser?.displayName;
+      const currentUid = window.currentUser?.uid;
+      const isSelf = Boolean(currentUid && raw.user_id && String(raw.user_id) === String(currentUid));
+
+      const userDisplay = raw.user_name || raw.user_email ||
+        (isSelf ? (currentName || currentEmail) : null) ||
+        (raw.user_id ? `User ${String(raw.user_id).slice(0, 8)}` : 'anonymous');
+
+      return {
+        id: raw.id,
+        query: raw.query || '',
+        user: userDisplay,
+        userEmail: raw.user_email || (isSelf ? currentEmail : null),
+        userId: raw.user_id || null,
+        mode: raw.mode || 'legal-search',
+        feature: raw.feature || 'legal-search',
+        model: raw.model || '',
+        effectiveDate: raw.effectiveDate || null,
+        status: raw.status || 'success',
+        createdAt: raw.created_at || raw.timestamp,
+        verifiedCount: typeof raw.verified_count === 'number' ? raw.verified_count : (typeof raw.verifiedEvidenceCount === 'number' ? raw.verifiedEvidenceCount : 0),
+        totalCount: typeof raw.evidence_count === 'number' ? raw.evidence_count : (typeof raw.totalEvidenceCount === 'number' ? raw.totalEvidenceCount : 0),
+        requestId: raw.requestId || raw.request_id || null,
+        errorMessage: raw.errorMessage || null
+      };
+    });
 
     historyState.isAdmin = data.isAdmin === true;
     historyState.nextCursor = data.pagination?.nextCursor || null;
@@ -369,8 +381,9 @@ function renderTablePage(container, navigateToCallback) {
           <div>${formattedTime}</div>
           ${effectiveTag}
         </td>
-        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; max-width:180px; white-space:nowrap;" title="${escapeHtml(item.user)}">
-          <div>${escapeHtml(item.user)}</div>
+        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; max-width:200px; white-space:nowrap;" title="${escapeHtml(item.user)}">
+          <div style="font-weight:600; color:var(--brand-primary, #0284c7);">${escapeHtml(item.user)}</div>
+          ${item.userEmail && item.userEmail !== item.user ? `<div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(item.userEmail)}</div>` : ''}
           ${traceIdTag}
         </td>
         <td style="padding:12px 16px;">

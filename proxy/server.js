@@ -2743,11 +2743,14 @@ async function verifyIdToken(req) {
 }
 
 // Helper: Check if user has admin custom claim
+const ADMIN_EMAILS = ['haichau2404@gmail.com', 'admin@vbai.tracuu.lamdong.vn'];
+
 function isAdmin(decodedToken) {
+  const email = String(decodedToken?.email || '').trim().toLowerCase();
   const role = String(
     decodedToken?.role || decodedToken?.system_role || decodedToken?.['https://vbai.app/role'] || ''
   ).trim().toLowerCase();
-  return decodedToken?.admin === true || decodedToken?.isAdmin === true || role === 'admin';
+  return decodedToken?.admin === true || decodedToken?.isAdmin === true || role === 'admin' || (email && ADMIN_EMAILS.includes(email));
 }
 
 function getClientIp(req) {
@@ -2842,7 +2845,8 @@ app.post('/api/log-action', async (req, res) => {
     const logEntry = {
       query: sanitizeAuditQuery(payload.query || payload.query_preview || ''),
       user_id: decoded?.uid || 'anonymous',
-      ...(decoded && isAdmin(decoded) && decoded.email ? { user_email: String(decoded.email).trim().toLowerCase().slice(0, 254) } : {}),
+      user_email: decoded?.email ? String(decoded.email).trim().toLowerCase().slice(0, 254) : null,
+      user_name: decoded?.name || decoded?.displayName || (decoded?.email ? decoded.email.split('@')[0] : null),
       feature: String(payload.feature || 'unknown').slice(0, 80),
       mode: String(payload.mode || 'unknown').slice(0, 80),
       status: String(payload.status || 'success').slice(0, 40),
@@ -4334,7 +4338,8 @@ app.post('/api/chat', async (req, res) => {
         await dbService.addSearchLog({
           // Keep the original Unicode query, bounded and newline-sanitized, for reopen/search.
           query: sanitizeAuditQuery(auditQuery),
-          ...(isAdmin(decoded) ? { user_email: String(decoded?.email || '').trim().toLowerCase().slice(0, 254) } : {}),
+          user_email: decoded?.email ? String(decoded.email).trim().toLowerCase().slice(0, 254) : null,
+          user_name: decoded?.name || decoded?.displayName || (decoded?.email ? decoded.email.split('@')[0] : null),
           model: effectiveModel || null,
           user_id: decoded?.uid || null,
           feature: auditFeature,
@@ -4640,7 +4645,8 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
         await dbService.addSearchLog({
           // Keep the original Unicode query, bounded and newline-sanitized, for reopen/search.
           query: sanitizeAuditQuery(auditQuery),
-          ...(isAdmin(decoded) ? { user_email: String(decoded?.email || '').trim().toLowerCase().slice(0, 254) } : {}),
+          user_email: decoded?.email ? String(decoded.email).trim().toLowerCase().slice(0, 254) : null,
+          user_name: decoded?.name || decoded?.displayName || (decoded?.email ? decoded.email.split('@')[0] : null),
           model: primaryModel || null,
           user_id: decoded.uid || null,
           feature: auditFeature,
@@ -4736,9 +4742,10 @@ Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤ
         await dbService.addSearchLog({
           // Keep the original Unicode query, bounded and newline-sanitized, for reopen/search.
           query: sanitizeAuditQuery(auditQuery),
-           ...(isAdmin(decoded) ? { user_email: String(decoded?.email || '').trim().toLowerCase().slice(0, 254) } : {}),
-           model: finalModel,
-           user_id: decoded.uid || null,
+          user_email: decoded?.email ? String(decoded.email).trim().toLowerCase().slice(0, 254) : null,
+          user_name: decoded?.name || decoded?.displayName || (decoded?.email ? decoded.email.split('@')[0] : null),
+          model: finalModel,
+          user_id: decoded.uid || null,
         feature: auditFeature,
         mode: auditMode,
         effectiveDate: auditEffectiveDate,
@@ -8079,7 +8086,33 @@ app.get('/api/search-history', async (req, res) => {
     const mongoLogs = await dbService.getSearchLogs(filter, pageSize, mongoCursor);
     const visibleLogs = mongoLogs.slice(0, pageSize);
     const hasMore = mongoLogs.length > pageSize;
-    const logs = visibleLogs.map(item => sanitizeHistoryDoc({ ...item, id: String(item._id) }, { includeAdminEmail: requesterIsAdmin }));
+    const logs = await Promise.all(visibleLogs.map(async item => {
+      let email = item.user_email || null;
+      let name = item.user_name || null;
+      if (!email && item.user_id) {
+        if (decoded && (decoded.uid === item.user_id || decoded.user_id === item.user_id)) {
+          email = decoded.email || null;
+          name = decoded.name || decoded.displayName || (decoded.email ? decoded.email.split('@')[0] : null);
+        } else if (requesterIsAdmin) {
+          try {
+            const u = await dbService.getUserById(item.user_id);
+            if (u) {
+              email = u.email || null;
+              name = u.displayName || u.name || (u.email ? u.email.split('@')[0] : null);
+            }
+          } catch (_) {}
+        }
+      }
+      return sanitizeHistoryDoc({
+        ...item,
+        id: String(item._id),
+        user_email: email,
+        user_name: name
+      }, {
+        includeAdminEmail: requesterIsAdmin,
+        requesterUid: decoded.uid || decoded.user_id
+      });
+    }));
     const nextCursor = hasMore && visibleLogs.length ? encodeCursor({ id: String(visibleLogs[visibleLogs.length - 1]._id), created_at: visibleLogs[visibleLogs.length - 1].timestamp }) : null;
     return res.json({ success: true, isAdmin: requesterIsAdmin, logs, pagination: { pageSize, hasMore, nextCursor } });
 

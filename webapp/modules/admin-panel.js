@@ -1823,7 +1823,9 @@ async function loadLogs(container, cursor = null, isSilent = false) {
       id: item.id,
       data: {
         timestamp: item.created_at || item.timestamp,
-        userEmail: item.user_email || (item.user_id ? `User ${String(item.user_id).slice(0, 8)}` : 'anonymous'),
+        userEmail: item.user_email || (item.data?.user_email || null),
+        userName: item.user_name || (item.data?.user_name || null),
+        userDisplay: item.user_name || item.user_email || item.data?.userEmail || item.data?.user || (item.user_id ? `User ${String(item.user_id).slice(0, 8)}` : 'anonymous'),
         query: item.query || '',
         action: item.query || '',
         model: item.model || null,
@@ -1856,7 +1858,8 @@ function renderPage(container) {
   if (!tbody) return;
   const pageLogs = allLogs;
   tbody.innerHTML = pageLogs.length > 0 ? pageLogs.map((item) => {
-    const userDisplay = item.data.userEmail || item.data.user || 'anonymous';
+    const primaryName = item.data.userName || item.data.userEmail || item.data.userDisplay || 'anonymous';
+    const subEmail = (item.data.userEmail && item.data.userName && item.data.userEmail !== item.data.userName) ? item.data.userEmail : null;
     const queryDisplay = item.data.query || item.data.action || '';
     const modeBadge = item.data.mode ? `<span class="recent-mode-tag" style="font-size:0.68rem; margin-left:6px;">${escapeHtml(item.data.mode)}</span>` : '';
     const featureTag = item.data.feature ? `<span style="font-size:0.68rem; color:var(--text-muted);">${escapeHtml(item.data.feature)}</span>` : '';
@@ -1872,7 +1875,8 @@ function renderPage(container) {
       <tr style="border-bottom:1px solid var(--border-color)">
         <td style="padding:12px;">${formatDate(item.data.timestamp)}</td>
         <td style="padding:12px;">
-          <div>${escapeHtml(userDisplay)}</div>
+          <div style="font-weight:600; color:var(--brand-primary, #0284c7);">${escapeHtml(primaryName)}</div>
+          ${subEmail ? `<div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(subEmail)}</div>` : ''}
           ${traceId}
         </td>
         <td style="padding:12px;">
