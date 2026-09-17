@@ -2485,6 +2485,13 @@ async function executeGeminiNativeAudioTranscription({
     generationConfig: {
       temperature: 0,
     },
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' },
+    ],
   };
 
   const NATIVE_TRANSCRIBE_TIMEOUT_MS = 600000; // 10 minutes for large audio files
@@ -2523,9 +2530,33 @@ async function executeGeminiNativeAudioTranscription({
     }
 
     const data = await providerRes.json();
-    const text = extractTextFromProviderPayload(data);
+    let text = extractTextFromProviderPayload(data);
+
+    // If model blocked (e.g. gemini-3.8 blockReason: OTHER) or returned empty text, fallback to gemini-3.6-flash
+    if (!text && modelName !== 'gemini-3.6-flash') {
+      console.warn(`[Audio Transcribe] Model ${modelName} returned empty/blocked response (blockReason: ${data?.promptFeedback?.blockReason || 'none'}). Falling back to gemini-3.6-flash...`);
+      const fallbackEndpoint = `${GEMINI_API_BASE}/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const fbController = new AbortController();
+      const fbTimer = setTimeout(() => fbController.abort(), NATIVE_TRANSCRIBE_TIMEOUT_MS);
+      const fbRes = await fetch(fallbackEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: fbController.signal,
+      });
+      clearTimeout(fbTimer);
+      if (fbRes.ok) {
+        const fbData = await fbRes.json();
+        text = extractTextFromProviderPayload(fbData);
+        if (text) {
+          console.log(`[Audio Transcribe] Fallback to gemini-3.6-flash succeeded (${text.length} chars).`);
+        }
+      }
+    }
+
     if (!text) {
-      throw Object.assign(new Error('Gemini transcription returned empty text.'), { status: 502, code: 'GEMINI_EMPTY_TRANSCRIPTION' });
+      const reason = data?.promptFeedback?.blockReason || data?.candidates?.[0]?.finishReason || 'empty';
+      throw Object.assign(new Error(`Gemini transcription returned empty text (${reason}).`), { status: 502, code: 'GEMINI_EMPTY_TRANSCRIPTION' });
     }
 
     return {
