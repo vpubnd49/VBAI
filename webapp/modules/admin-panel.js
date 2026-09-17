@@ -1937,17 +1937,38 @@ function renderPage(container) {
 
 async function loadUsers(container, isSilent = false) {
   const tbody = container.querySelector('#users-table-body');
+  if (!tbody) return;
+  if (!isSilent) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--text-muted)">⏳ Đang tải danh sách tài khoản...</td></tr>`;
+  }
   try {
     const requestedPage = currentUsersPage;
     const resp = await adminFetch(`/api/admin/users?page=${requestedPage}&limit=${ITEMS_PER_PAGE}`, {});
-    const result = await resp.json();
-    if (!resp.ok || !result.success || !Array.isArray(result.users) || result.users.length === 0) {
+    let result;
+    try {
+      result = await resp.json();
+    } catch (parseErr) {
+      throw new Error(`Phản hồi không hợp lệ (HTTP ${resp.status})`);
+    }
+    if (!resp.ok) {
+      throw new Error(result?.message || `HTTP ${resp.status}: Không thể tải danh sách người dùng`);
+    }
+    if (!result.success || !Array.isArray(result.users)) {
       if (!isSilent) {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--text-muted)">${resp.ok ? 'Không có dữ liệu (Hệ thống trả về 0 bản ghi)' : 'Không thể tải danh sách người dùng'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu người dùng hoặc API trả về định dạng không hợp lệ.</td></tr>`;
       }
       return;
     }
-    allUsers = result.users.map((u) => ({ id: u.uid || u._id, data: { ...u, createdAt: u.created_at || u.createdAt, lastLogin: u.last_login_at || u.lastLogin } }));
+    if (result.users.length === 0) {
+      allUsers = [];
+      allUsers.totalPages = 1;
+      allUsers.total = result.pagination?.total || 0;
+      if (!isSilent) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--text-muted)">Chưa có tài khoản nào trong hệ thống (${allUsers.total} bản ghi).</td></tr>`;
+      }
+      return;
+    }
+    allUsers = result.users.filter(u => u != null).map((u) => ({ id: u.uid || u._id || '', data: { ...u, createdAt: u.created_at || u.createdAt, lastLogin: u.last_login_at || u.lastLogin } }));
     if (result.pagination) {
       allUsers.totalPages = result.pagination.totalPages || 1;
       allUsers.total = result.pagination.total || allUsers.length;

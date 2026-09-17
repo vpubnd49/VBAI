@@ -2920,7 +2920,7 @@ app.get('/api/admin/users', async (req, res) => {
     const users = await dbService.listUsers({}, pageSize, (page - 1) * pageSize);
     return res.json({
       success: true,
-      users: users.map(u => authService.sanitizeUser(u)),
+      users: users.map(u => authService.sanitizeUser(u)).filter(Boolean),
       pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize), hasMore: page * pageSize < total }
     });
   } catch (err) {

@@ -191,6 +191,15 @@ export async function updateSystemConfig(configData) {
   if (!token) throw new Error('Not authenticated');
 
   const cleanData = normalizeAiProxyConfig(configData);
+  // Re-apply admin write-only fields that normalizeAiProxyConfig strips
+  // (the normalize function is designed for read-side sanitization,
+  // but these fields must be sent to the backend when saving config).
+  if (configData.gemini_api_key !== undefined) {
+    cleanData.gemini_api_key = configData.gemini_api_key;
+  }
+  if (configData.clear_gemini_api_key !== undefined) {
+    cleanData.clear_gemini_api_key = configData.clear_gemini_api_key;
+  }
   const response = await backendFetch('/admin/system-config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
