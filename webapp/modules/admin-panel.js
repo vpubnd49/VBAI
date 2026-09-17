@@ -1385,13 +1385,14 @@ setInputValue(geminiModelInput, config.gemini_model || '');
     const activeAiModel = getInputValue(geminiModelInput);
     const activeTranscribeModel = getInputValue(transcribeModelInput);
     const activeMeetingModel = getInputValue(meetingModelInput);
+    const newKeyEntered = !!getInputValue(geminiKeyInput);
 
     const payload = {
       // gemini
       gemini_model: activeAiModel,
       gemini_endpoint: getInputValue(geminiEndpointInput),
       // Only submit a key when an administrator manually entered a new one.
-      ...(getInputValue(geminiKeyInput) ? { gemini_api_key: getInputValue(geminiKeyInput) } : {}),
+      ...(newKeyEntered ? { gemini_api_key: getInputValue(geminiKeyInput) } : {}),
 
       // Other Settings
       transcribe_model: activeTranscribeModel,
@@ -1412,11 +1413,13 @@ setInputValue(geminiModelInput, config.gemini_model || '');
     saveStatusEl.className = 'config-save-status';
     saveStatusEl.textContent = '';
     try {
-      if (verifygeminiOnSaveInput?.checked) {
+      // Only validate key when admin actually entered a new key in the input field.
+      // Skip validation if input is empty (stored key already saved in DB).
+      if (verifygeminiOnSaveInput?.checked && newKeyEntered) {
         const keyOk = await runKeyValidation('gemini', { useStoredKey: false });
         if (!keyOk) {
           saveStatusEl.className = 'config-save-status error';
-          saveStatusEl.textContent = '❌ Key gemini chưa hợp lệ nên chưa lưu cấu hình.';
+          saveStatusEl.textContent = '❌ Key gemini mới chưa hợp lệ nên chưa lưu cấu hình. Bỏ chọn "Xác nhận key khi lưu" nếu muốn lưu các cấu hình khác.';
           return;
         }
       }
