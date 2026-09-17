@@ -440,7 +440,7 @@ async function sendSingleAudioTranscription(file, model = '', options = {}, part
   const response = await backendFetch('/transcribe', {
     method: 'POST',
     body: formData,
-    timeoutMs: options.timeoutMs ?? 180000,
+    timeoutMs: options.timeoutMs ?? 300000,
   });
 
   if (!response.ok) {
