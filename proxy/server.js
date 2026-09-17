@@ -1935,6 +1935,89 @@ function extractTextFromProviderPayload(data = {}) {
   return '';
 }
 
+/**
+ * Split a normalized audio file into time-based chunks using ffmpeg segment.
+ * @param {string} inputPath - Path to the normalized MP3 file
+ * @param {number} chunkDurationSecs - Duration of each chunk in seconds (default 300 = 5 min)
+ * @returns {Promise<string[]>} Array of chunk file paths, sorted by order
+ */
+async function splitAudioIntoChunks(inputPath, chunkDurationSecs = 300) {
+  const dir = os.tmpdir();
+  const prefix = `vbai-chunk-${process.pid}-${Date.now()}`;
+  const pattern = path.join(dir, `${prefix}-%03d.mp3`);
+  
+  await execFileAsync('ffmpeg', [
+    '-hide_banner', '-loglevel', 'error', '-y',
+    '-i', inputPath,
+    '-f', 'segment',
+    '-segment_time', String(chunkDurationSecs),
+    '-c', 'copy',    // no re-encoding needed, already normalized
+    '-reset_timestamps', '1',
+    pattern,
+  ], { timeout: 60000, maxBuffer: 16 * 1024 });
+
+  // Discover created chunk files (sorted by name = sorted by order)
+  const allFiles = await fs.promises.readdir(dir);
+  const chunkFiles = allFiles
+    .filter(f => f.startsWith(prefix) && f.endsWith('.mp3'))
+    .sort()
+    .map(f => path.join(dir, f));
+
+  if (!chunkFiles.length) {
+    throw new Error('ffmpeg segment produced no output chunks.');
+  }
+
+  return chunkFiles;
+}
+
+/**
+ * Transcribe multiple audio chunks in parallel with concurrency limit.
+ * @returns {Promise<string>} Merged transcript text
+ */
+async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, prompt, concurrency = 3 }) {
+  const results = new Array(chunks.length);
+  let nextIdx = 0;
+
+  const worker = async () => {
+    while (nextIdx < chunks.length) {
+      const idx = nextIdx++;
+      const chunkPath = chunks[idx];
+      const chunkBuffer = await fs.promises.readFile(chunkPath);
+      const chunkPrompt = prompt
+        || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
+      const partLabel = `[Chunk ${idx + 1}/${chunks.length}]`;
+
+      console.log(`${partLabel} Transcribing (${Math.round(chunkBuffer.length / 1024)}KB)...`);
+      const result = await executeGeminiNativeAudioTranscription({
+        apiKey,
+        modelName,
+        mimeType,
+        filename: `chunk-${idx + 1}.mp3`,
+        prompt: chunkPrompt,
+        audioBuffer: chunkBuffer,
+      });
+
+      if (!result?.ok || !result.text) {
+        throw Object.assign(
+          new Error(`${partLabel} Gemini transcription failed: ${result?.message || 'empty'}`),
+          { status: result?.status || 502, code: 'GEMINI_CHUNK_TRANSCRIPTION_FAILED' }
+        );
+      }
+      console.log(`${partLabel} Done (${result.text.length} chars).`);
+      results[idx] = result.text;
+    }
+  };
+
+  // Launch concurrent workers
+  const workers = [];
+  for (let i = 0; i < Math.min(concurrency, chunks.length); i++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+
+  return results.filter(Boolean).join('\n\n');
+}
+
 async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt }) {
   const audioConfig = await getCachedSystemConfig();
   const resolved = resolveGeminiConfig(audioConfig);
@@ -1943,6 +2026,7 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
   }
 
   let tempNormalizedFile = null;
+  const tempChunkFiles = [];
   try {
     await fs.promises.stat(filePath);
     const probeArgs = ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_type', '-of', 'default=nw=1:nk=1', filePath];
@@ -1974,11 +2058,61 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
       });
     }
 
-    const audioBuffer = await fs.promises.readFile(tempNormalizedFile);
-    const targetMime = 'audio/mpeg';
-    const targetFilename = 'audio.mp3';
+    const normalizedStat = await fs.promises.stat(tempNormalizedFile);
+    const normalizedSizeMb = normalizedStat.size / (1024 * 1024);
     const isNativeGeminiEndpoint = resolved.endpoint.includes('generativelanguage.googleapis.com')
       || resolved.endpoint.includes('aiplatform.googleapis.com');
+    const targetMime = 'audio/mpeg';
+
+    // ─── Parallel chunked transcription for large files ───
+    // Threshold: ~1.5MB normalized = ~6 minutes of 32kbps mono audio
+    // Files above this benefit significantly from parallel processing
+    if (isNativeGeminiEndpoint && normalizedSizeMb > 1.5) {
+      console.log(`[Audio Transcribe] Large file detected (${normalizedSizeMb.toFixed(1)}MB normalized). Splitting into chunks for parallel transcription...`);
+      const CHUNK_DURATION_SECS = 300; // 5 minutes per chunk
+      let chunks;
+      try {
+        chunks = await splitAudioIntoChunks(tempNormalizedFile, CHUNK_DURATION_SECS);
+        tempChunkFiles.push(...chunks);
+      } catch (splitErr) {
+        console.warn(`[Audio Transcribe] Chunk split failed (${splitErr.message}). Falling back to single-file transcription.`);
+        chunks = null;
+      }
+
+      if (chunks && chunks.length > 1) {
+        console.log(`[Audio Transcribe] Split into ${chunks.length} chunks. Transcribing in parallel (concurrency=3)...`);
+        const startTime = Date.now();
+        const transcript = await transcribeChunksParallel({
+          chunks,
+          apiKey: resolved.apiKey,
+          modelName: resolved.model,
+          mimeType: targetMime,
+          prompt,
+          concurrency: 3,
+        });
+        const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`[Audio Transcribe] Parallel transcription completed in ${elapsedSec}s (${chunks.length} chunks).`);
+
+        if (!transcript.trim()) {
+          throw Object.assign(new Error('All chunks returned empty transcription.'), { status: 502, code: 'GEMINI_EMPTY_TRANSCRIPTION' });
+        }
+        return {
+          text: transcript,
+          meta: {
+            provider_status: 200,
+            final_model: resolved.model,
+            transcription_path: 'gemini_parallel_chunks',
+            chunks_count: chunks.length,
+            elapsed_seconds: Number(elapsedSec),
+          },
+        };
+      }
+      // If only 1 chunk (short file), fall through to single-file path
+    }
+
+    // ─── Single-file transcription (original path) ───
+    const audioBuffer = await fs.promises.readFile(tempNormalizedFile);
+    const targetFilename = 'audio.mp3';
 
     if (isNativeGeminiEndpoint) {
       const result = await executeGeminiNativeAudioTranscription({ apiKey: resolved.apiKey, modelName: resolved.model, mimeType: targetMime, filename: targetFilename, prompt, audioBuffer });
@@ -2002,6 +2136,10 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
     return { text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'openai_compat_chat' } };
   } finally {
     if (tempNormalizedFile) await fs.promises.unlink(tempNormalizedFile).catch(() => {});
+    // Clean up chunk temp files
+    for (const cf of tempChunkFiles) {
+      await fs.promises.unlink(cf).catch(() => {});
+    }
   }
 
   /* Legacy audio implementations removed. The native Gemini path above is the
