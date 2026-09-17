@@ -68,19 +68,7 @@ export function renderDashboard(container, navigateTo) {
 
       <!-- TWO COLUMN INFO REGION: Recent Searches + Legal Sources -->
       <div class="home-info-columns" style="grid-template-columns: 1fr;">
-        <!-- RECENT SEARCHES REGION -->
-        <section class="home-card-panel recent-searches-card">
-          <div class="panel-card-head">
-            <h3>🕒 Tra cứu gần đây</h3>
-            <div style="display:flex; gap:8px; align-items:center;">
-              <span class="panel-head-tag">Lịch sử cá nhân</span>
-              ${recentSearches.length > 0 ? `<button id="clear-all-recent" style="font-size:0.72rem; padding:3px 10px; border:1px solid var(--border-default,#CBD5E1); background:transparent; color:var(--danger,#DC2626); border-radius:12px; cursor:pointer; transition:all 0.2s;" title="Xóa tất cả lịch sử">Xóa tất cả</button>` : ''}
-            </div>
-          </div>
-          <div class="panel-card-body" id="recent-searches-list">
-            ${renderRecentSearchesHtml(recentSearches)}
-          </div>
-        </section>
+        <div id="recent-searches-region"></div>
       </div>
 
       <!-- ANCILLARY TOOLS SHORTCUTS -->
@@ -201,14 +189,53 @@ export function renderDashboard(container, navigateTo) {
     });
   });
 
-  bindRecentSearchEvents(container, navigateTo);
-  bindClearRecentButton(container, container.querySelector('#clear-all-recent'));
+  // Populate recent searches region based on role
+  const recentRegion = container.querySelector('#recent-searches-region');
+  if (recentRegion) {
+    if (window.isAdmin) {
+      recentRegion.innerHTML = `
+        <section class="home-card-panel" style="border-left: 3px solid var(--brand-primary);">
+          <div class="panel-card-body" style="display:flex; align-items:center; gap:14px; padding:16px 0;">
+            <span style="font-size:1.5rem;">🛡️</span>
+            <div>
+              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">Quản trị viên</div>
+              <div style="font-size:0.88rem; color:var(--text-secondary);">Xem toàn bộ lịch sử &amp; truy vết tra cứu tại <strong>Quản trị hệ thống → Vết Tra cứu</strong></div>
+            </div>
+          </div>
+        </section>
+      `;
+    } else {
+      const clearBtnHtml = recentSearches.length > 0 ? '<button id="clear-all-recent" style="font-size:0.72rem; padding:3px 10px; border:1px solid var(--border-default,#CBD5E1); background:transparent; color:var(--danger,#DC2626); border-radius:12px; cursor:pointer; transition:all 0.2s;" title="Xóa tất cả lịch sử">Xóa tất cả</button>' : '';
+      recentRegion.innerHTML = `
+        <section class="home-card-panel recent-searches-card">
+          <div class="panel-card-head">
+            <h3>🕒 Tra cứu gần đây</h3>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span class="panel-head-tag">Lịch sử cá nhân</span>
+              ${clearBtnHtml}
+            </div>
+          </div>
+          <div class="panel-card-body" id="recent-searches-list">
+            ${renderRecentSearchesHtml(recentSearches)}
+          </div>
+        </section>
+      `;
+    }
+  }
+
+  if (!window.isAdmin) {
+    bindRecentSearchEvents(container, navigateTo);
+    bindClearRecentButton(container, container.querySelector('#clear-all-recent'));
+  }
 
   // Load Build SHA in Footer
   loadFooterBuildInfo(container);
 
   // Hydrate only after main.js has established window.currentUser/auth token.
-  hydrateRecentSearches(container, navigateTo);
+  // Admin không cần hydrate recent searches (xem qua admin panel)
+  if (!window.isAdmin) {
+    hydrateRecentSearches(container, navigateTo);
+  }
   hydrateVisitCounter(container);
 }
 

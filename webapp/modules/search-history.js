@@ -1,6 +1,6 @@
 /**
- * VBAI Legal Pro V2 — Search History Module
- * Real search logs UI rendering from the backend search-history API
+ * VBAI Legal Pro V2 — Search History Module (Redesigned)
+ * Simplified UI: 4 core columns, clean layout, no technical clutter
  * Enables searching, filtering, re-opening query in Legal Search UI, and item deletion.
  */
 
@@ -19,7 +19,8 @@ let historyState = {
   filterMode: 'all',
   isLoading: false,
   autoRefresh: true,
-  pollTimerId: null
+  pollTimerId: null,
+  isAdmin: false
 };
 
 export async function renderSearchHistory(container, navigateToCallback) {
@@ -32,35 +33,34 @@ export async function renderSearchHistory(container, navigateToCallback) {
   }
 
   container.innerHTML = `
-    <div class="search-history-workspace" style="padding: 20px; max-width: 1200px; margin: 0 auto;">
+    <div class="search-history-workspace">
       <!-- Header Bar -->
-      <div class="search-history-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap:wrap; gap:12px;">
-        <div>
-          <h1 style="font-size:1.5rem; font-weight:700; color:var(--text-primary); margin:0 0 6px 0;">📜 Lịch sử Tra cứu Pháp luật</h1>
-          <p style="font-size:0.9rem; color:var(--text-secondary); margin:0;">Nhật ký tra cứu và căn cứ pháp lý được lưu trữ realtime từ hệ thống.</p>
+      <div class="sh-header">
+        <div class="sh-header-left">
+          <h1 class="sh-title">📜 Lịch sử Tra cứu</h1>
+          <p class="sh-subtitle">Nhật ký tra cứu pháp luật của bạn</p>
         </div>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button id="toggle-history-autorefresh-btn" class="btn btn-secondary" style="display:flex; align-items:center; gap:6px; font-size:0.85rem;" title="Bật/Tắt tự động làm mới mỗi 30s">
-            <span class="poll-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; transition:background 0.2s;"></span>
+        <div class="sh-header-actions">
+          <button id="toggle-history-autorefresh-btn" class="btn btn-secondary sh-action-btn" title="Bật/Tắt tự động làm mới mỗi 30s">
+            <span class="poll-dot sh-poll-dot"></span>
             <span class="poll-text">Tự động: BẬT (30s)</span>
           </button>
-          <button id="delete-all-history-btn" class="btn btn-secondary" style="display:flex; align-items:center; gap:6px; color:var(--danger,#DC2626); border-color:var(--danger,#DC2626);">
+          <button id="delete-all-history-btn" class="btn btn-secondary sh-action-btn sh-danger-btn">
             <span>🗑️</span> <span>Xóa tất cả</span>
           </button>
-          <button id="refresh-history-btn" class="btn btn-secondary" style="display:flex; align-items:center; gap:6px;">
+          <button id="refresh-history-btn" class="btn btn-secondary sh-action-btn">
             <span>🔄</span> <span>Làm mới</span>
           </button>
         </div>
       </div>
 
       <!-- Controls & Filter Bar -->
-      <div class="history-controls-card" style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; padding:16px; margin-bottom:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
-        <div style="flex:1; min-width:240px; position:relative;">
-          <input type="text" id="history-search-input" class="form-input" placeholder="Tìm theo câu hỏi, từ khóa hoặc email..." style="width:100%; padding-left:36px;">
-          <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:0.6;">🔍</span>
+      <div class="sh-filter-bar">
+        <div class="sh-search-wrapper">
+          <span class="sh-search-icon">🔍</span>
+          <input type="text" id="history-search-input" class="form-input sh-search-input" placeholder="Tìm theo câu hỏi, từ khóa...">
         </div>
-
-        <select id="history-mode-filter" class="form-input" style="width:180px;">
+        <select id="history-mode-filter" class="form-input sh-mode-select">
           <option value="all">Tất cả chế độ</option>
           <option value="legal-search">Tra cứu chung</option>
           <option value="document-lookup">Số hiệu văn bản</option>
@@ -71,24 +71,22 @@ export async function renderSearchHistory(container, navigateToCallback) {
       </div>
 
       <!-- Main History Table Panel -->
-      <div class="history-table-panel" style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05);">
-        <div class="table-responsive" style="overflow-x:auto;">
-          <table class="history-table" style="width:100%; border-collapse:collapse; text-align:left; font-size:0.9rem;">
+      <div class="sh-table-panel">
+        <div class="sh-table-scroll">
+          <table class="sh-table">
             <thead>
-              <tr style="background:var(--bg-secondary); border-bottom:1px solid var(--border-color); color:var(--text-secondary); font-weight:600;">
-                <th style="padding:12px 16px; width:170px;">Thời gian</th>
-                <th style="padding:12px 16px; width:180px;">Người tra cứu</th>
-                <th style="padding:12px 16px; width:140px;">Chế độ</th>
-                <th style="padding:12px 16px;">Từ khóa / Câu hỏi tra cứu</th>
-                <th style="padding:12px 16px; width:130px;">Kết quả</th>
-                <th style="padding:12px 16px; width:140px; text-align:right;">Hành động</th>
+              <tr>
+                <th class="sh-col-time">Thời gian</th>
+                <th class="sh-col-query">Câu hỏi tra cứu</th>
+                <th class="sh-col-result">Kết quả</th>
+                <th class="sh-col-action">Hành động</th>
               </tr>
             </thead>
             <tbody id="history-table-body">
               <tr>
-                <td colspan="6" style="padding:40px; text-align:center; color:var(--text-muted);">
+                <td colspan="4" class="sh-loading-cell">
                   <div class="spinner" style="margin:0 auto 12px auto;"></div>
-                   Đang tải nhật ký tra cứu từ máy chủ...
+                  Đang tải nhật ký tra cứu...
                 </td>
               </tr>
             </tbody>
@@ -96,11 +94,11 @@ export async function renderSearchHistory(container, navigateToCallback) {
         </div>
 
         <!-- Pagination Controls -->
-        <div id="history-pagination" style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:var(--bg-secondary); border-top:1px solid var(--border-color); font-size:0.85rem;">
-          <div id="history-count-info" style="color:var(--text-secondary);">Đang hiển thị 0 bản ghi</div>
-          <div style="display:flex; gap:8px; align-items:center;">
+        <div id="history-pagination" class="sh-pagination">
+          <div id="history-count-info" class="sh-count-info">Đang hiển thị 0 bản ghi</div>
+          <div class="sh-page-controls">
             <button id="history-prev-btn" class="btn btn-secondary btn-sm" disabled>⬅️ Trước</button>
-            <span id="history-page-num" style="font-weight:600; padding:0 8px;">1 / 1</span>
+            <span id="history-page-num" class="sh-page-num">1 / 1</span>
             <button id="history-next-btn" class="btn btn-secondary btn-sm" disabled>Tiếp ➡️</button>
           </div>
         </div>
@@ -206,7 +204,6 @@ function startHistoryPoller(container, navigateToCallback) {
   }
 
   historyState.pollTimerId = setInterval(async () => {
-    // 1. Kiểm tra container còn gắn trong DOM không
     const isAttached = container?.isConnected ?? (document?.body?.contains ? document.body.contains(container) : true);
     if (!isAttached) {
       if (historyState.pollTimerId) {
@@ -216,13 +213,9 @@ function startHistoryPoller(container, navigateToCallback) {
       return;
     }
 
-    // 2. Kiểm tra cờ autoRefresh
     if (!historyState.autoRefresh) return;
-
-    // 3. Tạm dừng nếu tab trình duyệt đang bị ẩn (Page Visibility API)
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
 
-    // 4. Chỉ tự động cập nhật khi người dùng đang ở trang 1 và không trong trạng thái tải
     if (historyState.currentPage === 1 && !historyState.isLoading) {
       await fetchLogs(container, navigateToCallback, null, true);
     }
@@ -291,7 +284,7 @@ async function fetchLogs(container, navigateToCallback, cursor = null, isSilent 
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="padding:30px; text-align:center; color:var(--danger);">
+          <td colspan="4" class="sh-loading-cell" style="color:var(--danger);">
             ⚠️ Không thể kết nối nhật ký: ${err.message}
           </td>
         </tr>
@@ -306,14 +299,11 @@ function applyFilterAndRender(container, navigateToCallback) {
   const { logs, filterQuery, filterMode } = historyState;
 
   historyState.filteredLogs = logs.filter(item => {
-    // Search a normalized copy only; keep item.query untouched for display/reopen.
     const searchable = [item.query, item.user, item.requestId, item.feature, item.effectiveDate]
       .map(value => String(value || '').toLocaleLowerCase('vi-VN'))
       .join(' ');
     const matchesQuery = !filterQuery || searchable.includes(filterQuery);
-
     const matchesMode = filterMode === 'all' || item.mode === filterMode;
-
     return matchesQuery && matchesMode;
   });
 
@@ -336,7 +326,7 @@ function renderTablePage(container, navigateToCallback) {
   if (totalLogs === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" style="padding:40px; text-align:center; color:var(--text-muted);">
+        <td colspan="4" class="sh-empty-cell">
           📭 Chưa tìm thấy lịch sử tra cứu nào phù hợp.
         </td>
       </tr>
@@ -355,50 +345,38 @@ function renderTablePage(container, navigateToCallback) {
   tbody.innerHTML = pageItems.map(item => {
     const formattedTime = formatTimestamp(item.createdAt);
     const modeBadge = getModeBadgeHtml(item.mode);
-    const featureTag = item.feature ? `<span style="font-size:0.72rem; color:var(--text-muted);">${escapeHtml(item.feature)}</span>` : '';
-    const effectiveTag = item.effectiveDate ? `<div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Rà soát ngày: ${escapeHtml(item.effectiveDate)}</div>` : '';
     
-    let resultBadge = `<span class="verify-chip verified-true" style="font-size:0.75rem;">✓ Đã kiểm chứng (${item.verifiedCount}/${item.totalCount || 1})</span>`;
-    if (item.status === 'unverified_evidence' || item.verifiedCount === 0) {
-      resultBadge = `<span class="verify-chip" style="background:rgba(234,179,8,0.15); color:#d97706; font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:600;">⚠️ Chưa có căn cứ</span>`;
-    } else if (item.status === 'error') {
-      resultBadge = `<span class="verify-chip" style="background:rgba(239,68,68,0.15); color:#dc2626; font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:600;">❌ Lỗi thực thi</span>`;
+    // Result badge
+    let resultBadge;
+    if (item.status === 'error') {
+      resultBadge = '<span class="sh-result-badge sh-result-error">❌ Lỗi</span>';
+    } else if (item.status === 'unverified_evidence' || item.verifiedCount === 0) {
+      resultBadge = '<span class="sh-result-badge sh-result-warn">⚠️ Chưa có căn cứ</span>';
+    } else {
+      resultBadge = `<span class="sh-result-badge sh-result-ok">✓ Kiểm chứng (${item.verifiedCount}/${item.totalCount || 1})</span>`;
     }
-
-    const modelTag = `<span style="font-size:0.72rem; background:var(--bg-secondary); padding:2px 6px; border-radius:4px; margin-left:4px; font-family:monospace;">${escapeHtml(item.model)}</span>`;
-    const traceIdTag = item.requestId ? `<div style="font-size:0.7rem; color:var(--text-muted); font-family:monospace;">requestId: ${escapeHtml(item.requestId)}</div>` : '<div style="font-size:0.7rem; color:var(--text-muted);">requestId: n/a</div>';
 
     const canDelete = historyState.isAdmin || (window.currentUser && item.userId === window.currentUser.uid);
     const deleteBtnHtml = canDelete
-      ? `<button class="btn btn-secondary btn-sm btn-delete-log" data-id="${item.id}" style="padding:4px 8px; font-size:0.8rem; color:var(--danger);" title="Xóa bản ghi">
-           <span>🗑️</span>
-         </button>`
+      ? `<button class="btn btn-secondary btn-sm btn-delete-log sh-delete-btn" data-id="${item.id}" title="Xóa bản ghi">🗑️</button>`
       : '';
 
     return `
-      <tr style="border-bottom:1px solid var(--border-color); transition:background 0.2s;" onmouseenter="this.style.background='var(--bg-hover)'" onmouseleave="this.style.background='transparent'">
-        <td style="padding:12px 16px; color:var(--text-secondary); white-space:nowrap;">
-          <div>${formattedTime}</div>
-          ${effectiveTag}
+      <tr class="sh-row">
+        <td class="sh-cell-time">
+          <div class="sh-time-main">${formattedTime}</div>
+          ${item.effectiveDate ? `<div class="sh-time-sub">Rà soát: ${escapeHtml(item.effectiveDate)}</div>` : ''}
         </td>
-        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary); text-overflow:ellipsis; overflow:hidden; max-width:200px; white-space:nowrap;" title="${escapeHtml(item.user)}">
-          <div style="font-weight:600; color:var(--brand-primary, #0284c7);">${escapeHtml(item.user)}</div>
-          ${item.userEmail && item.userEmail !== item.user ? `<div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(item.userEmail)}</div>` : ''}
-          ${traceIdTag}
-        </td>
-        <td style="padding:12px 16px;">
-           <div>feature: ${featureTag || 'n/a'} · mode: ${modeBadge}</div>
-           <div style="margin-top:2px;">${modelTag}</div>
-        </td>
-        <td style="padding:12px 16px; font-weight:500; color:var(--text-primary);" title="${escapeAttribute(item.query)}">
-          <div style="max-height:48px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">
-            ${escapeHtml(item.query)}
+        <td class="sh-cell-query">
+          <div class="sh-query-text" title="${escapeAttribute(item.query)}">${escapeHtml(item.query)}</div>
+          <div class="sh-query-meta">
+            ${modeBadge}
           </div>
         </td>
-        <td style="padding:12px 16px;">${resultBadge}</td>
-        <td style="padding:12px 16px; text-align:right; white-space:nowrap;">
-          <button class="btn btn-primary btn-sm btn-reopen" data-query="${escapeAttribute(item.query)}" data-mode="${escapeAttribute(item.mode)}" style="padding:4px 10px; font-size:0.8rem; margin-right:4px;">
-            <span>🚀</span> <span>Mở lại</span>
+        <td class="sh-cell-result">${resultBadge}</td>
+        <td class="sh-cell-action">
+          <button class="btn btn-primary btn-sm btn-reopen sh-reopen-btn" data-query="${escapeAttribute(item.query)}" data-mode="${escapeAttribute(item.mode)}">
+            🚀 Mở lại
           </button>
           ${deleteBtnHtml}
         </td>
@@ -466,15 +444,14 @@ function formatTimestamp(ts) {
 
 function getModeBadgeHtml(mode) {
   const modeMap = {
-    'legal-search': { label: 'Tra cứu chung', class: 'badge-primary' },
-    'document-lookup': { label: 'Số hiệu VB', class: 'badge-info' },
-    'situation-analysis': { label: 'Tình huống', class: 'badge-warning' },
-    'compare-regulations': { label: 'So sánh', class: 'badge-success' },
-    'effective-date': { label: 'Hiệu lực', class: 'badge-secondary' },
+    'legal-search': { label: 'Pháp luật', color: '#008CA1' },
+    'document-lookup': { label: 'Văn bản', color: '#0369a1' },
+    'situation-analysis': { label: 'Tình huống', color: '#b45309' },
+    'compare-regulations': { label: 'So sánh', color: '#15803d' },
+    'effective-date': { label: 'Hiệu lực', color: '#7c3aed' },
   };
-
-  const info = modeMap[mode] || { label: mode || 'Tra cứu', class: 'badge-secondary' };
-  return `<span class="badge ${info.class}" style="font-size:0.75rem; padding:2px 8px; border-radius:4px;">${escapeHtml(info.label)}</span>`;
+  const info = modeMap[mode] || { label: mode || 'Tra cứu', color: '#64748b' };
+  return `<span class="sh-mode-badge" style="--badge-color:${info.color}">${escapeHtml(info.label)}</span>`;
 }
 
 function escapeHtml(str) {

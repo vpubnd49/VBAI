@@ -306,6 +306,10 @@ async function init() {
     const adminBtn = document.getElementById('nav-admin-panel');
     if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
 
+    // Admin xem lịch sử tra cứu qua admin panel > tab "Vết Tra Cứu", không cần menu riêng
+    const searchHistoryBtn = document.getElementById('nav-search-history');
+    if (searchHistoryBtn) searchHistoryBtn.style.display = window.isAdmin ? 'none' : 'flex';
+
     const initial = parseRouteFromHash();
     state.currentPage = initial.page;
     try {

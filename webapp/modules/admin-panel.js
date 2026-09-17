@@ -554,7 +554,13 @@ export function renderAdminPanel(container) {
               </button>
               <button type="button" id="delete-all-logs-btn" class="btn btn-danger btn-sm" style="padding:6px 12px; font-size:0.85rem;">🗑️ Xóa tất cả</button>
               <button type="button" id="refresh-logs-btn" class="btn btn-secondary btn-sm" style="padding:6px 12px; font-size:0.85rem;">🔄 Làm mới</button>
+          </div>
+          <!-- Filter bar for admin audit logs -->
+          <div style="padding:12px 24px; background:var(--surface-soft, #f8fafc); border-bottom:1px solid var(--border-color, #cbd5e1); display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <div style="flex:1 1 300px; position:relative;">
+              <input type="text" id="admin-logs-search-input" class="form-input" placeholder="🔍 Tìm theo email, câu hỏi, từ khóa..." style="width:100%; box-sizing:border-box; padding:10px 14px; font-size:0.88rem; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1);">
             </div>
+            <div style="font-size:0.82rem; color:var(--text-muted, #64748b);">Lọc nhanh truy vết tra cứu</div>
           </div>
           <div class="panel-body" style="padding:0; overflow-x:auto">
             <table style="width:100%; border-collapse: collapse; font-size:0.88rem">
@@ -940,6 +946,20 @@ export function renderAdminPanel(container) {
 
   container.querySelector('#refresh-logs-btn').addEventListener('click', () => loadLogs(container));
   container.querySelector('#refresh-users-btn').addEventListener('click', () => loadUsers(container));
+
+  // Admin Audit Logs filter (client-side filtering of rendered rows)
+  const adminLogsSearchInput = container.querySelector('#admin-logs-search-input');
+  if (adminLogsSearchInput) {
+    adminLogsSearchInput.addEventListener('input', (e) => {
+      const q = (e.target.value || '').toLowerCase().trim();
+      const rows = container.querySelectorAll('#logs-table-body tr');
+      rows.forEach(row => {
+        if (!q) { row.style.display = ''; return; }
+        const text = (row.textContent || '').toLowerCase();
+        row.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+  }
 
   // Toggle Auto-Poll for Logs
   const toggleLogsPollBtn = container.querySelector('#toggle-admin-logs-poll-btn');
