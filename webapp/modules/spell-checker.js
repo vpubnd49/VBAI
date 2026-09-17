@@ -83,7 +83,7 @@ export async function checkSpelling(text, options = {}) {
       const response = await sendChatRequest({
         messages: [{ role: 'user', content: prompt }],
         systemPrompt: SPELL_CHECK_SYSTEM_PROMPT,
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.8-flash',
         temperature: 0.1,
       });
 

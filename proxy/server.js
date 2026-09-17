@@ -2024,7 +2024,8 @@ async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, p
 async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt }) {
   const audioConfig = await getCachedSystemConfig();
   const resolved = resolveGeminiConfig(audioConfig);
-  if (!resolved.apiKey || !resolved.endpoint || !resolved.model) {
+  const effectiveModel = String(model || audioConfig.transcribe_model || resolved.model || 'gemini-3.8-flash').trim();
+  if (!resolved.apiKey || !resolved.endpoint || !effectiveModel) {
     throw Object.assign(new Error('Gemini configuration is incomplete.'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
 
@@ -2088,7 +2089,7 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
         const transcript = await transcribeChunksParallel({
           chunks,
           apiKey: resolved.apiKey,
-          modelName: resolved.model,
+          modelName: effectiveModel,
           mimeType: targetMime,
           prompt,
           concurrency: 3,
@@ -2103,7 +2104,7 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
           text: transcript,
           meta: {
             provider_status: 200,
-            final_model: resolved.model,
+            final_model: effectiveModel,
             transcription_path: 'gemini_parallel_chunks',
             chunks_count: chunks.length,
             elapsed_seconds: Number(elapsedSec),
@@ -2118,9 +2119,9 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
     const targetFilename = 'audio.mp3';
 
     if (isNativeGeminiEndpoint) {
-      const result = await executeGeminiNativeAudioTranscription({ apiKey: resolved.apiKey, modelName: resolved.model, mimeType: targetMime, filename: targetFilename, prompt, audioBuffer });
+      const result = await executeGeminiNativeAudioTranscription({ apiKey: resolved.apiKey, modelName: effectiveModel, mimeType: targetMime, filename: targetFilename, prompt, audioBuffer });
       if (!result?.ok || !result.text) throw Object.assign(new Error('Gemini transcription failed.'), { status: result?.status || 502, code: 'GEMINI_TRANSCRIPTION_FAILED' });
-      return { text: result.text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'gemini_generate_content' } };
+      return { text: result.text, meta: { provider_status: 200, final_model: effectiveModel, transcription_path: 'gemini_generate_content' } };
     }
 
     const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
