@@ -1912,7 +1912,8 @@ function renderPage(container) {
           ${traceId}
         </td>
         <td style="padding:12px;">
-          <div>${featureTag} ${modeBadge}</div>
+          <div style="margin-bottom:4px; color:var(--text-primary); word-break:break-word; max-width:400px;" title="${escapeHtml(queryDisplay)}">${escapeHtml(queryDisplay.length > 120 ? queryDisplay.slice(0, 120) + '…' : queryDisplay)}</div>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">${featureTag} ${modeBadge}</div>
           ${effectiveDateTag}
           <div style="margin-top:2px;">${statusTag}</div>
         </td>
