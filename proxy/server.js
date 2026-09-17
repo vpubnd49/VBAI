@@ -1926,6 +1926,7 @@ function extractTextFromProviderPayload(data = {}) {
   for (const candidate of candidates) {
     const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
     const text = parts
+      .filter((part) => !part?.thought) // Skip thinking parts from Gemini 2.5
       .map((part) => String(part?.text || '').trim())
       .filter(Boolean)
       .join('\n')
@@ -2480,6 +2481,7 @@ async function executeGeminiNativeAudioTranscription({
     }],
     generationConfig: {
       temperature: 0,
+      thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for transcription — just output text
     },
   };
 
