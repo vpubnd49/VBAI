@@ -1963,7 +1963,7 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
       await execFileAsync('ffmpeg', [
         '-hide_banner', '-loglevel', 'error', '-y', '-i', filePath, '-vn',
         '-map', '0:a:0', '-ac', '1', '-ar', '16000', '-b:a', '32k', '-f', 'mp3', normalizedPath,
-      ], { timeout: 45000, maxBuffer: 16 * 1024 });
+      ], { timeout: 180000, maxBuffer: 16 * 1024 });
       const normalizedStat = await fs.promises.stat(normalizedPath);
       if (!normalizedStat.size) throw new Error('ffmpeg produced an empty MP3.');
       tempNormalizedFile = normalizedPath;
@@ -1988,7 +1988,7 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
 
     const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
     const fileSizeMb = Math.ceil(audioBuffer.length / (1024 * 1024));
-    const audioTimeoutMs = Math.min(600000, Math.max(120000, 120000 + fileSizeMb * 1000));
+    const audioTimeoutMs = Math.min(600000, Math.max(300000, 120000 + fileSizeMb * 5000));
     const result = await executeGeminiCompatChatRequest({
       apiKey: resolved.apiKey, endpoint: resolved.endpoint, modelName: resolved.model,
       messages: [{ role: 'user', content: [
@@ -2345,25 +2345,34 @@ async function executeGeminiNativeAudioTranscription({
     },
   };
 
+  const NATIVE_TRANSCRIBE_TIMEOUT_MS = 600000; // 10 minutes for large audio files
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), NATIVE_TRANSCRIBE_TIMEOUT_MS);
     let providerRes = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     if (providerRes.status === 429) {
       console.warn(`[429] Received TooManyRequests for native audio transcription. Retrying once after 1500ms...`);
       await new Promise(resolve => setTimeout(resolve, 1500));
+      const retryController = new AbortController();
+      const retryTimer = setTimeout(() => retryController.abort(), NATIVE_TRANSCRIBE_TIMEOUT_MS);
       providerRes = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
+        signal: retryController.signal,
       });
+      clearTimeout(retryTimer);
     }
 
     if (!providerRes.ok) {
