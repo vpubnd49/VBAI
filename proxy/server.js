@@ -1944,7 +1944,7 @@ function extractTextFromProviderPayload(data = {}) {
  * @param {number} chunkDurationSecs - Duration of each chunk in seconds (default 300 = 5 min)
  * @returns {Promise<string[]>} Array of chunk file paths, sorted by order
  */
-async function splitAudioIntoChunks(inputPath, chunkDurationSecs = 300) {
+async function splitAudioIntoChunks(inputPath, chunkDurationSecs = 600) {
   const dir = os.tmpdir();
   const prefix = `vbai-chunk-${process.pid}-${Date.now()}`;
   const pattern = path.join(dir, `${prefix}-%03d.mp3`);
@@ -1977,7 +1977,7 @@ async function splitAudioIntoChunks(inputPath, chunkDurationSecs = 300) {
  * Transcribe multiple audio chunks in parallel with concurrency limit.
  * @returns {Promise<string>} Merged transcript text
  */
-async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, prompt, concurrency = 3 }) {
+async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, prompt, concurrency = 6 }) {
   const results = new Array(chunks.length);
   let nextIdx = 0;
 
@@ -1987,7 +1987,7 @@ async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, p
       const chunkPath = chunks[idx];
       const chunkBuffer = await fs.promises.readFile(chunkPath);
       const chunkPrompt = prompt
-        || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
+        || 'Chuyển toàn bộ lời nói trong đoạn ghi âm này thành văn bản tiếng Việt chính xác, đầy đủ, không tóm tắt, không thêm lời chào hay mở đầu.';
       const partLabel = `[Chunk ${idx + 1}/${chunks.length}]`;
 
       console.log(`${partLabel} Transcribing (${Math.round(chunkBuffer.length / 1024)}KB)...`);
@@ -2024,7 +2024,7 @@ async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, p
 async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt }) {
   const audioConfig = await getCachedSystemConfig();
   const resolved = resolveGeminiConfig(audioConfig);
-  const effectiveModel = String(model || audioConfig.transcribe_model || resolved.model || 'gemini-3.8-flash').trim();
+  const effectiveModel = String(model || audioConfig.transcribe_model || resolved.model || 'gemini-3.6-flash').trim();
   if (!resolved.apiKey || !resolved.endpoint || !effectiveModel) {
     throw Object.assign(new Error('Gemini configuration is incomplete.'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
@@ -2049,7 +2049,7 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
     const normalizedPath = path.join(os.tmpdir(), `vbai-audio-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp3`);
     try {
       await execFileAsync('ffmpeg', [
-        '-hide_banner', '-loglevel', 'error', '-y', '-i', filePath, '-vn',
+        '-hide_banner', '-loglevel', 'error', '-y', '-threads', '0', '-i', filePath, '-vn',
         '-map', '0:a:0', '-ac', '1', '-ar', '16000', '-b:a', '32k', '-f', 'mp3', normalizedPath,
       ], { timeout: 180000, maxBuffer: 16 * 1024 });
       const normalizedStat = await fs.promises.stat(normalizedPath);
@@ -2072,8 +2072,8 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
     // Threshold: ~1.5MB normalized = ~6 minutes of 32kbps mono audio
     // Files above this benefit significantly from parallel processing
     if (isNativeGeminiEndpoint && normalizedSizeMb > 1.5) {
-      console.log(`[Audio Transcribe] Large file detected (${normalizedSizeMb.toFixed(1)}MB normalized). Splitting into chunks for parallel transcription...`);
-      const CHUNK_DURATION_SECS = 300; // 5 minutes per chunk
+      console.log(`[Audio Transcribe] Large file detected (${normalizedSizeMb.toFixed(1)}MB normalized). Splitting into 10-min chunks for parallel transcription...`);
+      const CHUNK_DURATION_SECS = 600; // 10 minutes per chunk (optimal for speed & accuracy with Gemini 3.6 Flash)
       let chunks;
       try {
         chunks = await splitAudioIntoChunks(tempNormalizedFile, CHUNK_DURATION_SECS);
@@ -2084,7 +2084,7 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
       }
 
       if (chunks && chunks.length > 1) {
-        console.log(`[Audio Transcribe] Split into ${chunks.length} chunks. Transcribing in parallel (concurrency=3)...`);
+        console.log(`[Audio Transcribe] Split into ${chunks.length} chunks. Transcribing in parallel (concurrency=6)...`);
         const startTime = Date.now();
         const transcript = await transcribeChunksParallel({
           chunks,
@@ -2092,7 +2092,7 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
           modelName: effectiveModel,
           mimeType: targetMime,
           prompt,
-          concurrency: 3,
+          concurrency: 6,
         });
         const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`[Audio Transcribe] Parallel transcription completed in ${elapsedSec}s (${chunks.length} chunks).`);
