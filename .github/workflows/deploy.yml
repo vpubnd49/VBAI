@@ -29,7 +29,7 @@ env:
   PROXY_SERVICE: vbai-proxy
   WEBAPP_SERVICE: vbai
   CANONICAL_PRODUCTION_URL: https://vbai-419728335518.asia-southeast1.run.app
-  MAX_AUDIO_UPLOAD_MB: "25"
+  MAX_AUDIO_UPLOAD_MB: "200"
 
 jobs:
   validate:
@@ -342,7 +342,7 @@ jobs:
           gcloud run deploy "$PROXY_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" \
             --image "$PROXY_REF" --allow-unauthenticated --no-traffic --tag "${{ steps.release.outputs.tag }}" \
             --revision-suffix "${{ steps.release.outputs.suffix }}" --port 8080 --memory 2Gi --max-instances 3 \
-            --set-env-vars "APP_ENV=production,MAX_AUDIO_UPLOAD_MB=25,FIREBASE_PROJECT_ID=${PROJECT_ID},GIT_SHA=${{ inputs.release_sha || github.sha }}"
+            --set-env-vars "APP_ENV=production,MAX_AUDIO_UPLOAD_MB=200,FIREBASE_PROJECT_ID=${PROJECT_ID},GIT_SHA=${{ inputs.release_sha || github.sha }}"
           PROXY_MAIN_URL=$(gcloud run services describe "$PROXY_SERVICE" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')
           gcloud run deploy "$WEBAPP_SERVICE" --quiet --project "$PROJECT_ID" --region "$REGION" \
             --image "$WEBAPP_REF" --allow-unauthenticated --no-traffic --tag "${{ steps.release.outputs.tag }}" \

@@ -116,7 +116,7 @@ server {
     server_name vbai.tracuu.lamdong.vn;
 
     # Keep the VBAI virtual host isolated from VBAIBot.
-    client_max_body_size 25m;
+    client_max_body_size 500m;
 
     # Compression (Gzip)
     gzip on;

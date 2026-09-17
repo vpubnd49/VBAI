@@ -57,7 +57,7 @@ function getMeetingModelFallbackOrder() {
 const PROCESSING_TEXT = "Đang xử lý......";
 // Keep the client limit aligned with the backend's default multipart limit.
 // Chunk upload is intentionally disabled until distributed assembly is implemented.
-const MAX_AUDIO_UPLOAD_MB = 25;
+const MAX_AUDIO_UPLOAD_MB = 200;
 const MAX_AUDIO_UPLOAD_BYTES = MAX_AUDIO_UPLOAD_MB * 1024 * 1024;
 
 let mediaRecorder = null;

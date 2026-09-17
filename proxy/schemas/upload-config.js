@@ -5,8 +5,8 @@
  */
 'use strict';
 
-const DEFAULT_MAX_AUDIO_UPLOAD_MB = 25;
-const ABSOLUTE_MAX_AUDIO_UPLOAD_MB = 50;
+const DEFAULT_MAX_AUDIO_UPLOAD_MB = 200;
+const ABSOLUTE_MAX_AUDIO_UPLOAD_MB = 200;
 
 const _configuredMB = Number(process.env.MAX_AUDIO_UPLOAD_MB || String(DEFAULT_MAX_AUDIO_UPLOAD_MB));
 
