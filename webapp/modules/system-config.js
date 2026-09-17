@@ -31,7 +31,9 @@ clearLegacyConfigCache();
 const DEFAULT_BACKEND_BASE = '/api';
 const ALLOWED_BACKEND_HOSTS = new Set([
   'vbai.tracuu.lamdong.vn',
+  'lctubnd.tracuu.lamdong.vn',
   'vbai.tracuu.lamdong.gov.vn',
+  '202.92.7.138',
   'localhost',
   '127.0.0.1',
 ]);
@@ -71,7 +73,8 @@ function resolveBackendBase() {
 
   const host = parsed.hostname.toLowerCase();
   const sameOrigin = typeof window !== 'undefined' && parsed.origin === window.location.origin;
-  const whitelisted = ALLOWED_BACKEND_HOSTS.has(host);
+  const isLamDongDomain = host.endsWith('.lamdong.vn') || host.endsWith('.lamdong.gov.vn');
+  const whitelisted = ALLOWED_BACKEND_HOSTS.has(host) || isLamDongDomain;
   if (!sameOrigin && !whitelisted) {
     throw new Error('Backend host khong nam trong danh sach duoc phep.');
   }
@@ -86,24 +89,23 @@ function resolveBackendBase() {
 }
 
 /**
- * Get the Firebase ID token for authenticated requests.
- * Uses current Firebase auth state.
+ * Get the token for authenticated requests.
+ * Uses current user state or falls back to localStorage.
  */
 async function getIdToken() {
-  // We'll import Firebase from the CDN version at runtime in browser.
-  // This module is intended for browser use only.
   if (typeof window === 'undefined') return null;
 
-  // The auth module should set currentUser globally after login.
-  const auth = window.currentUser ? window.currentUser : null;
-  if (!auth) return null;
-
-  try {
-    return await auth.getIdToken();
-  } catch (e) {
-    console.error('Failed to get ID token:', e);
-    return null;
+  if (window.currentUser && typeof window.currentUser.getIdToken === 'function') {
+    try {
+      const tok = await window.currentUser.getIdToken();
+      if (tok) return tok;
+    } catch (e) {}
   }
+  try {
+    const localTok = localStorage.getItem('vbai_token');
+    if (localTok) return localTok;
+  } catch (e) {}
+  return null;
 }
 
 export function normalizeAiProxyConfig(raw = {}) {
@@ -235,10 +237,11 @@ export async function validateGeminiApiKey(options = {}) {
   const token = await getIdToken();
   if (!token) throw new Error('Not authenticated');
 
+  const rawKey = String(options?.apiKey || '').trim();
   const payload = {
-    gemini_api_key: String(options?.apiKey || '').trim(),
+    gemini_api_key: rawKey,
     gemini_endpoint: String(options?.gemini_endpoint || '').trim() || undefined,
-    use_stored_key: false,
+    use_stored_key: !rawKey || options?.useStoredKey === true,
     model: String(options?.model || '').trim() || undefined,
   };
 
@@ -251,7 +254,7 @@ export async function validateGeminiApiKey(options = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const rawMessage = String(data?.message || data?.error || '').trim();
-    if (response.status === 401 || response.status === 403) {
+    if ((response.status === 401 || response.status === 403) && !rawMessage) {
       throw new Error('Phiên quản trị không hợp lệ hoặc không đủ quyền. Vui lòng đăng nhập lại.');
     }
     if (response.status === 400 || response.status === 404) {

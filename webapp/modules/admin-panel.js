@@ -554,6 +554,7 @@ export function renderAdminPanel(container) {
               </button>
               <button type="button" id="delete-all-logs-btn" class="btn btn-danger btn-sm" style="padding:6px 12px; font-size:0.85rem;">🗑️ Xóa tất cả</button>
               <button type="button" id="refresh-logs-btn" class="btn btn-secondary btn-sm" style="padding:6px 12px; font-size:0.85rem;">🔄 Làm mới</button>
+            </div>
           </div>
           <!-- Filter bar for admin audit logs -->
           <div style="padding:12px 24px; background:var(--surface-soft, #f8fafc); border-bottom:1px solid var(--border-color, #cbd5e1); display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
@@ -724,6 +725,14 @@ export function renderAdminPanel(container) {
           tc.classList.remove('active');
         }
       });
+
+      if (targetTabId === 'tab-users') {
+        loadUsers(container);
+      } else if (targetTabId === 'tab-logs') {
+        loadLogs(container);
+      } else if (targetTabId === 'tab-training') {
+        loadDatasetSamples(container);
+      }
     });
   });
 
@@ -1951,7 +1960,7 @@ async function loadUsers(container, isSilent = false) {
     }
     console.error('Error loading users:', error);
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--status-error-text, #dc2626)">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--status-error-text, #dc2626)">Lỗi tải dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
     }
   }
 }
@@ -1979,7 +1988,7 @@ function renderUsersPage(container) {
         </td>
       </tr>
     `;
-  }).join('') : '<tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
+  }).join('') : '<tr><td colspan="6" style="padding:20px; text-align:center; color:var(--text-muted)">Không có dữ liệu</td></tr>';
 
     const totalPages = allUsers.totalPages || Math.ceil(allUsers.length / ITEMS_PER_PAGE) || 1;
   const paginationControls = container.querySelector('#users-pagination-controls');

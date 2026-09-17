@@ -126,12 +126,18 @@ function normalizeContentsForProvider(messages = [], model = '') {
 }
 
 async function getIdToken() {
-  if (typeof window === 'undefined' || !window.currentUser) return null;
-  try {
-    return await window.currentUser.getIdToken();
-  } catch {
-    return null;
+  if (typeof window === 'undefined') return null;
+  if (window.currentUser && typeof window.currentUser.getIdToken === 'function') {
+    try {
+      const tok = await window.currentUser.getIdToken();
+      if (tok) return tok;
+    } catch {}
   }
+  try {
+    const saved = localStorage.getItem('vbai_token');
+    if (saved) return saved;
+  } catch {}
+  return null;
 }
 
 function getBackendBase() {

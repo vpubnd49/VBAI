@@ -2543,6 +2543,15 @@ app.use(cors({
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.length === 0) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    try {
+      const u = new URL(origin);
+      if (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '202.92.7.138' ||
+          u.hostname.endsWith('.tracuu.lamdong.vn') || u.hostname === 'tracuu.lamdong.vn' ||
+          u.hostname.endsWith('.lamdong.gov.vn') || u.hostname === 'lamdong.gov.vn' ||
+          u.hostname.endsWith('.lamdong.vn')) {
+        return callback(null, true);
+      }
+    } catch {}
     return callback(new Error('CORS origin not allowed: ' + origin));
   },
   credentials: true
@@ -3032,15 +3041,19 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
 
     const rawKey = String(req.body?.gemini_api_key || '').trim();
     const rawEndpoint = String(req.body?.gemini_endpoint || '').trim();
-    const useStoredKey = false;
+    const useStoredKey = req.body?.use_stored_key === true || !rawKey;
     
     const config = await dbService.getSystemConfig(true);
     
-     // Validation accepts only explicit Gemini fields and always uses this endpoint.
-     const submitted = { gemini_api_key: rawKey, gemini_endpoint: rawEndpoint, gemini_model: req.body?.model };
+    // Validation accepts explicit Gemini fields or falls back to stored configuration
+    const submitted = {
+      gemini_api_key: rawKey || (useStoredKey ? config.gemini_api_key : ''),
+      gemini_endpoint: rawEndpoint || config.gemini_endpoint,
+      gemini_model: req.body?.model || config.gemini_model,
+    };
 
     const validationConfig = resolveGeminiConfig(config, submitted);
-    const model = validationConfig.model;
+    const model = req.body?.model || validationConfig.model;
     const keyToValidate = validationConfig.apiKey;
     const endpointToValidate = validationConfig.endpoint;
 
@@ -3061,9 +3074,9 @@ app.post('/api/admin/validate-gemini-key', async (req, res) => {
     });
 
     if (!probe.ok) {
-      return res.status(probe.status || 502).json({
+      return res.json({
         valid: false,
-        message: probe.message || `Provider error ${probe.status || 502}`,
+        message: `Xác nhận key thất bại từ Google: ${probe.message || `HTTP ${probe.status || 502}`}`,
         meta: {
           provider_status: probe.status || null,
           provider_error_reason: probe.reason || null,
