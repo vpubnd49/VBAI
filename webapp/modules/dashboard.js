@@ -128,6 +128,26 @@ export function renderDashboard(container, navigateTo) {
         </div>
       </section>
 
+      <!-- BOT ZALO VBAI -->
+      <section id="zalobot-home-section" class="home-card-panel" style="margin-top: 24px; border-left: 4px solid #0068FF; background: linear-gradient(135deg, rgba(0, 104, 255, 0.04) 0%, rgba(255, 255, 255, 0.95) 100%);">
+        <div class="panel-card-head">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0068FF" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <h3 style="margin:0; font-size:1rem; font-weight:700; color:var(--text-primary);">Bot Zalo VBAI — Trợ lý AI trên Zalo</h3>
+          </div>
+          <span class="panel-head-tag" style="background:#e0edff; color:#0068FF; font-weight:600;">Mới</span>
+        </div>
+        <div class="panel-card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; padding: 10px 0;">
+          <div style="font-size: 0.88rem; color: var(--text-secondary); max-width: 660px; line-height: 1.5;">
+            Trợ lý AI tra cứu pháp luật, soạn văn bản, phân tích tình huống ngay trên ứng dụng Zalo. Quét mã QR hoặc kết nối bot cá nhân để sử dụng mọi lúc, mọi nơi.
+          </div>
+          <a href="https://vbai.tracuu.lamdong.vn/#zalo-bot" class="btn btn-primary btn-zalo-home" style="display: inline-flex; align-items: center; gap: 8px; background: #0068FF; border-color: #0068FF; padding: 7px 16px; border-radius: 8px; text-decoration: none; font-size: 0.84rem; font-weight: 600; color: #fff; box-shadow: 0 2px 8px rgba(0,104,255,0.2);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zm4 0h3v3h-3zm-4 4h3v3h-3zm4 4h3v3h-3z"/></svg>
+            Nhắn tin &amp; Kết nối Bot Zalo
+          </a>
+        </div>
+      </section>
+
       <!-- LIÊN HỆ HỖ TRỢ -->
       <section id="contact-section" class="home-card-panel" style="margin-top: 24px; border-left: 4px solid var(--brand-primary, #00778B);">
         <div class="panel-card-head">
@@ -189,21 +209,24 @@ export function renderDashboard(container, navigateTo) {
     });
   });
 
+  // Bind Zalo Bot banner link
+  const btnZaloHome = container.querySelector('.btn-zalo-home');
+  if (btnZaloHome) {
+    btnZaloHome.addEventListener('click', (e) => {
+      e.preventDefault();
+      navigateTo('zalo-bot');
+    });
+  }
+
   // Populate recent searches region based on role
   const recentRegion = container.querySelector('#recent-searches-region');
+  const infoCols = container.querySelector('.home-info-columns');
   if (recentRegion) {
     if (window.isAdmin) {
-      recentRegion.innerHTML = `
-        <section class="home-card-panel" style="border-left: 3px solid var(--brand-primary);">
-          <div class="panel-card-body" style="display:flex; align-items:center; gap:14px; padding:16px 0;">
-            <span style="font-size:1.5rem;">🛡️</span>
-            <div>
-              <div style="font-weight:700; color:var(--text-primary); margin-bottom:4px;">Quản trị viên</div>
-              <div style="font-size:0.88rem; color:var(--text-secondary);">Xem toàn bộ lịch sử &amp; truy vết tra cứu tại <strong>Quản trị hệ thống → Vết Tra cứu</strong></div>
-            </div>
-          </div>
-        </section>
-      `;
+      // Ẩn vùng tra cứu gần đây đối với Quản trị viên (không hiển thị banner quản trị viên)
+      recentRegion.innerHTML = '';
+      recentRegion.style.display = 'none';
+      if (infoCols) infoCols.style.display = 'none';
     } else {
       const clearBtnHtml = recentSearches.length > 0 ? '<button id="clear-all-recent" style="font-size:0.72rem; padding:3px 10px; border:1px solid var(--border-default,#CBD5E1); background:transparent; color:var(--danger,#DC2626); border-radius:12px; cursor:pointer; transition:all 0.2s;" title="Xóa tất cả lịch sử">Xóa tất cả</button>' : '';
       recentRegion.innerHTML = `
