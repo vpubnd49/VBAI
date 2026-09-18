@@ -179,7 +179,7 @@ function renderVbaibotTab(contentEl) {
         </div>
 
         <div class="zalobot-actions">
-          <a href="https://zalo.me/0886809680" target="_blank" rel="noopener noreferrer" class="btn btn-primary zalobot-btn-chat">
+          <a href="https://zalo.me/0984310011" target="_blank" rel="noopener noreferrer" class="btn btn-primary zalobot-btn-chat">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Nhắn tin trên Zalo
           </a>
@@ -223,7 +223,7 @@ function renderVbaibotTab(contentEl) {
   const btnCopy = contentEl.querySelector('#btn-copy-zalo-link');
   if (btnCopy) {
     btnCopy.addEventListener('click', () => {
-      navigator.clipboard.writeText('https://zalo.me/0886809680').then(() => {
+      navigator.clipboard.writeText('https://zalo.me/0984310011').then(() => {
         btnCopy.innerHTML = `
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           Đã sao chép!
