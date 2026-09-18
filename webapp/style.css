@@ -4316,3 +4316,640 @@ table {
   }
 }
 
+/* ============================================
+   ZALO BOT PAGE STYLES
+   ============================================ */
+
+.zalobot-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.zalobot-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.zalobot-header-icon {
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px rgba(0, 104, 255, 0.2));
+}
+
+.zalobot-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.zalobot-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+/* Tabs */
+.zalobot-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 24px;
+}
+
+.zalobot-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zalobot-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-card-hover);
+}
+
+.zalobot-tab.active {
+  background: var(--bg-card);
+  color: var(--brand-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+/* Content */
+.zalobot-content {
+  animation: fadeIn 0.3s ease;
+}
+
+.zalobot-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Card */
+.zalobot-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 24px;
+  transition: box-shadow 0.2s ease;
+}
+
+.zalobot-card:hover {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+.zalobot-card-highlight {
+  border-color: var(--brand-primary);
+  border-width: 1px;
+  position: relative;
+  overflow: hidden;
+}
+
+.zalobot-card-highlight::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-cyan), var(--brand-primary));
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.zalobot-card-chat {
+  border-color: var(--mist-400);
+}
+
+.zalobot-card-chat::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--mist-500), var(--earth-400));
+}
+
+.zalobot-card-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.zalobot-card-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--brand-cyan-light), #f0f9ff);
+  color: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+.zalobot-card-icon-chat {
+  background: linear-gradient(135deg, #e0f2fe, #ecfeff);
+  color: var(--mist-600);
+}
+
+.zalobot-card-header h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.zalobot-card-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Steps */
+.zalobot-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+}
+
+.zalobot-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.zalobot-step-num {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Warning */
+.zalobot-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  color: #92400e;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.zalobot-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #d97706;
+}
+
+[data-theme="dark"] .zalobot-warning {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+/* QR Area */
+.zalobot-qr-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.zalobot-qr-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+}
+
+.zalobot-qr-placeholder p {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.zalobot-qr-frame {
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 2px solid var(--border-subtle);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.zalobot-qr-frame-active {
+  border-color: var(--brand-primary);
+  box-shadow: 0 4px 20px rgba(0, 119, 139, 0.15), 0 0 0 4px rgba(0, 119, 139, 0.05);
+  animation: qrGlow 2s ease-in-out infinite;
+}
+
+@keyframes qrGlow {
+  0%, 100% { box-shadow: 0 4px 20px rgba(0, 119, 139, 0.15), 0 0 0 4px rgba(0, 119, 139, 0.05); }
+  50% { box-shadow: 0 4px 24px rgba(0, 119, 139, 0.25), 0 0 0 6px rgba(0, 119, 139, 0.08); }
+}
+
+.zalobot-qr-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.zalobot-qr-pulse {
+  animation: qrPulse 2s ease-in-out infinite;
+}
+
+@keyframes qrPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+/* QR Status */
+.zalobot-qr-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.zalobot-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.zalobot-status-waiting {
+  background: var(--daquy-400);
+  animation: blink 1s ease-in-out infinite;
+}
+
+.zalobot-status-scanned {
+  background: var(--brand-primary);
+  animation: blink 0.6s ease-in-out infinite;
+}
+
+.zalobot-status-done {
+  background: #10b981;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.zalobot-status-success {
+  color: #059669;
+  font-weight: 600;
+}
+
+.zalobot-qr-hint {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+/* QR Live */
+.zalobot-qr-live {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.zalobot-qr-success-icon {
+  margin-bottom: 8px;
+}
+
+.zalobot-success-bounce {
+  animation: successBounce 0.6s ease;
+}
+
+@keyframes successBounce {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* QR Error */
+.zalobot-qr-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.zalobot-qr-error p {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.zalobot-qr-error-hint {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+/* QR Static (VBAI Bot tab) */
+.zalobot-qr-static {
+  align-items: center;
+  gap: 16px;
+}
+
+.zalobot-qr-info {
+  text-align: center;
+}
+
+.zalobot-qr-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 12px;
+}
+
+.zalobot-qr-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.zalobot-qr-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+}
+
+.zalobot-qr-fallback p {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+/* Actions */
+.zalobot-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.zalobot-btn-qr,
+.zalobot-btn-chat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.zalobot-btn-chat {
+  text-decoration: none;
+  background: linear-gradient(135deg, #0068FF, #00C2FF);
+  color: white;
+  border: none;
+}
+
+.zalobot-btn-chat:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 104, 255, 0.3);
+}
+
+.zalobot-btn-copy {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.btn-success {
+  background: #059669 !important;
+  border-color: #059669 !important;
+  cursor: default;
+}
+
+/* Spinner */
+.zalobot-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Features Grid */
+.zalobot-features {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.zalobot-features-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 16px;
+}
+
+.zalobot-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.zalobot-feature-card {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--bg-primary);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.zalobot-feature-card:hover {
+  border-color: var(--border-default);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.zalobot-feature-icon {
+  font-size: 1.75rem;
+  margin-bottom: 8px;
+}
+
+.zalobot-feature-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.zalobot-feature-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* How To */
+.zalobot-how-to {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.zalobot-how-to h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 16px;
+}
+
+.zalobot-how-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zalobot-how-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.zalobot-how-num {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--mist-500), var(--earth-400));
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.zalobot-how-item strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.zalobot-how-item p {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .zalobot-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .zalobot-tabs {
+    flex-direction: column;
+  }
+
+  .zalobot-card {
+    padding: 16px;
+  }
+
+  .zalobot-actions {
+    flex-direction: column;
+  }
+
+  .zalobot-btn-qr,
+  .zalobot-btn-chat,
+  .zalobot-btn-copy {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .zalobot-card-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

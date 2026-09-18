@@ -62,6 +62,7 @@ const PAGE_TITLES = {
   'pdf-publisher': 'Tóm tắt Hồ sơ & Xuất bản',
   'search-history': 'Lịch sử Tra cứu',
   'admin-panel': 'Quản trị Hệ thống',
+  'zalo-bot': 'Bot Zalo',
 };
 
 function showPageLoading(container) {
@@ -211,6 +212,12 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
         const { renderMeetingMinutes } = await import('./modules/meeting-minutes.js');
         container.innerHTML = '';
         renderMeetingMinutes(container);
+        break;
+      }
+      case 'zalo-bot': {
+        const { renderZaloBot } = await import('./modules/zalo-bot.js');
+        container.innerHTML = '';
+        renderZaloBot(container);
         break;
       }
       case 'admin-panel': {

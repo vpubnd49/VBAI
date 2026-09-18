@@ -8377,6 +8377,98 @@ app.get('/api/build-info', (req, res) => {
   });
 });
 
+// ============ ZALO BOT PROXY BRIDGE ============
+// Proxy requests to zalo-agent dashboard API (running on same VPS at localhost:3900)
+const ZALOBOT_API_BASE = process.env.ZALOBOT_API_BASE || 'http://127.0.0.1:3900';
+const ZALOBOT_DASHBOARD_PASSWORD = process.env.ZALOBOT_DASHBOARD_PASSWORD || '';
+
+/**
+ * Helper: proxy a request to zalo-agent API with dashboard auth
+ */
+async function proxyToZaloBot(method, apiPath, body = null) {
+  const url = `${ZALOBOT_API_BASE}${apiPath}`;
+  const headers = { 'Content-Type': 'application/json' };
+
+  // If zalo-agent requires auth cookie, we need to login first.
+  // For same-server setup, we can skip auth if dashboard is on localhost.
+
+  const opts = { method, headers };
+  if (body && method !== 'GET') {
+    opts.body = JSON.stringify(body);
+  }
+
+  const resp = await fetch(url, opts);
+  const contentType = resp.headers.get('content-type') || '';
+
+  if (contentType.includes('application/json')) {
+    const data = await resp.json();
+    return { status: resp.status, data };
+  }
+  const text = await resp.text();
+  return { status: resp.status, data: { raw: text } };
+}
+
+// List accounts
+app.get('/api/zalobot/accounts', async (req, res) => {
+  try {
+    const result = await proxyToZaloBot('GET', '/api/accounts');
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    console.error('[ZaloBot Proxy] GET /accounts error:', err.message);
+    res.status(502).json({ error: 'Không thể kết nối đến zalo-agent', detail: err.message });
+  }
+});
+
+// Create account
+app.post('/api/zalobot/accounts', async (req, res) => {
+  try {
+    const result = await proxyToZaloBot('POST', '/api/accounts', req.body);
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    console.error('[ZaloBot Proxy] POST /accounts error:', err.message);
+    res.status(502).json({ error: 'Không thể kết nối đến zalo-agent', detail: err.message });
+  }
+});
+
+// Start QR login
+app.post('/api/zalobot/accounts/:id/login', async (req, res) => {
+  try {
+    const result = await proxyToZaloBot('POST', `/api/accounts/${encodeURIComponent(req.params.id)}/login`);
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    console.error('[ZaloBot Proxy] POST /login error:', err.message);
+    res.status(502).json({ error: 'Không thể kết nối đến zalo-agent', detail: err.message });
+  }
+});
+
+// Poll QR login status
+app.get('/api/zalobot/accounts/:id/login/status', async (req, res) => {
+  try {
+    const result = await proxyToZaloBot('GET', `/api/accounts/${encodeURIComponent(req.params.id)}/login/status`);
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    console.error('[ZaloBot Proxy] GET /login/status error:', err.message);
+    res.status(502).json({ error: 'Không thể kết nối đến zalo-agent', detail: err.message });
+  }
+});
+
+// Health check for zalo-agent
+app.get('/api/zalobot/health', async (req, res) => {
+  try {
+    const start = Date.now();
+    const resp = await fetch(`${ZALOBOT_API_BASE}/api/overview`, { signal: AbortSignal.timeout(3000) });
+    const latency = Date.now() - start;
+    if (resp.ok) {
+      res.json({ status: 'online', latency_ms: latency, base: ZALOBOT_API_BASE });
+    } else {
+      res.status(503).json({ status: 'degraded', statusCode: resp.status, latency_ms: latency });
+    }
+  } catch (err) {
+    res.status(503).json({ status: 'offline', error: err.message });
+  }
+});
+
+
 // Start server
 const PORT = Number(process.env.PORT || 8080);
 const HOST = String(process.env.HOST || '127.0.0.1').trim();
