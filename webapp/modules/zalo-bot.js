@@ -252,35 +252,25 @@ async function startQRLogin(contentEl) {
     Đang tạo mã QR...
   `;
 
-  // Generate account ID
-  const accountId = 'web-' + Date.now().toString(36);
-  _currentAccountId = accountId;
-
   try {
-    // Step 1: Create account on zalo-agent
-    const createRes = await fetch(`${ZALOBOT_API_BASE}/accounts`, {
+    // One-click: create account + enable + start QR login
+    const res = await fetch(`${ZALOBOT_API_BASE}/quick-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: accountId, label: 'VBAI Web User' }),
+      body: JSON.stringify({ label: 'VBAI Web User' }),
     });
 
-    if (!createRes.ok) {
-      const err = await createRes.json().catch(() => ({}));
-      throw new Error(err.error || `Lỗi tạo account: ${createRes.status}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Lỗi khởi tạo: ${res.status}`);
     }
 
-    // Step 2: Start QR login
-    const loginRes = await fetch(`${ZALOBOT_API_BASE}/accounts/${accountId}/login`, {
-      method: 'POST',
-    });
-
-    if (!loginRes.ok) {
-      throw new Error(`Lỗi khởi tạo QR: ${loginRes.status}`);
-    }
-
-    // Step 3: Poll for QR status
+    const data = await res.json();
+    _currentAccountId = data.accountId;
     _loginState = 'waiting_qr';
-    pollQRStatus(contentEl, accountId);
+
+    // Start polling immediately
+    pollQRStatus(contentEl, data.accountId);
 
   } catch (err) {
     console.error('QR login error:', err);
@@ -291,7 +281,7 @@ async function startQRLogin(contentEl) {
           <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
         <p>${err.message || 'Không thể kết nối đến bot server'}</p>
-        <p class="zalobot-qr-error-hint">Kiểm tra kết nối đến zalo-agent (port 3900)</p>
+        <p class="zalobot-qr-error-hint">Kiểm tra kết nối đến zalo-agent</p>
       </div>
     `;
     btn.disabled = false;
@@ -311,14 +301,16 @@ async function pollQRStatus(contentEl, accountId) {
     const res = await fetch(`${ZALOBOT_API_BASE}/accounts/${accountId}/login/status`);
     if (!res.ok) throw new Error(`Status check failed: ${res.status}`);
     
-    const status = await res.json();
+    const data = await res.json();
+    // zalo-agent returns: { status: 'starting'|'waiting_scan'|'scanned'|'success'|'declined'|'error'|'timeout'|'idle', qrDataUri?, error? }
+    const st = data.status;
 
-    if (status.phase === 'qr_ready' && status.qrDataUri) {
+    if ((st === 'waiting_scan' || st === 'starting') && data.qrDataUri) {
       _loginState = 'waiting_qr';
       qrArea.innerHTML = `
         <div class="zalobot-qr-live">
           <div class="zalobot-qr-frame zalobot-qr-frame-active">
-            <img src="${status.qrDataUri}" alt="QR Code Zalo Login" class="zalobot-qr-image zalobot-qr-pulse" />
+            <img src="${data.qrDataUri}" alt="QR Code Zalo Login" class="zalobot-qr-image zalobot-qr-pulse" />
           </div>
           <div class="zalobot-qr-status">
             <div class="zalobot-status-dot zalobot-status-waiting"></div>
@@ -334,12 +326,22 @@ async function pollQRStatus(contentEl, accountId) {
           Đang chờ quét QR...
         `;
       }
-    } else if (status.phase === 'scanned') {
+    } else if (st === 'starting') {
+      // QR chưa sẵn sàng, đang khởi tạo
+      qrArea.innerHTML = `
+        <div class="zalobot-qr-live">
+          <div class="zalobot-qr-placeholder">
+            <div class="zalobot-spinner" style="width:32px;height:32px;border-width:3px;border-color:rgba(0,119,139,0.2);border-top-color:var(--brand-primary);"></div>
+            <p>Đang khởi tạo phiên đăng nhập...</p>
+          </div>
+        </div>
+      `;
+    } else if (st === 'scanned') {
       _loginState = 'scanned';
       qrArea.innerHTML = `
         <div class="zalobot-qr-live">
           <div class="zalobot-qr-success-icon">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--pine-500)" stroke-width="2">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--brand-primary)" stroke-width="2">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
               <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
@@ -350,12 +352,12 @@ async function pollQRStatus(contentEl, accountId) {
           </div>
         </div>
       `;
-    } else if (status.phase === 'done') {
+    } else if (st === 'success') {
       _loginState = 'success';
       qrArea.innerHTML = `
         <div class="zalobot-qr-live">
           <div class="zalobot-qr-success-icon zalobot-success-bounce">
-            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="var(--pine-500)" stroke-width="2">
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
               <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
@@ -376,14 +378,14 @@ async function pollQRStatus(contentEl, accountId) {
         btn.classList.add('btn-success');
       }
       return; // Stop polling
-    } else if (status.phase === 'expired') {
+    } else if (st === 'timeout') {
       qrArea.innerHTML = `
         <div class="zalobot-qr-live">
           <div class="zalobot-qr-error">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--amber-500)" stroke-width="2">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--daquy-400)" stroke-width="2">
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <p>Mã QR đã hết hạn</p>
+            <p>Mã QR đã hết hạn (3 phút)</p>
           </div>
         </div>
       `;
@@ -394,15 +396,16 @@ async function pollQRStatus(contentEl, accountId) {
           Tạo mã QR mới
         `;
       }
+      _loginState = 'idle';
       return; // Stop polling
-    } else if (status.phase === 'failed' || status.phase === 'declined') {
+    } else if (st === 'declined' || st === 'error') {
       _loginState = 'error';
       qrArea.innerHTML = `
         <div class="zalobot-qr-error">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--rose-500)" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
-          <p>${status.phase === 'declined' ? 'Đăng nhập bị từ chối trên điện thoại' : 'Đăng nhập thất bại'}</p>
+          <p>${st === 'declined' ? 'Đăng nhập bị từ chối trên điện thoại' : (data.error || 'Đăng nhập thất bại')}</p>
         </div>
       `;
       if (btn) {
@@ -434,3 +437,4 @@ function cleanupSSE() {
   }
   _loginState = 'idle';
 }
+

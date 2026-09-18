@@ -8379,20 +8379,21 @@ app.get('/api/build-info', (req, res) => {
 
 // ============ ZALO BOT PROXY BRIDGE ============
 // Proxy requests to zalo-agent dashboard API (running on same VPS at localhost:3900)
+// Auth: uses x-internal-secret header (= CREDENTIALS_ENCRYPTION_KEY) for server-to-server auth bypass
 const ZALOBOT_API_BASE = process.env.ZALOBOT_API_BASE || 'http://127.0.0.1:3900';
-const ZALOBOT_DASHBOARD_PASSWORD = process.env.ZALOBOT_DASHBOARD_PASSWORD || '';
+const ZALOBOT_INTERNAL_SECRET = process.env.ZALOBOT_INTERNAL_SECRET || '';
 
 /**
- * Helper: proxy a request to zalo-agent API with dashboard auth
+ * Helper: proxy a request to zalo-agent API with internal secret auth
  */
 async function proxyToZaloBot(method, apiPath, body = null) {
   const url = `${ZALOBOT_API_BASE}${apiPath}`;
   const headers = { 'Content-Type': 'application/json' };
+  if (ZALOBOT_INTERNAL_SECRET) {
+    headers['x-internal-secret'] = ZALOBOT_INTERNAL_SECRET;
+  }
 
-  // If zalo-agent requires auth cookie, we need to login first.
-  // For same-server setup, we can skip auth if dashboard is on localhost.
-
-  const opts = { method, headers };
+  const opts = { method, headers, signal: AbortSignal.timeout(10000) };
   if (body && method !== 'GET') {
     opts.body = JSON.stringify(body);
   }
@@ -8452,14 +8453,61 @@ app.get('/api/zalobot/accounts/:id/login/status', async (req, res) => {
   }
 });
 
+/**
+ * Quick Login: One-click tạo account + bắt đầu QR login ngay.
+ * Frontend chỉ cần gọi POST /api/zalobot/quick-login, nhận accountId rồi poll status.
+ */
+app.post('/api/zalobot/quick-login', async (req, res) => {
+  try {
+    const accountId = 'web-' + Date.now().toString(36);
+    const label = (req.body && req.body.label) || 'VBAI Web User';
+
+    // Step 1: Create account
+    const createResult = await proxyToZaloBot('POST', '/api/accounts', {
+      id: accountId,
+      label: label,
+    });
+
+    if (createResult.status >= 400) {
+      console.error('[ZaloBot Proxy] Quick-login create failed:', createResult.data);
+      return res.status(createResult.status).json({
+        error: createResult.data?.error || 'Không thể tạo account',
+        detail: createResult.data,
+      });
+    }
+
+    // Step 2: Enable the account
+    await proxyToZaloBot('PATCH', `/api/accounts/${accountId}`, { enabled: true });
+
+    // Step 3: Start QR login
+    const loginResult = await proxyToZaloBot('POST', `/api/accounts/${accountId}/login`);
+
+    res.json({
+      accountId,
+      loginStatus: loginResult.data,
+    });
+  } catch (err) {
+    console.error('[ZaloBot Proxy] Quick-login error:', err.message);
+    res.status(502).json({ error: 'Không thể kết nối đến zalo-agent', detail: err.message });
+  }
+});
+
 // Health check for zalo-agent
 app.get('/api/zalobot/health', async (req, res) => {
   try {
     const start = Date.now();
-    const resp = await fetch(`${ZALOBOT_API_BASE}/api/overview`, { signal: AbortSignal.timeout(3000) });
+    const headers = {};
+    if (ZALOBOT_INTERNAL_SECRET) {
+      headers['x-internal-secret'] = ZALOBOT_INTERNAL_SECRET;
+    }
+    const resp = await fetch(`${ZALOBOT_API_BASE}/api/overview`, {
+      headers,
+      signal: AbortSignal.timeout(3000),
+    });
     const latency = Date.now() - start;
     if (resp.ok) {
-      res.json({ status: 'online', latency_ms: latency, base: ZALOBOT_API_BASE });
+      const data = await resp.json().catch(() => ({}));
+      res.json({ status: 'online', latency_ms: latency, accounts: data.accounts });
     } else {
       res.status(503).json({ status: 'degraded', statusCode: resp.status, latency_ms: latency });
     }
