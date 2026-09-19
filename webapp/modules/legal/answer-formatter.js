@@ -380,6 +380,32 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
   `;
 }
 
+/**
+ * Build a prominent download bar for documents with direct PDF links.
+ * Always shown at the top of the answer when any document has pdfDownloadUrl.
+ */
+function buildDownloadBar(documents = []) {
+  const pdfDocs = documents.filter(d => d.pdfDownloadUrl);
+  if (pdfDocs.length === 0) return '';
+
+  const items = pdfDocs.map(d => {
+    const label = d.documentNumber || d.document_number || d.number || d.title || 'Văn bản';
+    return `
+      <a href="${d.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="download-bar-item" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#0d6efd,#0056d2);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;box-shadow:0 2px 8px rgba(13,110,253,0.3);transition:all 0.2s">
+        <span style="font-size:16px">📥</span>
+        Tải PDF: ${formatInlineMarkdown(label)}
+      </a>
+    `;
+  }).join('');
+
+  return `
+    <div class="legal-download-bar" style="margin:12px 0 20px;padding:14px 18px;background:linear-gradient(135deg,#e7f1ff,#f0f7ff);border:1px solid #b6d4fe;border-radius:12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+      <span style="font-size:14px;font-weight:600;color:#0d47a1;margin-right:4px">📄 Tệp đính kèm từ Cổng Chính phủ:</span>
+      ${items}
+    </div>
+  `;
+}
+
 export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings = []) {
   let actualWarnings = Array.isArray(warnings) ? warnings : [];
   let docsInput = evidenceBundle;
@@ -402,14 +428,25 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
 
   let formattedHtml = parseMarkdownToStructuredHtml(rawAnswer);
 
-  // If the parsed HTML doesn't contain a complete table or has an empty table header, append the guaranteed grid table!
+  // Always build our enhanced citation table with PDF links
+  const gridTableHtml = buildLegalCitationTable(rawAnswer, documents);
+
+  // If AI already generated a complete table, REPLACE it with our enhanced version (which has PDF links)
   const hasCompleteTable = formattedHtml.includes('<table class="legal-table">') && formattedHtml.includes('<tbody><tr>');
-  if (!hasCompleteTable) {
+  if (hasCompleteTable && gridTableHtml) {
+    // Remove AI's table and its preceding section header, replace with our enhanced version
+    formattedHtml = formattedHtml.replace(/<div class="legal-section-header">[\s\S]*?VI\.[\s\S]*?<\/div>\s*<div class="table-responsive">\s*<table class="legal-table">[\s\S]*?<\/table>\s*<\/div>/gi, '');
+    // Also remove orphaned section VI headers
+    formattedHtml = formattedHtml.replace(/<div class="legal-section-header">[\s\S]*?BẢNG DANH MỤC[\s\S]*?<\/div>/gi, '');
+    formattedHtml += gridTableHtml;
+  } else if (!hasCompleteTable) {
     // Strip trailing empty section VI headers if present
-    formattedHtml = formattedHtml.replace(/<div class="legal-section-header">[\s\S]*?VI\.\s*BẢNG DANH MỤC[\s\S]*?<\/div>/gi, '');
-    const gridTableHtml = buildLegalCitationTable(rawAnswer, documents);
+    formattedHtml = formattedHtml.replace(/<div class="legal-section-header">[\s\S]*?VI\.[\s\S]*?BẢNG DANH MỤC[\s\S]*?<\/div>/gi, '');
     formattedHtml += gridTableHtml;
   }
+
+  // Build download bar (always shown when PDF links available)
+  const downloadBarHtml = buildDownloadBar(documents);
 
   // Attach warnings at top if present
   let warningHtml = '';
@@ -441,6 +478,7 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
   return `
     <div class="legal-answer-wrapper">
       ${headerHtml}
+      ${downloadBarHtml}
       ${warningHtml}
       <div class="legal-answer-body">
         ${formattedHtml}
