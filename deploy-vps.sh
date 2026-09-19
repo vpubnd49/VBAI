@@ -87,8 +87,15 @@ sudo chmod 600 "$APP_DIR/proxy/service-account.json"
 # 7. Cấu hình khởi chạy Backend bằng PM2
 echo "=== 7. Khởi chạy Backend Proxy với PM2 ==="
 cd "$APP_DIR/proxy"
+# Load production secrets/config from the existing VPS-only .env without printing them.
+if [ -f .env ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . ./.env
+    set +a
+fi
 pm2 delete vbai-proxy 2>/dev/null || true
-APP_ENV="$APP_ENV" NODE_ENV="$NODE_ENV" HOST="$BACKEND_HOST" PORT="$BACKEND_PORT" ALLOWED_ORIGINS="$ALLOWED_ORIGINS" pm2 start server.js --name "vbai-proxy"
+APP_ENV="${APP_ENV:-$APP_ENV}" NODE_ENV="${NODE_ENV:-$NODE_ENV}" HOST="${HOST:-$BACKEND_HOST}" PORT="${PORT:-$BACKEND_PORT}" ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-$ALLOWED_ORIGINS}" pm2 start server.js --name "vbai-proxy"
 pm2 save
 
 # 8. Health gate: fail deployment unless the exact release is serving locally.
