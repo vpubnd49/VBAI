@@ -49,6 +49,9 @@ function formatInlineMarkdown(text = '') {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
+  // Restore safe <br> tags that AI may include for line breaks
+  str = str.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+
   // Bold **text** & Italic *text*
   str = str.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   str = str.replace(/\*([^*]+)\*/g, '<em>$1</em>');
@@ -297,7 +300,9 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           status: d.effectiveStatus === 'in_force' || d.effectiveStatus === 'co_hieu_luc' ? 'Còn hiệu lực' : (d.effectiveStatus || 'Còn hiệu lực'),
            link: /^https:\/\/(?:www\.)?vbpl\.vn(?:\/|$)/i.test(String(d.sourceUrl || d.url || d.link || ''))
              ? String(d.sourceUrl || d.url || d.link)
-             : `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`
+             : `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`,
+          pdfDownloadUrl: d.pdfDownloadUrl || null,
+          chinhphuDetailUrl: d.chinhphuDetailUrl || null,
         });
       }
     });
@@ -319,7 +324,9 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           issuer: issuer,
           dates: 'Đang áp dụng',
           status: 'Còn hiệu lực',
-          link: `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`
+          link: `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`,
+          pdfDownloadUrl: null,
+          chinhphuDetailUrl: null,
         });
       }
     }
@@ -328,15 +335,22 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
   const allDocs = Array.from(docsMap.values());
   if (allDocs.length === 0) return '';
 
+  // Sanitize dates — strip any HTML tags (e.g. <br>) that AI might inject
+  const sanitizeDates = (d) => String(d || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
   const rowsHtml = allDocs.map((doc, idx) => `
     <tr>
       <td style="text-align:center; font-weight:700;">${idx + 1}</td>
       <td style="font-weight:700; color:var(--brand-primary, #008ca1);">${formatInlineMarkdown(doc.number)}</td>
       <td>${formatInlineMarkdown(doc.title)}</td>
       <td>${formatInlineMarkdown(doc.issuer)}</td>
-      <td>${formatInlineMarkdown(doc.dates)}</td>
+      <td>${formatInlineMarkdown(sanitizeDates(doc.dates))}</td>
       <td style="text-align:center;"><span class="legal-status-pill in-force">${formatInlineMarkdown(doc.status)}</span></td>
-      <td style="text-align:center;"><a href="${doc.link}" target="_blank" rel="noopener noreferrer" class="legal-link">VBPL ↗</a></td>
+      <td style="text-align:center;">
+        <a href="${doc.link}" target="_blank" rel="noopener noreferrer" class="legal-link">VBPL ↗</a>
+        ${doc.pdfDownloadUrl ? `<br><a href="${doc.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="legal-link" style="display:inline-flex;align-items:center;gap:3px;margin-top:4px;color:#0d6efd;font-weight:600;font-size:12px">📥 PDF</a>` : ''}
+        ${!doc.pdfDownloadUrl && doc.chinhphuDetailUrl ? `<br><a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="legal-link" style="margin-top:4px;font-size:12px">🏛️ CP</a>` : ''}
+      </td>
     </tr>
   `).join('');
 
@@ -350,12 +364,12 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
         <thead>
           <tr>
             <th style="width: 5%; text-align:center;">STT</th>
-            <th style="width: 18%;">Số hiệu văn bản</th>
-            <th style="width: 32%;">Tên loại & Trích yếu văn bản</th>
-            <th style="width: 15%;">Cơ quan ban hành</th>
+            <th style="width: 16%;">Số hiệu văn bản</th>
+            <th style="width: 30%;">Tên loại & Trích yếu văn bản</th>
+            <th style="width: 13%;">Cơ quan ban hành</th>
             <th style="width: 14%;">Ban hành / Hiệu lực</th>
             <th style="width: 10%; text-align:center;">Trạng thái</th>
-            <th style="width: 6%; text-align:center;">Nguồn</th>
+            <th style="width: 12%; text-align:center;">Nguồn & Tải VB</th>
           </tr>
         </thead>
         <tbody>
