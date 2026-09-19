@@ -38,6 +38,7 @@ export function renderCitationChip(citation = {}) {
         ${coordLabel ? `<div class="popover-coord">Căn cứ: <strong>${coordLabel.replace(/^ • /, '')}</strong></div>` : ''}
         <div class="popover-footer">
           ${url && url !== '#' ? `<a href="${url}" target="_blank" rel="noopener noreferrer" class="popover-link">Xem văn bản gốc ↗</a>` : ''}
+          ${citation.pdfDownloadUrl ? `<a href="${citation.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="popover-link popover-link-pdf" style="margin-left:8px;color:#0d6efd;font-weight:600">📥 Tải PDF</a>` : ''}
         </div>
       </div>
     </span>

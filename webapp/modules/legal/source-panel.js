@@ -68,6 +68,28 @@ export async function openSourcePanel(docNumber, article = null) {
         </div>
     `;
 
+    // PDF download button
+    if (doc.pdfDownloadUrl) {
+      html += `
+        <div class="doc-pdf-download" style="margin: 12px 0;">
+          <a href="${doc.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer"
+             class="btn-download-pdf"
+             style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#0d6efd,#0b5ed7);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;box-shadow:0 2px 8px rgba(13,110,253,.3);transition:all .2s ease">
+            <span style="font-size:18px">📥</span> Tải PDF gốc từ Cổng Chính phủ
+          </a>
+        </div>
+      `;
+    } else if (doc.chinhphuDetailUrl) {
+      html += `
+        <div class="doc-chinhphu-link" style="margin: 12px 0;">
+          <a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer"
+             style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f0f7ff;color:#0d6efd;border:1px solid #b8daff;border-radius:6px;text-decoration:none;font-size:13px;transition:all .2s ease">
+            🏛️ Xem trên Cổng Chính phủ
+          </a>
+        </div>
+      `;
+    }
+
     if (doc.summary) {
       html += `<div class="doc-summary"><h5>Tóm tắt chính sách</h5><p>${typeof doc.summary === 'string' ? doc.summary : ''}</p></div>`;
     }

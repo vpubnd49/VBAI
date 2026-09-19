@@ -4,6 +4,7 @@
 const OFFICIAL_SOURCE_HOSTS = Object.freeze([
   'vbpl.vn',
   'vanban.chinhphu.vn',
+  'datafiles.chinhphu.vn',
   'congbao.chinhphu.vn',
   'chinhphu.vn',
   'quochoi.vn',

@@ -12,6 +12,7 @@ const { buildSearchMetaResponse } = require('./legal-search-meta.service');
 const { parseArticleCoordinate } = require('../domain/article-coordinate');
 const { buildEvidenceBundle } = require('./evidence-bundle.service');
 const { resolveCrossReferences } = require('./cross-reference.service');
+const { resolveChinhphuDocument, fetchChinhphuDocuments, buildChinhphuSearchUrl } = require('./chinhphu-gov-crawler');
 
 function extractCoreLegalQuery(query = '') {
   const raw = String(query || '').trim();
@@ -67,6 +68,17 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
     metaDoc = resolveMetadataForDocument(docNumber);
     const hotItem = getHotIndexItem(docNumber);
 
+    // --- Resolve PDF link from chinhphu.vn ---
+    let chinhphuResult = null;
+    try {
+      chinhphuResult = await resolveChinhphuDocument(docNumber, {
+        issueDate: metaDoc?.issueDate || (knownDoc && knownDoc.issue_date) || null,
+        title: metaDoc?.title || (knownDoc && knownDoc.title) || null,
+      });
+    } catch (_) {}
+    const pdfDownloadUrl = chinhphuResult?.pdfUrl || null;
+    const chinhphuDetailUrl = chinhphuResult?.detailUrl || null;
+
     if (hotItem) {
       results.push({
         title: hotItem.title || metaDoc.title || `Văn bản số ${docNumber}`,
@@ -79,6 +91,8 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         effectiveDate: hotItem.effectiveDate || metaDoc?.effectiveDate || (knownDoc && knownDoc.effective_date) || null,
         effectiveStatus: metaDoc?.effectiveStatus || 'in_force',
         verificationStatus: metaDoc?.verificationStatus || 'verified',
+        pdfDownloadUrl,
+        chinhphuDetailUrl,
       });
     } else if (knownDoc || (metaDoc && metaDoc.title)) {
       const detailedSnippet = [
@@ -99,7 +113,9 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         effectiveStatus: metaDoc?.effectiveStatus || 'in_force',
         verificationStatus: metaDoc?.verificationStatus || 'verified',
         summary: knownDoc?.tom_tat_chinh_sach || metaDoc?.summary || '',
-        chapterArticleSummary: knownDoc?.tom_tat_chuong_dieu || metaDoc?.chapterArticleSummary || ''
+        chapterArticleSummary: knownDoc?.tom_tat_chuong_dieu || metaDoc?.chapterArticleSummary || '',
+        pdfDownloadUrl,
+        chinhphuDetailUrl,
       });
     } else {
       // Document NOT FOUND in official national legal databases
@@ -114,10 +130,12 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         effectiveDate: null,
         effectiveStatus: 'not_found',
         verificationStatus: 'unverified',
+        pdfDownloadUrl,
+        chinhphuDetailUrl: chinhphuDetailUrl || buildChinhphuSearchUrl(docNumber),
       });
     }
   } else {
-    // General legal topic query fallback from official sources
+    // General legal topic query — include chinhphu.vn listing results
     results.push({
       title: `Cổng Văn bản Quy phạm Pháp luật: ${cleanQuery}`,
       snippet: `Căn cứ dữ liệu pháp luật và Cổng VBPL chính thức đối với nội dung "${cleanQuery}".`,
@@ -127,6 +145,28 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
       effectiveStatus: 'in_force',
       verificationStatus: 'verified',
     });
+
+    // Append chinhphu.vn listing with PDF links
+    try {
+      const chinhphuDocs = await fetchChinhphuDocuments('', 10);
+      for (const doc of chinhphuDocs) {
+        if (!doc.documentNumber || doc.link_reference) continue;
+        results.push({
+          title: doc.title || `Văn bản số ${doc.documentNumber}`,
+          snippet: `${doc.documentNumber} — ${doc.issuer || 'Chính phủ'} — Ngày ${doc.issueDate || 'N/A'}`,
+          link: doc.detailUrl || doc.sourceUrl || buildChinhphuSearchUrl(),
+          source: 'chinhphu_gov',
+          documentNumber: doc.documentNumber,
+          issuer: doc.issuer || null,
+          issueDate: doc.issueDate || null,
+          effectiveStatus: 'in_force',
+          verificationStatus: 'verified',
+          pdfDownloadUrl: doc.pdfUrl || null,
+          pdfVerified: doc.pdfVerified || false,
+          chinhphuDetailUrl: doc.detailUrl || null,
+        });
+      }
+    } catch (_) {}
   }
 
   const meta = buildSearchMetaResponse({ query: cleanQuery, results, mode, provider });

@@ -4,6 +4,7 @@
 const sourceHosts = require('./constants/source-hosts');
 const sourceRegistry = require('./constants/source-registry');
 const phapluatGovCrawler = require('./services/phapluat-gov-crawler');
+const chinhphuGovCrawler = require('./services/chinhphu-gov-crawler');
 const documentTypes = require('./constants/document-types');
 const legalStatus = require('./constants/legal-status');
 
@@ -59,5 +60,6 @@ module.exports = {
     crossReferenceService,
     citationValidationService,
     phapluatGovCrawler,
+    chinhphuGovCrawler,
   },
 };
