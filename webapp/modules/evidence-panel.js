@@ -143,6 +143,8 @@ export function renderEvidenceCard(doc = {}, index = 1) {
 
       <div class="evidence-card-foot">
         ${url && url !== '#' ? `<a href="${url}" target="_blank" rel="noopener noreferrer" class="evidence-link">Xem văn bản gốc ↗</a>` : '<span class="evidence-link disabled">Nguồn lưu trữ nội bộ</span>'}
+        ${doc.pdfDownloadUrl ? `<a href="${doc.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="evidence-link evidence-link-pdf" style="margin-left:8px;display:inline-flex;align-items:center;gap:4px;color:#0d6efd;font-weight:600;background:#e7f1ff;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:13px">📥 Tải PDF</a>` : ''}
+        ${!doc.pdfDownloadUrl && doc.chinhphuDetailUrl ? `<a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="evidence-link" style="margin-left:8px;color:#0d6efd;font-size:13px">🏛️ Cổng Chính phủ</a>` : ''}
       </div>
     </div>
   `;
@@ -156,13 +158,14 @@ function renderRelationGraph(crossReferences) {
   return `
     <div class="legal-relation-graph">
       <div class="relation-graph-title">🔗 Sơ đồ mối quan hệ văn bản</div>
-      <div class="relation-nodes-flow">
-        ${nodes.map(node => `
-          <div class="relation-node-item">
+      <div class="relation-nodes-flow" style="display:flex;flex-direction:column;align-items:center;gap:0">
+        ${nodes.map((node, i) => `
+          ${i > 0 ? '<div class="relation-arrow" style="display:flex;flex-direction:column;align-items:center;color:#6c757d;font-size:20px;line-height:1;margin:2px 0"><svg width="16" height="24" viewBox="0 0 16 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 0v18M3 14l5 6 5-6" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' : ''}
+          <div class="relation-node-item" style="width:100%;max-width:500px">
             <div class="relation-node-box">${escapeHtml(node.label || node.id)}</div>
             ${node.type ? `<span class="relation-type-tag">${escapeHtml(node.type)}</span>` : ''}
           </div>
-        `).join('<div class="relation-arrow">↓</div>')}
+        `).join('')}
       </div>
     </div>
   `;

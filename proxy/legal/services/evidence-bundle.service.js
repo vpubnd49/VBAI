@@ -39,6 +39,9 @@ function buildEvidenceBundle(query = '', rawResults = [], options = {}) {
       sourceUrl: url,
       snippet: item.snippet || item.snippetText || '',
       coordinate,
+      pdfDownloadUrl: item.pdfDownloadUrl || null,
+      pdfVerified: item.pdfVerified || false,
+      chinhphuDetailUrl: item.chinhphuDetailUrl || null,
     });
   }
 
