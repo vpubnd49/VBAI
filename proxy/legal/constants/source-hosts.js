@@ -10,6 +10,7 @@ const OFFICIAL_SOURCE_HOSTS = Object.freeze([
   'moj.gov.vn',
   'baochinhphu.vn',
   'dangcongsan.vn',
+  'phapluat.gov.vn',
 ]);
 
 const REFERENCE_SOURCE_HOSTS = Object.freeze([

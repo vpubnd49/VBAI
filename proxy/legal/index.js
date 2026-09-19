@@ -2,6 +2,8 @@
  * VBAI Legal Domain Module Barrel Export.
  */
 const sourceHosts = require('./constants/source-hosts');
+const sourceRegistry = require('./constants/source-registry');
+const phapluatGovCrawler = require('./services/phapluat-gov-crawler');
 const documentTypes = require('./constants/document-types');
 const legalStatus = require('./constants/legal-status');
 
@@ -29,6 +31,7 @@ const citationValidationService = require('./services/citation-validation.servic
 module.exports = {
   constants: {
     sourceHosts,
+    sourceRegistry,
     documentTypes,
     legalStatus,
   },
@@ -55,5 +58,6 @@ module.exports = {
     evidenceBundleService,
     crossReferenceService,
     citationValidationService,
+    phapluatGovCrawler,
   },
 };

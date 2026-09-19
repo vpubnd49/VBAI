@@ -40,6 +40,7 @@ const { validateMagicBytes, VALID_AUDIO_EXTS, readFileHeader, registerCleanup, c
 const { encodeCursor, decodeCursor, validateCursor, sanitizeHistoryDoc, sanitizeAuditQuery, SAFE_HISTORY_FIELDS } = require('./utils/pagination');
 const { createTranscriptionRouter } = require('./routers/transcription.router');
 const { loadBosungMetadataIndex } = require('./legal/repositories/bosung-metadata-index');
+const { fetchPhapluatDocuments } = require('./legal/services/phapluat-gov-crawler');
 const { searchAdministrativeDivisions } = require('./services/administrative-division.service');
 const { ingestVbaibotTurn, maskPII, isQualitySample } = require('./services/vbaibot-ingestion.service');
 const { syncVbaibotMessages } = require('./services/vbaibot-messages-sync.service');
@@ -253,6 +254,7 @@ const DEFAULT_WEB_SEARCH_FALLBACK_SOURCES = Object.freeze({
   quochoi: true,
   thuvienphapluat: true,
   luatvietnam: true,
+  phapluat_gov: true,
 });
 const DEFAULT_WEB_SEARCH_MODE = 'cse_with_fallback';
 const DEFAULT_WEB_SEARCH_PROVIDER = 'vertex_search';
@@ -284,6 +286,7 @@ const OFFICIAL_SOURCE_HOSTS = Object.freeze([
   'moj.gov.vn',
   'baochinhphu.vn',
   'dangcongsan.vn',
+  'phapluat.gov.vn',
 ]);
 const REFERENCE_SOURCE_HOSTS = Object.freeze([
   'luatvietnam.vn',
@@ -5201,6 +5204,7 @@ app.post('/api/web-search', async (req, res) => {
       'site:dangcongsan.vn',
       'site:moj.gov.vn',
       'site:baochinhphu.vn',
+      'site:phapluat.gov.vn',
       'site:thuvienphapluat.vn',
     ].join(' OR ');
 
@@ -5918,6 +5922,7 @@ function buildTrustedLegalSourceContext({
     'quochoi.vn',
     'thuvienphapluat.vn',
     'luatvietnam.vn',
+    'phapluat.gov.vn',
   ];
   if (!isAllowedHost(parsed.toString(), allowedHosts)) {
     return { error: 'host_not_allowed', status: 400 };
@@ -7311,6 +7316,15 @@ function getDirectSourceConfigs() {
         `https://luatvietnam.vn/van-ban/tim-van-ban.html?Keywords=${encodeURIComponent(query)}`,
       ],
     },
+    {
+      id: 'phapluat_gov',
+      source: 'phapluat.gov.vn',
+      sourceKind: 'official',
+      allowedHosts: ['phapluat.gov.vn'],
+      searchUrls: (query) => [
+        `https://phapluat.gov.vn/he-thong-van-ban-phap-luat?search=${encodeURIComponent(query)}`,
+      ],
+    },
   ];
 }
 
@@ -7338,6 +7352,19 @@ async function fetchDirectOfficialSources({
   const allCandidates = [];
 
   await Promise.all(sources.map(async (sourceConfig) => {
+    if (sourceConfig.id === 'phapluat_gov') {
+      const reference = (await fetchPhapluatDocuments(query, limit))[0];
+      allCandidates.push({
+        link: reference.source_url,
+        title: reference.title,
+        snippet: 'Mở Cổng Pháp luật quốc gia để xem kết quả tra cứu văn bản Trung ương.',
+        source: sourceConfig.source,
+        sourceKind: sourceConfig.sourceKind,
+        score: 1,
+        metadata: { nguon: sourceConfig.source, link_reference: true },
+      });
+      return;
+    }
     const urls = sourceConfig.searchUrls(query).slice(0, Math.max(1, DIRECT_SOURCE_URLS_PER_SOURCE));
     
     // Fetch all search URLs in parallel
@@ -7879,8 +7906,8 @@ async function executeCseSearch({ query, timeoutMs, dateRestrict, cseConfig, exp
     expectedDocNumber: expectedDocNumber,
     requestedDocType: requestedDocType,
   });
-  if (appliesOfficialDomain && !/site:vbpl\.vn|site:vanban\.chinhphu\.vn|site:congbao\.chinhphu\.vn|site:chinhphu\.vn|site:quochoi\.vn|site:thuvienphapluat\.vn/.test(rewrittenQuery)) {
-    const officialDomains = '(site:vbpl.vn OR site:vanban.chinhphu.vn OR site:congbao.chinhphu.vn OR site:chinhphu.vn OR site:quochoi.vn OR site:thuvienphapluat.vn)';
+  if (appliesOfficialDomain && !/site:vbpl\.vn|site:vanban\.chinhphu\.vn|site:congbao\.chinhphu\.vn|site:chinhphu\.vn|site:quochoi\.vn|site:phapluat\.gov\.vn|site:thuvienphapluat\.vn/.test(rewrittenQuery)) {
+    const officialDomains = '(site:vbpl.vn OR site:vanban.chinhphu.vn OR site:congbao.chinhphu.vn OR site:chinhphu.vn OR site:quochoi.vn OR site:phapluat.gov.vn OR site:thuvienphapluat.vn)';
     rewrittenQuery = `${rewrittenQuery} ${officialDomains}`;
   }
 
