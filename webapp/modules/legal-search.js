@@ -547,8 +547,13 @@ V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN
    - Điều khoản chuyển tiếp (nếu có)
 
 VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE
-   Bảng Markdown CHỈ chứa VĂN BẢN CHÍNH người dùng hỏi + các văn bản sửa đổi/thay thế/hướng dẫn thi hành trực tiếp:
-   ⚠️ TUYỆT ĐỐI KHÔNG liệt kê văn bản KHÔNG LIÊN QUAN TRỰC TIẾP đến câu hỏi. Chỉ đưa vào bảng VI những văn bản thực sự được phân tích hoặc viện dẫn trong phần I-V.
+   Bảng Markdown TỐI ĐA 3-4 hàng.
+   ⚠️ CHỈ liệt kê:
+   - Văn bản CHÍNH người dùng hỏi
+   - Tối đa 2-3 nghị định/thông tư hướng dẫn thi hành TRỰC TIẾP
+   ⚠️ TUYỆT ĐỐI KHÔNG liệt kê:
+   - Các luật LĨNH VỰC KHÁC dù được đề cập trong mệnh đề "sửa đổi bổ sung một số điều của Luật X, Luật Y"
+   - Văn bản đã HẾT HIỆU LỰC được thay thế bởi văn bản chính
    | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Link tải File / Nguồn kiểm chứng |
    | :--- | :--- | :--- | :--- | :--- | :--- |
    | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Tải về (PDF)](URL) hoặc [Cổng TTĐT Chính phủ](URL) |
