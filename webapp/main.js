@@ -3,7 +3,8 @@
  * Handles navigation, state, and page rendering
  */
 
-// VBAI Main Entry - Last Update: 2026-05-20 (Performance Optimized)
+// VBAI Main Entry - Last Update: 2026-09-20
+const VBAI_BUILD_VERSION = '20260920v16';
 import { firebaseConfig } from './firebase-config.js';
 
 function applyGlobalModelDefaults() {
@@ -155,7 +156,7 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
       case 'situation-analysis':
       case 'compare-regulations':
       case 'effective-date': {
-        const { renderLegalSearchUI } = await import('./modules/legal-search.js');
+        const { renderLegalSearchUI } = await import(`./modules/legal-search.js?v=${VBAI_BUILD_VERSION}`);
         container.innerHTML = '';
         renderLegalSearchUI(container, initialMode || page, initialQuery);
         break;
@@ -167,7 +168,7 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
         break;
       }
       case 'chat-assistant': {
-        const { renderChatUI } = await import('./modules/chat-assistant.js');
+        const { renderChatUI } = await import(`./modules/chat-assistant.js?v=${VBAI_BUILD_VERSION}`);
         container.innerHTML = '';
         renderChatUI(container);
         break;
