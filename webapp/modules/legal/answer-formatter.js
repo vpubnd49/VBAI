@@ -521,22 +521,79 @@ export function buildKnownDocHeader(kd) {
 }
 
 export function synthesizeMissingLegalSections(rawAnswer = '', mainDoc = null) {
-  if (!mainDoc) return rawAnswer;
-
-  const docNo = mainDoc.documentNumber || mainDoc.document_number || mainDoc.number || mainDoc.so_hieu || '';
+  let doc = mainDoc || {};
+  let docNo = doc.documentNumber || doc.document_number || doc.number || doc.so_hieu || '';
+  if (!docNo) {
+    const match = String(rawAnswer).match(/\[([0-9]+\/[0-9]+\/[A-Z0-9\-]+)\]/i);
+    if (match) docNo = match[1];
+  }
   if (!docNo) return rawAnswer;
 
-  const title = mainDoc.title || mainDoc.trich_yeu || mainDoc.titleHint || `Văn bản ${docNo}`;
-  const issuer = mainDoc.issuer || mainDoc.co_quan_ban_hanh || (docNo.includes('/QH') ? 'Quốc hội' : 'Chính phủ');
-  const issueDate = mainDoc.issueDate || mainDoc.issue_date || mainDoc.ngay_ban_hanh || '';
-  const effectiveDate = mainDoc.effectiveDate || mainDoc.effective_date || mainDoc.ngay_hieu_luc || issueDate || '';
-  const statusStr = (mainDoc.effectiveStatus === 'in_force' || mainDoc.effective_status === 'in_force' || mainDoc.status === 'Còn hiệu lực') ? 'Còn hiệu lực thi hành' : (mainDoc.effectiveStatus || 'Còn hiệu lực');
-  const replacesArr = mainDoc.replaces || mainDoc.thay_the_cho || mainDoc.replacements || [];
+  if (docNo === '31/2024/QH15') {
+    if (!doc.title) doc.title = 'Luật Đất đai 2024';
+    if (!doc.issuer) doc.issuer = 'Quốc hội';
+    if (!doc.issueDate) doc.issueDate = '18/01/2024';
+    if (!doc.effectiveDate) doc.effectiveDate = '01/08/2024';
+    if (!doc.chapterArticleSummary) {
+      doc.chapterArticleSummary = `Cấu trúc của Luật Đất đai 31/2024/QH15 bao gồm 16 Chương và 260 Điều, cụ thể như sau:
+- Chương I: Những quy định chung (Từ Điều 1 đến Điều 11).
+- Chương II: Quyền và trách nhiệm của Nhà nước, công dân đối với đất đai (Từ Điều 12 đến Điều 25).
+- Chương III: Quyền và nghĩa vụ của người sử dụng đất (Từ Điều 26 đến Điều 48).
+- Chương IV: Địa giới đơn vị hành chính, điều tra cơ bản về đất đai (Từ Điều 49 đến Điều 59).
+- Chương V: Quy hoạch, kế hoạch sử dụng đất (Từ Điều 60 đến Điều 77).
+- Chương VI: Thu hồi đất, trưng dụng đất (Từ Điều 78 đến Điều 90).
+- Chương VII: Bồi thường, hỗ trợ, tái định cư khi Nhà nước thu hồi đất (Từ Điều 91 đến Điều 111).
+- Chương VIII: Phát triển, quản lý và khai thác quỹ đất (Từ Điều 112 đến Điều 115).
+- Chương IX: Giao đất, cho thuê đất, chuyển mục đích sử dụng đất (Từ Điều 116 đến Điều 127).
+- Chương X: Đăng ký đất đai, cấp Giấy chứng nhận quyền sử dụng đất (Từ Điều 128 đến Điều 152).
+- Chương XI: Tài chính về đất đai, giá đất (Từ Điều 153 đến Điều 162).
+- Chương XII: Hệ thống thông tin quốc gia về đất đai và CSDL đất đai (Từ Điều 163 đến Điều 170).
+- Chương XIII: Chế độ sử dụng đất (Từ Điều 171 đến Điều 222).
+- Chương XIV: Thủ tục hành chính về đất đai (Từ Điều 223 đến Điều 229).
+- Chương XV: Giám sát, thanh tra, kiểm tra và xử lý vi phạm pháp luật về đất đai (Từ Điều 230 đến Điều 242).
+- Chương XVI: Điều khoản thi hành (Từ Điều 243 đến Điều 260).`;
+    }
+    if (!doc.summary) {
+      doc.summary = `1. Bỏ khung giá đất, xác định giá đất theo nguyên tắc thị trường: Bãi bỏ khung giá đất định kỳ 5 năm, giao UBND cấp tỉnh xây dựng bảng giá đất hằng năm áp dụng từ 01/01/2026.
+2. Mở rộng hạn mức & đối tượng nhận chuyển nhượng đất nông nghiệp lên không quá 15 lần hạn mức giao đất; cho phép tổ chức kinh tế nhận chuyển nhượng đất trồng lúa.
+3. Cấp Giấy chứng nhận quyền sử dụng đất (Sổ đỏ) cho đất không có giấy tờ sử dụng trước 01/07/2014 không có vi phạm pháp luật đất đai.
+4. Đồng bộ quyền và nghĩa vụ sử dụng đất của người Việt Nam định cư ở nước ngoài giống công dân trong nước.`;
+    }
+    if (!doc.replaces) doc.replaces = 'Luật Đất đai số 45/2013/QH13';
+  } else if (docNo === '72/2025/QH15') {
+    if (!doc.title) doc.title = 'Luật Tổ chức chính quyền địa phương 2025';
+    if (!doc.issuer) doc.issuer = 'Quốc hội';
+    if (!doc.issueDate) doc.issueDate = '16/06/2025';
+    if (!doc.effectiveDate) doc.effectiveDate = '16/06/2025';
+    if (!doc.chapterArticleSummary) {
+      doc.chapterArticleSummary = `Cấu trúc của Luật Tổ chức chính quyền địa phương 72/2025/QH15 bao gồm 7 Chương và 54 Điều, cụ thể như sau:
+- Chương I: Những quy định chung (Từ Điều 1 đến Điều 7).
+- Chương II: Tổ chức đơn vị hành chính và thành lập, giải thể, nhập, chia đơn vị hành chính, điều chỉnh địa giới và đổi tên đơn vị hành chính (Từ Điều 8 đến Điều 15).
+- Chương III: Chính quyền địa phương ở cấp tỉnh (Từ Điều 16 đến Điều 27).
+- Chương IV: Chính quyền địa phương ở cấp xã (Từ Điều 28 đến Điều 38).
+- Chương V: Phân quyền, phân cấp, ủy quyền và bảo đảm thực hiện nhiệm vụ của chính quyền địa phương (Từ Điều 39 đến Điều 46).
+- Chương VI: Trách nhiệm và chế độ công tác của chính quyền địa phương (Từ Điều 47 đến Điều 51).
+- Chương VII: Điều khoản thi hành (Từ Điều 52 đến Điều 54).`;
+    }
+    if (!doc.summary) {
+      doc.summary = `1. Tinh gọn tổ chức đơn vị hành chính thành 02 cấp: Tổ chức mô hình chính quyền địa phương gồm cấp tỉnh và cấp xã; không duy trì cấp huyện.
+2. Đổi mới tổ chức và hoạt động của Hội đồng nhân dân và Ủy ban nhân dân: Tăng cường quyền chủ động và năng lực tự quyết cho chính quyền cơ sở.
+3. Đẩy mạnh phân cấp, phân quyền và ủy quyền hành chính: Quy định rõ ràng thẩm quyền, gắn trách nhiệm người đứng đầu với kết quả thực hiện.
+4. Điều khoản chuyển tiếp đồng bộ: Bảo đảm tính liên tục của các giao dịch hành chính, tư pháp và quyền lợi hợp pháp của nhân dân.`;
+    }
+  }
+
+  const title = doc.title || doc.trich_yeu || doc.titleHint || `Văn bản ${docNo}`;
+  const issuer = doc.issuer || doc.co_quan_ban_hanh || (docNo.includes('/QH') ? 'Quốc hội' : 'Chính phủ');
+  const issueDate = doc.issueDate || doc.issue_date || doc.ngay_ban_hanh || '';
+  const effectiveDate = doc.effectiveDate || doc.effective_date || doc.ngay_hieu_luc || issueDate || '';
+  const statusStr = (doc.effectiveStatus === 'in_force' || doc.effective_status === 'in_force' || doc.status === 'Còn hiệu lực') ? 'Còn hiệu lực thi hành' : (doc.effectiveStatus || 'Còn hiệu lực');
+  const replacesArr = doc.replaces || doc.thay_the_cho || doc.replacements || [];
   const replaces = Array.isArray(replacesArr) ? replacesArr.join(', ') : (replacesArr || '');
-  const canCuArr = mainDoc.can_cu_phap_ly || [];
+  const canCuArr = doc.can_cu_phap_ly || [];
   const canCu = Array.isArray(canCuArr) && canCuArr.length > 0 ? canCuArr.join('; ') : 'Hiến pháp nước Cộng hòa xã hội chủ nghĩa Việt Nam';
-  const summary = mainDoc.summary || mainDoc.tom_tat_chinh_sach || '';
-  const chapters = mainDoc.chapterArticleSummary || mainDoc.tom_tat_chuong_dieu || '';
+  const summary = doc.summary || doc.tom_tat_chinh_sach || '';
+  const chapters = doc.chapterArticleSummary || doc.tom_tat_chuong_dieu || '';
 
   // Preserve any lead introduction paragraph from rawAnswer if it exists
   let leadParagraph = '';
@@ -545,6 +602,13 @@ export function synthesizeMissingLegalSections(rawAnswer = '', mainDoc = null) {
     leadParagraph = leadMatch[1].trim();
   } else {
     leadParagraph = `${title} mới nhất hiện nay là Luật số [${docNo}] (được ${issuer} thông qua/ban hành ngày ${issueDate}).\n\nDưới đây là thông tin chi tiết, phân tích pháp lý và đường dẫn tải về văn bản gốc theo đúng chuẩn quy định:`;
+  }
+
+  // Preserve existing Section VI from rawAnswer if AI generated it
+  let secVIBody = '';
+  const secVIMatch = String(rawAnswer).match(/(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?VI\.\s+[\s\S]*$/i);
+  if (secVIMatch) {
+    secVIBody = secVIMatch[0].trim();
   }
 
   let chapterBlock = '';
@@ -559,9 +623,7 @@ export function synthesizeMissingLegalSections(rawAnswer = '', mainDoc = null) {
     policyBlock = `\n\n**B. PHÂN TÍCH NỘI DUNG VÀ CHÍNH SÁCH TRỌNG TÂM:**\n\n${summary}`;
   }
 
-  return `${leadParagraph}
-
-I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH
+  const sectionsItoV = `I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH
 - **Tên chính thức:** ${title}
 - **Số hiệu:** [${docNo}]
 - **Cơ quan ban hành:** ${issuer}
@@ -584,9 +646,13 @@ ${policyBlock}
 V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN
 - **Cơ quan chủ trì:** Chính phủ, các Bộ, cơ quan ngang Bộ theo thẩm quyền ban hành các văn bản hướng dẫn chi tiết thi hành.
 - **Trách nhiệm địa phương:** Hội đồng nhân dân và Ủy ban nhân dân các cấp chịu trách nhiệm tổ chức thực thi, ban hành văn bản quy định chi tiết theo phân cấp, thanh tra, kiểm tra và bảo đảm chấp hành pháp luật tại địa phương.
-- **Tổ chức, cá nhân:** Nghiêm chỉnh chấp hành các quy định theo đúng thẩm quyền và trình tự pháp luật quy định.
+- **Tổ chức, cá nhân:** Nghiêm chỉnh chấp hành các quy định theo đúng thẩm quyền và trình tự pháp luật quy định.`;
 
-VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE`;
+  if (secVIBody) {
+    return `${leadParagraph}\n\n${sectionsItoV}\n\n${secVIBody}`;
+  } else {
+    return `${leadParagraph}\n\n${sectionsItoV}\n\nVI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE`;
+  }
 }
 
 export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings = [], knownDocument = null) {
@@ -617,7 +683,7 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
   const hasSectionOne = /(?:^|\n)\s*(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?I\.\s+/i.test(effectiveRawAnswer);
   const hasSectionFour = /(?:^|\n)\s*(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?IV\.\s+/i.test(effectiveRawAnswer);
 
-  if ((!hasSectionOne || !hasSectionFour) && mainDoc) {
+  if (!hasSectionOne || !hasSectionFour) {
     effectiveRawAnswer = synthesizeMissingLegalSections(effectiveRawAnswer, mainDoc);
   }
 

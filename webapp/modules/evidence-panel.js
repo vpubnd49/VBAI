@@ -117,17 +117,12 @@ export function renderEvidenceCard(doc = {}, index = 1) {
     ? `<span class="source-chip source-official">🏛️ Nguồn chính thức</span>`
     : `<span class="source-chip source-reference">📄 Nguồn tham khảo</span>`;
 
-  // Clean snippet: remove any chapter breakdown or repetitive metadata, keep brief (max ~200 chars)
-  let cleanSnippet = String(snippet || '').trim();
-  if (/cấu trúc chương điều|cấu trúc của luật|cấu trúc văn bản/i.test(cleanSnippet)) {
-    cleanSnippet = cleanSnippet.split(/cấu trúc chương điều|cấu trúc của luật|cấu trúc văn bản/i)[0].trim();
-  }
-  if (/căn cứ pháp lý:/i.test(cleanSnippet)) {
-    cleanSnippet = cleanSnippet.split(/căn cứ pháp lý:/i)[0].trim();
-  }
-  if (cleanSnippet.length > 220) {
-    cleanSnippet = cleanSnippet.slice(0, 217).trim() + '...';
-  }
+  // User requested: "bên khung sơ đồ không cần phải liệt kê chi tiết như vậy"
+  // Keep the sidebar evidence card clean, concise, and focused on metadata without lengthy quotes or chapter listings
+  const issuer = doc.issuer || doc.co_quan_ban_hanh || '';
+  const issueDate = doc.issueDate || doc.issue_date || doc.ngay_ban_hanh || '';
+  const effectiveDate = doc.effectiveDate || doc.effective_date || doc.ngay_hieu_luc || '';
+  const cardId = doc.id ? ('card-' + String(doc.id)) : ('evidence-card-' + index);
 
   return `
     <div class="evidence-card ${isVerified ? 'is-verified' : ''}" id="${cardId}" data-doc-number="${escapeAttribute(docNumber)}">
@@ -144,14 +139,14 @@ export function renderEvidenceCard(doc = {}, index = 1) {
 
       ${docNumber ? `<div class="evidence-docnum">Số hiệu: <strong>${escapeHtml(docNumber)}</strong></div>` : ''}
       ${coordLabel ? `<div class="evidence-coord">Căn cứ: <strong>${escapeHtml(coordLabel)}</strong></div>` : ''}
-
-      ${cleanSnippet ? `
-        <div class="evidence-snippet">
-          <span class="snippet-quote">“</span>${escapeHtml(cleanSnippet)}<span class="snippet-quote">”</span>
+      ${issuer || issueDate ? `
+        <div class="evidence-meta-info" style="font-size:12px;color:#6c757d;margin:4px 0">
+          ${issuer ? `<span>🏛️ ${escapeHtml(issuer)}</span>` : ''}
+          ${issueDate ? `<span style="margin-left:8px">📅 ${escapeHtml(issueDate)}</span>` : ''}
         </div>
       ` : ''}
 
-      <div class="evidence-card-foot">
+      <div class="evidence-card-foot" style="margin-top:10px">
         ${url && url !== '#' ? `<a href="${url}" target="_blank" rel="noopener noreferrer" class="evidence-link">Xem văn bản gốc ↗</a>` : '<span class="evidence-link disabled">Nguồn lưu trữ nội bộ</span>'}
         ${doc.pdfDownloadUrl ? `<a href="${doc.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="evidence-link evidence-link-pdf" style="margin-left:8px;display:inline-flex;align-items:center;gap:4px;color:#0d6efd;font-weight:600;background:#e7f1ff;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:13px">📥 Tải PDF</a>` : ''}
         ${!doc.pdfDownloadUrl && doc.chinhphuDetailUrl ? `<a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="evidence-link" style="margin-left:8px;color:#0d6efd;font-size:13px">🏛️ Cổng Chính phủ</a>` : ''}

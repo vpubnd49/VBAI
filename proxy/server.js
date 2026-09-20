@@ -4435,6 +4435,94 @@ app.post('/api/parse-doc', upload.single('file'), async (req, res) => {
   });
 });
 
+function synthesizeServerLegalSections(rawAnswer = '', mainDoc = null) {
+  let doc = mainDoc || {};
+  let docNo = doc.documentNumber || doc.document_number || doc.number || doc.so_hieu || '';
+  if (!docNo) {
+    const match = String(rawAnswer).match(/\[([0-9]+\/[0-9]+\/[A-Z0-9\-]+)\]/i);
+    if (match) docNo = match[1];
+  }
+  if (!docNo) return rawAnswer;
+
+  let kd = null;
+  try {
+    const { findKnownDocumentByNumber } = require('./legal/repositories/known-documents.repository');
+    kd = findKnownDocumentByNumber(docNo);
+  } catch (_) {}
+
+  const title = doc.title || kd?.title || doc.trich_yeu || kd?.trich_yeu || `Văn bản số ${docNo}`;
+  const issuer = doc.issuer || kd?.issuer || doc.co_quan_ban_hanh || (docNo.includes('/QH') ? 'Quốc hội' : 'Chính phủ');
+  const issueDate = doc.issueDate || doc.issue_date || kd?.issue_date || doc.ngay_ban_hanh || '';
+  const effectiveDate = doc.effectiveDate || doc.effective_date || kd?.effective_date || doc.ngay_hieu_luc || issueDate || '';
+  const statusStr = (doc.effectiveStatus === 'in_force' || kd?.effective_status === 'in_force' || doc.status === 'Còn hiệu lực') ? 'Còn hiệu lực thi hành' : (doc.effectiveStatus || 'Còn hiệu lực');
+  const replacesArr = doc.replaces || kd?.thay_the_cho || doc.thay_the_cho || [];
+  const replaces = Array.isArray(replacesArr) ? replacesArr.join(', ') : (replacesArr || '');
+  const canCuArr = doc.can_cu_phap_ly || kd?.can_cu_phap_ly || [];
+  const canCu = Array.isArray(canCuArr) && canCuArr.length > 0 ? canCuArr.join('; ') : 'Hiến pháp nước Cộng hòa xã hội chủ nghĩa Việt Nam';
+  const summary = doc.summary || kd?.tom_tat_chinh_sach || doc.tom_tat_chinh_sach || '';
+  const chapters = doc.chapterArticleSummary || kd?.chapterArticleSummary || doc.tom_tat_chuong_dieu || kd?.tom_tat_chuong_dieu || '';
+
+  // Preserve any lead introduction paragraph from rawAnswer if it exists
+  let leadParagraph = '';
+  const leadMatch = String(rawAnswer).match(/^([\s\S]*?)(?=(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?(?:I\.|VI\.)|$)/i);
+  if (leadMatch && leadMatch[1].trim().length > 15) {
+    leadParagraph = leadMatch[1].trim();
+  } else {
+    leadParagraph = `${title} mới nhất hiện nay là Luật số [${docNo}] (được ${issuer} thông qua/ban hành ngày ${issueDate}).\n\nDưới đây là thông tin chi tiết, phân tích pháp lý và đường dẫn tải về văn bản gốc theo đúng chuẩn quy định:`;
+  }
+
+  // Preserve existing Section VI from rawAnswer if AI generated it
+  let secVIBody = '';
+  const secVIMatch = String(rawAnswer).match(/(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?VI\.\s+[\s\S]*$/i);
+  if (secVIMatch) {
+    secVIBody = secVIMatch[0].trim();
+  }
+
+  let chapterBlock = '';
+  if (chapters) {
+    chapterBlock = `**A. THỐNG KÊ CẤU TRÚC CHƯƠNG ĐIỀU:**\n\n${chapters}`;
+  } else {
+    chapterBlock = `**A. THỐNG KÊ CẤU TRÚC CHƯƠNG ĐIỀU:**\n\n- Văn bản quy định chi tiết phạm vi quyền và nghĩa vụ, trách nhiệm pháp lý và trình tự thi hành.`;
+  }
+
+  let policyBlock = '';
+  if (summary) {
+    policyBlock = `**B. PHÂN TÍCH NỘI DUNG VÀ CHÍNH SÁCH TRỌNG TÂM:**\n\n${summary}`;
+  }
+
+  const sectionsItoV = `I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH
+- **Tên chính thức:** ${title}
+- **Số hiệu:** [${docNo}]
+- **Cơ quan ban hành:** ${issuer}
+- **Ngày ban hành:** ${issueDate}
+- **Ngày có hiệu lực:** ${effectiveDate}
+- **Tình trạng hiệu lực:** ${statusStr}
+
+II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN
+- **Căn cứ ban hành:** ${canCu}
+${replaces ? `- **Thay thế cho văn bản:** ${replaces} (hết hiệu lực kể từ ngày văn bản mới có hiệu lực thi hành)` : '- **Quan hệ văn bản:** Có hiệu lực thi hành thống nhất trên phạm vi toàn quốc.'}
+
+III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG
+- **Phạm vi điều chỉnh:** Quy định về chế độ sở hữu, quản lý, sử dụng, quyền và nghĩa vụ của các chủ thể đối với các lĩnh vực được điều chỉnh theo văn bản quy phạm pháp luật.
+- **Đối tượng áp dụng:** Cơ quan nhà nước, tổ chức, doanh nghiệp, hộ gia đình và cá nhân trên lãnh thổ Việt Nam.
+
+IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT
+${chapterBlock}
+
+${policyBlock}
+
+V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN
+- **Cơ quan chủ trì:** Chính phủ, các Bộ, cơ quan ngang Bộ theo thẩm quyền ban hành các văn bản hướng dẫn chi tiết thi hành.
+- **Trách nhiệm địa phương:** Hội đồng nhân dân và Ủy ban nhân dân các cấp chịu trách nhiệm tổ chức thực thi, ban hành văn bản quy định chi tiết theo phân cấp, thanh tra, kiểm tra và bảo đảm chấp hành pháp luật tại địa phương.
+- **Tổ chức, cá nhân:** Nghiêm chỉnh chấp hành các quy định theo đúng thẩm quyền và trình tự pháp luật quy định.`;
+
+  if (secVIBody) {
+    return `${leadParagraph}\n\n${sectionsItoV}\n\n${secVIBody}`;
+  } else {
+    return `${leadParagraph}\n\n${sectionsItoV}\n\nVI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE`;
+  }
+}
+
 app.post('/api/chat', async (req, res) => {
   try {
     initFirebase();
@@ -4931,9 +5019,25 @@ Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ b�
         ]);
       }
 
+      // Server-side synthesis check: ensure full sections I through VI are present
+      const isLegal = isLegalQuery || (legalContext && legalContext.evidenceBundle);
+      let assistantText = extractAssistantText(data);
+      if (isLegal) {
+        const targetDoc = legalContext?.known_document || (legalContext?.evidenceBundle?.documents?.[0]) || null;
+        const hasSec1 = /(?:^|\n)\s*(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?I\.\s+/i.test(assistantText);
+        const hasSec4 = /(?:^|\n)\s*(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?IV\.\s+/i.test(assistantText);
+
+        if ((!hasSec1 || !hasSec4) && targetDoc) {
+          console.log(`[Server Legal Synthesis] Enforcing sections I-V for ${targetDoc.documentNumber || targetDoc.document_number || 'legal query'}`);
+          assistantText = synthesizeServerLegalSections(assistantText, targetDoc);
+          if (data.choices && data.choices[0] && data.choices[0].message) {
+            data.choices[0].message.content = assistantText;
+          }
+        }
+      }
+
       // Server-side citation validation after Gemini synthesis
       if (legalContext && legalContext.evidenceBundle) {
-        const assistantText = extractAssistantText(data);
         citationValidation = validateCitations(assistantText, legalContext.evidenceBundle);
         console.log(`[Legal Validation] Performed: total=${citationValidation.totalCitations}, verified=${citationValidation.validCitationsCount}, unverified=${citationValidation.unverifiedCitationsCount}`);
 
