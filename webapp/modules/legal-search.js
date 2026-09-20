@@ -343,34 +343,72 @@ function bindCitationInteractions(container) {
 }
 
 function buildModePrompt(query, mode, effectiveDate) {
-  const dateContext = `Thời điểm kiểm tra hiệu lực bắt buộc: ${effectiveDate}.`;
+  const dateContext = `Thời điểm tra cứu và xác nhận hiệu lực: ${effectiveDate}.`;
 
   const detailGuidelines = `
-YÊU CẦU BẮT BUỘC VỀ ĐỘ CHI TIẾT & CẤU TRÚC PHÂN TÍCH:
-1. Trình bày TOÀN DIỆN, CHI TIẾT, ĐẦY ĐỦ NỘI DUNG, TUYỆT ĐỐI KHÔNG TÓM TẮT SƠ SÀI.
-2. TUYỆT ĐỐI CẤM vẽ sơ đồ bằng ký tự ASCII art hoặc khung viền nét vẽ (như ┌───┐, │, └───┘, ▼, ├───┤). Thay vào đó, BẮT BUỘC dùng danh sách phân cấp (Bullet / Numbered list) và Bảng Markdown chuẩn.
-3. Cấu trúc bài phân tích bắt buộc gồm:
-   - I. KẾT LUẬN HIỆU LỰC & THẨM QUYỀN BAN HÀNH: Khẳng định rõ tình trạng hiệu lực tại ${effectiveDate}, ngày ban hành, ngày bắt đầu có hiệu lực và cơ quan ban hành.
-   - II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN: Nêu rõ căn cứ các Luật/Bộ luật nào, văn bản này quy định chi tiết hoặc hướng dẫn thi hành Điều khoản nào.
-   - III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG: Liệt kê rõ các cơ quan, tổ chức, doanh nghiệp và cá nhân thuộc phạm vi điều chỉnh.
-   - IV. NỘI DUNG QUY ĐỊNH CHI TIẾT & CÁC BIỆN PHÁP TRỌNG TÂM: Phân tích sâu theo từng nhóm chính sách, quy trình thực hiện, các biện pháp kỹ thuật/nghiệp vụ, thời hạn thi hành, quyền hạn và nghĩa vụ của các bên liên quan.
-   - V. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN CHÍNH THỨC: Trình bày dạng bảng Markdown (| Số hiệu | Tên văn bản | Cơ quan ban hành | Ngày ban hành/Hiệu lực | Trạng thái | Nguồn |).`;
+=== YÊU CẦU BẮT BUỘC VỀ NỘI DUNG & CẤU TRÚC PHÂN TÍCH ===
+
+[NGUYÊN TẮC VÀNG]:
+- Bạn PHẢI tập trung phân tích ĐẦY ĐỦ, TOÀN DIỆN nội dung của VĂN BẢN CHÍNH mà người dùng hỏi. KHÔNG trả lời sơ sài, KHÔNG chỉ nêu tên rồi dừng.
+- Phân tích CHI TIẾT từng nhóm quy định, biện pháp, chế tài, mốc thời hạn, quyền/nghĩa vụ các bên.
+- TUYỆT ĐỐI CẤM vẽ sơ đồ ASCII art (┌───┐, │, └───┘, ▼). BẮT BUỘC dùng danh sách phân cấp và Bảng Markdown chuẩn.
+
+[CẤU TRÚC BÀI PHÂN TÍCH BẮT BUỘC]:
+I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH
+   - Số hiệu trong ngoặc vuông [VD: 82/2020/NĐ-CP]
+   - Tên đầy đủ của văn bản
+   - Cơ quan ban hành
+   - Ngày ban hành, ngày có hiệu lực
+   - Tình trạng hiệu lực tại ${effectiveDate}
+
+II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN
+   - Căn cứ ban hành (Luật/Bộ luật nào, Điều khoản nào)
+   - Quan hệ hướng dẫn thi hành
+   - Văn bản này THAY THẾ/SỬA ĐỔI/BỔ SUNG hoặc BỊ THAY THẾ/SỬA ĐỔI bởi văn bản nào (nếu có)
+
+III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG
+   - Phạm vi điều chỉnh cụ thể
+   - Liệt kê rõ đối tượng áp dụng (cơ quan, tổ chức, cá nhân)
+
+IV. NỘI DUNG QUY ĐỊNH CHI TIẾT & CÁC CHÍNH SÁCH TRỌNG TÂM
+   ⚠️ ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT — phải trình bày ĐẦY ĐỦ, PHONG PHÚ:
+   - Phân tích theo từng CHƯƠNG hoặc NHÓM QUY ĐỊNH chính
+   - Nêu rõ các biện pháp cụ thể, quy trình thực hiện, thời hạn
+   - Các mức xử phạt, chế tài (nếu có)
+   - Quyền và nghĩa vụ các bên
+   - Mỗi nhóm quy định viết 3-6 gạch đầu dòng chi tiết
+
+V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN
+   - Cơ quan chủ trì, cơ quan phối hợp
+   - Trách nhiệm địa phương
+   - Điều khoản chuyển tiếp (nếu có)
+
+VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN CHÍNH THỨC
+   Bảng Markdown CHỈ chứa:
+   - Dòng 1: Văn bản CHÍNH mà người dùng hỏi (BẮT BUỘC)
+   - Dòng 2+: Các văn bản SỬA ĐỔI, BỔ SUNG, THAY THẾ trực tiếp văn bản chính (nếu có)
+   KHÔNG liệt kê văn bản không liên quan trực tiếp.
+   Format: | Số hiệu | Tên văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái | Quan hệ |
+
+[QUY TẮC VỀ BẢNG TRÍCH DẪN]:
+- Cột "Quan hệ": ghi rõ "Văn bản chính" cho VB user hỏi, "Sửa đổi bổ sung" hoặc "Thay thế" cho VB liên quan.
+- TUYỆT ĐỐI KHÔNG liệt kê hàng loạt VB không liên quan trực tiếp.`;
 
   switch (mode) {
     case 'document-lookup':
-      return `${dateContext} Tra cứu và phân tích chuyên sâu văn bản quy phạm pháp luật: "${query}".\n${detailGuidelines}`;
+      return `${dateContext}\n\nBáo cáo phân tích pháp lý chi tiết và toàn diện về văn bản: "${query}".\n${detailGuidelines}`;
 
     case 'situation-analysis':
-      return `${dateContext} Phân tích tình huống pháp lý sau: "${query}". Yêu cầu trình bày theo cấu trúc: I. KẾT LUẬN HƯỚNG XỬ LÝ, II. PHÂN TÍCH TÌNH HUỐNG DỰA TRÊN QUY ĐỊNH PHÁP LUẬT CHI TIẾT, III. CĂN CỨ PHÁP LÝ CHÍNH THỨC, IV. LƯU Ý VỀ THỜI ĐIỂM HIỆU LỰC VÀ RỦI RO PHÁP LÝ.\n${detailGuidelines}`;
+      return `${dateContext}\n\nPhân tích tình huống pháp lý: "${query}".\nYêu cầu: I. KẾT LUẬN HƯỚNG XỬ LÝ, II. PHÂN TÍCH TÌNH HUỐNG CHI TIẾT, III. CĂN CỨ PHÁP LÝ, IV. RỦI RO PHÁP LÝ.\n${detailGuidelines}`;
 
     case 'compare-regulations':
-      return `${dateContext} So sánh quy định pháp luật về: "${query}". Trình bày sự khác biệt giữa các văn bản, điểm mới sửa đổi bổ sung và văn bản hiện hành đang áp dụng.\n${detailGuidelines}`;
+      return `${dateContext}\n\nSo sánh quy định pháp luật: "${query}".\nTrình bày điểm khác biệt, điểm mới sửa đổi bổ sung.\n${detailGuidelines}`;
 
     case 'effective-date':
-      return `Tra cứu và xác định hiệu lực tại thời điểm ${effectiveDate} đối với: "${query}". Phân biệt rõ: HIỆN HÀNH / HẾT HIỆU LỰC / CHƯA CÓ HIỆU LỰC / BỊ THAY THẾ / BỊ SỬA ĐỔI.\n${detailGuidelines}`;
+      return `${dateContext}\n\nXác định hiệu lực tại ${effectiveDate}: "${query}".\nPhân biệt: HIỆN HÀNH / HẾT HIỆU LỰC / CHƯA CÓ HIỆU LỰC / BỊ THAY THẾ.\n${detailGuidelines}`;
 
     default:
-      return `${dateContext} Câu hỏi tra cứu pháp luật: "${query}".\n${detailGuidelines}`;
+      return `${dateContext}\n\nBáo cáo phân tích pháp lý chi tiết và toàn diện về: "${query}".\n${detailGuidelines}`;
   }
 }
 

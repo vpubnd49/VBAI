@@ -4618,17 +4618,20 @@ app.post('/api/chat', async (req, res) => {
         if (doc.snippet) contextLines.push(`- Trích yếu: ${doc.snippet}`);
       });
       contextLines.push(`
-\n=== QUY ĐỊNH BẮT BUỘC VỀ ĐỘ CHI TIẾT & CẤU TRÚC PHÂN TÍCH PHÁP LÝ ===
-Bạn BẮT BUỘC phân tích TOÀN DIỆN, ĐẦY ĐỦ, CÔ ĐỌNG THEO CẤU TRÚC CHUẨN SAU:
-[QUY TẮC TỐI ƯU HIỆU NĂNG & ĐỊNH DẠNG]:
-- Trình bày SÚC TÍCH, CÔ ĐỌNG, ĐI THẲNG VÀO TRỌNG TÂM (mỗi mục nêu 2-4 gạch đầu dòng then chốt, cô đọng số liệu, chế tài và thời hạn, không viết câu từ rườm rà lặp lại).
-- TUYỆT ĐỐI CẤM vẽ sơ đồ bằng ký tự ASCII art (như ┌───┐, │, └───┘, ▼). BẮT BUỘC dùng danh sách phân cấp (Bullet / Numbered list) và Bảng Markdown chuẩn (| Cột 1 | Cột 2 |...).
-1. I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH (Số hiệu trong ngoặc vuông ví dụ [327/2026/NĐ-CP], tên đầy đủ, cơ quan ban hành, ngày ban hành, ngày có hiệu lực, tình trạng pháp lý hiện tại).
-2. II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN (Căn cứ các Luật nào, quy định chi tiết/hướng dẫn thi hành Điều khoản nào, quan hệ thay thế/sửa đổi).
+\n=== QUY ĐỊNH BẮT BUỘC VỀ NỘI DUNG & CẤU TRÚC PHÂN TÍCH PHÁP LÝ ===
+[NGUYÊN TẮC VÀNG]:
+- Bạn PHẢI tập trung phân tích ĐẦY ĐỦ, TOÀN DIỆN nội dung của VĂN BẢN CHÍNH mà người dùng hỏi.
+- Phân tích CHI TIẾT từng nhóm quy định, biện pháp, chế tài, mốc thời hạn, quyền/nghĩa vụ. KHÔNG trả lời sơ sài.
+- TUYỆT ĐỐI CẤM vẽ sơ đồ ASCII art (┌───┐, │, └───┘, ▼). BẮT BUỘC dùng danh sách phân cấp và Bảng Markdown chuẩn.
+
+[CẤU TRÚC BẮT BUỘC]:
+1. I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH (Số hiệu [VD: 327/2026/NĐ-CP], tên đầy đủ, cơ quan, ngày ban hành, ngày hiệu lực, trạng thái).
+2. II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN (Căn cứ Luật nào, hướng dẫn Điều nào, VB thay thế/sửa đổi/bị thay thế).
 3. III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG.
-4. IV. NỘI DUNG QUY ĐỊNH CHI TIẾT THEO TỪNG CHƯƠNG / ĐIỀU / NHÓM CHÍNH SÁCH TRỌNG TÂM (Phân tích các biện pháp kỹ thuật/nghiệp vụ, quy trình xử lý, các mốc thời hạn bắt buộc, trách nhiệm và chế tài xử lý).
-5. V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN (Cơ quan chủ trì, trách nhiệm địa phương, điều khoản thi hành).
-6. VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN CHÍNH THỨC (Markdown Table: | Số hiệu | Tên văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái | Nguồn kiểm chứng |).
+4. IV. NỘI DUNG QUY ĐỊNH CHI TIẾT & CÁC CHÍNH SÁCH TRỌNG TÂM (⚠️ PHẦN QUAN TRỌNG NHẤT — phân tích ĐẦY ĐỦ từng chương/nhóm QĐ, biện pháp, quy trình, chế tài, mỗi nhóm 3-6 gạch đầu dòng chi tiết).
+5. V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN.
+6. VI. BẢNG DANH MỤC TRÍCH DẪN: CHỈ liệt kê VB chính + VB sửa đổi/thay thế trực tiếp. KHÔNG liệt kê VB không liên quan.
+   Format: | Số hiệu | Tên văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái | Quan hệ |
 === KẾT THÚC CĂN CỨ PHÁP LÝ ===\n`);
 
       const evidenceText = contextLines.join('\n');
