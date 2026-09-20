@@ -441,7 +441,7 @@ VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FI
    | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Tải về (PDF)](URL) hoặc [Cổng TTĐT Chính phủ](URL) |
 
 [QUY TẮC LINK TẢI TỆP (DOWNLOAD LINK)]:
-- Link tải file PDF gốc chính thức của Cổng Thông tin điện tử Chính phủ Việt Nam có định dạng: https://datafiles.chinhphu.vn/cpp/files/vbpq/{năm}/{tháng}/{tên_file}-signed.pdf (hoặc https://chinhphu.vn/media/docs/...).
+- TUYỆT ĐỐI KHÔNG tự bịa đặt hoặc đoán mò định dạng link tải datafiles.chinhphu.vn (CẤM bịa link .signed.pdf). CHỈ sử dụng link tải PDF chính xác được cung cấp trong [THÔNG TIN XÁC THỰC]. Nếu chưa có link PDF xác thực, dẫn về https://vanban.chinhphu.vn/ hoặc https://vbpl.vn/.
 - Nếu trong ngữ cảnh tra cứu, khối xác thực hoặc cơ sở dữ liệu có link tải PDF, bạn BẮT BUỘC chèn link vào cột "Link tải File / Nguồn kiểm chứng" theo cú pháp markdown: [Tải về (PDF)](URL) (hoặc [Tải về Phần 1 (PDF)](URL)).
 - Ngay dưới Bảng VI, BẮT BUỘC có dòng ghi chú:
   "Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn [Số hiệu] chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam."

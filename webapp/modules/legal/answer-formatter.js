@@ -399,6 +399,20 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
   const allDocs = Array.from(docsMap.values());
   if (allDocs.length === 0) return '';
 
+  // Guarantee accurate official PDF download URLs for known major laws
+  allDocs.forEach(doc => {
+    const num = (doc.number || '').toUpperCase();
+    if (num === '31/2024/QH15' && (!doc.pdfDownloadUrls || doc.pdfDownloadUrls.length === 0 || doc.pdfDownloadUrls.some(u => u.includes('signed.pdf')))) {
+      doc.pdfDownloadUrls = [
+        'https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_1.pdf',
+        'https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_2.pdf',
+        'https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_3.pdf'
+      ];
+    } else if (num === '72/2025/QH15' && (!doc.pdfDownloadUrls || doc.pdfDownloadUrls.length === 0 || doc.pdfDownloadUrls.some(u => u.includes('signed.pdf')))) {
+      doc.pdfDownloadUrls = ['https://datafiles.chinhphu.vn/cpp/files/vbpq/2025/7/2025_807-808_72-2025-qh15..pdf'];
+    }
+  });
+
   const rowsHtml = allDocs.map((doc) => {
     const linksHtml = [];
     const pdfUrls = doc.pdfDownloadUrls || [];

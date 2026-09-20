@@ -260,7 +260,7 @@ Bạn BẮT BUỘC tổ chức câu trả lời TOÀN DIỆN, ĐẦY ĐỦ THEO 
    | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Tải về (PDF)](URL) hoặc [Cổng TTĐT Chính phủ](URL) |
 
 [QUY TẮC LINK TẢI TỆP (DOWNLOAD LINK)]:
-- Link tải file PDF gốc chính thức của Cổng Thông tin điện tử Chính phủ Việt Nam có định dạng: https://datafiles.chinhphu.vn/cpp/files/vbpq/{năm}/{tháng}/{tên_file}-signed.pdf (hoặc https://chinhphu.vn/media/docs/...).
+- TUYỆT ĐỐI KHÔNG tự bịa đặt hoặc đoán mò định dạng link tải datafiles.chinhphu.vn (CẤM bịa link .signed.pdf). CHỈ sử dụng link tải PDF chính xác được cung cấp trong ngữ cảnh tra cứu [CĂN CỨ PHÁP LÝ] hoặc [THÔNG TIN XÁC THỰC]. Nếu chưa có link PDF xác thực, dẫn về https://vanban.chinhphu.vn/ hoặc https://vbpl.vn/.
 - Nếu trong ngữ cảnh tra cứu, khối xác thực hoặc cơ sở dữ liệu có link tải PDF, bạn BẮT BUỘC chèn link vào cột "Link tải File / Nguồn kiểm chứng" theo cú pháp markdown: [Tải về (PDF)](URL) (hoặc [Tải về Phần 1 (PDF)](URL)).
 - Ngay dưới Bảng VI, BẮT BUỘC có dòng ghi chú:
   "Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn [Số hiệu] chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam."
@@ -1269,10 +1269,29 @@ function renderComparisonTable(blockLines = []) {
   if (bodyRows.length === 0) return "";
 
   const normalizedBody = bodyRows.map((row) => {
-    if (row.length < headerCells.length) {
-      return row.concat(new Array(headerCells.length - row.length).fill(""));
+    let rowDocNum = '';
+    row.forEach(cell => {
+      const m = String(cell).match(/(\d+\/(?:\d{4}|[A-Za-zÀ-ỹ]+)\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_/]*|\d+\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_]*)/i);
+      if (m && m[1]) rowDocNum = m[1].toUpperCase();
+    });
+
+    const fixedRow = row.map((c, colIdx) => {
+      let cellStr = String(c || '');
+      const isActionCol = colIdx === row.length - 1 || /link|tải|nguồn|file/i.test(headerCells[colIdx] || '');
+      if (isActionCol || /\[tải về/i.test(cellStr) || /datafiles\.chinhphu\.vn/i.test(cellStr)) {
+        if (rowDocNum === '31/2024/QH15' || /31[\/\-]2024[\/\-]qh15/i.test(cellStr) || /luật đất đai/i.test(row.join(' '))) {
+          return `[Tải về Phần 1 (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_1.pdf)<br>[Tải về Phần 2 (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_2.pdf)<br>[Tải về Phần 3 (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_3.pdf)`;
+        } else if (rowDocNum === '72/2025/QH15' || /72[\/\-]2025[\/\-]qh15/i.test(cellStr)) {
+          return `[Tải về (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2025/7/2025_807-808_72-2025-qh15..pdf)`;
+        }
+      }
+      return cellStr;
+    });
+
+    if (fixedRow.length < headerCells.length) {
+      return fixedRow.concat(new Array(headerCells.length - fixedRow.length).fill(""));
     }
-    return row.slice(0, headerCells.length);
+    return fixedRow.slice(0, headerCells.length);
   });
 
   const thead = `<thead><tr>${headerCells.map((c) => `<th>${applyInlineMarkdown(escapeHtml(c))}</th>`).join("")}</tr></thead>`;
@@ -1286,7 +1305,14 @@ function renderComparisonTable(blockLines = []) {
 
 function renderAssistantRichText(rawText = "") {
   if (!rawText) return "";
-  const src = decodeNumericHtmlEntities(String(rawText || "")).replace(/\r/g, "");
+  let src = decodeNumericHtmlEntities(String(rawText || "")).replace(/\r/g, "");
+
+  // Automatically fix any hallucinated / broken 31-2024-qh15 PDF links in text
+  src = src.replace(
+    /https?:\/\/datafiles\.chinhphu\.vn\/cpp\/files\/vbpq\/\d+\/\d+\/31-2024-qh15(?:\.signed)?\.pdf/gi,
+    'https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_1.pdf'
+  );
+
   const lines = src.split("\n");
   const htmlBlocks = [];
   let i = 0;

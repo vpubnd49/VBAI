@@ -4471,12 +4471,38 @@ function synthesizeServerLegalSections(rawAnswer = '', mainDoc = null) {
     leadParagraph = `${title} mới nhất hiện nay là Luật số [${docNo}] (được ${issuer} thông qua/ban hành ngày ${issueDate}).\n\nDưới đây là thông tin chi tiết, phân tích pháp lý và đường dẫn tải về văn bản gốc theo đúng chuẩn quy định:`;
   }
 
-  // Preserve existing Section VI from rawAnswer if AI generated it
-  let secVIBody = '';
-  const secVIMatch = String(rawAnswer).match(/(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?VI\.\s+[\s\S]*$/i);
-  if (secVIMatch) {
-    secVIBody = secVIMatch[0].trim();
+  // Resolve verified PDF download URLs
+  let finalPdfs = (doc.pdfDownloadUrls || doc.pdf_download_urls || (doc.pdfDownloadUrl ? [doc.pdfDownloadUrl] : (doc.pdf_download_url ? [doc.pdf_download_url] : [])));
+  if (docNo === '31/2024/QH15') {
+    finalPdfs = [
+      'https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_1.pdf',
+      'https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_2.pdf',
+      'https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_3.pdf'
+    ];
+  } else if (docNo === '72/2025/QH15') {
+    finalPdfs = ['https://datafiles.chinhphu.vn/cpp/files/vbpq/2025/7/2025_807-808_72-2025-qh15..pdf'];
+  } else if (finalPdfs.length === 0 && kd?.pdf_download_urls) {
+    finalPdfs = kd.pdf_download_urls;
+  } else if (finalPdfs.length === 0 && kd?.pdf_download_url) {
+    finalPdfs = [kd.pdf_download_url];
   }
+
+  let pdfLinksMd = '';
+  if (finalPdfs.length > 1) {
+    pdfLinksMd = finalPdfs.map((u, i) => `[Tải về Phần ${i + 1} (PDF)](${u})`).join('<br>');
+  } else if (finalPdfs.length === 1) {
+    pdfLinksMd = `[Tải về (PDF)](${finalPdfs[0]})`;
+  } else {
+    pdfLinksMd = `[Cổng TTĐT Chính phủ](https://vbpl.vn/tim-kiem?q=${encodeURIComponent(docNo)})`;
+  }
+
+  const verifiedSectionVI = `VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE
+
+| Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Link tải File / Nguồn kiểm chứng |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| ${docNo} | ${title} | ${issuer} | ${issueDate} / ${effectiveDate} | 🟢 ${statusStr} | ${pdfLinksMd} |
+
+Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn ${title} số ${docNo} chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.`;
 
   let chapterBlock = '';
   if (chapters) {
@@ -4516,11 +4542,7 @@ V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN
 - **Trách nhiệm địa phương:** Hội đồng nhân dân và Ủy ban nhân dân các cấp chịu trách nhiệm tổ chức thực thi, ban hành văn bản quy định chi tiết theo phân cấp, thanh tra, kiểm tra và bảo đảm chấp hành pháp luật tại địa phương.
 - **Tổ chức, cá nhân:** Nghiêm chỉnh chấp hành các quy định theo đúng thẩm quyền và trình tự pháp luật quy định.`;
 
-  if (secVIBody) {
-    return `${leadParagraph}\n\n${sectionsItoV}\n\n${secVIBody}`;
-  } else {
-    return `${leadParagraph}\n\n${sectionsItoV}\n\nVI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE`;
-  }
+  return `${leadParagraph}\n\n${sectionsItoV}\n\n${verifiedSectionVI}`;
 }
 
 app.post('/api/chat', async (req, res) => {
@@ -5030,6 +5052,21 @@ Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ b�
         if ((!hasSec1 || !hasSec4) && targetDoc) {
           console.log(`[Server Legal Synthesis] Enforcing sections I-V for ${targetDoc.documentNumber || targetDoc.document_number || 'legal query'}`);
           assistantText = synthesizeServerLegalSections(assistantText, targetDoc);
+          if (data.choices && data.choices[0] && data.choices[0].message) {
+            data.choices[0].message.content = assistantText;
+          }
+        }
+
+        // Sanitize any fake or hallucinated PDF links for 31/2024/QH15 and 72/2025/QH15
+        if (/31-2024-qh15(?:\.signed)?\.pdf/i.test(assistantText)) {
+          assistantText = assistantText.replace(
+            /\[(?:Tải về(?:\s*\(PDF\))?|Tải về Phần 1(?:\s*\(PDF\))?)\]\(https?:\/\/[^\s)]*31-2024-qh15[^\s)]*\.pdf\)/gi,
+            '[Tải về Phần 1 (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_1.pdf)<br>[Tải về Phần 2 (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_2.pdf)<br>[Tải về Phần 3 (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_3.pdf)'
+          );
+          assistantText = assistantText.replace(
+            /https?:\/\/datafiles\.chinhphu\.vn\/cpp\/files\/vbpq\/\d+\/\d+\/31-2024-qh15(?:\.signed)?\.pdf/gi,
+            'https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_1.pdf'
+          );
           if (data.choices && data.choices[0] && data.choices[0].message) {
             data.choices[0].message.content = assistantText;
           }
