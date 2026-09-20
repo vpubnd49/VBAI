@@ -382,13 +382,27 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
 
 /**
  * Build a prominent download bar for documents with direct PDF links.
- * Always shown at the top of the answer when any document has pdfDownloadUrl.
+ * Only shows documents whose number is explicitly mentioned in the AI answer,
+ * so users only see download buttons for the document(s) they asked about.
  */
-function buildDownloadBar(documents = []) {
+function buildDownloadBar(documents = [], rawAnswer = '') {
   const pdfDocs = documents.filter(d => d.pdfDownloadUrl);
   if (pdfDocs.length === 0) return '';
 
-  const items = pdfDocs.map(d => {
+  // Filter: only show docs whose documentNumber appears in the AI answer text
+  const answerNorm = String(rawAnswer).toLowerCase().replace(/\s+/g, '');
+  const relevantDocs = pdfDocs.filter(d => {
+    const num = (d.documentNumber || d.document_number || d.number || '').trim();
+    if (!num) return false;
+    // Normalize: "71/2026/TT-BXD" → "71/2026/tt-bxd" and check if AI answer contains it
+    const numNorm = num.toLowerCase().replace(/\s+/g, '');
+    return answerNorm.includes(numNorm);
+  });
+
+  // If no docs match the answer text, don't show the bar
+  if (relevantDocs.length === 0) return '';
+
+  const items = relevantDocs.map(d => {
     const label = d.documentNumber || d.document_number || d.number || d.title || 'Văn bản';
     return `
       <a href="${d.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="download-bar-item" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#0d6efd,#0056d2);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;box-shadow:0 2px 8px rgba(13,110,253,0.3);transition:all 0.2s">
@@ -445,8 +459,8 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
     formattedHtml += gridTableHtml;
   }
 
-  // Build download bar (always shown when PDF links available)
-  const downloadBarHtml = buildDownloadBar(documents);
+  // Build download bar (only shows docs referenced in AI answer)
+  const downloadBarHtml = buildDownloadBar(documents, rawAnswer);
 
   // Attach warnings at top if present
   let warningHtml = '';
