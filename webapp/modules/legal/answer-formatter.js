@@ -349,11 +349,18 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
     });
   }
 
-  // Scan text for any other document numbers cited by AI (strictly excluding pure dates like 16/06/2025)
-  // Only include documents that appear in a RELEVANT legal context (not just mentioned in passing)
-  const RELEVANCE_CONTEXT_PATTERNS = /(?:sửa đổi|bổ sung|thay thế|quy định chi tiết|hướng dẫn thi hành|căn cứ|theo|ban hành|áp dụng|quy định tại|được quy định|liên quan trực tiếp|nêu tại|viện dẫn|dẫn chiếu)/i;
+  // Scan text for document numbers that appear in the AI's own Section VI table
+  // Only include documents the AI explicitly tabulated (not every mention in body text)
   const answerText = String(rawAnswer);
-  const docMatches = answerText.match(/(?:Luật|Nghị định|Thông tư|Quyết định|Luật số)?\s*\[?(\d+\/(?:\d{4}|[A-Za-zÀ-ỹ]+)\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_/]*|\d+\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_]*)\]?/gi) || [];
+
+  // Extract the Section VI table portion from AI output
+  const sectionVIStart = answerText.search(/VI\.\s*(?:BẢNG\s*)?DANH\s*MỤC/i);
+  const sectionVIText = sectionVIStart >= 0 ? answerText.slice(sectionVIStart) : '';
+
+  // Only scan for doc numbers within Section VI table (if it exists)
+  // This prevents picking up every casually-mentioned doc number from body text
+  const textToScan = sectionVIText || answerText;
+  const docMatches = textToScan.match(/(?:Luật|Nghị định|Thông tư|Quyết định|Luật số)?\s*\[?(\d+\/(?:\d{4}|[A-Za-zÀ-ỹ]+)\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_/]*|\d+\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_]*)\]?/gi) || [];
   docMatches.forEach(m => {
     const numMatch = m.match(/(\d+\/(?:\d{4}|[A-Za-zÀ-ỹ]+)\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_/]*|\d+\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_]*)/i);
     if (numMatch && numMatch[1]) {
@@ -363,25 +370,20 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
 
       const k = num.toLowerCase();
       if (!docsMap.has(k)) {
-        // Check surrounding context (±150 chars) to determine if this doc is
-        // meaningfully analyzed vs. just mentioned in passing from recent docs list
+        // If we have a Section VI table, ONLY add docs found within that table
+        // (not from the general body text which may mention many docs casually)
+        if (sectionVIText) {
+          const inSectionVI = sectionVIText.includes(num) || sectionVIText.toLowerCase().includes(k);
+          if (!inSectionVI) return;
+        }
+
+        // Skip docs that only appear in the injected "[DANH MỤC VĂN BẢN" context
         const matchIdx = answerText.indexOf(m);
         if (matchIdx >= 0) {
-          const contextStart = Math.max(0, matchIdx - 150);
-          const contextEnd = Math.min(answerText.length, matchIdx + m.length + 150);
-          const surroundingContext = answerText.slice(contextStart, contextEnd);
-
-          // Skip documents that only appear in the "[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT MỚI NHẤT]" injection
-          if (/\[DANH MỤC VĂN BẢN/.test(surroundingContext) && !RELEVANCE_CONTEXT_PATTERNS.test(surroundingContext)) {
-            return;
-          }
-
-          // For docs not in the evidence bundle, require they appear in a substantive legal context
-          const isInSection = /(?:^|\n)\s*(?:#{1,3}\s*)?(?:\*\*)?(?:I{1,3}V?|V?I{0,3})\.\s+/.test(surroundingContext);
-          const hasRelevanceContext = RELEVANCE_CONTEXT_PATTERNS.test(surroundingContext);
-          if (!isInSection && !hasRelevanceContext) {
-            return; // Skip document numbers that appear without meaningful legal context
-          }
+          const ctxStart = Math.max(0, matchIdx - 200);
+          const ctxEnd = Math.min(answerText.length, matchIdx + m.length + 100);
+          const ctx = answerText.slice(ctxStart, ctxEnd);
+          if (/\[DANH MỤC VĂN BẢN/.test(ctx)) return;
         }
 
         let type = num.includes('QH') ? 'Luật' : num.includes('NĐ-CP') ? 'Nghị định' : num.includes('TT') ? 'Thông tư' : 'Văn bản';

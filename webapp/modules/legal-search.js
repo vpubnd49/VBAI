@@ -143,94 +143,101 @@ export async function renderLegalSearchUI(container, initialMode = 'legal-search
     if (e.key === 'Enter') triggerSearch();
   });
 
-  // ===== FILE ATTACHMENT HANDLER =====
-  const fileBtn = container.querySelector('#legal-file-btn');
-  const fileInput = container.querySelector('#legal-file-input');
-  const filePreview = container.querySelector('#legal-file-preview');
+  // ===== FILE ATTACHMENT HANDLER (Event Delegation — robust against SPA re-render) =====
+  container.addEventListener('click', (e) => {
+    if (e.target.closest('#legal-file-btn')) {
+      const inp = container.querySelector('#legal-file-input');
+      if (inp) inp.click();
+    }
+  });
 
-  if (fileBtn && fileInput && filePreview) {
-    fileBtn.addEventListener('click', () => fileInput.click());
+  container.addEventListener('change', async (e) => {
+    if (e.target.id !== 'legal-file-input') return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+    const filePreviewEl = container.querySelector('#legal-file-preview');
+    if (!filePreviewEl) return;
 
-      // File size check (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        showToast('File quá lớn (tối đa 10MB)', 'warning');
-        fileInput.value = '';
-        return;
+    // File size check (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('File quá lớn (tối đa 10MB)', 'warning');
+      e.target.value = '';
+      return;
+    }
+
+    // Show loading state
+    filePreviewEl.style.display = 'flex';
+    filePreviewEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;width:100%">
+        <span>⏳</span>
+        <div>
+          <div style="font-weight:600">${escapeHtml(file.name)}</div>
+          <div class="file-status" style="color:#64748b;font-size:0.75rem">Đang đọc và phân tích tệp...</div>
+        </div>
+      </div>
+    `;
+
+    try {
+      const parsedResult = await parseUniversalFile(file, (status) => {
+        const statusEl = filePreviewEl.querySelector('.file-status');
+        if (statusEl) statusEl.textContent = status;
+      });
+
+      legalAttachedFile = {
+        name: file.name,
+        text: parsedResult.text,
+        size: file.size,
+        type: file.type
+      };
+
+      const kbSize = (file.size / 1024).toFixed(1);
+      const extLower = file.name.toLowerCase();
+      let fileIcon = '📄';
+      let typeBadge = 'Văn bản';
+      if (extLower.endsWith('.xlsx') || extLower.endsWith('.xls') || extLower.endsWith('.csv')) {
+        fileIcon = '📊'; typeBadge = `Bảng tính (${parsedResult.meta?.totalRows || 0} dòng)`;
+      } else if (extLower.endsWith('.docx') || extLower.endsWith('.doc')) {
+        fileIcon = '📝'; typeBadge = `Văn bản Word`;
+      } else if (extLower.endsWith('.pdf')) {
+        fileIcon = '📑'; typeBadge = `PDF (${parsedResult.meta?.pageCount || 1} trang)`;
       }
 
-      // Show loading state
-      filePreview.style.display = 'flex';
-      filePreview.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;width:100%">
-          <span>⏳</span>
+      filePreviewEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;flex:1">
+          <span>${fileIcon}</span>
           <div>
-            <div style="font-weight:600">${escapeHtml(file.name)}</div>
-            <div class="file-status" style="color:#64748b;font-size:0.75rem">Đang đọc và phân tích tệp...</div>
+            <div style="font-weight:600" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+            <div style="color:#059669;font-size:0.75rem">Sẵn sàng • ${typeBadge} • ${kbSize} KB</div>
           </div>
         </div>
+        <button class="btn-remove-file" title="Xóa đính kèm" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:#94a3b8">×</button>
       `;
 
-      try {
-        const parsedResult = await parseUniversalFile(file, (status) => {
-          const statusEl = filePreview.querySelector('.file-status');
-          if (statusEl) statusEl.textContent = status;
-        });
+      showToast('Đã đính kèm tệp thành công! Nhấn Tra cứu để phân tích.', 'success');
+    } catch (err) {
+      filePreviewEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;width:100%;color:#dc2626">
+          <span>❌</span>
+          <div>${escapeHtml(err.message || 'Không thể đọc file')}</div>
+        </div>
+      `;
+      legalAttachedFile = null;
+      e.target.value = '';
+    }
+  });
 
-        legalAttachedFile = {
-          name: file.name,
-          text: parsedResult.text,
-          size: file.size,
-          type: file.type
-        };
-
-        const kbSize = (file.size / 1024).toFixed(1);
-        const extLower = file.name.toLowerCase();
-        let fileIcon = '📄';
-        let typeBadge = 'Văn bản';
-        if (extLower.endsWith('.xlsx') || extLower.endsWith('.xls') || extLower.endsWith('.csv')) {
-          fileIcon = '📊'; typeBadge = `Bảng tính (${parsedResult.meta?.totalRows || 0} dòng)`;
-        } else if (extLower.endsWith('.docx') || extLower.endsWith('.doc')) {
-          fileIcon = '📝'; typeBadge = `Văn bản Word`;
-        } else if (extLower.endsWith('.pdf')) {
-          fileIcon = '📑'; typeBadge = `PDF (${parsedResult.meta?.pageCount || 1} trang)`;
-        }
-
-        filePreview.innerHTML = `
-          <div style="display:flex;align-items:center;gap:8px;flex:1">
-            <span>${fileIcon}</span>
-            <div>
-              <div style="font-weight:600" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
-              <div style="color:#059669;font-size:0.75rem">Sẵn sàng • ${typeBadge} • ${kbSize} KB</div>
-            </div>
-          </div>
-          <button class="btn-remove-file" title="Xóa đính kèm" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:#94a3b8">×</button>
-        `;
-
-        filePreview.querySelector('.btn-remove-file').onclick = () => {
-          legalAttachedFile = null;
-          filePreview.style.display = 'none';
-          filePreview.innerHTML = '';
-          fileInput.value = '';
-          showToast('Đã gỡ bỏ file đính kèm');
-        };
-
-        showToast('Đã đính kèm tệp thành công! Nhấn Tra cứu để phân tích.', 'success');
-      } catch (err) {
-        filePreview.innerHTML = `
-          <div style="display:flex;align-items:center;gap:8px;width:100%;color:#dc2626">
-            <span>❌</span>
-            <div>${escapeHtml(err.message || 'Không thể đọc file')}</div>
-          </div>
-        `;
-        legalAttachedFile = null;
-        fileInput.value = '';
-      }
-    });
-  }
+  // Handle remove-file button via delegation too
+  container.addEventListener('click', (e) => {
+    if (e.target.closest('.btn-remove-file')) {
+      legalAttachedFile = null;
+      const prev = container.querySelector('#legal-file-preview');
+      if (prev) { prev.style.display = 'none'; prev.innerHTML = ''; }
+      const inp = container.querySelector('#legal-file-input');
+      if (inp) inp.value = '';
+      showToast('Đã gỡ bỏ file đính kèm');
+    }
+  });
 
   // If initial query was passed, run search immediately
   if (initialQuery) {
