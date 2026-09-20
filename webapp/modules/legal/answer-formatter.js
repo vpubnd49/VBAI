@@ -614,8 +614,8 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
   // Ensure all 6 sections (I through VI) are present.
   // If AI skipped Sections I-V and jumped straight to Section VI, synthesize from verified metadata!
   let effectiveRawAnswer = String(rawAnswer || '');
-  const hasSectionOne = /(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?I\.\s+/i.test(effectiveRawAnswer);
-  const hasSectionFour = /(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?IV\.\s+/i.test(effectiveRawAnswer);
+  const hasSectionOne = /(?:^|\n)\s*(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?I\.\s+/i.test(effectiveRawAnswer);
+  const hasSectionFour = /(?:^|\n)\s*(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?IV\.\s+/i.test(effectiveRawAnswer);
 
   if ((!hasSectionOne || !hasSectionFour) && mainDoc) {
     effectiveRawAnswer = synthesizeMissingLegalSections(effectiveRawAnswer, mainDoc);
@@ -630,14 +630,15 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
   const gridTableHtml = buildLegalCitationTable(effectiveRawAnswer, documents);
 
   if (gridTableHtml) {
-    // Cleanly remove any AI-generated Section VI (header, table, and trailing notes)
+    // Cleanly remove ONLY AI-generated Section VI (header, table, and trailing notes)
+    // NEVER match preceding sections I-V: strictly anchor to <div class="legal-section-header">\s*<h[1-4][^>]*>\s*(?:⚖️\s*)?(?:\*\*)?VI\.
     formattedHtml = formattedHtml.replace(
-      /(?:<div class="legal-section-header">[\s\S]*?VI\.[\s\S]*?<\/div>|<h[2-4][^>]*>[\s\S]*?VI\.[\s\S]*?<\/h[2-4]>)(?:[\s\S]*?(?:<table[\s\S]*?<\/table>|<div class="chat-compare-card">[\s\S]*?<\/div>\s*<\/div>))?(?:[\s\S]*?<p[^>]*>[\s\S]*?Ghi chú:[\s\S]*?<\/p>)?/gi,
+      /<div class="legal-section-header">\s*<h[1-4][^>]*>\s*(?:⚖️\s*)?(?:\*\*)?VI\.[^<]*<\/h[1-4]>\s*<\/div>(?:\s*<div class="chat-compare-card">[\s\S]*?<\/table><\/div><\/div>)?(?:\s*<p[^>]*>[\s\S]*?Ghi chú:[\s\S]*?<\/p>)?/gi,
       ''
     );
-    // Also remove any orphaned section VI header
-    formattedHtml = formattedHtml.replace(/<div class="legal-section-header">[\s\S]*?BẢNG DANH MỤC[\s\S]*?<\/div>/gi, '');
-    formattedHtml = formattedHtml.replace(/<h[2-4][^>]*>[\s\S]*?BẢNG DANH MỤC[\s\S]*?<\/h[2-4]>/gi, '');
+    // Also remove any standalone orphaned section VI header
+    formattedHtml = formattedHtml.replace(/<div class="legal-section-header">\s*<h[1-4][^>]*>\s*(?:⚖️\s*)?(?:\*\*)?VI\.[^<]*<\/h[1-4]>\s*<\/div>/gi, '');
+    formattedHtml = formattedHtml.replace(/<div class="legal-section-header">\s*<h[1-4][^>]*>\s*(?:⚖️\s*)?(?:\*\*)?BẢNG DANH MỤC[^<]*<\/h[1-4]>\s*<\/div>/gi, '');
     // Strip redundant trailing "Ghi chú: Bạn có thể bấm..." paragraph
     formattedHtml = formattedHtml.replace(/<p[^>]*>\s*<em>\s*Ghi chú:[\s\S]*?<\/p>/gi, '');
     formattedHtml = formattedHtml.replace(/<p[^>]*>\s*Ghi chú: Bạn có thể bấm[\s\S]*?<\/p>/gi, '');
