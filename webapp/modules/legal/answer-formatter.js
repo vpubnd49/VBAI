@@ -422,8 +422,31 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
     }
   }
 
-  const allDocs = Array.from(docsMap.values());
+  let allDocs = Array.from(docsMap.values());
   if (allDocs.length === 0) return '';
+
+  // Filter out expired/replaced documents when a newer replacement exists
+  // e.g., remove 45/2013/QH13 if 31/2024/QH15 already exists in the list
+  const docNumbers = new Set(allDocs.map(d => (d.number || '').toUpperCase()));
+  const KNOWN_REPLACEMENTS = {
+    '45/2013/QH13': '31/2024/QH15',  // Luật Đất đai cũ → mới
+    '13/2003/QH11': '31/2024/QH15',  // Luật Đất đai 2003 → mới
+  };
+  allDocs = allDocs.filter(d => {
+    const num = (d.number || '').toUpperCase();
+    const replacement = KNOWN_REPLACEMENTS[num];
+    if (replacement && docNumbers.has(replacement)) return false;
+    return true;
+  });
+
+  // Hard cap: maximum 4 documents in citation table
+  // Prioritize: main doc (QH) first, then implementation decrees (NĐ-CP), then others
+  if (allDocs.length > 4) {
+    const mainDocs = allDocs.filter(d => (d.number || '').includes('QH'));
+    const decrees = allDocs.filter(d => (d.number || '').includes('NĐ-CP') && !mainDocs.includes(d));
+    const others = allDocs.filter(d => !mainDocs.includes(d) && !decrees.includes(d));
+    allDocs = [...mainDocs, ...decrees, ...others].slice(0, 4);
+  }
 
   // Guarantee accurate official PDF download URLs for known major laws
   allDocs.forEach(doc => {
