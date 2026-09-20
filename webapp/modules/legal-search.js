@@ -130,7 +130,7 @@ export async function renderLegalSearchUI(container, initialMode = 'legal-search
 
   const triggerSearch = () => {
     const q = searchInput.value.trim();
-    if (!q) {
+    if (!q && !legalAttachedFile) {
       showToast('Vui lòng nhập từ khóa hoặc câu hỏi tra cứu', 'warning');
       return;
     }
@@ -143,12 +143,102 @@ export async function renderLegalSearchUI(container, initialMode = 'legal-search
     if (e.key === 'Enter') triggerSearch();
   });
 
+  // ===== FILE ATTACHMENT HANDLER =====
+  const fileBtn = container.querySelector('#legal-file-btn');
+  const fileInput = container.querySelector('#legal-file-input');
+  const filePreview = container.querySelector('#legal-file-preview');
+
+  if (fileBtn && fileInput && filePreview) {
+    fileBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // File size check (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('File quá lớn (tối đa 10MB)', 'warning');
+        fileInput.value = '';
+        return;
+      }
+
+      // Show loading state
+      filePreview.style.display = 'flex';
+      filePreview.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;width:100%">
+          <span>⏳</span>
+          <div>
+            <div style="font-weight:600">${escapeHtml(file.name)}</div>
+            <div class="file-status" style="color:#64748b;font-size:0.75rem">Đang đọc và phân tích tệp...</div>
+          </div>
+        </div>
+      `;
+
+      try {
+        const parsedResult = await parseUniversalFile(file, (status) => {
+          const statusEl = filePreview.querySelector('.file-status');
+          if (statusEl) statusEl.textContent = status;
+        });
+
+        legalAttachedFile = {
+          name: file.name,
+          text: parsedResult.text,
+          size: file.size,
+          type: file.type
+        };
+
+        const kbSize = (file.size / 1024).toFixed(1);
+        const extLower = file.name.toLowerCase();
+        let fileIcon = '📄';
+        let typeBadge = 'Văn bản';
+        if (extLower.endsWith('.xlsx') || extLower.endsWith('.xls') || extLower.endsWith('.csv')) {
+          fileIcon = '📊'; typeBadge = `Bảng tính (${parsedResult.meta?.totalRows || 0} dòng)`;
+        } else if (extLower.endsWith('.docx') || extLower.endsWith('.doc')) {
+          fileIcon = '📝'; typeBadge = `Văn bản Word`;
+        } else if (extLower.endsWith('.pdf')) {
+          fileIcon = '📑'; typeBadge = `PDF (${parsedResult.meta?.pageCount || 1} trang)`;
+        }
+
+        filePreview.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;flex:1">
+            <span>${fileIcon}</span>
+            <div>
+              <div style="font-weight:600" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+              <div style="color:#059669;font-size:0.75rem">Sẵn sàng • ${typeBadge} • ${kbSize} KB</div>
+            </div>
+          </div>
+          <button class="btn-remove-file" title="Xóa đính kèm" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:#94a3b8">×</button>
+        `;
+
+        filePreview.querySelector('.btn-remove-file').onclick = () => {
+          legalAttachedFile = null;
+          filePreview.style.display = 'none';
+          filePreview.innerHTML = '';
+          fileInput.value = '';
+          showToast('Đã gỡ bỏ file đính kèm');
+        };
+
+        showToast('Đã đính kèm tệp thành công! Nhấn Tra cứu để phân tích.', 'success');
+      } catch (err) {
+        filePreview.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;width:100%;color:#dc2626">
+            <span>❌</span>
+            <div>${escapeHtml(err.message || 'Không thể đọc file')}</div>
+          </div>
+        `;
+        legalAttachedFile = null;
+        fileInput.value = '';
+      }
+    });
+  }
+
   // If initial query was passed, run search immediately
   if (initialQuery) {
     triggerSearch();
   }
 }
 
+let legalAttachedFile = null; // Attached file for legal search: { name, text, size, type }
 const legalSearchMemoryCache = new Map();
 const metadataCache = new Map();
 
@@ -240,13 +330,28 @@ async function executeLegalSearch(container, query) {
         fullPrompt += metaLines.join('\n');
       }
       if (Array.isArray(metaData?.recent_documents) && metaData.recent_documents.length > 0) {
-        const recLines = ['\n\n[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT MỚI NHẤT TRÊN HỆ THỐNG]:'];
+        const recLines = ['\n\n[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT LIÊN QUAN TRÊN HỆ THỐNG (CHỈ THAM KHẢO - KHÔNG TỰ Ý ĐƯA VÀO BẢNG VI NẾU KHÔNG LIÊN QUAN TRỰC TIẾP)]:'];
         metaData.recent_documents.slice(0, 5).forEach(rd => {
           recLines.push(`- [${rd.documentNumber}] ${rd.title} (Ban hành: ${rd.issueDate || 'Đã ban hành'})`);
         });
+        recLines.push('- ⚠️ LƯU Ý: Danh mục trên CHỈ để tham khảo. TUYỆT ĐỐI KHÔNG đưa vào Bảng VI hoặc phân tích nếu văn bản KHÔNG liên quan trực tiếp đến câu hỏi.');
         fullPrompt += recLines.join('\n');
       }
     } catch (_) {}
+
+    // Inject attached file content into prompt if available
+    if (legalAttachedFile && legalAttachedFile.text) {
+      const fileContext = `\n\n[NỘI DUNG TÀI LIỆU ĐÍNH KÈM (Tên file: ${legalAttachedFile.name})]:\n` +
+                          `Hãy sử dụng nội dung tài liệu sau để đối chiếu và phân tích theo câu hỏi của người dùng:\n\n` +
+                          legalAttachedFile.text.slice(0, 20000);
+      fullPrompt += fileContext;
+      // Clear attachment after use
+      legalAttachedFile = null;
+      const filePreviewEl = container.querySelector('#legal-file-preview');
+      if (filePreviewEl) { filePreviewEl.style.display = 'none'; filePreviewEl.innerHTML = ''; }
+      const fileInputEl = container.querySelector('#legal-file-input');
+      if (fileInputEl) fileInputEl.value = '';
+    }
 
     const trace = {
       feature: 'legal-search',
@@ -435,7 +540,8 @@ V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN
    - Điều khoản chuyển tiếp (nếu có)
 
 VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE
-   Bảng Markdown CHỈ chứa VĂN BẢN CHÍNH người dùng hỏi + các văn bản sửa đổi/thay thế trực tiếp:
+   Bảng Markdown CHỈ chứa VĂN BẢN CHÍNH người dùng hỏi + các văn bản sửa đổi/thay thế/hướng dẫn thi hành trực tiếp:
+   ⚠️ TUYỆT ĐỐI KHÔNG liệt kê văn bản KHÔNG LIÊN QUAN TRỰC TIẾP đến câu hỏi. Chỉ đưa vào bảng VI những văn bản thực sự được phân tích hoặc viện dẫn trong phần I-V.
    | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Link tải File / Nguồn kiểm chứng |
    | :--- | :--- | :--- | :--- | :--- | :--- |
    | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Tải về (PDF)](URL) hoặc [Cổng TTĐT Chính phủ](URL) |
