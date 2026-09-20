@@ -1,14 +1,14 @@
-import { parseUniversalFile } from './universal-doc-parser.js';
+import { parseUniversalFile } from './universal-doc-parser.js?v=20260920v16';
 /**
  * VBAI Legal Pro V2 — Central Legal Search Experience
  * Two-panel layout: Left (Query & Structured Answer) / Right (Evidence Panel)
  * Supports modes: legal-search, document-lookup, situation-analysis, compare-regulations, effective-date
  */
 
-import { renderEvidencePanel } from './evidence-panel.js';
-import { sendStructuredChatRequest, sendLegalAgentRequest } from './ai-proxy.js';
-import { formatLegalAnswer } from './legal/answer-formatter.js';
-import { showToast } from './ui-utils.js';
+import { renderEvidencePanel } from './evidence-panel.js?v=20260920v16';
+import { sendStructuredChatRequest, sendLegalAgentRequest } from './ai-proxy.js?v=20260920v16';
+import { formatLegalAnswer } from './legal/answer-formatter.js?v=20260920v16';
+import { showToast } from './ui-utils.js?v=20260920v16';
 
 let currentSearchState = {
   mode: 'legal-search',

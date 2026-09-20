@@ -4,7 +4,7 @@
  */
 
 // VBAI Main Entry - Last Update: 2026-09-20
-const VBAI_BUILD_VERSION = '20260920v16';
+const VBAI_BUILD_VERSION = '20260920v17';
 import { firebaseConfig } from './firebase-config.js';
 
 function applyGlobalModelDefaults() {
