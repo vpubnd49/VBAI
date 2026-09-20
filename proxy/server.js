@@ -642,6 +642,68 @@ function logLegalCrawlDebug(event = '', details = {}) {
   } catch {}
 }
 
+/**
+ * Filter recent documents to only include those relevant to the user's query.
+ * Prevents unrelated legal documents from polluting AI context and citation tables.
+ */
+function filterRecentDocsByRelevance(recentDocs = [], query = '', mainDocNum = '') {
+  if (!recentDocs || recentDocs.length === 0) return [];
+  if (!query && !mainDocNum) return recentDocs.slice(0, 3);
+
+  const { normalizeVietnamese } = require('./legal/domain/normalize-vietnamese');
+  const normQuery = normalizeVietnamese(query);
+
+  // Extract topic domains from query using LEGAL_DOMAIN_TAXONOMY
+  const queryDomains = [];
+  for (const [domainId, spec] of Object.entries(LEGAL_DOMAIN_TAXONOMY)) {
+    if (spec.keywords.some(kw => normQuery.includes(kw))) {
+      queryDomains.push(domainId);
+    }
+  }
+
+  // Extract document type from query
+  const queryDocType = (() => {
+    if (/\bluat\b/.test(normQuery)) return 'luat';
+    if (/\bnghi\s*dinh\b/.test(normQuery)) return 'nghi_dinh';
+    if (/\bthong\s*tu\b/.test(normQuery)) return 'thong_tu';
+    if (/\bquyet\s*dinh\b/.test(normQuery)) return 'quyet_dinh';
+    if (/\bnghi\s*quyet\b/.test(normQuery)) return 'nghi_quyet';
+    return null;
+  })();
+
+  // Extract key subject words from query (remove stop words)
+  const stopWords = new Set(['la', 'cua', 'va', 've', 'cho', 'trong', 'den', 'theo', 'moi', 'nhat', 'so', 'nam', 'ngay', 'tai', 'noi', 'dung', 'gi', 'co']);
+  const queryKeywords = normQuery.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w) && !/^\d+$/.test(w));
+
+  const mainDocNumUpper = (mainDocNum || '').toUpperCase();
+
+  return recentDocs.filter(doc => {
+    const docNum = (doc.documentNumber || '').toUpperCase();
+    const docTitle = normalizeVietnamese(doc.title || '');
+
+    // Always include the main document itself
+    if (mainDocNumUpper && docNum === mainDocNumUpper) return true;
+
+    // Check if doc is in the same domain/topic
+    const docInQueryDomain = queryDomains.length > 0 && queryDomains.some(domainId => {
+      const spec = LEGAL_DOMAIN_TAXONOMY[domainId];
+      return spec && spec.keywords.some(kw => docTitle.includes(kw));
+    });
+    if (docInQueryDomain) return true;
+
+    // Check if doc is a related type (e.g. nghị định hướng dẫn luật cùng lĩnh vực)
+    // by checking keyword overlap between query and doc title
+    const overlappingKeywords = queryKeywords.filter(kw => docTitle.includes(kw));
+    if (overlappingKeywords.length >= 2) return true;
+
+    // Check if the doc appears to be a sub-regulation of the queried document
+    // e.g. querying "luật đất đai" → include "nghị định quy định chi tiết luật đất đai"
+    if (mainDocNumUpper && docTitle.includes(mainDocNumUpper.toLowerCase().replace(/\//g, '/'))) return true;
+
+    return false;
+  }).slice(0, 5); // Cap at 5 relevant docs
+}
+
 const LEGAL_DOC_TYPE_PATTERNS = Object.freeze({
   thong_tu_lien_tich: /\bthong\s*tu\s*lien\s*tich\b|\bthongtulientich\b|\bttlt\b/,
   phap_lenh: /\bphap\s*lenh\b|\bphaplenh\b|\bpl\b/,
@@ -2830,7 +2892,7 @@ app.get('/api/document-metadata', async (req, res) => {
           found: true, 
           documentNumber: docNum, 
           known_document: meta,
-          recent_documents: recentDocsList
+          recent_documents: filterRecentDocsByRelevance(recentDocsList, q, docNum)
         });
       }
     }
@@ -2890,14 +2952,14 @@ app.get('/api/document-metadata', async (req, res) => {
             can_cu_phap_ly: mongoDoc.can_cu_phap_ly || [],
             official_source_urls: mongoDoc.official_source_urls || []
           },
-          recent_documents: recentDocsList
+          recent_documents: filterRecentDocsByRelevance(recentDocsList, q, dNum)
         });
       }
     } catch (mongoErr) {
       // Continue to not found
     }
 
-    return res.json({ found: false, recent_documents: recentDocsList });
+    return res.json({ found: false, recent_documents: filterRecentDocsByRelevance(recentDocsList, q, '') });
   } catch (err) {
     console.error('[document-metadata] Error:', err);
     return res.json({ found: false, error: err.message });

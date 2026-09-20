@@ -254,7 +254,9 @@ Bạn BẮT BUỘC tổ chức câu trả lời TOÀN DIỆN, ĐẦY ĐỦ THEO 
    * Trách nhiệm của UBND/HĐND các cấp và các cơ quan phối hợp liên quan
 
 6. **VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE**
-   Trình bày bảng Markdown chuẩn (CHỈ liệt kê VĂN BẢN CHÍNH người dùng hỏi + văn bản sửa đổi/thay thế trực tiếp nếu có):
+   Trình bày bảng Markdown chuẩn (CHỈ liệt kê VĂN BẢN CHÍNH người dùng hỏi + văn bản sửa đổi/thay thế/hướng dẫn thi hành trực tiếp nếu có):
+   ⚠️ TUYỆT ĐỐI KHÔNG liệt kê văn bản KHÔNG LIÊN QUAN TRỰC TIẾP đến câu hỏi. Chỉ đưa vào bảng VI những văn bản thực sự được phân tích hoặc viện dẫn trong phần I-V ở trên.
+   Ví dụ: Nếu người dùng hỏi về Luật Đất đai → chỉ liệt kê Luật Đất đai và nghị định/thông tư hướng dẫn thi hành Luật Đất đai. KHÔNG đưa vào các luật/nghị định về lĩnh vực khác (lao động, thuế, giao thông...) dù chúng có trong danh mục hệ thống.
    | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Link tải File / Nguồn kiểm chứng |
    | :--- | :--- | :--- | :--- | :--- | :--- |
    | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Tải về (PDF)](URL) hoặc [Cổng TTĐT Chính phủ](URL) |
@@ -2734,11 +2736,11 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
           finalUserText += metaLines.join('\n');
         }
         if (Array.isArray(metaData?.recent_documents) && metaData.recent_documents.length > 0) {
-          const recLines = ['\n\n[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT MỚI NHẤT TRÊN HỆ THỐNG]:'];
+          const recLines = ['\n\n[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT LIÊN QUAN TRÊN HỆ THỐNG (CHỈ THAM KHẢO - KHÔNG TỰ Ý ĐƯA VÀO BẢNG VI NẾU KHÔNG LIÊN QUAN TRỰC TIẾP)]:'];
           metaData.recent_documents.slice(0, 5).forEach(rd => {
             recLines.push(`- [${rd.documentNumber}] ${rd.title} (Ban hành: ${rd.issueDate || 'Đã ban hành'})`);
           });
-          recLines.push('- LƯU Ý: Tuyệt đối chỉ sử dụng số hiệu và ngày ban hành thực tế từ cơ sở dữ liệu trên. Không tự bịa số hiệu văn bản.');
+          recLines.push('- ⚠️ LƯU Ý QUAN TRỌNG: Danh mục trên CHỈ để tham khảo. TUYỆT ĐỐI KHÔNG đưa vào Bảng VI hoặc phân tích nếu văn bản KHÔNG liên quan trực tiếp đến câu hỏi của người dùng. Chỉ sử dụng khi văn bản thực sự là căn cứ pháp lý, văn bản sửa đổi/bổ sung/thay thế hoặc hướng dẫn thi hành liên quan.');
           finalUserText += recLines.join('\n');
         }
       }

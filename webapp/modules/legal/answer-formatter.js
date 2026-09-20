@@ -350,7 +350,10 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
   }
 
   // Scan text for any other document numbers cited by AI (strictly excluding pure dates like 16/06/2025)
-  const docMatches = String(rawAnswer).match(/(?:Luật|Nghị định|Thông tư|Quyết định|Luật số)?\s*\[?(\d+\/(?:\d{4}|[A-Za-zÀ-ỹ]+)\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_/]*|\d+\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_]*)\]?/gi) || [];
+  // Only include documents that appear in a RELEVANT legal context (not just mentioned in passing)
+  const RELEVANCE_CONTEXT_PATTERNS = /(?:sửa đổi|bổ sung|thay thế|quy định chi tiết|hướng dẫn thi hành|căn cứ|theo|ban hành|áp dụng|quy định tại|được quy định|liên quan trực tiếp|nêu tại|viện dẫn|dẫn chiếu)/i;
+  const answerText = String(rawAnswer);
+  const docMatches = answerText.match(/(?:Luật|Nghị định|Thông tư|Quyết định|Luật số)?\s*\[?(\d+\/(?:\d{4}|[A-Za-zÀ-ỹ]+)\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_/]*|\d+\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_]*)\]?/gi) || [];
   docMatches.forEach(m => {
     const numMatch = m.match(/(\d+\/(?:\d{4}|[A-Za-zÀ-ỹ]+)\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_/]*|\d+\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_]*)/i);
     if (numMatch && numMatch[1]) {
@@ -360,6 +363,27 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
 
       const k = num.toLowerCase();
       if (!docsMap.has(k)) {
+        // Check surrounding context (±150 chars) to determine if this doc is
+        // meaningfully analyzed vs. just mentioned in passing from recent docs list
+        const matchIdx = answerText.indexOf(m);
+        if (matchIdx >= 0) {
+          const contextStart = Math.max(0, matchIdx - 150);
+          const contextEnd = Math.min(answerText.length, matchIdx + m.length + 150);
+          const surroundingContext = answerText.slice(contextStart, contextEnd);
+
+          // Skip documents that only appear in the "[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT MỚI NHẤT]" injection
+          if (/\[DANH MỤC VĂN BẢN/.test(surroundingContext) && !RELEVANCE_CONTEXT_PATTERNS.test(surroundingContext)) {
+            return;
+          }
+
+          // For docs not in the evidence bundle, require they appear in a substantive legal context
+          const isInSection = /(?:^|\n)\s*(?:#{1,3}\s*)?(?:\*\*)?(?:I{1,3}V?|V?I{0,3})\.\s+/.test(surroundingContext);
+          const hasRelevanceContext = RELEVANCE_CONTEXT_PATTERNS.test(surroundingContext);
+          if (!isInSection && !hasRelevanceContext) {
+            return; // Skip document numbers that appear without meaningful legal context
+          }
+        }
+
         let type = num.includes('QH') ? 'Luật' : num.includes('NĐ-CP') ? 'Nghị định' : num.includes('TT') ? 'Thông tư' : 'Văn bản';
         let issuer = num.includes('QH') ? 'Quốc hội' : num.includes('NĐ-CP') ? 'Chính phủ' : num.includes('TT') ? 'Bộ ngành' : 'Cơ quan có thẩm quyền';
         docsMap.set(k, {
