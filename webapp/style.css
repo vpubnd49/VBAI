@@ -1849,31 +1849,40 @@ input:checked + .slider-round:before {
 }
 
 /* 2. Premium Inline Link Blue Pill Style (Matching Căn cứ pháp lý pills) */
-.chat-msg-rich a.chat-inline-link {
+.chat-msg-rich a.chat-inline-link,
+.legal-table a.chat-inline-link,
+.legal-answer-wrapper a.chat-inline-link,
+a.chat-inline-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(37, 99, 235, 0.14);
-  border: 1px solid rgba(96, 165, 250, 0.22);
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
   border-radius: 14px;
-  padding: 2px 10px;
-  color: #60a5fa !important;
+  padding: 3px 12px;
+  color: #0284c7 !important;
   font-size: 0.82rem;
   font-weight: 600;
   text-decoration: none !important;
   transition: all 0.2s ease;
   vertical-align: middle;
-  margin: 2px 2px;
+  margin: 2px 3px;
 }
-.chat-msg-rich a.chat-inline-link:hover {
-  background: rgba(37, 99, 235, 0.24);
-  border-color: rgba(96, 165, 250, 0.45);
-  color: #93c5fd !important;
+.chat-msg-rich a.chat-inline-link:hover,
+.legal-table a.chat-inline-link:hover,
+.legal-answer-wrapper a.chat-inline-link:hover,
+a.chat-inline-link:hover {
+  background: #bae6fd;
+  border-color: #7dd3fc;
+  color: #0369a1 !important;
   transform: translateY(-0.5px);
-  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.1);
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.15);
 }
-.chat-msg-rich a.chat-inline-link::after {
-  content: "↗";
+.chat-msg-rich a.chat-inline-link::after,
+.legal-table a.chat-inline-link::after,
+.legal-answer-wrapper a.chat-inline-link::after,
+a.chat-inline-link::after {
+  content: " ↗";
   font-size: 0.72rem;
   margin-left: 2px;
   font-weight: bold;

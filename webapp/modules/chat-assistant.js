@@ -1645,31 +1645,6 @@ function buildKnownDocumentHeader(knownDoc) {
   if (thayThe) {
     lines.push(`| **Thay thế cho** | ${thayThe} |`);
   }
-  if (knownDoc.tom_tat_chinh_sach) {
-    let tomTat = '';
-    if (Array.isArray(knownDoc.tom_tat_chinh_sach)) {
-      tomTat = knownDoc.tom_tat_chinh_sach.map((item, idx) => `${idx + 1}. ${item}`).join('<br>');
-    } else {
-      const rawTomTat = String(knownDoc.tom_tat_chinh_sach || '');
-      tomTat = rawTomTat.replace(/\s+(\d+\.\s+)/g, '<br>$1');
-    }
-    lines.push(`| **Tóm tắt chính sách** | ${tomTat} |`);
-  }
-
-  const chapters = knownDoc.tom_tat_chuong_dieu || knownDoc.chapterArticleSummary || '';
-  if (chapters) {
-    const formattedChapters = String(chapters).replace(/\n/g, '<br>');
-    lines.push(`| **Cấu trúc chương điều** | ${formattedChapters} |`);
-  }
-
-  const pdfUrl = knownDoc.pdf_download_url || knownDoc.pdfDownloadUrl;
-  const officialUrl = Array.isArray(knownDoc.official_source_urls) ? knownDoc.official_source_urls[0] : (knownDoc.official_source_urls || '');
-  const linkParts = [];
-  if (pdfUrl) linkParts.push(`[📥 Tải PDF gốc](${pdfUrl})`);
-  if (officialUrl) linkParts.push(`[🏛️ Cổng TTĐT Chính phủ](${officialUrl})`);
-  if (linkParts.length > 0) {
-    lines.push(`| **Nguồn & Tải về** | ${linkParts.join(' &nbsp;•&nbsp; ')} |`);
-  }
 
   return lines.join('\n') + '\n\n';
 }
