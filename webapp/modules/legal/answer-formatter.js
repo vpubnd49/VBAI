@@ -300,6 +300,11 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
   if (Array.isArray(documents)) {
     documents.forEach(d => {
       const num = (d.documentNumber || d.document_number || d.number || '').trim();
+      // Strictly reject invalid numbers or pure date strings (e.g. 16/06/2025)
+      if (!num || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(num) || !/[A-Za-zÀ-ỹ]/.test(num)) {
+        return;
+      }
+
       if (num || d.url || d.sourceUrl || d.link) {
         const issueDate = (d.issueDate || d.issue_date || '').trim();
         const effectiveDate = (d.effectiveDate || d.effective_date || '').trim();
@@ -314,13 +319,19 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           dateFormatted = 'Đang áp dụng';
         }
 
-        const pdfList = Array.isArray(d.pdfDownloadUrls) ? d.pdfDownloadUrls.slice() : [];
-        if (d.pdfDownloadUrl && !pdfList.includes(d.pdfDownloadUrl)) {
-          pdfList.push(d.pdfDownloadUrl);
-        }
-        if (d.pdf_download_url && !pdfList.includes(d.pdf_download_url)) {
-          pdfList.push(d.pdf_download_url);
-        }
+        const pdfList = [];
+        const candidatePdfs = [
+          ...(Array.isArray(d.pdfDownloadUrls) ? d.pdfDownloadUrls : []),
+          ...(Array.isArray(d.pdf_download_urls) ? d.pdf_download_urls : []),
+          d.pdfDownloadUrl,
+          d.pdf_download_url
+        ].filter(Boolean);
+
+        candidatePdfs.forEach(url => {
+          if (!pdfList.includes(url) && !url.includes('.signed.signed.pdf')) {
+            pdfList.push(url);
+          }
+        });
 
         docsMap.set(num.toLowerCase(), {
           number: num || 'VBPL',

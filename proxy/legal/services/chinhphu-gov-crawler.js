@@ -96,7 +96,7 @@ function predictPdfUrl(docNumber = '', issueDate = '') {
     const year = dateParts[2];
 
     const dateStr = `${day}${month}${year}`;
-    const filename = `${num}_${typeParts}_${dateStr}-signed.signed.pdf`;
+    const filename = `${num}_${typeParts}_${dateStr}-signed.pdf`;
     return `${DATAFILES_BASE}/${year}/${parseInt(month, 10)}/${filename}`;
   } catch (_) {
     return null;
@@ -176,16 +176,13 @@ function parseListingHtml(html = '') {
       : null;
     const pdfUrl = pdfMatch ? pdfMatch[1] : (pdfMatchFallback ? pdfMatchFallback[1] : null);
 
-    // Generate predicted PDF URL as last resort
-    const predictedPdf = !pdfUrl ? predictPdfUrl(docNumber, issueDate) : null;
-
     results.push({
       docid,
       title,
       documentNumber: docNumber,
       issueDate,
       issuer: '',  // Not directly available in listing rows
-      pdfUrl: pdfUrl || predictedPdf || null,
+      pdfUrl: pdfUrl || null,
       pdfVerified: Boolean(pdfUrl), // true if link was found in HTML
       detailUrl: buildChinhphuDetailUrl(docid),
       source: 'chinhphu_gov',
@@ -412,21 +409,47 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
     if (found) return found;
   } catch (_) {}
 
-  // Strategy 3: Predict PDF URL if we have issue date
+  // Strategy 2.5: Check official source URLs for chinhphu docid to crawl detail page directly
+  const officialUrls = Array.isArray(opts.official_source_urls)
+    ? opts.official_source_urls
+    : (opts.officialUrl ? [opts.officialUrl] : []);
+  for (const u of officialUrls) {
+    const docidMatch = String(u).match(/docid=(\d+)/i);
+    if (docidMatch) {
+      try {
+        const detail = await fetchChinhphuDocumentDetail(docidMatch[1]);
+        if (detail && detail.pdfUrl) {
+          return {
+            documentNumber: docNumber,
+            title: opts.title || detail.title || `Văn bản số ${docNumber}`,
+            pdfUrl: detail.pdfUrl,
+            pdfVerified: true,
+            detailUrl: detail.detailUrl || u,
+            source: 'chinhphu_gov',
+            sourceUrl: detail.detailUrl || u,
+          };
+        }
+      } catch (_) {}
+    }
+  }
+
+  // Strategy 3: Predict PDF URL if we have issue date (only if verified via HTTP HEAD)
   const issueDate = opts.issueDate || opts.issue_date || null;
   if (issueDate) {
     const predicted = predictPdfUrl(docNumber, issueDate);
     if (predicted) {
       const verified = await verifyPdfUrl(predicted);
-      return {
-        documentNumber: docNumber,
-        title: opts.title || `Văn bản số ${docNumber}`,
-        pdfUrl: verified || predicted,
-        pdfVerified: Boolean(verified),
-        detailUrl: buildChinhphuSearchUrl(docNumber),
-        source: 'chinhphu_gov',
-        sourceUrl: buildChinhphuSearchUrl(docNumber),
-      };
+      if (verified) {
+        return {
+          documentNumber: docNumber,
+          title: opts.title || `Văn bản số ${docNumber}`,
+          pdfUrl: verified,
+          pdfVerified: true,
+          detailUrl: buildChinhphuSearchUrl(docNumber),
+          source: 'chinhphu_gov',
+          sourceUrl: buildChinhphuSearchUrl(docNumber),
+        };
+      }
     }
   }
 

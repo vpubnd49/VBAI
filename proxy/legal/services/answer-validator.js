@@ -59,6 +59,9 @@ function findInBosungMetadata(docNumber = '') {
         chapterArticleSummary: verified && entry.summary_verified === true
           ? (entry.tom_tat_chuong_dieu || '')
           : '',
+        pdfDownloadUrl: entry.pdf_download_url || entry.pdfDownloadUrl || null,
+        pdf_download_url: entry.pdf_download_url || entry.pdfDownloadUrl || null,
+        official_source_urls: sourceUrls,
         verified,
         verificationStatus: verified ? 'verified' : 'identity_resolved',
       };
@@ -94,6 +97,9 @@ function findInKnownDocuments(docNumber = '') {
     tom_tat_chinh_sach: found.tom_tat_chinh_sach || found.summary || '',
     summary: found.tom_tat_chinh_sach || found.summary || '',
     chapterArticleSummary: found.tom_tat_chuong_dieu || '',
+    pdfDownloadUrl: found.pdf_download_url || found.pdfDownloadUrl || null,
+    pdf_download_url: found.pdf_download_url || found.pdfDownloadUrl || null,
+    official_source_urls: found.official_source_urls || [],
     verified: isVerified,
     verificationStatus: isVerified ? 'verified' : (found.verification_status || 'unverified'),
   };

@@ -81,15 +81,25 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
     const hotItem = getHotIndexItem(docNumber);
 
     // --- Resolve PDF link from chinhphu.vn ---
-    let chinhphuResult = null;
-    try {
-      chinhphuResult = await resolveChinhphuDocument(docNumber, {
-        issueDate: metaDoc?.issueDate || (knownDoc && knownDoc.issue_date) || null,
-        title: metaDoc?.title || (knownDoc && knownDoc.title) || null,
-      });
-    } catch (_) {}
-    const pdfDownloadUrl = chinhphuResult?.pdfUrl || null;
-    const chinhphuDetailUrl = chinhphuResult?.detailUrl || null;
+    let pdfDownloadUrl = knownDoc?.pdf_download_url || knownDoc?.pdfDownloadUrl || metaDoc?.pdf_download_url || metaDoc?.pdfDownloadUrl || null;
+    let chinhphuDetailUrl = (knownDoc && knownDoc.official_source_urls && knownDoc.official_source_urls[0]) || metaDoc?.sourceUrl || null;
+
+    if (!pdfDownloadUrl) {
+      let chinhphuResult = null;
+      try {
+        chinhphuResult = await resolveChinhphuDocument(docNumber, {
+          issueDate: metaDoc?.issueDate || (knownDoc && knownDoc.issue_date) || null,
+          title: metaDoc?.title || (knownDoc && knownDoc.title) || null,
+          official_source_urls: (knownDoc && knownDoc.official_source_urls) || (metaDoc && metaDoc.official_source_urls) || [],
+        });
+      } catch (_) {}
+      if (chinhphuResult?.pdfUrl) {
+        pdfDownloadUrl = chinhphuResult.pdfUrl;
+      }
+      if (chinhphuResult?.detailUrl) {
+        chinhphuDetailUrl = chinhphuResult.detailUrl;
+      }
+    }
 
     if (hotItem) {
       results.push({
@@ -104,6 +114,7 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         effectiveStatus: metaDoc?.effectiveStatus || 'in_force',
         verificationStatus: metaDoc?.verificationStatus || 'verified',
         pdfDownloadUrl,
+        pdfDownloadUrls: knownDoc?.pdf_download_urls || knownDoc?.pdfDownloadUrls || metaDoc?.pdf_download_urls || metaDoc?.pdfDownloadUrls || (pdfDownloadUrl ? [pdfDownloadUrl] : []),
         chinhphuDetailUrl,
       });
     } else if (knownDoc || (metaDoc && metaDoc.title)) {
@@ -127,6 +138,7 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         summary: knownDoc?.tom_tat_chinh_sach || metaDoc?.summary || '',
         chapterArticleSummary: knownDoc?.tom_tat_chuong_dieu || metaDoc?.chapterArticleSummary || '',
         pdfDownloadUrl,
+        pdfDownloadUrls: knownDoc?.pdf_download_urls || knownDoc?.pdfDownloadUrls || metaDoc?.pdf_download_urls || metaDoc?.pdfDownloadUrls || (pdfDownloadUrl ? [pdfDownloadUrl] : []),
         chinhphuDetailUrl,
       });
     } else {

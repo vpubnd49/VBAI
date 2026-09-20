@@ -229,7 +229,13 @@ async function executeLegalSearch(container, query) {
         if (Array.isArray(kd.can_cu_phap_ly) && kd.can_cu_phap_ly.length > 0) {
           metaLines.push(`- Căn cứ pháp lý: ${kd.can_cu_phap_ly.join('; ')}`);
         }
-        metaLines.push(`\n[QUY TẮC PHÂN TÍCH CHUYÊN SÂU]: Bạn BẮT BUỘC trình bày bài phân tích đầy đủ, phong phú, chi tiết từng nhóm chính sách, biện pháp kỹ thuật và trách nhiệm thực thi. Tuyệt đối không trả lời sơ sài.`);
+        if (kd.pdf_download_url || kd.pdfDownloadUrl) {
+          metaLines.push(`- Link tải file PDF chính thức: ${kd.pdf_download_url || kd.pdfDownloadUrl}`);
+        }
+        if (Array.isArray(kd.pdf_download_urls) && kd.pdf_download_urls.length > 1) {
+          metaLines.push(`- Danh sách các phần file PDF chính thức:\n` + kd.pdf_download_urls.map((u, i) => `  + Phần ${i + 1}: ${u}`).join('\n'));
+        }
+        metaLines.push(`\n[QUY TẮC BẮT BUỘC]: BẮT BUỘC trình bày đầy đủ cả 6 phần (Phần I, II, III, IV, V, VI). Tuyệt đối không được nhảy cóc bỏ qua mục từ I đến V!`);
 
         fullPrompt += metaLines.join('\n');
       }
@@ -363,9 +369,8 @@ function buildKnownDocHeader(kd) {
 function buildStructuredAnswerHtml(rawAnswer, evidenceBundle, mode, effectiveDate, knownDocument = null) {
   const formattedBody = formatLegalAnswer(rawAnswer, evidenceBundle);
 
-  // Avoid duplicate header card if formattedBody already parsed one from rawAnswer
-  const bodyHasHeaderCard = /Bảng danh mục trích dẫn văn bản chính thức/i.test(formattedBody) ||
-    /\|\s*Thuộc tính\s*\|\s*Chi tiết văn bản\s*\|/i.test(rawAnswer);
+  // Avoid duplicate header card ONLY if rawAnswer already contains the 2-column property table
+  const bodyHasHeaderCard = /\|\s*Thuộc tính\s*\|\s*Chi tiết văn bản\s*\|/i.test(rawAnswer);
 
   const knownDocHtml = (!bodyHasHeaderCard && knownDocument) ? buildKnownDocHeader(knownDocument) : '';
 
@@ -437,7 +442,9 @@ function buildModePrompt(query, mode, effectiveDate) {
   "[Tên văn bản] mới nhất hiện nay là [Loại văn bản] số [Số hiệu] (được [Cơ quan] thông qua/ban hành ngày [Ngày ban hành]).
   Dưới đây là thông tin chi tiết, phân tích pháp lý và đường dẫn tải về văn bản gốc theo đúng chuẩn quy định:"
 
-[CẤU TRÚC BÀI PHÂN TÍCH BẮT BUỘC]:
+[CẤU TRÚC BÀI PHÂN TÍCH BẮT BUỘC - TUYỆT ĐỐI KHÔNG BỎ MỤC NÀO]:
+⚠️ BẮT BUỘC PHẢI CÓ ĐỦ 6 PHẦN SAU (TỪ PHẦN I ĐẾN PHẦN VI), TUYỆT ĐỐI KHÔNG ĐƯỢC NHẢY CÓC HAY BỎ QUA CÁC PHẦN TỪ I ĐẾN V:
+
 I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH
    - Số hiệu trong ngoặc vuông [VD: 31/2024/QH15]
    - Tên đầy đủ của văn bản

@@ -4616,6 +4616,12 @@ app.post('/api/chat', async (req, res) => {
         contextLines.push(`- Trạng thái hiệu lực: ${statusStr}`);
         if (doc.sourceUrl) contextLines.push(`- Nguồn chính thức: ${doc.sourceUrl}`);
         if (doc.snippet) contextLines.push(`- Trích yếu: ${doc.snippet}`);
+        if (doc.chapterArticleSummary) contextLines.push(`- Cấu trúc chương điều & quy định chi tiết:\n${doc.chapterArticleSummary}`);
+        if (doc.summary) contextLines.push(`- Tóm tắt chính sách trọng tâm: ${doc.summary}`);
+        if (doc.pdfDownloadUrl) contextLines.push(`- Link tải file PDF chính thức: ${doc.pdfDownloadUrl}`);
+        if (Array.isArray(doc.pdfDownloadUrls) && doc.pdfDownloadUrls.length > 1) {
+          contextLines.push(`- Danh sách các phần file PDF chính thức:\n` + doc.pdfDownloadUrls.map((u, i) => `  + Phần ${i + 1}: ${u}`).join('\n'));
+        }
       });
       contextLines.push(`
 \n=== QUY ĐỊNH BẮT BUỘC VỀ NỘI DUNG & CẤU TRÚC PHÂN TÍCH PHÁP LÝ ===
@@ -4630,17 +4636,21 @@ app.post('/api/chat', async (req, res) => {
   "[Tên văn bản] mới nhất hiện nay là [Loại văn bản] số [Số hiệu] (được [Cơ quan] thông qua/ban hành ngày [Ngày ban hành]).
   Dưới đây là thông tin chi tiết, phân tích pháp lý và đường dẫn tải về văn bản gốc theo đúng chuẩn quy định:"
 
-[CẤU TRÚC BẮT BUỘC]:
-1. I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH (Số hiệu [VD: 31/2024/QH15], tên đầy đủ, cơ quan, ngày ban hành, ngày hiệu lực, trạng thái).
-2. II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN (Căn cứ Luật nào, hướng dẫn Điều nào, VB thay thế/sửa đổi/bị thay thế).
-3. III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG.
-4. IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT (⚠️ PHẦN QUAN TRỌNG NHẤT):
-   A. THỐNG KÊ CẤU TRÚC (BẮT BUỘC): Tổng số chương, tổng số điều. Liệt kê từng chương kèm phạm vi điều (VD: Chương I Điều 1-6: Quy định chung).
-   B. PHÂN TÍCH TỪNG CHƯƠNG: Mỗi chương 3-6 gạch đầu dòng chi tiết (biện pháp, quy trình, chế tài, quyền/nghĩa vụ, điểm mới nổi bật).
-5. V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN.
-6. VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE: CHỈ liệt kê VB chính + VB sửa đổi/thay thế trực tiếp.
-   Format: | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Link tải File / Nguồn kiểm chứng |
-   [Quy tắc Link tải tệp]: Link tải PDF chính thức từ Cổng Chính phủ định dạng https://datafiles.chinhphu.vn/cpp/files/vbpq/{năm}/{tháng}/{tên_file}-signed.pdf (hoặc https://chinhphu.vn/media/docs/...). Chèn link dạng markdown: [Tải về (PDF)](URL). Kèm ghi chú: 'Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn [Số hiệu] chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.'
+[CẤU TRÚC BẮT BUỘC - TUYỆT ĐỐI KHÔNG ĐƯỢC BỎ BẤT KỲ PHẦN NÀO]:
+⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC NHẢY CÓC HOẶC BỎ QUA CÁC PHẦN TỪ I ĐẾN V! BẮT BUỘC PHẢI TRÌNH BÀY ĐẦY ĐỦ CẢ 6 PHẦN SAU:
+1. I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH (Số hiệu trong ngoặc vuông [VD: 31/2024/QH15], tên đầy đủ, cơ quan, ngày ban hành, ngày hiệu lực, tình trạng hiệu lực).
+2. II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN (Căn cứ pháp lý, VB hướng dẫn thi hành, VB thay thế/sửa đổi).
+3. III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG (Phạm vi điều chỉnh, các đối tượng áp dụng).
+4. IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT (⚠️ PHẦN QUAN TRỌNG NHẤT — PHẢI TRÌNH BÀY ĐẦY ĐỦ):
+   A. THỐNG KÊ CẤU TRÚC (BẮT BUỘC): Nêu rõ tổng số chương, tổng số điều và liệt kê đầy đủ tất cả các chương từ Chương I đến chương cuối cùng kèm phạm vi điều!
+   B. PHÂN TÍCH CHI TIẾT TỪNG CHƯƠNG: Điểm qua nội dung, chính sách mới, biện pháp cụ thể, quyền và nghĩa vụ theo từng chương.
+5. V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN (Trách nhiệm bộ ngành, UBND các cấp, điều khoản chuyển tiếp).
+6. VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE:
+   Bảng Markdown:
+   | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Link tải File / Nguồn kiểm chứng |
+   | :--- | :--- | :--- | :--- | :--- | :--- |
+   | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Tải về (PDF)](URL) hoặc [Tải về Phần 1 (PDF)](URL1)<br>[Tải về Phần 2 (PDF)](URL2) |
+   Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn [Số hiệu] chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.
 === KẾT THÚC CĂN CỨ PHÁP LÝ ===\n`);
 
       const evidenceText = contextLines.join('\n');
