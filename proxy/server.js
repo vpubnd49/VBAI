@@ -4534,7 +4534,6 @@ app.post('/api/chat', async (req, res) => {
       // Record search attempt to search_logs for full audit trace
       try {
         await dbService.addSearchLog({
-          // Keep the original Unicode query, bounded and newline-sanitized, for reopen/search.
           query: sanitizeAuditQuery(auditQuery),
           user_email: decoded?.email ? String(decoded.email).trim().toLowerCase().slice(0, 254) : null,
           user_name: decoded?.name || decoded?.displayName || (decoded?.email ? decoded.email.split('@')[0] : null),
@@ -4590,8 +4589,16 @@ app.post('/api/chat', async (req, res) => {
     if (isLegalSearchTrace && !stream && LEGAL_SYNTHESIS_CACHE.has(synthesisCacheKey)) {
       const cached = LEGAL_SYNTHESIS_CACHE.get(synthesisCacheKey);
       if (cached && (Date.now() - cached.timestamp < LEGAL_SYNTHESIS_CACHE_TTL_MS)) {
-        console.log(`[Cache HIT] Returning instant cached legal synthesis for query: "${auditQuery}"`);
-        return res.json(cached.payload);
+        const cachedContent = cached.payload?.choices?.[0]?.message?.content || '';
+        const hasSec1 = /(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?I\.\s+/i.test(cachedContent);
+        const hasSec4 = /(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?IV\.\s+/i.test(cachedContent);
+        if (hasSec1 && hasSec4) {
+          console.log(`[Cache HIT] Returning instant cached legal synthesis for query: "${auditQuery}"`);
+          return res.json(cached.payload);
+        } else {
+          console.log(`[Cache BUST] Cached legal answer was incomplete, regenerating: "${auditQuery}"`);
+          LEGAL_SYNTHESIS_CACHE.delete(synthesisCacheKey);
+        }
       }
     }
 
@@ -4629,6 +4636,11 @@ app.post('/api/chat', async (req, res) => {
 - Bạn PHẢI tập trung phân tích ĐẦY ĐỦ, TOÀN DIỆN nội dung của VĂN BẢN CHÍNH mà người dùng hỏi.
 - Phân tích CHI TIẾT từng nhóm quy định, biện pháp, chế tài, mốc thời hạn, quyền/nghĩa vụ. KHÔNG trả lời sơ sài.
 - TUYỆT ĐỐI CẤM vẽ sơ đồ ASCII art (┌───┐, │, └───┘, ▼). BẮT BUỘC dùng danh sách phân cấp và Bảng Markdown chuẩn.
+
+[CHỈ THỊ TỐI CAO - BẮT BUỘC TRÌNH BÀY ĐỦ CẢ 6 PHẦN TỪ I ĐẾN VI]:
+Dù câu hỏi của người dùng ngắn gọn (như "luật đất đai mới số bao nhiêu", "luật 72/2025 là gì", "tải file luật về cho tôi", "cho xem luật"), BẠN BẮT BUỘC PHẢI VIẾT ĐẦY ĐỦ TOÀN BỘ 6 PHẦN TỪ I ĐẾN VI!
+TUYỆT ĐỐI NGHIÊM CẤM VIỆC CHỈ NÊU CÂU DẪN RỒI NHẢY CÓC SANG PHẦN VI MÀ BỎ QUA CÁC PHẦN I ĐẾN V!
+Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ bị xem là vi phạm quy định và không đạt chuẩn.
 
 [MỞ ĐẦU BẮT BUỘC]:
 - Khi người dùng hỏi về văn bản hoặc yêu cầu tải file văn bản:
@@ -4930,6 +4942,7 @@ app.post('/api/chat', async (req, res) => {
           evidenceBundle: legalContext.evidenceBundle || null,
           crossReferences: legalContext.crossReferences || null,
           verification: legalContext.verification || { available: true },
+          known_document: legalContext.known_document || (legalContext.evidenceBundle?.documents?.[0]) || null,
           citationValidation,
         };
 

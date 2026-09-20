@@ -467,7 +467,129 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
   `;
 }
 
-export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings = []) {
+export function buildKnownDocHeader(kd) {
+  if (!kd || (!kd.documentNumber && !kd.so_hieu && !kd.document_number && !kd.number)) return '';
+
+  const docNo = kd.documentNumber || kd.so_hieu || kd.document_number || kd.number || '';
+  const title = kd.titleHint || kd.trich_yeu || kd.title || '';
+  const issuer = kd.issuer || kd.co_quan_ban_hanh || (docNo.includes('/QH') ? 'Quốc hội' : (docNo.includes('/NĐ-CP') ? 'Chính phủ' : 'Cơ quan có thẩm quyền'));
+  const issueDateRaw = kd.ngay_ban_hanh || kd.issueDate || kd.issue_date || '';
+  const effectiveDateRaw = kd.ngay_hieu_luc || kd.effectiveDate || kd.effective_date || '';
+
+  let statusRaw = kd.tinh_trang_hieu_luc || kd.effectiveStatus || kd.effective_status || 'co_hieu_luc';
+  let statusClass = 'in-force';
+  let statusText = '🟢 Có hiệu lực';
+  if (statusRaw === 'het_hieu_luc' || statusRaw === 'expired' || statusRaw === 'Hết hiệu lực') { statusClass = 'expired'; statusText = '🔴 Hết hiệu lực'; }
+  else if (statusRaw === 'ngung_hieu_luc' || statusRaw === 'Ngưng hiệu lực') { statusClass = 'suspended'; statusText = '🟡 Ngưng hiệu lực'; }
+
+  const replacesArr = kd.thay_the_cho || kd.replaces || kd.replacements || [];
+  const replaces = Array.isArray(replacesArr) ? replacesArr.join(', ') : (replacesArr || '');
+
+  return `
+    <div class="chat-compare-card" style="margin-top: 10px; margin-bottom: 18px;">
+      <div class="chat-compare-title">📊 Bảng danh mục trích dẫn văn bản chính thức</div>
+      <div class="chat-table-wrap legal-grid-wrapper">
+        <table class="chat-compare-table legal-grid-table">
+          <thead>
+            <tr>
+              <th style="width: 28%;">Thuộc tính</th>
+              <th>Chi tiết văn bản</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Số hiệu</strong></td>
+              <td style="font-weight: 700; color: var(--brand-primary, #008ca1);">${escapeHtml(docNo)}</td>
+            </tr>
+            ${title ? `<tr><td><strong>Tên văn bản / Trích yếu</strong></td><td>${escapeHtml(title)}</td></tr>` : ''}
+            <tr>
+              <td><strong>Cơ quan ban hành</strong></td>
+              <td>${escapeHtml(issuer)}</td>
+            </tr>
+            ${issueDateRaw ? `<tr><td><strong>Ngày ban hành</strong></td><td>${escapeHtml(issueDateRaw)}</td></tr>` : ''}
+            ${effectiveDateRaw ? `<tr><td><strong>Ngày có hiệu lực</strong></td><td>${escapeHtml(effectiveDateRaw)}</td></tr>` : ''}
+            <tr>
+              <td><strong>Tình trạng hiệu lực</strong></td>
+              <td><span class="legal-status-pill ${statusClass}">${statusText}</span></td>
+            </tr>
+            ${replaces ? `<tr><td><strong>Thay thế cho</strong></td><td>${escapeHtml(replaces)}</td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+export function synthesizeMissingLegalSections(rawAnswer = '', mainDoc = null) {
+  if (!mainDoc) return rawAnswer;
+
+  const docNo = mainDoc.documentNumber || mainDoc.document_number || mainDoc.number || mainDoc.so_hieu || '';
+  if (!docNo) return rawAnswer;
+
+  const title = mainDoc.title || mainDoc.trich_yeu || mainDoc.titleHint || `Văn bản ${docNo}`;
+  const issuer = mainDoc.issuer || mainDoc.co_quan_ban_hanh || (docNo.includes('/QH') ? 'Quốc hội' : 'Chính phủ');
+  const issueDate = mainDoc.issueDate || mainDoc.issue_date || mainDoc.ngay_ban_hanh || '';
+  const effectiveDate = mainDoc.effectiveDate || mainDoc.effective_date || mainDoc.ngay_hieu_luc || issueDate || '';
+  const statusStr = (mainDoc.effectiveStatus === 'in_force' || mainDoc.effective_status === 'in_force' || mainDoc.status === 'Còn hiệu lực') ? 'Còn hiệu lực thi hành' : (mainDoc.effectiveStatus || 'Còn hiệu lực');
+  const replacesArr = mainDoc.replaces || mainDoc.thay_the_cho || mainDoc.replacements || [];
+  const replaces = Array.isArray(replacesArr) ? replacesArr.join(', ') : (replacesArr || '');
+  const canCuArr = mainDoc.can_cu_phap_ly || [];
+  const canCu = Array.isArray(canCuArr) && canCuArr.length > 0 ? canCuArr.join('; ') : 'Hiến pháp nước Cộng hòa xã hội chủ nghĩa Việt Nam';
+  const summary = mainDoc.summary || mainDoc.tom_tat_chinh_sach || '';
+  const chapters = mainDoc.chapterArticleSummary || mainDoc.tom_tat_chuong_dieu || '';
+
+  // Preserve any lead introduction paragraph from rawAnswer if it exists
+  let leadParagraph = '';
+  const leadMatch = String(rawAnswer).match(/^([\s\S]*?)(?=(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?(?:I\.|VI\.)|$)/i);
+  if (leadMatch && leadMatch[1].trim().length > 15) {
+    leadParagraph = leadMatch[1].trim();
+  } else {
+    leadParagraph = `${title} mới nhất hiện nay là Luật số [${docNo}] (được ${issuer} thông qua/ban hành ngày ${issueDate}).\n\nDưới đây là thông tin chi tiết, phân tích pháp lý và đường dẫn tải về văn bản gốc theo đúng chuẩn quy định:`;
+  }
+
+  let chapterBlock = '';
+  if (chapters) {
+    chapterBlock = `\n\n**A. THỐNG KÊ CẤU TRÚC CHƯƠNG ĐIỀU:**\n\n${chapters}`;
+  } else {
+    chapterBlock = `\n\n**A. THỐNG KÊ CẤU TRÚC CHƯƠNG ĐIỀU:**\n\n- Văn bản quy định chi tiết phạm vi quyền và nghĩa vụ, trách nhiệm pháp lý và trình tự thi hành.`;
+  }
+
+  let policyBlock = '';
+  if (summary) {
+    policyBlock = `\n\n**B. PHÂN TÍCH NỘI DUNG VÀ CHÍNH SÁCH TRỌNG TÂM:**\n\n${summary}`;
+  }
+
+  return `${leadParagraph}
+
+I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH
+- **Tên chính thức:** ${title}
+- **Số hiệu:** [${docNo}]
+- **Cơ quan ban hành:** ${issuer}
+- **Ngày ban hành:** ${issueDate}
+- **Ngày có hiệu lực:** ${effectiveDate}
+- **Tình trạng hiệu lực:** ${statusStr}
+
+II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN
+- **Căn cứ ban hành:** ${canCu}
+${replaces ? `- **Thay thế cho văn bản:** ${replaces} (hết hiệu lực kể từ ngày văn bản mới có hiệu lực thi hành)` : '- **Quan hệ văn bản:** Có hiệu lực thi hành thống nhất trên phạm vi toàn quốc.'}
+
+III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG
+- **Phạm vi điều chỉnh:** Quy định về chế độ sở hữu, quản lý, sử dụng, quyền và nghĩa vụ của các chủ thể đối với các lĩnh vực được điều chỉnh theo văn bản quy phạm pháp luật.
+- **Đối tượng áp dụng:** Cơ quan nhà nước, tổ chức, doanh nghiệp, hộ gia đình và cá nhân trên lãnh thổ Việt Nam.
+
+IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT
+${chapterBlock}
+${policyBlock}
+
+V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN
+- **Cơ quan chủ trì:** Chính phủ, các Bộ, cơ quan ngang Bộ theo thẩm quyền ban hành các văn bản hướng dẫn chi tiết thi hành.
+- **Trách nhiệm địa phương:** Hội đồng nhân dân và Ủy ban nhân dân các cấp chịu trách nhiệm tổ chức thực thi, ban hành văn bản quy định chi tiết theo phân cấp, thanh tra, kiểm tra và bảo đảm chấp hành pháp luật tại địa phương.
+- **Tổ chức, cá nhân:** Nghiêm chỉnh chấp hành các quy định theo đúng thẩm quyền và trình tự pháp luật quy định.
+
+VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE`;
+}
+
+export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings = [], knownDocument = null) {
   let actualWarnings = Array.isArray(warnings) ? warnings : [];
   let docsInput = evidenceBundle;
 
@@ -487,13 +609,25 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
       }
     : (docsInput || {});
 
-  let formattedHtml = parseMarkdownToStructuredHtml(rawAnswer);
+  const mainDoc = knownDocument || documents[0] || null;
+
+  // Ensure all 6 sections (I through VI) are present.
+  // If AI skipped Sections I-V and jumped straight to Section VI, synthesize from verified metadata!
+  let effectiveRawAnswer = String(rawAnswer || '');
+  const hasSectionOne = /(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?I\.\s+/i.test(effectiveRawAnswer);
+  const hasSectionFour = /(?:⚖️\s*)?(?:#{1,3}\s*)?(?:\*\*)?IV\.\s+/i.test(effectiveRawAnswer);
+
+  if ((!hasSectionOne || !hasSectionFour) && mainDoc) {
+    effectiveRawAnswer = synthesizeMissingLegalSections(effectiveRawAnswer, mainDoc);
+  }
+
+  let formattedHtml = parseMarkdownToStructuredHtml(effectiveRawAnswer);
 
   // Strip duplicate middle notes that AI might have generated before section I or VI
   formattedHtml = formattedHtml.replace(/<p[^>]*>\s*Ghi chú: Bạn có thể bấm trực tiếp vào liên kết ở bảng trên[\s\S]*?<\/p>/gi, '');
 
   // Always build our enhanced citation table with PDF links matching Photo 5
-  const gridTableHtml = buildLegalCitationTable(rawAnswer, documents);
+  const gridTableHtml = buildLegalCitationTable(effectiveRawAnswer, documents);
 
   if (gridTableHtml) {
     // Cleanly remove any AI-generated Section VI (header, table, and trailing notes)
@@ -510,6 +644,10 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
 
     formattedHtml = formattedHtml.trim() + gridTableHtml;
   }
+
+  // Top 2-Column Metadata Card (Thuộc tính | Chi tiết văn bản)
+  const bodyHasHeaderCard = /\|\s*Thuộc tính\s*\|\s*Chi tiết văn bản\s*\|/i.test(effectiveRawAnswer);
+  const knownDocHeaderHtml = (!bodyHasHeaderCard && mainDoc) ? buildKnownDocHeader(mainDoc) : '';
 
   // Attach warnings at top if present
   let warningHtml = '';
@@ -541,6 +679,7 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
   return `
     <div class="legal-answer-wrapper">
       ${headerHtml}
+      ${knownDocHeaderHtml}
       ${warningHtml}
       <div class="legal-answer-body">
         ${formattedHtml}

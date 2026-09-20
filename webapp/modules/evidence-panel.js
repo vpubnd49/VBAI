@@ -117,7 +117,17 @@ export function renderEvidenceCard(doc = {}, index = 1) {
     ? `<span class="source-chip source-official">🏛️ Nguồn chính thức</span>`
     : `<span class="source-chip source-reference">📄 Nguồn tham khảo</span>`;
 
-  const cardId = `evidence-card-${doc.id || index}`;
+  // Clean snippet: remove any chapter breakdown or repetitive metadata, keep brief (max ~200 chars)
+  let cleanSnippet = String(snippet || '').trim();
+  if (/cấu trúc chương điều|cấu trúc của luật|cấu trúc văn bản/i.test(cleanSnippet)) {
+    cleanSnippet = cleanSnippet.split(/cấu trúc chương điều|cấu trúc của luật|cấu trúc văn bản/i)[0].trim();
+  }
+  if (/căn cứ pháp lý:/i.test(cleanSnippet)) {
+    cleanSnippet = cleanSnippet.split(/căn cứ pháp lý:/i)[0].trim();
+  }
+  if (cleanSnippet.length > 220) {
+    cleanSnippet = cleanSnippet.slice(0, 217).trim() + '...';
+  }
 
   return `
     <div class="evidence-card ${isVerified ? 'is-verified' : ''}" id="${cardId}" data-doc-number="${escapeAttribute(docNumber)}">
@@ -135,9 +145,9 @@ export function renderEvidenceCard(doc = {}, index = 1) {
       ${docNumber ? `<div class="evidence-docnum">Số hiệu: <strong>${escapeHtml(docNumber)}</strong></div>` : ''}
       ${coordLabel ? `<div class="evidence-coord">Căn cứ: <strong>${escapeHtml(coordLabel)}</strong></div>` : ''}
 
-      ${snippet ? `
+      ${cleanSnippet ? `
         <div class="evidence-snippet">
-          <span class="snippet-quote">“</span>${escapeHtml(snippet)}<span class="snippet-quote">”</span>
+          <span class="snippet-quote">“</span>${escapeHtml(cleanSnippet)}<span class="snippet-quote">”</span>
         </div>
       ` : ''}
 

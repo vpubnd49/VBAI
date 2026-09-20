@@ -118,15 +118,16 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         chinhphuDetailUrl,
       });
     } else if (knownDoc || (metaDoc && metaDoc.title)) {
-      const detailedSnippet = [
-        knownDoc?.tom_tat_chinh_sach || metaDoc?.summary || '',
-        knownDoc?.tom_tat_chuong_dieu || metaDoc?.chapterArticleSummary ? `Cấu trúc chương điều: ${knownDoc?.tom_tat_chuong_dieu || metaDoc?.chapterArticleSummary}` : '',
-        knownDoc?.can_cu_phap_ly && knownDoc.can_cu_phap_ly.length > 0 ? `Căn cứ pháp lý: ${knownDoc.can_cu_phap_ly.join('; ')}` : ''
-      ].filter(Boolean).join('\n\n') || `Thông tin văn bản số ${docNumber} - Trạng thái: ${metaDoc?.effectiveStatus || 'in_force'}`;
+      // Keep evidence snippet concise (summary of core policy), strictly under 250 chars.
+      // Chapter/article breakdowns are kept in chapterArticleSummary, not dumped into the sidebar quote snippet.
+      let briefSnippet = knownDoc?.tom_tat_chinh_sach || metaDoc?.summary || metaDoc?.snippet || `Văn bản quy phạm pháp luật số ${docNumber}`;
+      if (briefSnippet.length > 250) {
+        briefSnippet = briefSnippet.slice(0, 247) + '...';
+      }
 
       results.push({
         title: metaDoc?.title || (knownDoc && knownDoc.title) || `Văn bản số ${docNumber}`,
-        snippet: detailedSnippet,
+        snippet: briefSnippet,
         link: metaDoc?.sourceUrl || (knownDoc && knownDoc.official_source_urls && knownDoc.official_source_urls[0]) || `https://vanban.chinhphu.vn/`,
         source: metaDoc?.sourceTier || 'official',
         documentNumber: docNumber,
@@ -137,6 +138,7 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
         verificationStatus: metaDoc?.verificationStatus || 'verified',
         summary: knownDoc?.tom_tat_chinh_sach || metaDoc?.summary || '',
         chapterArticleSummary: knownDoc?.tom_tat_chuong_dieu || metaDoc?.chapterArticleSummary || '',
+        can_cu_phap_ly: knownDoc?.can_cu_phap_ly || metaDoc?.can_cu_phap_ly || [],
         pdfDownloadUrl,
         pdfDownloadUrls: knownDoc?.pdf_download_urls || knownDoc?.pdfDownloadUrls || metaDoc?.pdf_download_urls || metaDoc?.pdfDownloadUrls || (pdfDownloadUrl ? [pdfDownloadUrl] : []),
         chinhphuDetailUrl,

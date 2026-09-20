@@ -270,7 +270,7 @@ async function executeLegalSearch(container, query) {
       rawText = String(response || '');
     }
 
-    // Also try to get known_document from metadata cache
+    // Also try to get known_document from metadata cache or evidenceBundle
     if (!knownDocument) {
       try {
         const metaData = await getCachedMetadata(cleanQ);
@@ -278,6 +278,10 @@ async function executeLegalSearch(container, query) {
           knownDocument = metaData.known_document;
         }
       } catch (_) {}
+    }
+
+    if (!knownDocument && evidenceBundle && Array.isArray(evidenceBundle.documents) && evidenceBundle.documents.length > 0) {
+      knownDocument = evidenceBundle.documents[0];
     }
 
     // Format Structured Legal Answer
@@ -309,70 +313,13 @@ async function executeLegalSearch(container, query) {
   }
 }
 
-/**
- * Build the known document metadata header card — shows document number,
- * title, issuer, dates, and status in a clean card matching Photo 1.
- */
-function buildKnownDocHeader(kd) {
-  if (!kd || (!kd.documentNumber && !kd.so_hieu && !kd.document_number)) return '';
-
-  const docNo = kd.documentNumber || kd.so_hieu || kd.document_number || '';
-  const title = kd.titleHint || kd.trich_yeu || kd.title || '';
-  const issuer = kd.issuer || kd.co_quan_ban_hanh || (docNo.includes('/QH') ? 'Quốc hội' : (docNo.includes('/NĐ-CP') ? 'Chính phủ' : 'Cơ quan có thẩm quyền'));
-  const issueDateRaw = kd.ngay_ban_hanh || kd.issueDate || kd.issue_date || '';
-  const effectiveDateRaw = kd.ngay_hieu_luc || kd.effectiveDate || kd.effective_date || '';
-
-  let statusRaw = kd.tinh_trang_hieu_luc || kd.effectiveStatus || kd.effective_status || 'co_hieu_luc';
-  let statusClass = 'in-force';
-  let statusText = '🟢 Có hiệu lực';
-  if (statusRaw === 'het_hieu_luc' || statusRaw === 'expired' || statusRaw === 'Hết hiệu lực') { statusClass = 'expired'; statusText = '🔴 Hết hiệu lực'; }
-  else if (statusRaw === 'ngung_hieu_luc' || statusRaw === 'Ngưng hiệu lực') { statusClass = 'suspended'; statusText = '🟡 Ngưng hiệu lực'; }
-
-  const replacesArr = kd.thay_the_cho || kd.replaces || [];
-  const replaces = Array.isArray(replacesArr) ? replacesArr.join(', ') : (replacesArr || '');
-
-  return `
-    <div class="chat-compare-card" style="margin-bottom: 16px;">
-      <div class="chat-compare-title">📊 Bảng danh mục trích dẫn văn bản chính thức</div>
-      <div class="chat-table-wrap legal-grid-wrapper">
-        <table class="chat-compare-table legal-grid-table">
-          <thead>
-            <tr>
-              <th style="width: 28%;">Thuộc tính</th>
-              <th>Chi tiết văn bản</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Số hiệu</strong></td>
-              <td style="font-weight: 700; color: var(--brand-primary, #008ca1);">${escapeHtml(docNo)}</td>
-            </tr>
-            ${title ? `<tr><td><strong>Tên văn bản / Trích yếu</strong></td><td>${escapeHtml(title)}</td></tr>` : ''}
-            <tr>
-              <td><strong>Cơ quan ban hành</strong></td>
-              <td>${escapeHtml(issuer)}</td>
-            </tr>
-            ${issueDateRaw ? `<tr><td><strong>Ngày ban hành</strong></td><td>${escapeHtml(issueDateRaw)}</td></tr>` : ''}
-            ${effectiveDateRaw ? `<tr><td><strong>Ngày có hiệu lực</strong></td><td>${escapeHtml(effectiveDateRaw)}</td></tr>` : ''}
-            <tr>
-              <td><strong>Tình trạng hiệu lực</strong></td>
-              <td><span class="legal-status-pill ${statusClass}">${statusText}</span></td>
-            </tr>
-            ${replaces ? `<tr><td><strong>Thay thế cho</strong></td><td>${escapeHtml(replaces)}</td></tr>` : ''}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-}
-
 function buildStructuredAnswerHtml(rawAnswer, evidenceBundle, mode, effectiveDate, knownDocument = null) {
-  const formattedBody = formatLegalAnswer(rawAnswer, evidenceBundle);
+  let resolvedKnownDoc = knownDocument;
+  if (!resolvedKnownDoc && evidenceBundle && Array.isArray(evidenceBundle.documents) && evidenceBundle.documents.length > 0) {
+    resolvedKnownDoc = evidenceBundle.documents[0];
+  }
 
-  // Avoid duplicate header card ONLY if rawAnswer already contains the 2-column property table
-  const bodyHasHeaderCard = /\|\s*Thuộc tính\s*\|\s*Chi tiết văn bản\s*\|/i.test(rawAnswer);
-
-  const knownDocHtml = (!bodyHasHeaderCard && knownDocument) ? buildKnownDocHeader(knownDocument) : '';
+  const formattedBody = formatLegalAnswer(rawAnswer, evidenceBundle, [], resolvedKnownDoc);
 
   // Document Lookup Mode specialized Result Card (Section 8)
   let docLookupCardHtml = '';
@@ -394,7 +341,6 @@ function buildStructuredAnswerHtml(rawAnswer, evidenceBundle, mode, effectiveDat
   return `
     <div class="legal-structured-answer">
       ${docLookupCardHtml}
-      ${knownDocHtml}
       ${formattedBody}
     </div>
   `;
@@ -436,8 +382,13 @@ function buildModePrompt(query, mode, effectiveDate) {
 - Phân tích CHI TIẾT từng nhóm quy định, biện pháp, chế tài, mốc thời hạn, quyền/nghĩa vụ các bên.
 - TUYỆT ĐỐI CẤM vẽ sơ đồ ASCII art (┌───┐, │, └───┘, ▼). BẮT BUỘC dùng danh sách phân cấp và Bảng Markdown chuẩn.
 
+[CHỈ THỊ TỐI CAO - BẮT BUỘC TRÌNH BÀY ĐỦ CẢ 6 PHẦN TỪ I ĐẾN VI]:
+Dù câu hỏi của người dùng ngắn gọn (như "luật đất đai mới số bao nhiêu", "luật 72/2025 là gì", "tải file luật về cho tôi", "cho xem luật"), BẠN BẮT BUỘC PHẢI VIẾT ĐẦY ĐỦ TOÀN BỘ 6 PHẦN TỪ I ĐẾN VI!
+TUYỆT ĐỐI NGHIÊM CẤM VIỆC CHỈ NÊU CÂU DẪN RỒI NHẢY CÓC SANG PHẦN VI MÀ BỎ QUA CÁC PHẦN I ĐẾN V!
+Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ bị xem là vi phạm quy định và không đạt chuẩn.
+
 [MỞ ĐẦU BẮT BUỘC]:
-- Khi người dùng hỏi về văn bản hoặc yêu cầu tải file văn bản (ví dụ: "luật đất đai mới số bao nhiêu và tải file luật về cho tôi"):
+- Khi người dùng hỏi về văn bản hoặc yêu cầu tải file văn bản:
   Trước khi vào Phần I, BẮT BUỘC mở đầu bằng 1-2 câu kết luận trực diện, xác nhận số hiệu văn bản mới nhất hiện nay và dẫn vào bản phân tích:
   "[Tên văn bản] mới nhất hiện nay là [Loại văn bản] số [Số hiệu] (được [Cơ quan] thông qua/ban hành ngày [Ngày ban hành]).
   Dưới đây là thông tin chi tiết, phân tích pháp lý và đường dẫn tải về văn bản gốc theo đúng chuẩn quy định:"
