@@ -370,13 +370,22 @@ III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG
    - Phạm vi điều chỉnh cụ thể
    - Liệt kê rõ đối tượng áp dụng (cơ quan, tổ chức, cá nhân)
 
-IV. NỘI DUNG QUY ĐỊNH CHI TIẾT & CÁC CHÍNH SÁCH TRỌNG TÂM
+IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT
    ⚠️ ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT — phải trình bày ĐẦY ĐỦ, PHONG PHÚ:
-   - Phân tích theo từng CHƯƠNG hoặc NHÓM QUY ĐỊNH chính
-   - Nêu rõ các biện pháp cụ thể, quy trình thực hiện, thời hạn
-   - Các mức xử phạt, chế tài (nếu có)
-   - Quyền và nghĩa vụ các bên
-   - Mỗi nhóm quy định viết 3-6 gạch đầu dòng chi tiết
+
+   A. THỐNG KÊ CẤU TRÚC (BẮT BUỘC nếu là Luật/Nghị định/Thông tư):
+      - Tổng số chương, tổng số điều (VD: "Luật gồm 7 chương, 86 điều")
+      - Danh sách từng chương kèm phạm vi điều, ví dụ:
+        * Chương I (Điều 1-6): Những quy định chung
+        * Chương II (Điều 7-25): [Tên chương]
+        * ...
+
+   B. PHÂN TÍCH NỘI DUNG TỪNG CHƯƠNG/NHÓM QUY ĐỊNH:
+      - Với mỗi chương, nêu 3-6 gạch đầu dòng về nội dung trọng tâm:
+        + Các biện pháp cụ thể, quy trình thực hiện, mốc thời hạn
+        + Quyền và nghĩa vụ các bên liên quan
+        + Mức xử phạt, chế tài (nếu có)
+        + Các quy định mới nổi bật, điểm khác biệt so với quy định trước
 
 V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN
    - Cơ quan chủ trì, cơ quan phối hợp

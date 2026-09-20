@@ -4628,7 +4628,9 @@ app.post('/api/chat', async (req, res) => {
 1. I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH (Số hiệu [VD: 327/2026/NĐ-CP], tên đầy đủ, cơ quan, ngày ban hành, ngày hiệu lực, trạng thái).
 2. II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN (Căn cứ Luật nào, hướng dẫn Điều nào, VB thay thế/sửa đổi/bị thay thế).
 3. III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG.
-4. IV. NỘI DUNG QUY ĐỊNH CHI TIẾT & CÁC CHÍNH SÁCH TRỌNG TÂM (⚠️ PHẦN QUAN TRỌNG NHẤT — phân tích ĐẦY ĐỦ từng chương/nhóm QĐ, biện pháp, quy trình, chế tài, mỗi nhóm 3-6 gạch đầu dòng chi tiết).
+4. IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT (⚠️ PHẦN QUAN TRỌNG NHẤT):
+   A. THỐNG KÊ CẤU TRÚC (BẮT BUỘC): Tổng số chương, tổng số điều. Liệt kê từng chương kèm phạm vi điều (VD: Chương I Điều 1-6: Quy định chung).
+   B. PHÂN TÍCH TỪNG CHƯƠNG: Mỗi chương 3-6 gạch đầu dòng chi tiết (biện pháp, quy trình, chế tài, quyền/nghĩa vụ, điểm mới nổi bật).
 5. V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN.
 6. VI. BẢNG DANH MỤC TRÍCH DẪN: CHỈ liệt kê VB chính + VB sửa đổi/thay thế trực tiếp. KHÔNG liệt kê VB không liên quan.
    Format: | Số hiệu | Tên văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái | Quan hệ |
