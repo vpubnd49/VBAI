@@ -253,17 +253,29 @@ async function executeLegalSearch(container, query) {
     let rawText = '';
     let evidenceBundle = null;
     let legalMeta = null;
+    let knownDocument = null;
 
     if (typeof response === 'object' && response !== null) {
       rawText = response.text || response.content || response.answer || JSON.stringify(response);
       evidenceBundle = response.legal?.evidenceBundle || response.evidenceBundle || null;
       legalMeta = response.legal || null;
+      knownDocument = response.legal?.known_document || response.meta?.known_document || null;
     } else {
       rawText = String(response || '');
     }
 
+    // Also try to get known_document from metadata cache
+    if (!knownDocument) {
+      try {
+        const metaData = await getCachedMetadata(cleanQ);
+        if (metaData?.found && metaData?.known_document) {
+          knownDocument = metaData.known_document;
+        }
+      } catch (_) {}
+    }
+
     // Format Structured Legal Answer
-    const formattedAnswerHtml = buildStructuredAnswerHtml(rawText, evidenceBundle, currentSearchState.mode, currentSearchState.effectiveDate);
+    const formattedAnswerHtml = buildStructuredAnswerHtml(rawText, evidenceBundle, currentSearchState.mode, currentSearchState.effectiveDate, knownDocument);
     answerArea.innerHTML = formattedAnswerHtml;
 
     // Cache successful search for instant next-time retrieval
@@ -291,8 +303,100 @@ async function executeLegalSearch(container, query) {
   }
 }
 
-function buildStructuredAnswerHtml(rawAnswer, evidenceBundle, mode, effectiveDate) {
+/**
+ * Build the known document metadata header card — shows document number,
+ * title, issuer, dates, status, policy summary, and chapter/article stats.
+ */
+function buildKnownDocHeader(kd) {
+  if (!kd || (!kd.documentNumber && !kd.so_hieu && !kd.document_number)) return '';
+
+  const docNo = kd.documentNumber || kd.so_hieu || kd.document_number || '';
+  const title = kd.titleHint || kd.trich_yeu || kd.title || '';
+  const issuer = kd.issuer || kd.co_quan_ban_hanh || (docNo.includes('/QH') ? 'Quốc hội' : (docNo.includes('/NĐ-CP') ? 'Chính phủ' : 'Cơ quan có thẩm quyền'));
+  const issueDateRaw = kd.ngay_ban_hanh || kd.issueDate || kd.issue_date || '';
+  const effectiveDateRaw = kd.ngay_hieu_luc || kd.effectiveDate || kd.effective_date || '';
+
+  let statusRaw = kd.tinh_trang_hieu_luc || kd.effectiveStatus || kd.effective_status || 'co_hieu_luc';
+  let statusClass = 'in-force';
+  let statusText = '🟢 Có hiệu lực';
+  if (statusRaw === 'het_hieu_luc' || statusRaw === 'expired') { statusClass = 'expired'; statusText = '🔴 Hết hiệu lực'; }
+  else if (statusRaw === 'ngung_hieu_luc') { statusClass = 'suspended'; statusText = '🟡 Ngưng hiệu lực'; }
+
+  const summary = kd.tom_tat_chinh_sach || kd.summary || '';
+  const chapters = kd.tom_tat_chuong_dieu || kd.chapterArticleSummary || '';
+  const replacesArr = kd.thay_the_cho || kd.replaces || [];
+  const replaces = Array.isArray(replacesArr) ? replacesArr.join(', ') : (replacesArr || '');
+
+  let summaryHtml = '';
+  if (summary) {
+    let formatted = '';
+    if (Array.isArray(summary)) {
+      formatted = summary.map((item, i) => `<li>${escapeHtml(String(item))}</li>`).join('');
+      formatted = `<ol style="margin:4px 0 0 16px;padding:0;font-size:13px">${formatted}</ol>`;
+    } else {
+      const parts = String(summary).split(/(?=\d+\.\s+)/).filter(Boolean);
+      if (parts.length > 1) {
+        formatted = parts.map(p => `<li>${escapeHtml(p.replace(/^\d+\.\s*/, '').trim())}</li>`).join('');
+        formatted = `<ol style="margin:4px 0 0 16px;padding:0;font-size:13px">${formatted}</ol>`;
+      } else {
+        formatted = `<p style="margin:4px 0 0;font-size:13px">${escapeHtml(summary)}</p>`;
+      }
+    }
+    summaryHtml = `
+      <div style="margin-top:10px;padding:10px 14px;background:var(--bg-surface-alt, #f0f7ff);border-left:3px solid var(--brand-primary, #008ca1);border-radius:6px">
+        <strong style="font-size:13px;color:var(--brand-primary, #008ca1)">📋 Tóm tắt chính sách:</strong>
+        ${formatted}
+      </div>
+    `;
+  }
+
+  let chaptersHtml = '';
+  if (chapters) {
+    chaptersHtml = `
+      <div style="margin-top:8px;padding:10px 14px;background:var(--bg-surface-alt, #f8f9fa);border-left:3px solid #6c757d;border-radius:6px">
+        <strong style="font-size:13px;color:#495057">📑 Cấu trúc chương điều:</strong>
+        <p style="margin:4px 0 0;font-size:13px;white-space:pre-line">${escapeHtml(String(chapters))}</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="known-doc-header-card" style="margin-bottom:16px;padding:16px 20px;background:linear-gradient(135deg,#f8fffe,#eef7f9);border:1px solid #b2dfdb;border-radius:12px;box-shadow:0 2px 8px rgba(0,140,161,0.08)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:20px">📊</span>
+        <span style="font-size:15px;font-weight:700;color:var(--brand-primary, #008ca1)">Bảng danh mục trích dẫn văn bản chính thức</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <tbody>
+          <tr><td style="padding:6px 10px;font-weight:600;width:35%;border-bottom:1px solid #e0e0e0">Số hiệu</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;font-weight:700;color:var(--brand-primary, #008ca1)">${escapeHtml(docNo)}</td></tr>
+          ${title ? `<tr><td style="padding:6px 10px;font-weight:600;border-bottom:1px solid #e0e0e0">Tên văn bản / Trích yếu</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0">${escapeHtml(title)}</td></tr>` : ''}
+          <tr><td style="padding:6px 10px;font-weight:600;border-bottom:1px solid #e0e0e0">Cơ quan ban hành</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0">${escapeHtml(issuer)}</td></tr>
+          ${issueDateRaw ? `<tr><td style="padding:6px 10px;font-weight:600;border-bottom:1px solid #e0e0e0">Ngày ban hành</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0">${escapeHtml(issueDateRaw)}</td></tr>` : ''}
+          ${effectiveDateRaw ? `<tr><td style="padding:6px 10px;font-weight:600;border-bottom:1px solid #e0e0e0">Ngày có hiệu lực</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0">${escapeHtml(effectiveDateRaw)}</td></tr>` : ''}
+          <tr><td style="padding:6px 10px;font-weight:600;border-bottom:1px solid #e0e0e0">Tình trạng hiệu lực</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0"><span class="legal-status-pill ${statusClass}">${statusText}</span></td></tr>
+          ${replaces ? `<tr><td style="padding:6px 10px;font-weight:600;border-bottom:1px solid #e0e0e0">Thay thế cho</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0">${escapeHtml(replaces)}</td></tr>` : ''}
+          ${(() => {
+            const pdfUrl = kd.pdf_download_url || kd.pdfDownloadUrl;
+            const officialUrl = Array.isArray(kd.official_source_urls) ? kd.official_source_urls[0] : (kd.official_source_urls || '');
+            if (!pdfUrl && !officialUrl) return '';
+            const links = [];
+            if (pdfUrl) links.push(`<a href="${escapeHtml(pdfUrl)}" target="_blank" class="btn-download-pill" style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:var(--brand-primary, #008ca1);color:#fff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.1);">📥 Tải PDF gốc</a>`);
+            if (officialUrl) links.push(`<a href="${escapeHtml(officialUrl)}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;background:#eef7f9;color:var(--brand-primary, #008ca1);border:1px solid #b2dfdb;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">🏛️ Nguồn chính thức</a>`);
+            return `<tr><td style="padding:6px 10px;font-weight:600;border-bottom:1px solid #e0e0e0">Nguồn & Tải về</td><td style="padding:6px 10px;border-bottom:1px solid #e0e0e0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${links.join('')}</td></tr>`;
+          })()}
+        </tbody>
+      </table>
+      ${summaryHtml}
+      ${chaptersHtml}
+    </div>
+  `;
+}
+
+function buildStructuredAnswerHtml(rawAnswer, evidenceBundle, mode, effectiveDate, knownDocument = null) {
   const formattedBody = formatLegalAnswer(rawAnswer, evidenceBundle);
+
+  // Known Document Header Card (metadata from DB)
+  const knownDocHtml = buildKnownDocHeader(knownDocument);
 
   // Document Lookup Mode specialized Result Card (Section 8)
   let docLookupCardHtml = '';
@@ -314,6 +418,7 @@ function buildStructuredAnswerHtml(rawAnswer, evidenceBundle, mode, effectiveDat
   return `
     <div class="legal-structured-answer">
       ${docLookupCardHtml}
+      ${knownDocHtml}
       ${formattedBody}
     </div>
   `;

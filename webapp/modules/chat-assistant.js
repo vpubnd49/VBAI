@@ -200,10 +200,14 @@ Khi phát hiện mâu thuẫn hoặc vướng mắc giữa nhiều văn bản qu
 
 [PREMIUM LEGAL ANSWER LAYOUT SPECIFICATION - BẮT BUỘC ÁP DỤNG ĐẦY ĐỦ]
 Khi người dùng tra cứu hoặc hỏi về bất kỳ văn bản pháp luật nào (Luật, Nghị định, Thông tư, Quyết định...):
-Bạn BẮT BUỘC tổ chức câu trả lời CÔ ĐỌNG, TOÀN DIỆN THEO CẤU TRÚC CHUẨN SAU:
+Bạn BẮT BUỘC tổ chức câu trả lời TOÀN DIỆN, ĐẦY ĐỦ THEO CẤU TRÚC CHUẨN SAU:
 
-[QUY TẮC BẮT BUỘC VỀ ĐỊNH DẠNG & HIỆU NĂNG]:
-- Trình bày SÚC TÍCH, CÔ ĐỌNG, ĐI THẲNG VÀO TRỌNG TÂM (mỗi mục từ 2-4 gạch đầu dòng then chốt, cô đọng số liệu và quy định, không viết lan man).
+[NGUYÊN TẮC VÀNG]:
+- Bạn PHẢI tập trung phân tích ĐẦY ĐỦ, TOÀN DIỆN nội dung của VĂN BẢN CHÍNH mà người dùng đang hỏi (hoặc văn bản được xác thực trong ngữ cảnh).
+- KHÔNG lan man sang các văn bản khác. Chỉ đề cập văn bản sửa đổi/bổ sung/thay thế trực tiếp nếu có.
+- Trình bày bài phân tích PHONG PHÚ, CHI TIẾT. Tuyệt đối không trả lời sơ sài, chung chung.
+
+[QUY TẮC BẮT BUỘC VỀ ĐỊNH DẠNG]:
 - TUYỆT ĐỐI KHÔNG vẽ sơ đồ bằng ký tự ASCII art hoặc khung viền nét vẽ (như ┌───┐, │, └───┘, ▼).
 - Trình bày trực tiếp bằng Tiêu đề Markdown, Danh sách phân cấp (Bullet / Numbered List) và Bảng Markdown chuẩn (| Cột 1 | Cột 2 |...).
 
@@ -213,35 +217,41 @@ Bạn BẮT BUỘC tổ chức câu trả lời CÔ ĐỌNG, TOÀN DIỆN THEO C
    * Cơ quan ban hành: [Chính phủ / Quốc hội / Bộ / Thủ tướng...]
    * Ngày ban hành: [Ngày/Tháng/Năm]
    * Ngày có hiệu lực: [Ngày/Tháng/Năm]
-   * Tình trạng pháp lý hiện tại: [Còn hiệu lực / Hết hiệu lực / Bị thay thế / Sửa đổi bổ sung...]
+   * Tình trạng pháp lý hiện tại: [🟢 Còn hiệu lực / 🔴 Hết hiệu lực / 🟡 Ngưng hiệu lực / Bị thay thế...]
    * Đánh giá hiệu lực thi hành: Nêu rõ văn bản đã có hiệu lực bao lâu hoặc thời điểm bắt đầu thi hành.
 
 2. **II. CĂN CỨ PHÁP LÝ & MỐI QUAN HỆ THI HÀNH (PDCA CASCADE)**
-   * Căn cứ thẩm quyền & căn cứ nội dung: Nêu rõ ban hành căn cứ theo các Luật, Bộ luật nào.
-   * Quan hệ hướng dẫn thi hành: Quy định chi tiết hoặc hướng dẫn thi hành những Điều/Khoản nào của văn bản cấp trên.
-   * Quan hệ thay thế, bãi bỏ, sửa đổi: Liệt kê rõ văn bản này thay thế cho văn bản cũ nào (nếu có).
+   * Căn cứ thẩm quyền & căn cứ ban hành (Luật, Nghị định cấp trên)
+   * Quan hệ hướng dẫn thi hành / quy định chi tiết
+   * Quan hệ thay thế, bãi bỏ, sửa đổi bổ sung trực tiếp (nêu rõ thay thế cho văn bản nào, từ ngày nào)
 
 3. **III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG**
-   * Phạm vi điều chỉnh: Các lĩnh vực, hoạt động và hành vi thuộc phạm vi điều chỉnh của văn bản.
-   * Đối tượng áp dụng: Các cơ quan, tổ chức, doanh nghiệp và cá nhân có nghĩa vụ chấp hành.
+   * Phạm vi điều chỉnh cụ thể: Các lĩnh vực, hoạt động và hành vi thuộc phạm vi điều chỉnh
+   * Đối tượng áp dụng: Các cơ quan, tổ chức, doanh nghiệp và cá nhân có nghĩa vụ chấp hành
 
-4. **IV. PHÂN TÍCH NỘI DUNG QUY ĐỊNH CHI TIẾT THEO CÁC CHÍNH SÁCH TRỌNG TÂM**
-   (Trình bày súc tích các nhóm chính sách lớn, mỗi nhóm 2-4 gạch đầu dòng then chốt):
-   * Nhóm các nguyên tắc & Hành vi bị nghiêm cấm/Xử lý.
-   * Nhóm các biện pháp kỹ thuật, nghiệp vụ, phòng ngừa và đấu tranh.
-   * Trình tự, thủ tục, quy trình xử lý và các mốc thời hạn bắt buộc (ví dụ: trong vòng 24 giờ, 15 ngày...).
-   * Quyền hạn, nghĩa vụ & trách nhiệm của các cơ quan, tổ chức, doanh nghiệp, người dân.
-   * Chế tài xử lý vi phạm, bồi thường thiệt hại và chế độ, chính sách bảo đảm hoạt động.
+4. **IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT (⚠️ PHẦN QUAN TRỌNG NHẤT)**
+   A. THỐNG KÊ CẤU TRÚC (BẮT BUỘC):
+      - Tổng số chương, tổng số điều (Ví dụ: "Luật gồm 7 chương, 54 điều" hoặc "Nghị định gồm 4 chương, 45 điều")
+      - Danh sách từng chương kèm phạm vi điều:
+        * Chương I (Từ Điều 1 đến Điều ...): [Tên chương]
+        * Chương II (Từ Điều ... đến Điều ...): [Tên chương]
+        * ... (liệt kê đầy đủ các chương)
+   B. NỘI DUNG CHI TIẾT TỪNG CHƯƠNG / CHÍNH SÁCH TRỌNG TÂM:
+      - Phân tích chi tiết nội dung từng chương hoặc từng nhóm quy định lớn
+      - Các biện pháp kỹ thuật, quy trình, thủ tục, thời hạn bắt buộc
+      - Quyền hạn, nghĩa vụ & trách nhiệm của các cơ quan, tổ chức, cá nhân
+      - Chế tài xử lý vi phạm, bồi thường thiệt hại và chế độ bảo đảm
+      - Điểm mới nổi bật so với quy định trước đây
 
 5. **V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN**
-   * Cơ quan chủ trì chịu trách nhiệm chính (Bộ Công an, Bộ Thông tin & Truyền thông, v.v.).
-   * Trách nhiệm của UBND/HĐND các cấp và các cơ quan phối hợp liên quan.
+   * Cơ quan chủ trì chịu trách nhiệm chính (Bộ, Ngành, UBND cấp tỉnh...)
+   * Trách nhiệm của UBND/HĐND các cấp và các cơ quan phối hợp liên quan
 
-6. **VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC (MARKDOWN TABLE)**
-   Trình bày bảng Markdown chuẩn:
-   | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Nguồn kiểm chứng |
-   | :--- | :--- | :--- | :--- | :--- | :--- |
-   | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Link nguồn hoặc Cổng TTĐT] |
+6. **VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC**
+   Trình bày bảng Markdown chuẩn (CHỈ liệt kê VĂN BẢN CHÍNH người dùng hỏi + văn bản sửa đổi/thay thế trực tiếp nếu có):
+   | Số hiệu văn bản | Quan hệ | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Nguồn kiểm chứng & Tải file |
+   | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+   | [Số hiệu] | Văn bản chính | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Link nguồn hoặc Tải PDF] |
 
 [SOẠN THẢO VĂN BẢN (NHÀ NƯỚC NĐ30 VS ĐẢNG HD05)]
 Khi người dùng yêu cầu soạn thảo văn bản, BẮT BUỘC phân biệt loại văn bản và tuân thủ thể thức:
@@ -1634,6 +1644,21 @@ function buildKnownDocumentHeader(knownDoc) {
     lines.push(`| **Tóm tắt chính sách** | ${tomTat} |`);
   }
 
+  const chapters = knownDoc.tom_tat_chuong_dieu || knownDoc.chapterArticleSummary || '';
+  if (chapters) {
+    const formattedChapters = String(chapters).replace(/\n/g, '<br>');
+    lines.push(`| **Cấu trúc chương điều** | ${formattedChapters} |`);
+  }
+
+  const pdfUrl = knownDoc.pdf_download_url || knownDoc.pdfDownloadUrl;
+  const officialUrl = Array.isArray(knownDoc.official_source_urls) ? knownDoc.official_source_urls[0] : (knownDoc.official_source_urls || '');
+  const linkParts = [];
+  if (pdfUrl) linkParts.push(`[📥 Tải PDF gốc](${pdfUrl})`);
+  if (officialUrl) linkParts.push(`[🏛️ Cổng TTĐT Chính phủ](${officialUrl})`);
+  if (linkParts.length > 0) {
+    lines.push(`| **Nguồn & Tải về** | ${linkParts.join(' &nbsp;•&nbsp; ')} |`);
+  }
+
   return lines.join('\n') + '\n\n';
 }
 
@@ -2672,6 +2697,7 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
           const summary = kd.tom_tat_chinh_sach || kd.summary || '';
           const status = kd.effective_status || kd.effectiveStatus || kd.tinh_trang_hieu_luc || 'in_force';
 
+          const chapters = kd.tom_tat_chuong_dieu || kd.chapterArticleSummary || '';
           const metaLines = ['\n\n[THÔNG TIN XÁC THỰC TỪ CƠ SỞ DỮ LIỆU PHÁP LUẬT CHÍNH THỨC - BẮT BUỘC SỬ DỤNG CHÍNH XÁC]:'];
           if (docNum) metaLines.push(`- Số hiệu văn bản: ${docNum}`);
           if (title) metaLines.push(`- Tên đầy đủ: ${title}`);
@@ -2680,6 +2706,7 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
           if (effectiveDate) metaLines.push(`- Ngày có hiệu lực: ${effectiveDate}`);
           metaLines.push(`- Tình trạng hiệu lực: ${status === 'in_force' || status === 'co_hieu_luc' ? 'Còn hiệu lực' : status}`);
           if (summary) metaLines.push(`- Nội dung tóm tắt chính sách: ${summary}`);
+          if (chapters) metaLines.push(`- Cấu trúc chương điều & quy định chi tiết:\n${chapters}`);
           metaLines.push(`\n[QUY TẮC BẮT BUỘC]: Bạn PHẢI sử dụng chính xác 100% Ngày ban hành (${issueDate}) và Ngày có hiệu lực (${effectiveDate}) ở trên khi trình bày mục "Tóm lại:" và phân tích. TUYỆT ĐỐI KHÔNG tự bịa ngày tháng khác.`);
 
           finalUserText += metaLines.join('\n');
@@ -2845,7 +2872,11 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
           }
           if (knownDoc.tom_tat_chinh_sach) {
             const summary = Array.isArray(knownDoc.tom_tat_chinh_sach) ? knownDoc.tom_tat_chinh_sach.join(' ') : String(knownDoc.tom_tat_chinh_sach);
-            metaLines.push(`- Tom tat chinh sach: ${summary.slice(0, 500)}`);
+            metaLines.push(`- Tom tat chinh sach: ${summary}`);
+          }
+          const chapters = knownDoc.tom_tat_chuong_dieu || knownDoc.chapterArticleSummary;
+          if (chapters) {
+            metaLines.push(`- Cau truc chuong dieu & quy dinh chi tiet:\n${chapters}`);
           }
           finalUserText += metaLines.join('\n');
         }
