@@ -2,10 +2,11 @@
  * Legal Search Orchestrator service.
  */
 const { detectQueryIntent } = require('../domain/query-intent');
+const { extractLegalEntities } = require('../domain/legal-entity-extractor');
 const { getCacheStrategy } = require('../domain/query-freshness');
 const { getCachedSearchResults, setCachedSearchResults } = require('./search-cache.service');
 const { getHotIndexItem } = require('./hot-index.service');
-const { findKnownDocumentByNumber, findKnownDocumentByAlias } = require('../repositories/known-documents.repository');
+const { findKnownDocumentByNumber, findKnownDocumentByAlias, findByPartialNumber } = require('../repositories/known-documents.repository');
 const { resolveMetadataForDocument } = require('./legal-metadata.service');
 const { buildSearchMetaResponse } = require('./legal-search-meta.service');
 
@@ -34,7 +35,8 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
   }
 
   const cleanQuery = extractCoreLegalQuery(query);
-  const intent = detectQueryIntent(cleanQuery);
+  let intent = detectQueryIntent(cleanQuery);
+  let entities = extractLegalEntities(cleanQuery);
   const cacheStrategy = getCacheStrategy(intent);
 
   const cacheKey = `search:${cleanQuery.trim().toLowerCase()}`;
@@ -55,9 +57,19 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
   if (docNumber) {
     knownDoc = findKnownDocumentByNumber(docNumber);
   } else {
-    knownDoc = findKnownDocumentByAlias(cleanQuery);
-    if (knownDoc) {
-      docNumber = knownDoc.document_number;
+    // Resolve partial numbers using the explicit document type, e.g. “TT 71/2026”.
+    const partial = entities.partialDocumentNumbers.find((item) => item.number && item.year);
+    const typedMatches = partial
+      ? findByPartialNumber(partial.number, entities.documentType?.type || null, parseInt(partial.year, 10))
+      : [];
+    if (typedMatches.length > 0) {
+      knownDoc = typedMatches[0];
+      docNumber = knownDoc.document_number || knownDoc.documentNumber;
+    } else {
+      knownDoc = findKnownDocumentByAlias(cleanQuery);
+      if (knownDoc) {
+        docNumber = knownDoc.document_number;
+      }
     }
   }
 

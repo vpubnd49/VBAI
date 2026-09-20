@@ -161,7 +161,7 @@ function renderRelationGraph(crossReferences) {
       <div class="relation-nodes-flow" style="display:flex;flex-direction:column;align-items:center;gap:0">
         ${nodes.map((node, i) => `
           ${i > 0 ? '<div class="relation-arrow" style="display:flex;flex-direction:column;align-items:center;color:#6c757d;font-size:20px;line-height:1;margin:2px 0"><svg width="16" height="24" viewBox="0 0 16 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 0v18M3 14l5 6 5-6" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' : ''}
-          <div class="relation-node-item" style="width:100%;max-width:500px">
+          <div class="relation-node-item" style="width:100%;max-width:500px;min-width:0;box-sizing:border-box">
             <div class="relation-node-box">${escapeHtml(node.label || node.id)}</div>
             ${node.type ? `<span class="relation-type-tag">${escapeHtml(node.type)}</span>` : ''}
           </div>

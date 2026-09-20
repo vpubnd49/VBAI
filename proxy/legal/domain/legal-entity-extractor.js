@@ -132,6 +132,14 @@ function detectDocumentType(query = '') {
       }
     }
   }
+
+  // Users commonly abbreviate “Thông tư” as “TT” (for example: “tải TT 71/2026”).
+  // Only accept it as a type marker when it is a standalone token, so issuer
+  // codes such as TTg are not accidentally classified as thông tư.
+  if (/(^|\s)tt(?=\s|\d|\/|$)/i.test(norm)) {
+    return { type: 'thong_tu', label: 'Thông tư' };
+  }
+
   return null;
 }
 

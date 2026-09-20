@@ -2759,9 +2759,32 @@ input:checked + .slider-round:before {
   box-shadow: var(--shadow-md);
   align-self: start;
   max-height: 680px;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--brand-primary) var(--surface-soft);
+}
+
+.legal-side-evidence-panel .evidence-panel-inner,
+.legal-side-evidence-panel .evidence-panel-body,
+.legal-side-evidence-panel .legal-relation-graph,
+.legal-side-evidence-panel .relation-nodes-flow {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.legal-side-evidence-panel .relation-arrow {
+  width: 16px;
+  height: 24px;
+  flex: 0 0 24px;
+  overflow: hidden;
+}
+
+.legal-side-evidence-panel .relation-arrow svg {
+  display: block;
+  width: 16px;
+  height: 24px;
 }
 
 .evidence-panel-header {
