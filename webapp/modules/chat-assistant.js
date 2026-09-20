@@ -1343,6 +1343,15 @@ function renderAssistantRichText(rawText = "") {
       }
     }
 
+    // Roman Numeral Major Headings (I. KẾT LUẬN, II. CĂN CỨ, etc.)
+    const romanHeadingMatch = trimmed.match(/^(?:⚖️\s*)?(?:\*\*)?([IVXLCDM]+\.\s+[^\n]+?)(?:\*\*)?$/i);
+    if (romanHeadingMatch && !trimmed.includes('|') && trimmed.length < 130) {
+      const headingText = applyInlineMarkdown(escapeHtml(romanHeadingMatch[1].replace(/^\*\*|\*\*$/g, '').trim()));
+      htmlBlocks.push(`<div class="legal-section-header" style="margin-top:24px;margin-bottom:12px;"><h3 class="legal-section-heading">${headingText}</h3></div>`);
+      i++;
+      continue;
+    }
+
     // Headings (# H1, ## H2, ### H3, #### H4)
     const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
     if (headingMatch) {

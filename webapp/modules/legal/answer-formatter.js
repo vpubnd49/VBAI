@@ -5,6 +5,14 @@
  */
 import { renderCitationChip } from './citation-renderer.js';
 
+function escapeHtml(str = '') {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function parseMarkdownTable(lines = []) {
   const validLines = lines.map(l => l.trim()).filter(l => l.startsWith('|') && l.includes('|'));
   if (validLines.length === 0) return '';
@@ -40,7 +48,10 @@ function parseMarkdownTable(lines = []) {
   const theadHtml = `<thead><tr>${headerCells.map(h => `<th>${formatInlineMarkdown(h)}</th>`).join('')}</tr></thead>`;
   const tbodyHtml = `<tbody>${rows.map(r => `<tr>${r.map(c => `<td>${formatInlineMarkdown(c)}</td>`).join('')}</tr>`).join('')}</tbody>`;
 
-  return `<div class="table-responsive"><table class="legal-table">${theadHtml}${tbodyHtml}</table></div>`;
+  const isDocInfo = headerCells.some(c => /thông tin|thuộc tính|văn bản|số hiệu|trích yếu/i.test(c));
+  const cardTitle = isDocInfo ? "Bảng danh mục trích dẫn văn bản chính thức" : "Bảng so sánh & tổng hợp dữ liệu";
+
+  return `<div class="chat-compare-card"><div class="chat-compare-title">📊 ${cardTitle}</div><div class="chat-table-wrap legal-grid-wrapper"><table class="chat-compare-table legal-grid-table">${theadHtml}${tbodyHtml}</table></div></div>`;
 }
 
 function formatInlineMarkdown(text = '') {
@@ -56,8 +67,8 @@ function formatInlineMarkdown(text = '') {
   str = str.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   str = str.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-  // Links [Text](URL)
-  str = str.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="legal-link">$1</a>');
+  // Links [Text](URL) - styled as gorgeous blue pill links matching Photo 5
+  str = str.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="chat-inline-link">$1</a>');
 
   // Status highlights
   str = str.replace(/\b(Còn hiệu lực thi hành đầy đủ|Còn hiệu lực|Đang có hiệu lực thi hành|Đang có hiệu lực|In force)\b/gi, '<span class="legal-status-pill in-force">$1</span>');
@@ -201,7 +212,6 @@ export function parseMarkdownToStructuredHtml(rawText = '') {
       const title = romanHeaderMatch[1].replace(/^\*\*|\*\*$/g, '').trim();
       blocks.push(`
         <div class="legal-section-header">
-          <span class="section-icon">⚖️</span>
           <h3 class="legal-section-heading">${formatInlineMarkdown(title)}</h3>
         </div>
       `);
@@ -215,7 +225,6 @@ export function parseMarkdownToStructuredHtml(rawText = '') {
       const title = mdHeaderMatch[1].replace(/^\*\*|\*\*$/g, '').trim();
       blocks.push(`
         <div class="legal-section-header">
-          <span class="section-icon">⚖️</span>
           <h3 class="legal-section-heading">${formatInlineMarkdown(title)}</h3>
         </div>
       `);
@@ -290,30 +299,54 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
 
   if (Array.isArray(documents)) {
     documents.forEach(d => {
-       const num = d.documentNumber || d.document_number || d.number || '';
-       if (num || d.url || d.sourceUrl || d.link) {
+      const num = (d.documentNumber || d.document_number || d.number || '').trim();
+      if (num || d.url || d.sourceUrl || d.link) {
+        const issueDate = (d.issueDate || d.issue_date || '').trim();
+        const effectiveDate = (d.effectiveDate || d.effective_date || '').trim();
+        let dateFormatted = '';
+        if (issueDate && effectiveDate) {
+          dateFormatted = `${issueDate}<br>(${effectiveDate})`;
+        } else if (issueDate) {
+          dateFormatted = issueDate;
+        } else if (effectiveDate) {
+          dateFormatted = effectiveDate;
+        } else {
+          dateFormatted = 'Đang áp dụng';
+        }
+
+        const pdfList = Array.isArray(d.pdfDownloadUrls) ? d.pdfDownloadUrls.slice() : [];
+        if (d.pdfDownloadUrl && !pdfList.includes(d.pdfDownloadUrl)) {
+          pdfList.push(d.pdfDownloadUrl);
+        }
+        if (d.pdf_download_url && !pdfList.includes(d.pdf_download_url)) {
+          pdfList.push(d.pdf_download_url);
+        }
+
         docsMap.set(num.toLowerCase(), {
-           number: num || 'VBPL',
-           title: d.title || d.titleHint || d.snippet || `Văn bản số ${num || 'VBPL'}`,
-          issuer: d.issuer || 'Chính phủ / Quốc hội',
-          dates: [d.issueDate || d.issue_date, d.effectiveDate || d.effective_date].filter(Boolean).join(' / ') || 'Còn hiệu lực',
+          number: num || 'VBPL',
+          title: d.title || d.titleHint || d.snippet || `Văn bản số ${num || 'VBPL'}`,
+          issuer: d.issuer || (num.includes('QH') ? 'Quốc hội' : (num.includes('NĐ-CP') ? 'Chính phủ' : 'Cơ quan có thẩm quyền')),
+          dates: dateFormatted,
           status: d.effectiveStatus === 'in_force' || d.effectiveStatus === 'co_hieu_luc' ? 'Còn hiệu lực' : (d.effectiveStatus || 'Còn hiệu lực'),
-           link: /^https:\/\/(?:www\.)?vbpl\.vn(?:\/|$)/i.test(String(d.sourceUrl || d.url || d.link || ''))
-             ? String(d.sourceUrl || d.url || d.link)
-             : `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`,
-          pdfDownloadUrl: d.pdfDownloadUrl || null,
-          chinhphuDetailUrl: d.chinhphuDetailUrl || null,
+          link: /^https:\/\/(?:www\.)?vbpl\.vn(?:\/|$)/i.test(String(d.sourceUrl || d.url || d.link || ''))
+            ? String(d.sourceUrl || d.url || d.link)
+            : `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`,
+          pdfDownloadUrls: pdfList,
+          chinhphuDetailUrl: d.chinhphuDetailUrl || (Array.isArray(d.official_source_urls) ? d.official_source_urls[0] : null) || null,
         });
       }
     });
   }
 
-  // Scan text for any other document numbers cited by AI
-  const docMatches = String(rawAnswer).match(/(?:Luật|Nghị định|Thông tư|Quyết định|Luật số)?\s*\[?(\d+\/\d+\/[A-Za-z0-9\-_]+)\]?/gi) || [];
+  // Scan text for any other document numbers cited by AI (strictly excluding pure dates like 16/06/2025)
+  const docMatches = String(rawAnswer).match(/(?:Luật|Nghị định|Thông tư|Quyết định|Luật số)?\s*\[?(\d+\/(?:\d{4}|[A-Za-zÀ-ỹ]+)\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_/]*|\d+\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_]*)\]?/gi) || [];
   docMatches.forEach(m => {
-    const numMatch = m.match(/(\d+\/\d+\/[A-Za-z0-9\-_]+)/i);
+    const numMatch = m.match(/(\d+\/(?:\d{4}|[A-Za-zÀ-ỹ]+)\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_/]*|\d+\/[A-Za-zÀ-ỹ]+[A-Za-z0-9À-ỹ\-_]*)/i);
     if (numMatch && numMatch[1]) {
       const num = numMatch[1].toUpperCase();
+      if (!/[A-Z]/.test(num)) return;
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(num)) return;
+
       const k = num.toLowerCase();
       if (!docsMap.has(k)) {
         let type = num.includes('QH') ? 'Luật' : num.includes('NĐ-CP') ? 'Nghị định' : num.includes('TT') ? 'Thông tư' : 'Văn bản';
@@ -325,120 +358,101 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           dates: 'Đang áp dụng',
           status: 'Còn hiệu lực',
           link: `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`,
-          pdfDownloadUrl: null,
+          pdfDownloadUrls: [],
           chinhphuDetailUrl: null,
         });
       }
     }
   });
 
+  // Also scan rawAnswer for direct PDF download links from Government Portal
+  const directPdfRegex = /https?:\/\/(?:datafiles\.chinhphu\.vn|chinhphu\.vn|vanban\.chinhphu\.vn)[^\s\)\"\']+\.pdf/gi;
+  const directPdfMatches = Array.from(new Set(String(rawAnswer).match(directPdfRegex) || []));
+  if (directPdfMatches.length > 0) {
+    const firstDoc = docsMap.values().next().value;
+    if (firstDoc && (!firstDoc.pdfDownloadUrls || firstDoc.pdfDownloadUrls.length === 0)) {
+      firstDoc.pdfDownloadUrls = directPdfMatches;
+    }
+  }
+
+  // Scan rawAnswer for Government Portal detail URLs
+  const chinhphuDetailRegex = /https?:\/\/(?:www\.)?(?:vanban\.chinhphu\.vn|chinhphu\.vn)\/(?:\?pageid=\d+[^)\s\"\'\>]*|\?classid=\d+[^)\s\"\'\>]*)/gi;
+  const directCpMatches = Array.from(new Set(String(rawAnswer).match(chinhphuDetailRegex) || []));
+  if (directCpMatches.length > 0) {
+    const firstDoc = docsMap.values().next().value;
+    if (firstDoc && !firstDoc.chinhphuDetailUrl) {
+      firstDoc.chinhphuDetailUrl = directCpMatches[0];
+    }
+  }
+
   const allDocs = Array.from(docsMap.values());
   if (allDocs.length === 0) return '';
 
-  // Sanitize dates — strip any HTML tags (e.g. <br>) that AI might inject
-  const sanitizeDates = (d) => String(d || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const rowsHtml = allDocs.map((doc) => {
+    const linksHtml = [];
+    const pdfUrls = doc.pdfDownloadUrls || [];
 
-  const rowsHtml = allDocs.map((doc, idx) => `
-    <tr>
-      <td style="text-align:center; font-weight:700;">${idx + 1}</td>
-      <td style="font-weight:700; color:var(--brand-primary, #008ca1);">${formatInlineMarkdown(doc.number)}</td>
-      <td>${formatInlineMarkdown(doc.title)}</td>
-      <td>${formatInlineMarkdown(doc.issuer)}</td>
-      <td>${formatInlineMarkdown(sanitizeDates(doc.dates))}</td>
-      <td style="text-align:center;"><span class="legal-status-pill in-force">${formatInlineMarkdown(doc.status)}</span></td>
-      <td style="text-align:center;">
-        ${doc.pdfDownloadUrl ? `<a href="${doc.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="legal-link" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--brand-primary,#008ca1);color:#fff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.1)">📥 Tải về (PDF)</a>` : `<a href="${doc.link}" target="_blank" rel="noopener noreferrer" class="legal-link">VBPL ↗</a>`}
-        ${doc.chinhphuDetailUrl ? `<br><a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="legal-link" style="margin-top:4px;font-size:12px">🏛️ Cổng CP</a>` : ''}
-      </td>
-    </tr>
-  `).join('');
+    if (pdfUrls.length > 1) {
+      pdfUrls.forEach((url, i) => {
+        linksHtml.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">Tải về Phần ${i + 1} (PDF)</a>`);
+      });
+    } else if (pdfUrls.length === 1) {
+      linksHtml.push(`<a href="${pdfUrls[0]}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">Tải về (PDF)</a>`);
+    }
+
+    if (doc.chinhphuDetailUrl) {
+      linksHtml.push(`<a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">Cổng TTĐT Chính phủ</a>`);
+    } else if (doc.link && linksHtml.length === 0) {
+      linksHtml.push(`<a href="${doc.link}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">Cổng TTĐT Chính phủ</a>`);
+    }
+
+    return `
+      <tr>
+        <td style="font-weight: 700; color: var(--text-primary, #0f172a);">${formatInlineMarkdown(doc.number)}</td>
+        <td>${formatInlineMarkdown(doc.title)}</td>
+        <td>${formatInlineMarkdown(doc.issuer)}</td>
+        <td>${doc.dates}</td>
+        <td>${formatInlineMarkdown(doc.status)}</td>
+        <td>
+          <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+            ${linksHtml.join('')}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const mainDoc = allDocs[0];
+  const mainDocTitle = mainDoc?.title || 'văn bản';
+  const mainDocNum = mainDoc?.number ? `số ${mainDoc.number}` : '';
 
   return `
-    <div class="legal-section-header" style="margin-top:24px;">
-      <span class="section-icon">⚖️</span>
+    <div class="legal-section-header" style="margin-top:28px; margin-bottom:12px;">
       <h3 class="legal-section-heading">VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE</h3>
     </div>
-    <div class="table-responsive legal-grid-wrapper">
-      <table class="legal-table legal-grid-table">
-        <thead>
-          <tr>
-            <th style="width: 5%; text-align:center;">STT</th>
-            <th style="width: 15%;">Số hiệu văn bản</th>
-            <th style="width: 30%;">Tên loại & Trích yếu văn bản</th>
-            <th style="width: 13%;">Cơ quan ban hành</th>
-            <th style="width: 14%;">Ban hành / Hiệu lực</th>
-            <th style="width: 10%; text-align:center;">Trạng thái</th>
-            <th style="width: 13%; text-align:center;">Link tải File / Nguồn kiểm chứng</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml}
-        </tbody>
-      </table>
+    <div class="chat-compare-card">
+      <div class="chat-compare-title">📊 Bảng danh mục trích dẫn văn bản chính thức</div>
+      <div class="chat-table-wrap legal-grid-wrapper">
+        <table class="chat-compare-table legal-grid-table">
+          <thead>
+            <tr>
+              <th style="width: 15%;">Số hiệu văn bản</th>
+              <th style="width: 32%;">Tên loại & Trích yếu văn bản</th>
+              <th style="width: 13%;">Cơ quan ban hành</th>
+              <th style="width: 14%;">Ngày ban hành / Hiệu lực</th>
+              <th style="width: 11%;">Trạng thái hiệu lực</th>
+              <th style="width: 15%;">Link tải File / Nguồn kiểm chứng</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+      </div>
     </div>
     <p style="margin-top:10px;font-size:12px;color:var(--text-muted,#6c757d);font-style:italic">
-      Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn văn bản chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.
+      Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn ${escapeHtml(mainDocTitle)} ${escapeHtml(mainDocNum)} chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.
     </p>
-  `;
-}
-
-/**
- * Build a prominent download bar for documents with direct PDF links.
- * Positioned at the bottom of the answer body.
- */
-function buildDownloadBar(documents = [], rawAnswer = '') {
-  const pdfDocs = documents.filter(d => d.pdfDownloadUrl);
-
-  // Filter: only show docs whose documentNumber appears in the AI answer text
-  const answerNorm = String(rawAnswer).toLowerCase().replace(/\s+/g, '');
-  let relevantDocs = pdfDocs.filter(d => {
-    const num = (d.documentNumber || d.document_number || d.number || '').trim();
-    if (!num) return false;
-    const numNorm = num.toLowerCase().replace(/\s+/g, '');
-    return answerNorm.includes(numNorm);
-  });
-
-  // Also scan rawAnswer for direct PDF links from datafiles.chinhphu.vn, chinhphu.vn, etc.
-  const directPdfRegex = /https?:\/\/(?:datafiles\.chinhphu\.vn|chinhphu\.vn|vanban\.chinhphu\.vn)[^\s\)\"\']+\.pdf/gi;
-  const directPdfMatches = Array.from(new Set(String(rawAnswer).match(directPdfRegex) || []));
-
-  if (relevantDocs.length === 0 && directPdfMatches.length === 0) return '';
-
-  const renderedUrls = new Set();
-  const items = [];
-
-  relevantDocs.forEach(d => {
-    if (d.pdfDownloadUrl && !renderedUrls.has(d.pdfDownloadUrl)) {
-      renderedUrls.add(d.pdfDownloadUrl);
-      const label = d.documentNumber || d.document_number || d.number || d.title || 'Văn bản';
-      items.push(`
-        <a href="${d.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="download-bar-item" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#0d6efd,#0056d2);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;box-shadow:0 2px 8px rgba(13,110,253,0.3);transition:all 0.2s">
-          <span style="font-size:16px">📥</span>
-          Tải PDF: ${formatInlineMarkdown(label)}
-        </a>
-      `);
-    }
-  });
-
-  directPdfMatches.forEach(url => {
-    if (!renderedUrls.has(url)) {
-      renderedUrls.add(url);
-      const filenameMatch = url.match(/\/([^\/]+)\.pdf$/i);
-      const label = filenameMatch ? filenameMatch[1].replace(/_signed/gi, '').replace(/\.signed/gi, '') : 'Văn bản gốc';
-      items.push(`
-        <a href="${url}" target="_blank" rel="noopener noreferrer" class="download-bar-item" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#0d6efd,#0056d2);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;box-shadow:0 2px 8px rgba(13,110,253,0.3);transition:all 0.2s">
-          <span style="font-size:16px">📥</span>
-          Tải PDF gốc: ${formatInlineMarkdown(label)}
-        </a>
-      `);
-    }
-  });
-
-  return `
-    <div class="legal-download-bar" style="margin:20px 0 10px;padding:14px 18px;background:linear-gradient(135deg,#e7f1ff,#f0f7ff);border:1px solid #b6d4fe;border-radius:12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px">
-      <span style="font-size:14px;font-weight:600;color:#0d47a1;margin-right:4px">📄 Tệp văn bản đính kèm từ Cổng Chính phủ:</span>
-      ${items.join('')}
-    </div>
   `;
 }
 
@@ -464,25 +478,27 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
 
   let formattedHtml = parseMarkdownToStructuredHtml(rawAnswer);
 
-  // Always build our enhanced citation table with PDF links
+  // Strip duplicate middle notes that AI might have generated before section I or VI
+  formattedHtml = formattedHtml.replace(/<p[^>]*>\s*Ghi chú: Bạn có thể bấm trực tiếp vào liên kết ở bảng trên[\s\S]*?<\/p>/gi, '');
+
+  // Always build our enhanced citation table with PDF links matching Photo 5
   const gridTableHtml = buildLegalCitationTable(rawAnswer, documents);
 
-  // If AI already generated a complete table, REPLACE it with our enhanced version (which has PDF links)
-  const hasCompleteTable = formattedHtml.includes('<table class="legal-table">') && formattedHtml.includes('<tbody><tr>');
-  if (hasCompleteTable && gridTableHtml) {
-    // Remove AI's table and its preceding section header, replace with our enhanced version
-    formattedHtml = formattedHtml.replace(/<div class="legal-section-header">[\s\S]*?VI\.[\s\S]*?<\/div>\s*<div class="table-responsive">\s*<table class="legal-table">[\s\S]*?<\/table>\s*<\/div>/gi, '');
-    // Also remove orphaned section VI headers
+  if (gridTableHtml) {
+    // Cleanly remove any AI-generated Section VI (header, table, and trailing notes)
+    formattedHtml = formattedHtml.replace(
+      /(?:<div class="legal-section-header">[\s\S]*?VI\.[\s\S]*?<\/div>|<h[2-4][^>]*>[\s\S]*?VI\.[\s\S]*?<\/h[2-4]>)(?:[\s\S]*?(?:<table[\s\S]*?<\/table>|<div class="chat-compare-card">[\s\S]*?<\/div>\s*<\/div>))?(?:[\s\S]*?<p[^>]*>[\s\S]*?Ghi chú:[\s\S]*?<\/p>)?/gi,
+      ''
+    );
+    // Also remove any orphaned section VI header
     formattedHtml = formattedHtml.replace(/<div class="legal-section-header">[\s\S]*?BẢNG DANH MỤC[\s\S]*?<\/div>/gi, '');
-    formattedHtml += gridTableHtml;
-  } else if (!hasCompleteTable) {
-    // Strip trailing empty section VI headers if present
-    formattedHtml = formattedHtml.replace(/<div class="legal-section-header">[\s\S]*?VI\.[\s\S]*?BẢNG DANH MỤC[\s\S]*?<\/div>/gi, '');
-    formattedHtml += gridTableHtml;
-  }
+    formattedHtml = formattedHtml.replace(/<h[2-4][^>]*>[\s\S]*?BẢNG DANH MỤC[\s\S]*?<\/h[2-4]>/gi, '');
+    // Strip redundant trailing "Ghi chú: Bạn có thể bấm..." paragraph
+    formattedHtml = formattedHtml.replace(/<p[^>]*>\s*<em>\s*Ghi chú:[\s\S]*?<\/p>/gi, '');
+    formattedHtml = formattedHtml.replace(/<p[^>]*>\s*Ghi chú: Bạn có thể bấm[\s\S]*?<\/p>/gi, '');
 
-  // Build download bar (placed at bottom of answer)
-  const downloadBarHtml = buildDownloadBar(documents, rawAnswer);
+    formattedHtml = formattedHtml.trim() + gridTableHtml;
+  }
 
   // Attach warnings at top if present
   let warningHtml = '';
@@ -517,7 +533,6 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
       ${warningHtml}
       <div class="legal-answer-body">
         ${formattedHtml}
-        ${downloadBarHtml}
       </div>
     </div>
   `;

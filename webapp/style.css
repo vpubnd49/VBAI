@@ -1852,6 +1852,7 @@ input:checked + .slider-round:before {
 .chat-msg-rich a.chat-inline-link,
 .legal-table a.chat-inline-link,
 .legal-answer-wrapper a.chat-inline-link,
+.chat-compare-table a.chat-inline-link,
 a.chat-inline-link {
   display: inline-flex;
   align-items: center;
@@ -1871,6 +1872,7 @@ a.chat-inline-link {
 .chat-msg-rich a.chat-inline-link:hover,
 .legal-table a.chat-inline-link:hover,
 .legal-answer-wrapper a.chat-inline-link:hover,
+.chat-compare-table a.chat-inline-link:hover,
 a.chat-inline-link:hover {
   background: #bae6fd;
   border-color: #7dd3fc;
@@ -1881,6 +1883,7 @@ a.chat-inline-link:hover {
 .chat-msg-rich a.chat-inline-link::after,
 .legal-table a.chat-inline-link::after,
 .legal-answer-wrapper a.chat-inline-link::after,
+.chat-compare-table a.chat-inline-link::after,
 a.chat-inline-link::after {
   content: " ↗";
   font-size: 0.72rem;
