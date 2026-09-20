@@ -458,9 +458,15 @@ function buildModePrompt(query, mode, effectiveDate) {
 - Phân tích CHI TIẾT từng nhóm quy định, biện pháp, chế tài, mốc thời hạn, quyền/nghĩa vụ các bên.
 - TUYỆT ĐỐI CẤM vẽ sơ đồ ASCII art (┌───┐, │, └───┘, ▼). BẮT BUỘC dùng danh sách phân cấp và Bảng Markdown chuẩn.
 
+[MỞ ĐẦU BẮT BUỘC]:
+- Khi người dùng hỏi về văn bản hoặc yêu cầu tải file văn bản (ví dụ: "luật đất đai mới số bao nhiêu và tải file luật về cho tôi"):
+  Trước khi vào Phần I, BẮT BUỘC mở đầu bằng 1-2 câu kết luận trực diện, xác nhận số hiệu văn bản mới nhất hiện nay và dẫn vào bản phân tích:
+  "[Tên văn bản] mới nhất hiện nay là [Loại văn bản] số [Số hiệu] (được [Cơ quan] thông qua/ban hành ngày [Ngày ban hành]).
+  Dưới đây là thông tin chi tiết, phân tích pháp lý và đường dẫn tải về văn bản gốc theo đúng chuẩn quy định:"
+
 [CẤU TRÚC BÀI PHÂN TÍCH BẮT BUỘC]:
 I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH
-   - Số hiệu trong ngoặc vuông [VD: 82/2020/NĐ-CP]
+   - Số hiệu trong ngoặc vuông [VD: 31/2024/QH15]
    - Tên đầy đủ của văn bản
    - Cơ quan ban hành
    - Ngày ban hành, ngày có hiệu lực
@@ -479,14 +485,14 @@ IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT
    ⚠️ ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT — phải trình bày ĐẦY ĐỦ, PHONG PHÚ:
 
    A. THỐNG KÊ CẤU TRÚC (BẮT BUỘC nếu là Luật/Nghị định/Thông tư):
-      - Tổng số chương, tổng số điều (VD: "Luật gồm 7 chương, 86 điều")
+      - Tổng số chương, tổng số điều (VD: "Luật gồm 7 chương, 54 điều" hoặc "Luật gồm 16 chương, 260 điều")
       - Danh sách từng chương kèm phạm vi điều, ví dụ:
         * Chương I (Điều 1-6): Những quy định chung
         * Chương II (Điều 7-25): [Tên chương]
         * ...
 
    B. PHÂN TÍCH NỘI DUNG TỪNG CHƯƠNG/NHÓM QUY ĐỊNH:
-      - Với mỗi chương, nêu 3-6 gạch đầu dòng về nội dung trọng tâm:
+      - Với mỗi chương hoặc nhóm chính sách trọng tâm, nêu 3-6 gạch đầu dòng chi tiết:
         + Các biện pháp cụ thể, quy trình thực hiện, mốc thời hạn
         + Quyền và nghĩa vụ các bên liên quan
         + Mức xử phạt, chế tài (nếu có)
@@ -494,18 +500,20 @@ IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT
 
 V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN
    - Cơ quan chủ trì, cơ quan phối hợp
-   - Trách nhiệm địa phương
+   - Trách nhiệm địa phương (UBND/HĐND các cấp)
    - Điều khoản chuyển tiếp (nếu có)
 
-VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN CHÍNH THỨC
-   Bảng Markdown CHỈ chứa:
-   - Dòng 1: Văn bản CHÍNH mà người dùng hỏi (BẮT BUỘC)
-   - Dòng 2+: Các văn bản SỬA ĐỔI, BỔ SUNG, THAY THẾ trực tiếp văn bản chính (nếu có)
-   KHÔNG liệt kê văn bản không liên quan trực tiếp.
-   Format: | Số hiệu | Tên văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái | Quan hệ |
+VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE
+   Bảng Markdown CHỈ chứa VĂN BẢN CHÍNH người dùng hỏi + các văn bản sửa đổi/thay thế trực tiếp:
+   | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Link tải File / Nguồn kiểm chứng |
+   | :--- | :--- | :--- | :--- | :--- | :--- |
+   | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Tải về (PDF)](URL) hoặc [Cổng TTĐT Chính phủ](URL) |
 
-[QUY TẮC VỀ BẢNG TRÍCH DẪN]:
-- Cột "Quan hệ": ghi rõ "Văn bản chính" cho VB user hỏi, "Sửa đổi bổ sung" hoặc "Thay thế" cho VB liên quan.
+[QUY TẮC LINK TẢI TỆP (DOWNLOAD LINK)]:
+- Link tải file PDF gốc chính thức của Cổng Thông tin điện tử Chính phủ Việt Nam có định dạng: https://datafiles.chinhphu.vn/cpp/files/vbpq/{năm}/{tháng}/{tên_file}-signed.pdf (hoặc https://chinhphu.vn/media/docs/...).
+- Nếu trong ngữ cảnh tra cứu, khối xác thực hoặc cơ sở dữ liệu có link tải PDF, bạn BẮT BUỘC chèn link vào cột "Link tải File / Nguồn kiểm chứng" theo cú pháp markdown: [Tải về (PDF)](URL) (hoặc [Tải về Phần 1 (PDF)](URL)).
+- Ngay dưới Bảng VI, BẮT BUỘC có dòng ghi chú:
+  "Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn [Số hiệu] chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam."
 - TUYỆT ĐỐI KHÔNG liệt kê hàng loạt VB không liên quan trực tiếp.`;
 
   switch (mode) {

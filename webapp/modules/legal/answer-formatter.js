@@ -347,9 +347,8 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
       <td>${formatInlineMarkdown(sanitizeDates(doc.dates))}</td>
       <td style="text-align:center;"><span class="legal-status-pill in-force">${formatInlineMarkdown(doc.status)}</span></td>
       <td style="text-align:center;">
-        <a href="${doc.link}" target="_blank" rel="noopener noreferrer" class="legal-link">VBPL ↗</a>
-        ${doc.pdfDownloadUrl ? `<br><a href="${doc.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="legal-link" style="display:inline-flex;align-items:center;gap:3px;margin-top:4px;color:#0d6efd;font-weight:600;font-size:12px">📥 PDF</a>` : ''}
-        ${!doc.pdfDownloadUrl && doc.chinhphuDetailUrl ? `<br><a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="legal-link" style="margin-top:4px;font-size:12px">🏛️ CP</a>` : ''}
+        ${doc.pdfDownloadUrl ? `<a href="${doc.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="legal-link" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--brand-primary,#008ca1);color:#fff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.1)">📥 Tải về (PDF)</a>` : `<a href="${doc.link}" target="_blank" rel="noopener noreferrer" class="legal-link">VBPL ↗</a>`}
+        ${doc.chinhphuDetailUrl ? `<br><a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="legal-link" style="margin-top:4px;font-size:12px">🏛️ Cổng CP</a>` : ''}
       </td>
     </tr>
   `).join('');
@@ -357,19 +356,19 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
   return `
     <div class="legal-section-header" style="margin-top:24px;">
       <span class="section-icon">⚖️</span>
-      <h3 class="legal-section-heading">VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN CHÍNH THỨC</h3>
+      <h3 class="legal-section-heading">VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE</h3>
     </div>
     <div class="table-responsive legal-grid-wrapper">
       <table class="legal-table legal-grid-table">
         <thead>
           <tr>
             <th style="width: 5%; text-align:center;">STT</th>
-            <th style="width: 16%;">Số hiệu văn bản</th>
+            <th style="width: 15%;">Số hiệu văn bản</th>
             <th style="width: 30%;">Tên loại & Trích yếu văn bản</th>
             <th style="width: 13%;">Cơ quan ban hành</th>
             <th style="width: 14%;">Ban hành / Hiệu lực</th>
             <th style="width: 10%; text-align:center;">Trạng thái</th>
-            <th style="width: 12%; text-align:center;">Nguồn & Tải VB</th>
+            <th style="width: 13%; text-align:center;">Link tải File / Nguồn kiểm chứng</th>
           </tr>
         </thead>
         <tbody>
@@ -377,45 +376,68 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
         </tbody>
       </table>
     </div>
+    <p style="margin-top:10px;font-size:12px;color:var(--text-muted,#6c757d);font-style:italic">
+      Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn văn bản chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.
+    </p>
   `;
 }
 
 /**
  * Build a prominent download bar for documents with direct PDF links.
- * Only shows documents whose number is explicitly mentioned in the AI answer,
- * so users only see download buttons for the document(s) they asked about.
+ * Positioned at the bottom of the answer body.
  */
 function buildDownloadBar(documents = [], rawAnswer = '') {
   const pdfDocs = documents.filter(d => d.pdfDownloadUrl);
-  if (pdfDocs.length === 0) return '';
 
   // Filter: only show docs whose documentNumber appears in the AI answer text
   const answerNorm = String(rawAnswer).toLowerCase().replace(/\s+/g, '');
-  const relevantDocs = pdfDocs.filter(d => {
+  let relevantDocs = pdfDocs.filter(d => {
     const num = (d.documentNumber || d.document_number || d.number || '').trim();
     if (!num) return false;
-    // Normalize: "71/2026/TT-BXD" → "71/2026/tt-bxd" and check if AI answer contains it
     const numNorm = num.toLowerCase().replace(/\s+/g, '');
     return answerNorm.includes(numNorm);
   });
 
-  // If no docs match the answer text, don't show the bar
-  if (relevantDocs.length === 0) return '';
+  // Also scan rawAnswer for direct PDF links from datafiles.chinhphu.vn, chinhphu.vn, etc.
+  const directPdfRegex = /https?:\/\/(?:datafiles\.chinhphu\.vn|chinhphu\.vn|vanban\.chinhphu\.vn)[^\s\)\"\']+\.pdf/gi;
+  const directPdfMatches = Array.from(new Set(String(rawAnswer).match(directPdfRegex) || []));
 
-  const items = relevantDocs.map(d => {
-    const label = d.documentNumber || d.document_number || d.number || d.title || 'Văn bản';
-    return `
-      <a href="${d.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="download-bar-item" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#0d6efd,#0056d2);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;box-shadow:0 2px 8px rgba(13,110,253,0.3);transition:all 0.2s">
-        <span style="font-size:16px">📥</span>
-        Tải PDF: ${formatInlineMarkdown(label)}
-      </a>
-    `;
-  }).join('');
+  if (relevantDocs.length === 0 && directPdfMatches.length === 0) return '';
+
+  const renderedUrls = new Set();
+  const items = [];
+
+  relevantDocs.forEach(d => {
+    if (d.pdfDownloadUrl && !renderedUrls.has(d.pdfDownloadUrl)) {
+      renderedUrls.add(d.pdfDownloadUrl);
+      const label = d.documentNumber || d.document_number || d.number || d.title || 'Văn bản';
+      items.push(`
+        <a href="${d.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="download-bar-item" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#0d6efd,#0056d2);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;box-shadow:0 2px 8px rgba(13,110,253,0.3);transition:all 0.2s">
+          <span style="font-size:16px">📥</span>
+          Tải PDF: ${formatInlineMarkdown(label)}
+        </a>
+      `);
+    }
+  });
+
+  directPdfMatches.forEach(url => {
+    if (!renderedUrls.has(url)) {
+      renderedUrls.add(url);
+      const filenameMatch = url.match(/\/([^\/]+)\.pdf$/i);
+      const label = filenameMatch ? filenameMatch[1].replace(/_signed/gi, '').replace(/\.signed/gi, '') : 'Văn bản gốc';
+      items.push(`
+        <a href="${url}" target="_blank" rel="noopener noreferrer" class="download-bar-item" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#0d6efd,#0056d2);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px;box-shadow:0 2px 8px rgba(13,110,253,0.3);transition:all 0.2s">
+          <span style="font-size:16px">📥</span>
+          Tải PDF gốc: ${formatInlineMarkdown(label)}
+        </a>
+      `);
+    }
+  });
 
   return `
-    <div class="legal-download-bar" style="margin:12px 0 20px;padding:14px 18px;background:linear-gradient(135deg,#e7f1ff,#f0f7ff);border:1px solid #b6d4fe;border-radius:12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px">
-      <span style="font-size:14px;font-weight:600;color:#0d47a1;margin-right:4px">📄 Tệp đính kèm từ Cổng Chính phủ:</span>
-      ${items}
+    <div class="legal-download-bar" style="margin:20px 0 10px;padding:14px 18px;background:linear-gradient(135deg,#e7f1ff,#f0f7ff);border:1px solid #b6d4fe;border-radius:12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+      <span style="font-size:14px;font-weight:600;color:#0d47a1;margin-right:4px">📄 Tệp văn bản đính kèm từ Cổng Chính phủ:</span>
+      ${items.join('')}
     </div>
   `;
 }
@@ -459,7 +481,7 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
     formattedHtml += gridTableHtml;
   }
 
-  // Build download bar (only shows docs referenced in AI answer)
+  // Build download bar (placed at bottom of answer)
   const downloadBarHtml = buildDownloadBar(documents, rawAnswer);
 
   // Attach warnings at top if present
@@ -492,10 +514,10 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
   return `
     <div class="legal-answer-wrapper">
       ${headerHtml}
-      ${downloadBarHtml}
       ${warningHtml}
       <div class="legal-answer-body">
         ${formattedHtml}
+        ${downloadBarHtml}
       </div>
     </div>
   `;

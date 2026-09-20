@@ -4624,16 +4624,23 @@ app.post('/api/chat', async (req, res) => {
 - Phân tích CHI TIẾT từng nhóm quy định, biện pháp, chế tài, mốc thời hạn, quyền/nghĩa vụ. KHÔNG trả lời sơ sài.
 - TUYỆT ĐỐI CẤM vẽ sơ đồ ASCII art (┌───┐, │, └───┘, ▼). BẮT BUỘC dùng danh sách phân cấp và Bảng Markdown chuẩn.
 
+[MỞ ĐẦU BẮT BUỘC]:
+- Khi người dùng hỏi về văn bản hoặc yêu cầu tải file văn bản:
+  Trước khi vào Phần I, BẮT BUỘC mở đầu bằng 1-2 câu kết luận trực diện, xác nhận số hiệu văn bản mới nhất hiện nay và dẫn vào bản phân tích:
+  "[Tên văn bản] mới nhất hiện nay là [Loại văn bản] số [Số hiệu] (được [Cơ quan] thông qua/ban hành ngày [Ngày ban hành]).
+  Dưới đây là thông tin chi tiết, phân tích pháp lý và đường dẫn tải về văn bản gốc theo đúng chuẩn quy định:"
+
 [CẤU TRÚC BẮT BUỘC]:
-1. I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH (Số hiệu [VD: 327/2026/NĐ-CP], tên đầy đủ, cơ quan, ngày ban hành, ngày hiệu lực, trạng thái).
+1. I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH (Số hiệu [VD: 31/2024/QH15], tên đầy đủ, cơ quan, ngày ban hành, ngày hiệu lực, trạng thái).
 2. II. CĂN CỨ PHÁP LÝ & QUAN HỆ VĂN BẢN (Căn cứ Luật nào, hướng dẫn Điều nào, VB thay thế/sửa đổi/bị thay thế).
 3. III. PHẠM VI ĐIỀU CHỈNH & ĐỐI TƯỢNG ÁP DỤNG.
 4. IV. CẤU TRÚC TỔNG QUAN & NỘI DUNG QUY ĐỊNH CHI TIẾT (⚠️ PHẦN QUAN TRỌNG NHẤT):
    A. THỐNG KÊ CẤU TRÚC (BẮT BUỘC): Tổng số chương, tổng số điều. Liệt kê từng chương kèm phạm vi điều (VD: Chương I Điều 1-6: Quy định chung).
    B. PHÂN TÍCH TỪNG CHƯƠNG: Mỗi chương 3-6 gạch đầu dòng chi tiết (biện pháp, quy trình, chế tài, quyền/nghĩa vụ, điểm mới nổi bật).
 5. V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN.
-6. VI. BẢNG DANH MỤC TRÍCH DẪN: CHỈ liệt kê VB chính + VB sửa đổi/thay thế trực tiếp. KHÔNG liệt kê VB không liên quan.
-   Format: | Số hiệu | Tên văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái | Quan hệ |
+6. VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE: CHỈ liệt kê VB chính + VB sửa đổi/thay thế trực tiếp.
+   Format: | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Link tải File / Nguồn kiểm chứng |
+   [Quy tắc Link tải tệp]: Link tải PDF chính thức từ Cổng Chính phủ định dạng https://datafiles.chinhphu.vn/cpp/files/vbpq/{năm}/{tháng}/{tên_file}-signed.pdf (hoặc https://chinhphu.vn/media/docs/...). Chèn link dạng markdown: [Tải về (PDF)](URL). Kèm ghi chú: 'Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn [Số hiệu] chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.'
 === KẾT THÚC CĂN CỨ PHÁP LÝ ===\n`);
 
       const evidenceText = contextLines.join('\n');
