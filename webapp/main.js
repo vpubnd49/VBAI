@@ -4,7 +4,7 @@
  */
 
 // VBAI Main Entry - Last Update: 2026-09-20
-const VBAI_BUILD_VERSION = '20260920v17';
+const VBAI_BUILD_VERSION = '20260920v18';
 import { firebaseConfig } from './firebase-config.js';
 
 function applyGlobalModelDefaults() {
@@ -156,7 +156,7 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
       case 'situation-analysis':
       case 'compare-regulations':
       case 'effective-date': {
-        const { renderLegalSearchUI } = await import(`./modules/legal-search.js?v=${VBAI_BUILD_VERSION}`);
+        const { renderLegalSearchUI } = await import('./modules/legal-search.js');
         container.innerHTML = '';
         renderLegalSearchUI(container, initialMode || page, initialQuery);
         break;
@@ -168,7 +168,7 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
         break;
       }
       case 'chat-assistant': {
-        const { renderChatUI } = await import(`./modules/chat-assistant.js?v=${VBAI_BUILD_VERSION}`);
+        const { renderChatUI } = await import('./modules/chat-assistant.js');
         container.innerHTML = '';
         renderChatUI(container);
         break;
