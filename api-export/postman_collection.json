@@ -1,0 +1,398 @@
+{
+  "info": {
+    "name": "VBAI System API",
+    "description": "Complete API collection for VBAI Legal Search Platform and VBAIBot Dashboard",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "vbai-system-api-2026"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://vbai.tracuu.lamdong.vn", "type": "string" },
+    { "key": "bot_url", "value": "https://vbaibot.chauphienbanso.com", "type": "string" },
+    { "key": "access_token", "value": "<ACCESS_TOKEN>", "type": "string" },
+    { "key": "refresh_token", "value": "<REFRESH_TOKEN>", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check (Root)",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/health" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "Health Check (API)",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/health" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "Build Info",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/build-info" }, "auth": { "type": "noauth" } }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/auth/register" },
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"<PASSWORD>\",\n  \"displayName\": \"Nguyen Van A\"\n}" }
+          }
+        },
+        {
+          "name": "Login (Email)",
+          "event": [{ "listen": "test", "script": { "exec": ["var jsonData = pm.response.json();", "if (jsonData.token) {", "  pm.environment.set('access_token', jsonData.token);", "  pm.environment.set('refresh_token', jsonData.refreshToken || '');", "}"] } }],
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/auth/login" },
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"<PASSWORD>\"\n}" }
+          }
+        },
+        {
+          "name": "Login (Google)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/auth/google" },
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"credential\": \"<GOOGLE_ID_TOKEN>\"\n}" }
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/auth/me" } }
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Send Chat (Streaming)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/chat" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Luật đất đai 2024 có hiệu lực khi nào?\",\n  \"skill\": \"legal-search\"\n}" }
+          }
+        },
+        {
+          "name": "List Sessions",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/chat/sessions" } }
+        },
+        {
+          "name": "Create Session",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/chat/sessions" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Tra cứu pháp luật\",\n  \"firstMessage\": \"Luật đất đai\"\n}" }
+          }
+        },
+        {
+          "name": "Get Session",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/chat/sessions/<SESSION_ID>" } }
+        },
+        {
+          "name": "Append Messages",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{base_url}}/api/chat/sessions/<SESSION_ID>/messages" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"Điều 10 nói gì?\" },\n    { \"role\": \"assistant\", \"content\": \"Điều 10 quy định về...\" }\n  ]\n}" }
+          }
+        },
+        {
+          "name": "Rename Session",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{base_url}}/api/chat/sessions/<SESSION_ID>/title" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"title\": \"Tên mới\" }" }
+          }
+        },
+        {
+          "name": "Delete Session",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/api/chat/sessions/<SESSION_ID>" } }
+        },
+        {
+          "name": "Delete All Sessions",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/api/chat/sessions" } }
+        }
+      ]
+    },
+    {
+      "name": "Legal Search",
+      "item": [
+        {
+          "name": "Web Search",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/web-search" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"Nghị định hướng dẫn Luật Đất đai 2024\",\n  \"maxResults\": 10\n}" }
+          }
+        },
+        {
+          "name": "Legal Agent Retrieve",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/legal-agent-retrieve" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"Điều kiện chuyển nhượng quyền sử dụng đất\",\n  \"mode\": \"legal-search\"\n}" }
+          }
+        },
+        {
+          "name": "Web Extract",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/web-extract" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"url\": \"https://vbpl.vn/example\" }" }
+          }
+        },
+        {
+          "name": "Document Metadata",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/document-metadata?q=31/2024/QH15" } }
+        },
+        {
+          "name": "Document Templates",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/document-templates" } }
+        },
+        {
+          "name": "Administrative Divisions",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/administrative-divisions?q=Lam+Dong" },
+            "auth": { "type": "noauth" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "Parse Doc (Upload)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/parse-doc" },
+            "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": "" }] }
+          }
+        },
+        {
+          "name": "Transcribe Audio (Upload)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/transcribe" },
+            "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "src": "" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search History",
+      "item": [
+        {
+          "name": "List History",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/search-history?limit=20" } }
+        },
+        {
+          "name": "Delete Entry",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/api/search-history/<ENTRY_ID>" } }
+        },
+        {
+          "name": "Delete All",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/api/search-history" } }
+        }
+      ]
+    },
+    {
+      "name": "Stats & Config",
+      "item": [
+        {
+          "name": "Log Action",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/log-action" },
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"action\": \"search\", \"query\": \"test\" }" }
+          }
+        },
+        {
+          "name": "Visit Stats",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/stats/visits" } }
+        },
+        {
+          "name": "System Config Summary",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/system-config-summary" } }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List Users",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/admin/users" } }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/admin/update-user" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"uid\": \"<USER_ID>\", \"role\": \"admin\" }" }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/admin/delete-user" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"uid\": \"<USER_ID>\" }" }
+          }
+        },
+        {
+          "name": "Update System Config",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/admin/system-config" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"geminiModel\": \"gemini-3.7-flash-high\",\n  \"maxAudioUploadMb\": 200\n}" }
+          }
+        },
+        {
+          "name": "Run Crawler",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/admin/crawler/run" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        {
+          "name": "Crawler Status",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/admin/crawler/status" } }
+        },
+        {
+          "name": "List Training Datasets",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/admin/training-datasets" } }
+        },
+        {
+          "name": "Trigger Fine-tuning",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/admin/training-datasets/trigger-tuning" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"baseModel\": \"gemini-2.0-flash-001\",\n  \"epochCount\": 4,\n  \"displayName\": \"vbai-legal-v1\"\n}" }
+          }
+        },
+        {
+          "name": "List Tuning Jobs",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/admin/training-datasets/tuning-jobs" } }
+        }
+      ]
+    },
+    {
+      "name": "Zalo Bot",
+      "item": [
+        {
+          "name": "List Accounts",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/zalobot/accounts" } }
+        },
+        {
+          "name": "Create Account",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/zalobot/accounts" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"phone\": \"0901234567\" }" }
+          }
+        },
+        {
+          "name": "Start QR Login",
+          "request": { "method": "POST", "url": { "raw": "{{base_url}}/api/zalobot/accounts/<ACCOUNT_ID>/login" } }
+        },
+        {
+          "name": "QR Login Status",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/zalobot/accounts/<ACCOUNT_ID>/login/status" } }
+        },
+        {
+          "name": "Bot Health",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/api/zalobot/health" } }
+        }
+      ]
+    },
+    {
+      "name": "VBAIBot Dashboard",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{bot_url}}/api/auth/login" },
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"password\": \"<PASSWORD>\" }" }
+          }
+        },
+        {
+          "name": "Auth Me",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/auth/me" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "Overview",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/overview" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "List Bot Accounts",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/accounts" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "List Agents",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/agents" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "List Threads",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/threads?limit=20" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "Get Provider",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/provider" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "List Knowledge",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/knowledge" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "List Schedules",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/schedule" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "Broadcast Targets",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/broadcast/targets" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "Traces",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/traces?limit=20" }, "auth": { "type": "noauth" } }
+        },
+        {
+          "name": "Logs",
+          "request": { "method": "GET", "url": { "raw": "{{bot_url}}/api/logs?level=info&lines=50" }, "auth": { "type": "noauth" } }
+        }
+      ]
+    }
+  ]
+}

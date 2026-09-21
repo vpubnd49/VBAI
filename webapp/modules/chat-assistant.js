@@ -1289,6 +1289,14 @@ function renderComparisonTable(blockLines = []) {
           return `[Tải về Phần 1 (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_1.pdf)<br>[Tải về Phần 2 (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_2.pdf)<br>[Tải về Phần 3 (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_3.pdf)`;
         } else if (rowDocNum === '72/2025/QH15' || /72[\/\-]2025[\/\-]qh15/i.test(cellStr)) {
           return `[Tải về (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2025/7/2025_807-808_72-2025-qh15..pdf)`;
+        } else if (rowDocNum === '30/2020/NĐ-CP' || rowDocNum === '30/2020/ND-CP' || /30[\/\-]2020[\/\-]n[đd]-cp/i.test(cellStr) || /nghị định.*30.*văn thư/i.test(row.join(' '))) {
+          return `[Tải về (PDF)](https://datafiles.chinhphu.vn/cpp/files/vbpq/2020/03/30.signed.pdf)<br>[Cổng TTĐT Chính phủ](https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=199378)`;
+        }
+        // Fix generic chinhphu.vn homepage/search links — replace with VBPL search
+        if (/^\[.*\]\(https:\/\/vanban\.chinhphu\.vn\/?\)$/i.test(cellStr) || /^https:\/\/vanban\.chinhphu\.vn\/?$/i.test(cellStr)) {
+          if (rowDocNum) {
+            return `[Cổng TTĐT Chính phủ](https://vbpl.vn/tim-kiem?q=${encodeURIComponent(rowDocNum)})`;
+          }
         }
       }
       return cellStr;
@@ -1318,6 +1326,27 @@ function renderAssistantRichText(rawText = "") {
     /https?:\/\/datafiles\.chinhphu\.vn\/cpp\/files\/vbpq\/\d+\/\d+\/31-2024-qh15(?:\.signed)?\.pdf/gi,
     'https://datafiles.chinhphu.vn/cpp/files/vbpq/2024/9/31-2024-qh15_1.pdf'
   );
+
+  // Fix hallucinated wrong docid=199279 (QĐ 304/QĐ-TTg) → correct docid=199378 (NĐ 30/2020/NĐ-CP)
+  src = src.replace(/docid=199279/gi, 'docid=199378');
+
+  // Fix generic vanban.chinhphu.vn homepage links in markdown → specific VBPL search for NĐ 30/2020
+  // Pattern: [Cổng TTĐT Chính phủ](https://vanban.chinhphu.vn/) in rows about NĐ 30/2020
+  src = src.replace(
+    /(\|\s*(?:30\/2020\/N[ĐD]-CP|Nghị định.*30.*văn thư)[^|]*\|[^|]*)\[([^\]]*)\]\(https?:\/\/vanban\.chinhphu\.vn\/?\)/gi,
+    '$1[$2](https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=199378)'
+  );
+
+  // Also fix standalone generic vanban.chinhphu.vn homepage links in citation table action columns
+  // Replace [text](https://vanban.chinhphu.vn/) → [text](https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=199378)
+  // only when the same line contains 30/2020
+  src = src.replace(
+    /^(.*30\/2020.*)\[([^\]]*)\]\(https?:\/\/vanban\.chinhphu\.vn\/?\)/gim,
+    '$1[$2](https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=199378)'
+  );
+
+  // Pre-process: normalize excessive heading markers (##### → ###, ###### → ###)
+  src = src.replace(/^#{4,}\s+/gm, '### ');
 
   const lines = src.split("\n");
   const htmlBlocks = [];
@@ -1385,7 +1414,7 @@ function renderAssistantRichText(rawText = "") {
     }
 
     // Headings (# H1, ## H2, ### H3, #### H4)
-    const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
       const level = headingMatch[1].length;
       const titleText = applyInlineMarkdown(escapeHtml(headingMatch[2]));

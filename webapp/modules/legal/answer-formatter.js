@@ -85,6 +85,18 @@ export function parseMarkdownToStructuredHtml(rawText = '') {
   // Strip repeated standalone horizontal rules
   str = str.replace(/\n\s*---\s*\n/g, '\n\n');
 
+  // Fix hallucinated wrong docid=199279 (QĐ 304) → correct docid=199378 (NĐ 30/2020)
+  str = str.replace(/docid=199279/gi, 'docid=199378');
+
+  // Fix generic vanban.chinhphu.vn links in lines about NĐ 30/2020
+  str = str.replace(
+    /^(.*30\/2020.*)\[([^\]]*)\]\(https?:\/\/vanban\.chinhphu\.vn\/?\)/gim,
+    '$1[$2](https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=199378)'
+  );
+
+  // Pre-process: normalize excessive heading markers (##### → ###, ###### → ###)
+  str = str.replace(/^#{4,}\s+/gm, '### ');
+
   // Pre-process: merge standalone ⚖️ emoji lines with the following heading line
   str = str.replace(/\n\s*⚖️\s*\n\s*/g, '\n⚖️ ');
 
@@ -219,7 +231,7 @@ export function parseMarkdownToStructuredHtml(rawText = '') {
     }
 
     // 2. Check for Markdown Headers (### Header, ## Header)
-    const mdHeaderMatch = trimmed.match(/^#{1,4}\s+(.*)/);
+    const mdHeaderMatch = trimmed.match(/^#{1,6}\s+(.*)/);
     if (mdHeaderMatch) {
       flushLists();
       const title = mdHeaderMatch[1].replace(/^\*\*|\*\*$/g, '').trim();
@@ -403,19 +415,55 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
   });
 
   // Also scan rawAnswer for direct PDF download links from Government Portal
+  // FIX: Validate that extracted PDF URLs actually belong to the target document
+  // instead of blindly assigning any chinhphu.vn PDF to the first doc.
   const directPdfRegex = /https?:\/\/(?:datafiles\.chinhphu\.vn|chinhphu\.vn|vanban\.chinhphu\.vn)[^\s\)\"\']+\.pdf/gi;
   const directPdfMatches = Array.from(new Set(String(rawAnswer).match(directPdfRegex) || []));
   if (directPdfMatches.length > 0) {
-    const firstDoc = docsMap.values().next().value;
-    if (firstDoc && (!firstDoc.pdfDownloadUrls || firstDoc.pdfDownloadUrls.length === 0)) {
-      firstDoc.pdfDownloadUrls = directPdfMatches;
+    // Try to match each PDF URL to the correct document
+    for (const doc of docsMap.values()) {
+      if (doc.pdfDownloadUrls && doc.pdfDownloadUrls.length > 0) continue;
+      const docNum = doc.number || '';
+      if (!docNum) continue;
+      // Normalize doc number for URL matching: "30/2020/NĐ-CP" → ["30-2020", "30.signed", "30/2020"]
+      const numParts = docNum.split('/');
+      const baseNum = numParts[0]; // e.g. "30"
+      const yearPart = numParts.length > 1 ? numParts[1] : '';
+      const matchedUrls = directPdfMatches.filter(url => {
+        const lowerUrl = url.toLowerCase();
+        // Match patterns like: /30.signed.pdf, /30-2020-nd-cp, /30_2020
+        if (yearPart && lowerUrl.includes(`/${baseNum}-${yearPart}`)) return true;
+        if (yearPart && lowerUrl.includes(`/${baseNum}_${yearPart}`)) return true;
+        if (yearPart && lowerUrl.includes(`/${yearPart}/`) && lowerUrl.includes(`/${baseNum}.`)) return true;
+        if (yearPart && lowerUrl.includes(`/${yearPart}/`) && lowerUrl.includes(`/${baseNum}-`)) return true;
+        // Exact basename match in URL path (e.g. /30.signed.pdf in /vbpq/2020/03/)
+        if (yearPart && lowerUrl.includes(`/${yearPart.substring(0, 4)}/`) && new RegExp(`/${baseNum}[._-]`).test(lowerUrl)) return true;
+        return false;
+      });
+      if (matchedUrls.length > 0) {
+        doc.pdfDownloadUrls = matchedUrls;
+      }
+    }
+    // If no doc matched but there's only 1 document and 1 PDF, it's likely correct
+    const allDocs = Array.from(docsMap.values());
+    if (allDocs.length === 1 && directPdfMatches.length === 1 && (!allDocs[0].pdfDownloadUrls || allDocs[0].pdfDownloadUrls.length === 0)) {
+      // Only assign if the PDF URL doesn't obviously belong to a different document
+      const url = directPdfMatches[0].toLowerCase();
+      const docBase = (allDocs[0].number || '').split('/')[0];
+      // Don't assign if URL contains a different document number pattern
+      const urlDocMatch = url.match(/\/(\d+)(?:\.|[-_]|signed)/);
+      if (!urlDocMatch || urlDocMatch[1] === docBase) {
+        allDocs[0].pdfDownloadUrls = directPdfMatches;
+      }
     }
   }
 
   // Scan rawAnswer for Government Portal detail URLs
-  const chinhphuDetailRegex = /https?:\/\/(?:www\.)?(?:vanban\.chinhphu\.vn|chinhphu\.vn)\/(?:\?pageid=\d+[^)\s\"\'\>]*|\?classid=\d+[^)\s\"\'\>]*)/gi;
+  const chinhphuDetailRegex = /https?:\/\/(?:www\.)?(?:vanban\.chinhphu\.vn|chinhphu\.vn)\/(?:\?pageid=\d+[^)\s\"\'\\>]*|\?classid=\d+[^)\s\"\'\\>]*)/gi;
   const directCpMatches = Array.from(new Set(String(rawAnswer).match(chinhphuDetailRegex) || []));
-  if (directCpMatches.length > 0) {
+  if (directCpMatches.length > 0 && docsMap.size === 1) {
+    // Only assign chinhphu detail URL when there's exactly one document
+    // to avoid cross-contamination between documents
     const firstDoc = docsMap.values().next().value;
     if (firstDoc && !firstDoc.chinhphuDetailUrl) {
       firstDoc.chinhphuDetailUrl = directCpMatches[0];

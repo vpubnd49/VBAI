@@ -1,0 +1,1123 @@
+openapi: "3.1.0"
+info:
+  title: VBAI System API
+  description: |
+    API for VBAI Legal Search Platform and VBAIBot Dashboard.
+    Two independent services sharing the same VPS.
+  version: "2.0.0"
+  contact:
+    name: VBAI Team
+    url: https://vbai.tracuu.lamdong.vn
+
+servers:
+  - url: https://vbai.tracuu.lamdong.vn
+    description: VBAI Proxy (Production)
+  - url: https://vbaibot.chauphienbanso.com
+    description: VBAIBot Dashboard (Production)
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Auth
+    description: Authentication (VBAI Proxy)
+  - name: Chat
+    description: AI Chat and Sessions
+  - name: Legal
+    description: Legal document search and retrieval
+  - name: Documents
+    description: Document processing (parse, transcribe)
+  - name: History
+    description: Search history management
+  - name: Stats
+    description: Analytics and visit statistics
+  - name: Admin
+    description: Admin-only management endpoints
+  - name: Admin-Crawler
+    description: Legal document crawler
+  - name: Admin-Training
+    description: Training datasets and fine-tuning
+  - name: Admin-Users
+    description: User management
+  - name: Zalobot
+    description: Zalo bot account management
+  - name: Telemetry
+    description: Inter-service telemetry
+  - name: Bot-Auth
+    description: VBAIBot Dashboard authentication
+  - name: Bot-Accounts
+    description: VBAIBot account management
+  - name: Bot-Agents
+    description: AI agent configuration
+  - name: Bot-Threads
+    description: Conversation threads
+  - name: Bot-Provider
+    description: LLM provider settings
+  - name: Bot-Knowledge
+    description: Knowledge base management
+  - name: Bot-Schedule
+    description: Scheduled jobs
+  - name: Bot-Broadcast
+    description: Broadcast messaging
+  - name: Bot-OCR
+    description: OCR document processing
+  - name: Bot-Misc
+    description: Miscellaneous bot endpoints
+
+securitySchemes:
+  BearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
+    description: Firebase ID Token or local JWT
+  SessionCookie:
+    type: apiKey
+    in: cookie
+    name: __session
+    description: Dashboard session cookie
+  SyncSecret:
+    type: apiKey
+    in: header
+    name: X-Sync-Secret
+    description: Inter-service sync secret
+
+paths:
+  # ═══ HEALTH ═══
+  /health:
+    get:
+      tags: [Health]
+      summary: Root health check
+      operationId: healthCheckRoot
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/health:
+    get:
+      tags: [Health]
+      summary: API health check
+      operationId: healthCheckApi
+      responses:
+        "200":
+          description: OK
+
+  /api/build-info:
+    get:
+      tags: [Health]
+      summary: Build and deployment info
+      operationId: getBuildInfo
+      responses:
+        "200":
+          description: Build information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildInfo"
+
+  # ═══ AUTH ═══
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register with email/password
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+                displayName:
+                  type: string
+      responses:
+        "200":
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "400":
+          description: Invalid input
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email/password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "401":
+          description: Invalid credentials
+
+  /api/auth/google:
+    post:
+      tags: [Auth]
+      summary: Login with Google credential
+      operationId: googleLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credential]
+              properties:
+                credential:
+                  type: string
+                  description: Google ID token
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      operationId: getMe
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  # ═══ CHAT ═══
+  /api/chat:
+    post:
+      tags: [Chat]
+      summary: Send chat message (streaming SSE)
+      operationId: sendChat
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream: {}
+
+  /api/chat/sessions:
+    get:
+      tags: [Chat]
+      summary: List chat sessions
+      operationId: listSessions
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Sessions list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ChatSession"
+    post:
+      tags: [Chat]
+      summary: Create chat session
+      operationId: createSession
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                firstMessage:
+                  type: string
+      responses:
+        "200":
+          description: Created session
+    delete:
+      tags: [Chat]
+      summary: Delete all sessions
+      operationId: deleteAllSessions
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Deleted
+
+  /api/chat/sessions/{id}:
+    get:
+      tags: [Chat]
+      summary: Get session with messages
+      operationId: getSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session detail
+        "404":
+          description: Not found
+    delete:
+      tags: [Chat]
+      summary: Delete session
+      operationId: deleteSession
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+
+  /api/chat/sessions/{id}/messages:
+    put:
+      tags: [Chat]
+      summary: Append messages to session
+      operationId: appendMessages
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ChatMessage"
+      responses:
+        "200":
+          description: Messages added
+
+  /api/chat/sessions/{id}/title:
+    patch:
+      tags: [Chat]
+      summary: Update session title
+      operationId: updateSessionTitle
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                  maxLength: 80
+      responses:
+        "200":
+          description: Updated
+
+  # ═══ LEGAL SEARCH ═══
+  /api/web-search:
+    post:
+      tags: [Legal]
+      summary: Search legal documents
+      operationId: webSearch
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                sources:
+                  type: array
+                  items:
+                    type: string
+                maxResults:
+                  type: integer
+                  default: 10
+      responses:
+        "200":
+          description: Search results
+
+  /api/legal-agent-retrieve:
+    post:
+      tags: [Legal]
+      summary: AI-powered legal retrieval
+      operationId: legalAgentRetrieve
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LegalAgentRequest"
+      responses:
+        "200":
+          description: Legal analysis result
+
+  /api/web-extract:
+    post:
+      tags: [Legal]
+      summary: Extract content from URL
+      operationId: webExtract
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+      responses:
+        "200":
+          description: Extracted content
+
+  /api/document-metadata:
+    get:
+      tags: [Legal]
+      summary: Get document metadata by number
+      operationId: getDocumentMetadata
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Document number (e.g. 31/2024/QH15)
+      responses:
+        "200":
+          description: Document metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentMetadata"
+
+  /api/document-templates:
+    get:
+      tags: [Legal]
+      summary: List document templates
+      operationId: listDocumentTemplates
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Templates list
+
+  /api/administrative-divisions:
+    get:
+      tags: [Legal]
+      summary: Search administrative divisions
+      operationId: searchDivisions
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Division results
+
+  # ═══ DOCUMENTS ═══
+  /api/parse-doc:
+    post:
+      tags: [Documents]
+      summary: Parse uploaded document
+      operationId: parseDoc
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Parsed text
+        "422":
+          description: Unreadable file
+
+  /api/transcribe:
+    post:
+      tags: [Documents]
+      summary: Transcribe audio file
+      operationId: transcribeAudio
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Audio file (max 200MB)
+      responses:
+        "200":
+          description: Transcribed text
+
+  # ═══ SEARCH HISTORY ═══
+  /api/search-history:
+    get:
+      tags: [History]
+      summary: List search history
+      operationId: listSearchHistory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: History entries
+    delete:
+      tags: [History]
+      summary: Delete all search history
+      operationId: deleteAllHistory
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Deleted
+
+  /api/search-history/{id}:
+    delete:
+      tags: [History]
+      summary: Delete one history entry
+      operationId: deleteHistoryEntry
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+
+  # ═══ STATS ═══
+  /api/log-action:
+    post:
+      tags: [Stats]
+      summary: Log user action
+      operationId: logAction
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                query:
+                  type: string
+                mode:
+                  type: string
+      responses:
+        "200":
+          description: Logged
+
+  /api/stats/visits:
+    get:
+      tags: [Stats]
+      summary: Visit statistics
+      operationId: getVisitStats
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Stats
+
+  /api/stats/visits/session:
+    post:
+      tags: [Stats]
+      summary: Record visit session
+      operationId: recordVisitSession
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Recorded
+
+  /api/system-config-summary:
+    get:
+      tags: [Stats]
+      summary: System config summary
+      operationId: getSystemConfigSummary
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Config summary
+
+  # ═══ ADMIN ═══
+  /api/admin/users:
+    get:
+      tags: [Admin-Users]
+      summary: List all users
+      operationId: adminListUsers
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Users list
+
+  /api/admin/delete-user:
+    post:
+      tags: [Admin-Users]
+      summary: Delete user
+      operationId: adminDeleteUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uid]
+              properties:
+                uid:
+                  type: string
+      responses:
+        "200":
+          description: Deleted
+
+  /api/admin/update-user:
+    post:
+      tags: [Admin-Users]
+      summary: Update user role/status
+      operationId: adminUpdateUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uid]
+              properties:
+                uid:
+                  type: string
+                role:
+                  type: string
+                disabled:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated
+
+  /api/admin/system-config:
+    post:
+      tags: [Admin]
+      summary: Update system configuration
+      operationId: adminUpdateConfig
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                geminiModel:
+                  type: string
+                geminiEndpoint:
+                  type: string
+                geminiApiKey:
+                  type: string
+                maxAudioUploadMb:
+                  type: integer
+      responses:
+        "200":
+          description: Updated
+
+  /api/admin/validate-gemini-key:
+    post:
+      tags: [Admin]
+      summary: Validate Gemini API key
+      operationId: adminValidateKey
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Validation result
+
+  /api/admin/crawler/run:
+    post:
+      tags: [Admin-Crawler]
+      summary: Run legal document crawler
+      operationId: adminRunCrawler
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Crawler started
+
+  /api/admin/crawler/status:
+    get:
+      tags: [Admin-Crawler]
+      summary: Get crawler status
+      operationId: adminCrawlerStatus
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Status
+
+  /api/admin/crawler/clean:
+    post:
+      tags: [Admin-Crawler]
+      summary: Clean crawler data
+      operationId: adminCrawlerClean
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Cleaned
+
+  /api/admin/training-datasets:
+    get:
+      tags: [Admin-Training]
+      summary: List training datasets
+      operationId: adminListTraining
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Training entries
+    post:
+      tags: [Admin-Training]
+      summary: Create training entry
+      operationId: adminCreateTraining
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input, output]
+              properties:
+                input:
+                  type: string
+                output:
+                  type: string
+                source:
+                  type: string
+      responses:
+        "200":
+          description: Created
+
+  /api/admin/training-datasets/{id}:
+    delete:
+      tags: [Admin-Training]
+      summary: Delete training entry
+      operationId: adminDeleteTraining
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+
+  /api/admin/training-datasets/trigger-tuning:
+    post:
+      tags: [Admin-Training]
+      summary: Trigger Vertex AI fine-tuning job
+      operationId: adminTriggerTuning
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                baseModel:
+                  type: string
+                epochCount:
+                  type: integer
+                displayName:
+                  type: string
+      responses:
+        "200":
+          description: Job started
+
+  /api/admin/training-datasets/tuning-jobs:
+    get:
+      tags: [Admin-Training]
+      summary: List tuning jobs
+      operationId: adminListTuningJobs
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Jobs list
+
+  /api/admin/training-datasets/tuning-jobs/{jobId}/status:
+    get:
+      tags: [Admin-Training]
+      summary: Get tuning job status
+      operationId: adminTuningJobStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job status
+
+  /api/admin/training-datasets/tuning-jobs/{jobId}/cancel:
+    post:
+      tags: [Admin-Training]
+      summary: Cancel tuning job
+      operationId: adminCancelTuningJob
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cancelled
+
+  # ═══ TELEMETRY ═══
+  /api/telemetry/vbaibot-ingest:
+    post:
+      tags: [Telemetry]
+      summary: Ingest VBAIBot conversation data
+      operationId: vbaibotIngest
+      security:
+        - SyncSecret: []
+      responses:
+        "200":
+          description: Ingested
+
+  # ═══ ZALOBOT ═══
+  /api/zalobot/accounts:
+    get:
+      tags: [Zalobot]
+      summary: List Zalo accounts
+      operationId: listZalobotAccounts
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Accounts list
+    post:
+      tags: [Zalobot]
+      summary: Create Zalo account
+      operationId: createZalobotAccount
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Created
+
+  /api/zalobot/accounts/{id}/login:
+    post:
+      tags: [Zalobot]
+      summary: Start QR login
+      operationId: startZalobotLogin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Login started
+
+  /api/zalobot/accounts/{id}/login/status:
+    get:
+      tags: [Zalobot]
+      summary: Get QR login status
+      operationId: getZalobotLoginStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Login status
+
+  /api/zalobot/health:
+    get:
+      tags: [Zalobot]
+      summary: Zalo bot health
+      operationId: zalobotHealth
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Health status
+
+components:
+  schemas:
+    BuildInfo:
+      type: object
+      properties:
+        product:
+          type: string
+        service:
+          type: string
+        environment:
+          type: string
+        gitSha:
+          type: string
+        builtAt:
+          type: string
+          format: date-time
+
+    User:
+      type: object
+      properties:
+        uid:
+          type: string
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+        createdAt:
+          type: string
+          format: date-time
+
+    AuthResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        token:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+
+    ChatRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        sessionId:
+          type: string
+        skill:
+          type: string
+          enum: [legal-search, chat-assistant, spell-check, meeting-minutes]
+        model:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              content:
+                type: string
+              mimeType:
+                type: string
+
+    ChatSession:
+      type: object
+      properties:
+        _id:
+          type: string
+        userId:
+          type: string
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    LegalAgentRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+        mode:
+          type: string
+          enum: [legal-search, document-lookup, situation-analysis, compare-regulations, effective-date]
+        effectiveDate:
+          type: string
+          format: date
+        attachmentContent:
+          type: string
+
+    DocumentMetadata:
+      type: object
+      properties:
+        found:
+          type: boolean
+        documentNumber:
+          type: string
+        title:
+          type: string
+        issuer:
+          type: string
+        ngay_ban_hanh:
+          type: string
+        ngay_hieu_luc:
+          type: string
+        tinh_trang_hieu_luc:
+          type: string
+        official_source_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: __session
+    SyncSecret:
+      type: apiKey
+      in: header
+      name: X-Sync-Secret

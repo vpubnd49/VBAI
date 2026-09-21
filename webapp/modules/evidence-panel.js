@@ -83,7 +83,36 @@ export function renderEvidenceCard(doc = {}, index = 1) {
   const effectiveStatus = doc.effectiveStatus || doc.tinh_trang_hieu_luc || 'co_hieu_luc';
   const isOfficial = doc.sourceTier === 'official' || doc.isOfficial === true;
   const isVerified = doc.verified === true || doc.verificationStatus === 'verified';
-  const url = doc.url || doc.link || doc.sourceUrl || '#';
+  let rawUrl = doc.url || doc.link || doc.sourceUrl || '#';
+
+  // Validate URL: reject generic homepages/search pages that don't point to a specific document
+  const isGenericUrl = (u) => {
+    if (!u || u === '#') return true;
+    try {
+      const parsed = new URL(u);
+      // Reject bare homepage (path is / with no meaningful query)
+      if (parsed.pathname === '/' && !parsed.search) return true;
+      if (parsed.pathname === '/' && parsed.searchParams.get('pageid') && !parsed.searchParams.get('docid')) return true;
+      // Reject search listing pages (mode=0 without docid)
+      if (parsed.searchParams.get('mode') === '0' && !parsed.searchParams.get('docid')) return true;
+    } catch (_) {}
+    return false;
+  };
+
+  // If URL is generic, try chinhphuDetailUrl, then fall back to VBPL search
+  let url = rawUrl;
+  if (isGenericUrl(url)) {
+    if (doc.chinhphuDetailUrl && !isGenericUrl(doc.chinhphuDetailUrl)) {
+      url = doc.chinhphuDetailUrl;
+    } else if (docNumber) {
+      url = `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`;
+    }
+  }
+
+  // Resolve PDF URLs: support both single and array
+  const pdfUrls = doc.pdfDownloadUrls && doc.pdfDownloadUrls.length > 0
+    ? doc.pdfDownloadUrls
+    : (doc.pdfDownloadUrl ? [doc.pdfDownloadUrl] : []);
 
   let coordLabel = '';
   if (point) coordLabel += `Điểm ${point} `;
@@ -124,6 +153,33 @@ export function renderEvidenceCard(doc = {}, index = 1) {
   const effectiveDate = doc.effectiveDate || doc.effective_date || doc.ngay_hieu_luc || '';
   const cardId = doc.id ? ('card-' + String(doc.id)) : ('evidence-card-' + index);
 
+  // Build footer links
+  let footerLinks = '';
+
+  // "Xem văn bản gốc" — only if URL is meaningful
+  if (url && url !== '#') {
+    footerLinks += `<a href="${url}" target="_blank" rel="noopener noreferrer" class="evidence-link">Xem văn bản gốc ↗</a>`;
+  }
+
+  // Cổng Chính phủ detail link (if different from main URL)
+  const cpUrl = doc.chinhphuDetailUrl || '';
+  if (cpUrl && !isGenericUrl(cpUrl) && cpUrl !== url) {
+    footerLinks += `<a href="${cpUrl}" target="_blank" rel="noopener noreferrer" class="evidence-link" style="margin-left:8px;color:#0d6efd;font-size:13px">🏛️ Cổng Chính phủ</a>`;
+  }
+
+  // PDF download button(s) — always show when available
+  if (pdfUrls.length > 1) {
+    pdfUrls.forEach((pUrl, i) => {
+      footerLinks += `<a href="${pUrl}" target="_blank" rel="noopener noreferrer" class="evidence-link evidence-link-pdf" style="margin-left:8px;display:inline-flex;align-items:center;gap:4px;color:#0d6efd;font-weight:600;background:#e7f1ff;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:13px">📥 Tải PDF P${i + 1}</a>`;
+    });
+  } else if (pdfUrls.length === 1) {
+    footerLinks += `<a href="${pdfUrls[0]}" target="_blank" rel="noopener noreferrer" class="evidence-link evidence-link-pdf" style="margin-left:8px;display:inline-flex;align-items:center;gap:4px;color:#0d6efd;font-weight:600;background:#e7f1ff;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:13px">📥 Tải PDF</a>`;
+  }
+
+  if (!footerLinks) {
+    footerLinks = '<span class="evidence-link disabled">Nguồn lưu trữ nội bộ</span>';
+  }
+
   return `
     <div class="evidence-card ${isVerified ? 'is-verified' : ''}" id="${cardId}" data-doc-number="${escapeAttribute(docNumber)}">
       <div class="evidence-card-head">
@@ -147,9 +203,7 @@ export function renderEvidenceCard(doc = {}, index = 1) {
       ` : ''}
 
       <div class="evidence-card-foot" style="margin-top:10px">
-        ${url && url !== '#' ? `<a href="${url}" target="_blank" rel="noopener noreferrer" class="evidence-link">Xem văn bản gốc ↗</a>` : '<span class="evidence-link disabled">Nguồn lưu trữ nội bộ</span>'}
-        ${doc.pdfDownloadUrl ? `<a href="${doc.pdfDownloadUrl}" target="_blank" rel="noopener noreferrer" class="evidence-link evidence-link-pdf" style="margin-left:8px;display:inline-flex;align-items:center;gap:4px;color:#0d6efd;font-weight:600;background:#e7f1ff;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:13px">📥 Tải PDF</a>` : ''}
-        ${!doc.pdfDownloadUrl && doc.chinhphuDetailUrl ? `<a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="evidence-link" style="margin-left:8px;color:#0d6efd;font-size:13px">🏛️ Cổng Chính phủ</a>` : ''}
+        ${footerLinks}
       </div>
     </div>
   `;

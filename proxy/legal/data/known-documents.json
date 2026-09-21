@@ -292,13 +292,15 @@
     "amends": [],
     "superseded_by": [],
     "official_source_urls": [
-      "https://vanban.chinhphu.vn/?classid=1&docid=199279",
+      "https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=199378",
       "https://vbpl.vn/bo-noi-vu/Pages/vbpq-toanvan.aspx?ItemID=140882"
     ],
+    "pdf_download_url": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2020/03/30.signed.pdf",
+    "pdfDownloadUrl": "https://datafiles.chinhphu.vn/cpp/files/vbpq/2020/03/30.signed.pdf",
     "verification_status": "verified",
-    "verified_at": "2026-08-13T00:00:00+07:00",
+    "verified_at": "2026-09-21T11:00:00+07:00",
     "review_state": "published",
-    "data_version": 2
+    "data_version": 3
   },
   {
     "id": "31-2024-qh15",
