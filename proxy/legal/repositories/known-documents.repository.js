@@ -477,13 +477,14 @@ function findByTopicInBosung(topic = '') {
     // Silently ignore if bosung is not available
   }
 
-  // Search cached MongoDB documents
+  // Search cached MongoDB documents by topic (title/summary match)
   if (cachedMongoDocuments && cachedMongoDocuments.size > 0) {
     for (const doc of cachedMongoDocuments.values()) {
       const dn = String(doc.document_number || '');
-      if (dn.startsWith(numStr + '/') || dn === numStr) {
-        if (docType && doc.document_type !== docType) continue;
-        if (yearFilter && !dn.includes('/' + yearFilter + '/')) continue;
+      if (!dn) continue;
+      const titleNorm = normalizeVietnamese(doc.title || '');
+      const summaryNorm = normalizeVietnamese(doc.tom_tat_chinh_sach || doc.summary || '');
+      if (titleNorm.includes(topicNorm) || summaryNorm.includes(topicNorm)) {
         if (!results.some(r => normalizeDocumentNumber(r.documentNumber) === normalizeDocumentNumber(dn))) {
           results.push({
             documentNumber: dn,

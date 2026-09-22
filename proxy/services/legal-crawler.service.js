@@ -1,4 +1,5 @@
 const { safeFetch } = require('../security/ssrf-guard');
+const DIRECT_SOURCE_USER_AGENT = 'VBAI-Freshness-Bot/1.0 (+https://vbai.tracuu.lamdong.vn)';
 /**
  * VBAI Real-Time Legal Crawler & Continuous Auto-Ingestion Service
  * Automated multi-source crawling and indexing of ONLY NEWEST laws, decrees, circulars, and official gazettes.
@@ -397,8 +398,8 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
     const docType = detectDocType(finalTitle, docNum);
     const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, finalTitle, '');
 
-    const resolvedIssueDate = issueDate || now.toISOString().split('T')[0];
-    const resolvedEffectiveDate = effectiveDate || resolvedIssueDate;
+    const resolvedIssueDate = issueDate || null;
+    const resolvedEffectiveDate = effectiveDate || issueDate || null;
 
     items.push({
       document_number: docNum,
@@ -466,15 +467,124 @@ async function crawlBaochinhphu() {
 
 /**
  * Source 5: lamdong.gov.vn/sites/qppl - Lam Dong province QPPL (SharePoint)
+ *
+ * IMPORTANT: This is a SharePoint Modern (SPFx) site — the static HTML
+ * contains NO document data (content is loaded by JavaScript). Previous
+ * approach used extractDocumentsFromRawHtml on the static page, which either
+ * found zero docs or mismatched nearby numbers with unrelated titles/links.
+ *
+ * New approach: Use SharePoint REST API to fetch the config list containing
+ * links to sub-sites (UBND, HĐND, Sở...) and their SP list GUIDs. Then
+ * attempt to fetch document items from each sub-site's "Quản lý văn bản"
+ * list. Falls back gracefully to empty array if APIs are restricted.
  */
 async function crawlLamDongQPPL() {
-  const url = 'https://lamdong.gov.vn/sites/qppl/SitePages/Home.aspx';
-  const res = await fetchWithRetry(url);
-  if (!res.ok) return [];
-  const html = await res.text();
-  const decoded = html.replace(/&amp;/g, '&').replace(/&quot;/g, '"')
-    .replace(/&#58;/g, ':').replace(/&#123;/g, '{').replace(/&#125;/g, '}');
-  return extractDocumentsFromRawHtml(decoded, url, 'lamdong.gov.vn/sites/qppl');
+  const API_PROXY_URL = 'https://api.lamdong.gov.vn/RestApi/Readjson';
+  const now = new Date();
+  const items = [];
+  const seen = new Set();
+
+  const SOURCES = [
+    {
+      code: 'ubnd',
+      name: 'UBND tỉnh Lâm Đồng',
+      sourceUrl: "https://w3.lamdong.gov.vn/sites/vpubnd/_api/web/lists/getByTitle('Quản lý văn bản chỉ đạo')/items?$orderby=Modified desc&$top=30",
+    },
+    {
+      code: 'hdnd',
+      name: 'HĐND tỉnh Lâm Đồng',
+      sourceUrl: "https://w3.lamdong.gov.vn/sites/dbnd/_api/web/lists/getByTitle('Quản lý văn bản')/items?$orderby=Modified desc&$top=30",
+    },
+    {
+      code: 'stp',
+      name: 'Sở Tư pháp tỉnh Lâm Đồng',
+      sourceUrl: "https://w3.lamdong.gov.vn/sites/stp/_api/web/lists/getByTitle('Quản lý văn bản')/items?$orderby=Modified desc&$top=20",
+    },
+    {
+      code: 'stc',
+      name: 'Sở Tài chính tỉnh Lâm Đồng',
+      sourceUrl: "https://w3.lamdong.gov.vn/sites/stc/_api/web/lists/getByTitle('Quản Lý Văn Bản')/items?$orderby=Modified desc&$top=20",
+    },
+    {
+      code: 'snv',
+      name: 'Sở Nội vụ tỉnh Lâm Đồng',
+      sourceUrl: "https://w3.lamdong.gov.vn/sites/snv/_api/web/lists/getByTitle('Quản lý văn bản')/items?$orderby=Modified desc&$top=20",
+    },
+  ];
+
+  for (const src of SOURCES) {
+    try {
+      const res = await fetchWithRetry(API_PROXY_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json;odata=verbose',
+          'User-Agent': DIRECT_SOURCE_USER_AGENT,
+        },
+        body: JSON.stringify({ SourceUrl: src.sourceUrl }),
+      });
+
+      if (!res.ok) continue;
+      const data = await res.json();
+      const rawItems = data?.d?.results || [];
+
+      for (const item of rawItems) {
+        const rawNum = String(item.S_x1ed1__x002f_K_x00fd__x0020_hi || item.Title || '').trim();
+        const docNum = normalizeDocumentNumber(rawNum);
+        if (!docNum || seen.has(docNum)) continue;
+        if (!isValidLegalDocNumber(docNum)) continue;
+        seen.add(docNum);
+
+        const title = String(item.Tr_x00ed_ch_x0020_y_x1ebf_u || item.Title || `Văn bản ${docNum}`).trim();
+        const issueDate = item.Ng_x00e0_y_x0020_ban_x0020_h_x00
+          ? new Date(item.Ng_x00e0_y_x0020_ban_x0020_h_x00).toISOString().split('T')[0]
+          : null;
+        const effectiveDate = item.Ng_x00e0_y_x0020_hi_x1ec7_u_x002
+          ? new Date(item.Ng_x00e0_y_x0020_hi_x1ec7_u_x002).toISOString().split('T')[0]
+          : issueDate;
+
+        // Parse file URLs from Urls field
+        let pdfDownloadUrl = null;
+        const pdfUrls = [];
+        const rawUrls = String(item.Urls || '');
+        const hrefMatches = rawUrls.matchAll(/href=["'](https?:\/\/[^"']+)["']/gi);
+        for (const m of hrefMatches) {
+          const u = m[1].replace(/&#58;/g, ':');
+          pdfUrls.push(u);
+          if (!pdfDownloadUrl && u.toLowerCase().endsWith('.pdf')) {
+            pdfDownloadUrl = u;
+          }
+        }
+        if (!pdfDownloadUrl && pdfUrls.length > 0) {
+          pdfDownloadUrl = pdfUrls[0];
+        }
+
+        items.push({
+          document_number: docNum,
+          title: title,
+          document_type: detectDocType(title, docNum),
+          topic_aliases: [],
+          query_patterns: [],
+          issuer: src.name,
+          issue_date: issueDate,
+          effective_date: effectiveDate,
+          effective_status: 'in_force',
+          status_as_of: now.toISOString().split('T')[0],
+          tom_tat_chinh_sach: title,
+          noi_dung_chi_tiet: title,
+          official_source_urls: ['https://lamdong.gov.vn/sites/qppl'],
+          pdf_download_url: pdfDownloadUrl,
+          pdf_download_urls: pdfUrls,
+          source_feed: 'lamdong.gov.vn/sites/qppl',
+          crawled_at: now,
+        });
+      }
+    } catch (err) {
+      console.warn(`[crawler] Lâm Đồng QPPL fetch failed for ${src.code}:`, err.message);
+    }
+  }
+
+  return items;
 }
 
 /**

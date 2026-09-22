@@ -387,25 +387,25 @@ async function fetchChinhphuDocumentDetail(docid = '') {
  */
 async function resolveChinhphuDocument(docNumber = '', opts = {}) {
   if (!docNumber) return null;
-  const normDocNum = String(docNumber).trim().toUpperCase();
+  const normDocNum = String(docNumber).trim().toUpperCase().replace(/\s+/g, '');
 
-  // Strategy 1: Check cached listing data
+  // Strategy 1: Check cached listing data (exact match only)
   for (const [, entry] of _cache) {
     if (!Array.isArray(entry.data)) continue;
-    const found = entry.data.find(d =>
-      String(d.documentNumber || '').toUpperCase().includes(normDocNum) ||
-      normDocNum.includes(String(d.documentNumber || '').toUpperCase())
-    );
+    const found = entry.data.find(d => {
+      const dn = String(d.documentNumber || '').toUpperCase().replace(/\s+/g, '');
+      return dn === normDocNum;
+    });
     if (found) return found;
   }
 
-  // Strategy 2: Try to fetch from listing
+  // Strategy 2: Try to fetch from listing (exact match only)
   try {
     const docs = await fetchChinhphuDocuments('', 50);
-    const found = docs.find(d =>
-      String(d.documentNumber || '').toUpperCase().includes(normDocNum) ||
-      normDocNum.includes(String(d.documentNumber || '').toUpperCase())
-    );
+    const found = docs.find(d => {
+      const dn = String(d.documentNumber || '').toUpperCase().replace(/\s+/g, '');
+      return dn === normDocNum;
+    });
     if (found) return found;
   } catch (_) {}
 

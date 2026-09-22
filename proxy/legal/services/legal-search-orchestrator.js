@@ -174,7 +174,7 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
 
     // Append chinhphu.vn listing with PDF links
     try {
-      const chinhphuDocs = await fetchChinhphuDocuments('', 10);
+      const chinhphuDocs = await fetchChinhphuDocuments(cleanQuery, 10);
       for (const doc of chinhphuDocs) {
         if (!doc.documentNumber || doc.link_reference) continue;
         results.push({
