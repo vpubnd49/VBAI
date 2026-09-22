@@ -29,6 +29,19 @@ import { fetchSystemConfig, isCurrentUserAdmin, updateSystemConfig, validateGemi
 import { enforceTwoTierTerminology as applyTwoTierPolicy } from './legal-two-tier-policy.js';
 import { showToast } from './ui-utils.js';
 import { fetchDocumentTemplates } from './ai-proxy.js';
+import {
+  trackDocument,
+  getActiveDocumentContext,
+  getAllTrackedDocuments,
+  setActiveTopic,
+  getActiveTopic,
+  addConclusion,
+  getConclusions,
+  updateRollingSummary,
+  getRollingSummary,
+  buildMemoryContextBlock,
+  clearActiveDocumentContext,
+} from './legal/conversation-memory.js';
 
 let documentTemplateCatalog = null;
 async function getDocumentTemplate(query = '') {
@@ -299,7 +312,27 @@ Khi người dùng yêu cầu soạn thảo văn bản, BẮT BUỘC phân biệ
 4. ĐỐI VỚI SO SÁNH LUẬT TỔ CHỨC CHÍNH QUYỀN ĐỊA PHƯƠNG (LUẬT CŨ VS LUẬT MỚI 72/2025/QH15): Bạn BẮT BUỘC phải làm nổi bật 2 thay đổi mang tính cách mạng sau trong bảng so sánh và phần phân tích:
    - **Xóa bỏ cấp hành chính cấp huyện**: Luật mới 72/2025/QH15 chính thức xóa bỏ hoàn toàn chính quyền địa phương cấp huyện (HĐND & UBND cấp huyện), chỉ còn lại tổ chức chính quyền địa phương tinh gọn ở 2 cấp: cấp Tỉnh (Tỉnh/Thành phố trực thuộc Trung ương) và cấp Xã (Xã/Phường/Thị trấn).
    - **Đổi tên các Sở, Ban, Ngành ở địa phương**: Các cơ quan chuyên môn dưới UBND cấp tỉnh (Sở, Ban, Ngành) được đổi tên đồng nhất trực tiếp theo tên gọi của các cơ quan Bộ ở Trung ương (Ví dụ: Sở Tư pháp, Sở Tài chính, Sở Lao động - Thương binh và Xã hội... được đổi tên đồng bộ tương ứng trực tiếp theo các Bộ ở trung ương) để đồng bộ hóa chỉ đạo điều hành và tinh gọn bộ máy.
-5. Luôn kết thúc bằng mục 'Căn cứ pháp lý:' và 'Trích dẫn:' theo đúng chuẩn đã quy định.`;
+5. Luôn kết thúc bằng mục 'Căn cứ pháp lý:' và 'Trích dẫn:' theo đúng chuẩn đã quy định.
+
+[QUY TRÌNH LẬP LUẬN TỪNG BƯỚC (CHAIN-OF-THOUGHT) — B3]
+Khi gặp tình huống pháp lý phức tạp (so sánh, phân tích hệ quả, xung đột pháp luật), BẮT BUỘC lập luận theo bước:
+1. XÁC ĐỊNH: Xác định chính xác vấn đề pháp lý cần giải quyết.
+2. THU THẬP: Liệt kê các văn bản quy phạm pháp luật liên quan (kèm số hiệu, tình trạng hiệu lực).
+3. PHÂN TÍCH: Phân tích từng quy định áp dụng, đối chiếu giữa các văn bản (Lex Superior/Posterior/Specialis nếu có xung đột).
+4. KẾT LUẬN: Đưa ra kết luận rõ ràng, có trích dẫn tọa độ pháp lý cụ thể (Văn bản - Điều - Khoản - Điểm).
+
+[KIỂM TRA TRƯỚC KHI TRẢ LỜI (PRE-VALIDATION) — C2]
+Trước khi đưa ra câu trả lời, BẮT BUỘC tự kiểm tra:
+- Số hiệu văn bản đã đúng chưa? Có trùng khớp với dữ liệu xác minh được cung cấp không?
+- Ngày ban hành, ngày hiệu lực có chính xác không?
+- Tình trạng hiệu lực (còn/hết) có đúng tại thời điểm hỏi không?
+- Nếu KHÔNG CHẮC CHẮN, nêu rõ "[Chưa xác minh]" hoặc "[Cần kiểm tra thêm]" thay vì bịa đặt.
+
+[TỰ ĐÁNH GIÁ ĐỘ TIN CẬY (CONFIDENCE) — C3]
+Cuối mỗi câu trả lời pháp lý quan trọng, BẮT BUỘC gắn mức độ tin cậy:
+- 🟢 **Đã xác minh** — Dữ liệu lấy từ nguồn chính thức đã kiểm chứng, có tọa độ trích dẫn cụ thể.
+- 🟡 **Tham khảo** — Dữ liệu từ nguồn tham khảo, chưa được xác minh hoàn toàn. Cần đối chiếu thêm.
+- 🔴 **Chưa xác minh** — Thông tin dựa trên kiến thức chung, chưa có nguồn kiểm chứng cụ thể.`;
 const SYSTEM_INSTRUCTION = VBPL_PROMPT_SPEC;
 const FAST_SYSTEM_INSTRUCTION = `${VBPL_PROMPT_SPEC}
 
@@ -313,7 +346,7 @@ const CHAT_CACHE_TTL_MS = 5 * 60 * 1000;
 const CHAT_CACHE_TTL_TIME_SENSITIVE_MS = 60 * 1000;
 const DAILY_SYNC_TIMESTAMP_KEY = 'vbai_daily_sync_timestamp';
 const HOT_KNOWLEDGE_TTL_MS = 2 * 60 * 60 * 1000;
-const CHAT_CONTEXT_MAX_TURNS = 6;
+const CHAT_CONTEXT_MAX_TURNS = 20;
 const CHAT_SESSION_STORAGE_KEY = 'vbai_chat_session_id';
 const CHAT_SESSION_ID = (() => {
   try {
@@ -728,13 +761,78 @@ function pushTurn(role, content) {
   if (!clean) return;
   recentTurns.push({ role, content: clean });
   if (recentTurns.length > CHAT_CONTEXT_MAX_TURNS) {
+    // A2: Compress evicted turns into rolling summary before discarding
+    const evicted = recentTurns.slice(0, recentTurns.length - CHAT_CONTEXT_MAX_TURNS);
     recentTurns = recentTurns.slice(-CHAT_CONTEXT_MAX_TURNS);
+    compressEvictedTurnsToSummary(evicted);
   }
+}
+
+/**
+ * A2: Compress evicted conversation turns into a rolling summary.
+ * Extracts key points from evicted turns and appends to existing summary.
+ */
+function compressEvictedTurnsToSummary(evictedTurns = []) {
+  if (!evictedTurns || evictedTurns.length === 0) return;
+  const existingSummary = getRollingSummary();
+  const newParts = [];
+  for (const turn of evictedTurns) {
+    const text = String(turn.content || '').trim();
+    if (!text) continue;
+    if (turn.role === 'user') {
+      // Summarize user queries
+      const shortQuery = text.length > 120 ? text.slice(0, 117) + '...' : text;
+      newParts.push(`- Người dùng hỏi: "${shortQuery}"`);
+    } else {
+      // Extract key conclusions from assistant replies
+      const conclusions = extractKeyPoints(text);
+      if (conclusions) {
+        newParts.push(`- Trợ lý trả lời: ${conclusions}`);
+        // Also add to persistent conclusions
+        const docMatch = text.match(/(?:số|so)\s+(\d{1,4}\/\d{4}\/[A-Za-zĐđ\-]+)/i);
+        addConclusion(conclusions, docMatch ? docMatch[1] : null);
+      }
+    }
+  }
+  if (newParts.length > 0) {
+    const combined = existingSummary
+      ? existingSummary + '\n' + newParts.join('\n')
+      : newParts.join('\n');
+    // Keep summary under 2000 chars — trim from beginning if needed
+    const trimmed = combined.length > 2000
+      ? '...\n' + combined.slice(combined.length - 1996)
+      : combined;
+    updateRollingSummary(trimmed);
+  }
+}
+
+/**
+ * Extract key points from an AI response for rolling summary.
+ * Focuses on conclusions, document numbers, and status info.
+ */
+function extractKeyPoints(text = '') {
+  const lines = text.split('\n').filter(l => l.trim());
+  const keyLines = [];
+  for (const line of lines) {
+    const t = line.trim();
+    // Capture lines with document numbers, statuses, dates
+    if (/(?:số|hiệu lực|ban hành|thay thế|bãi bỏ|còn hiệu lực|hết hiệu lực|🟢|🔴|🟡)/i.test(t)) {
+      const short = t.length > 150 ? t.slice(0, 147) + '...' : t;
+      keyLines.push(short);
+    }
+    // Capture conclusion headers
+    if (/^(?:#+\s*)?(?:I\.|II\.|III\.|KẾT LUẬN|CĂN CỨ|TÓM TẮT)/i.test(t)) {
+      const short = t.length > 150 ? t.slice(0, 147) + '...' : t;
+      keyLines.push(short);
+    }
+    if (keyLines.length >= 4) break;
+  }
+  return keyLines.length > 0 ? keyLines.join('; ') : (text.length > 200 ? text.slice(0, 197) + '...' : text);
 }
 
 function getConversationalMemory() {
   const toContents = (turns = []) => turns
-    .slice(-6)
+    .slice(-CHAT_CONTEXT_MAX_TURNS)
     .map((t) => {
       const role = t.role === 'assistant' ? 'assistant' : 'user';
       const text = String(t.content || '').trim();
@@ -772,7 +870,7 @@ function getConversationalMemory() {
 function buildRecentContextBlock() {
   if (recentTurns.length === 0) return "";
   return recentTurns
-    .slice(-4)
+    .slice(-8)
  .map((t) => `${t.role === "user" ? "Nguoi dung" : "Tro ly"}: ${t.content}`)
     .join("\n");
 }
@@ -1740,11 +1838,14 @@ function shouldForceContextualWebSearch(rawUserText = '', searchContext = {}) {
 
 function rememberResolvedDocNumber(searchContext = {}, text = '') {
   const fromContext = String(searchContext?.effectiveDocNumber || '').trim().toUpperCase();
+  const docTitle = searchContext?.documentTitle || searchContext?.title || '';
   if (fromContext) {
     lastResolvedDocNumber = fromContext;
     try {
       sessionStorage.setItem('vbai_last_resolved_doc', lastResolvedDocNumber);
     } catch {}
+    // A3: Track document in enhanced memory
+    trackDocument(fromContext, docTitle);
     return;
   }
   const extracted = extractPotentialDocNumber(text);
@@ -1753,6 +1854,8 @@ function rememberResolvedDocNumber(searchContext = {}, text = '') {
     try {
       sessionStorage.setItem('vbai_last_resolved_doc', lastResolvedDocNumber);
     } catch {}
+    // A3: Track extracted document
+    trackDocument(extracted);
   }
 }
 
@@ -2608,6 +2711,12 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
   }
   dynamicInstruction += "\n\nYEU CAU BAT BUOC BO SUNG:\n- Chi hoi lam ro khi thieu du lieu quan trong, toi da 3 cau.\n- Khong tom tat raw search khi chua dat nguong doi chieu.\n- Bat buoc theo dung markdown format da quy dinh trong system prompt.";
 
+  // A2+A3: Inject enhanced conversation memory context
+  const memoryContext = buildMemoryContextBlock();
+  if (memoryContext) {
+    dynamicInstruction += memoryContext;
+  }
+
   const sanitizeWebSearchMetaForLog = (meta = null) => {
     if (!meta || typeof meta !== 'object') return null;
     const cleaned = { ...meta };
@@ -2648,7 +2757,7 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
       const streamOptions = {
         context: "chat",
         stream: true,
-        temperature: drafting ? 0.35 : 0.2,
+        temperature: drafting ? 0.25 : 0.05,
         trace: { feature: 'chat-assistant', mode: 'file-chat', query: rawUserText, sessionId: CHAT_SESSION_ID },
         onDelta: (partial) => {
           if (onChunk) onChunk(partial);
@@ -3140,7 +3249,7 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
     const streamOptions = {
       context: "chat",
       stream: true,
-      temperature: drafting ? 0.35 : 0.2,
+      temperature: drafting ? 0.25 : 0.05,
       trace: { feature: 'chat-assistant', mode: 'chat', query: rawUserText, sessionId: CHAT_SESSION_ID },
       onDelta: (partial) => {
         if (onChunk) {
@@ -3411,10 +3520,38 @@ export async function renderChatUI(container) {
       currentSessionId = sessionId;
       saveActiveSessionId(sessionId);
       if (activeTitleEl) activeTitleEl.textContent = title || session.title || 'Hội thoại';
+
+      // A4: Restore conversation context from MongoDB session history
+      const sessionMessages = session.messages || [];
+      recentTurns = [];
+      for (const m of sessionMessages) {
+        const text = String(m.content || '').replace(/\s+/g, ' ').trim();
+        if (!text) continue;
+        recentTurns.push({ role: m.role, content: text });
+        // Track any document numbers mentioned in assistant replies
+        if (m.role === 'assistant') {
+          const docMatches = text.match(/\d{1,4}\/\d{4}\/[A-Za-zĐđ\-]+/g);
+          if (docMatches) {
+            docMatches.slice(0, 3).forEach(doc => trackDocument(doc.toUpperCase()));
+          }
+        }
+      }
+      // Keep only the most recent turns within context window
+      if (recentTurns.length > CHAT_CONTEXT_MAX_TURNS) {
+        const evicted = recentTurns.slice(0, recentTurns.length - CHAT_CONTEXT_MAX_TURNS);
+        recentTurns = recentTurns.slice(-CHAT_CONTEXT_MAX_TURNS);
+        compressEvictedTurnsToSummary(evicted);
+      }
+      // Update last query/reply for follow-up detection
+      const lastUser = [...sessionMessages].reverse().find(m => m.role === 'user');
+      const lastAssist = [...sessionMessages].reverse().find(m => m.role === 'assistant');
+      if (lastUser) lastUserQuery = String(lastUser.content || '').trim();
+      if (lastAssist) lastAssistantReply = String(lastAssist.content || '').trim();
+
       // Re-render messages
       if (msgsArea) {
         msgsArea.innerHTML = '';
-        (session.messages || []).forEach(m => {
+        sessionMessages.forEach(m => {
           const div = document.createElement('div');
           div.className = `chat-msg ${m.role === 'assistant' ? 'ai chat-msg-rich' : 'user'}`;
           if (m.role === 'assistant') div.innerHTML = renderAssistantRichText(m.content);

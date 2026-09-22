@@ -2,8 +2,8 @@
  * In-memory web search result cache with TTL.
  */
 const WEB_SEARCH_RESULT_CACHE = new Map();
-const DEFAULT_TTL_MS = 90000;
-const MAX_CACHE_SIZE = 200;
+const DEFAULT_TTL_MS = 600000;  // 10 minutes (was 90s)
+const MAX_CACHE_SIZE = 500;     // was 200
 
 function getCachedSearchResults(key = '') {
   if (!key) return null;
