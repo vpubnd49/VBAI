@@ -15,8 +15,8 @@ export function renderLogin(container) {
     <div class="login-wrapper">
       <div class="login-card">
         <div class="login-logo">
-          <img src="/vbai-logo.jpg" alt="Trợ lý Tra cứu Pháp luật" style="width: 80px; height: 80px; margin: 0 auto 15px auto; display: block; border-radius: 12px;">
-          <h2>Đăng nhập Trợ lý Tra cứu Pháp luật</h2>
+          <img src="/vbai-logo-full.png" alt="VBAI - Legal Intelligence Platform" style="width: 260px; height: auto; margin: 0 auto 12px auto; display: block;">
+          <p style="color: var(--text-secondary, #888); font-size: 0.85rem; margin: 0;">Đăng nhập để sử dụng hệ thống</p>
         </div>
         
         <button id="btn-google-login" class="btn-google">

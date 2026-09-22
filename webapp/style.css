@@ -2281,41 +2281,12 @@ a.chat-inline-link::after {
   margin-bottom: 18px;
 }
 
-.hero-brand-lockup {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.legal-pro-main-logo {
-  height: 80px;
+.legal-pro-main-logo-full {
+  height: auto;
+  width: 320px;
+  max-width: 90%;
   object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(26, 122, 122, 0.18));
-}
-
-.hero-brand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.hero-brand-name {
-  font-size: 2.4rem;
-  font-weight: 900;
-  letter-spacing: 2px;
-  background: linear-gradient(135deg, #1a7a7a 0%, #2855a0 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  line-height: 1.1;
-}
-
-.hero-brand-sub {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-tertiary, #888);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
+  filter: drop-shadow(0 2px 8px rgba(26, 122, 122, 0.15));
 }
 
 .hero-tagline-badge {
@@ -4319,17 +4290,8 @@ table {
     padding: 3px 10px;
   }
 
-  .legal-pro-main-logo {
-    height: 56px;
-  }
-
-  .hero-brand-name {
-    font-size: 1.5rem;
-  }
-
-  .hero-brand-sub {
-    font-size: 0.65rem;
-    letter-spacing: 1px;
+  .legal-pro-main-logo-full {
+    width: 220px;
   }
 
   .legal-quick-actions {
