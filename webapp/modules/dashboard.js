@@ -9,7 +9,7 @@ export function renderDashboard(container, navigateTo) {
       <!-- HERO SECTION -->
       <section class="legal-home-hero">
         <div class="hero-brand-header">
-          <img src="/vbai-logo-full.png" alt="VBAI - Legal Intelligence Platform" class="legal-pro-main-logo-full">
+          <img src="/vbai-logo-full.png?v=2" alt="VBAI" class="legal-pro-main-logo-full">
           <div class="hero-tagline-badge">Tra cứu chính xác, không suy đoán</div>
         </div>
 

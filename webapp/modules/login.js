@@ -15,7 +15,7 @@ export function renderLogin(container) {
     <div class="login-wrapper">
       <div class="login-card">
         <div class="login-logo">
-          <img src="/vbai-logo-full.png" alt="VBAI - Legal Intelligence Platform" style="width: 260px; height: auto; margin: 0 auto 12px auto; display: block;">
+          <img src="/vbai-logo-full.png?v=2" alt="VBAI" style="width: 260px; height: auto; margin: 0 auto 12px auto; display: block;">
           <p style="color: var(--text-secondary, #888); font-size: 0.85rem; margin: 0;">Đăng nhập để sử dụng hệ thống</p>
         </div>
         
