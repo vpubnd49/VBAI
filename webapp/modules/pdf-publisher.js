@@ -875,7 +875,7 @@ CẤU TRÚC BẮT BUỘC:
   async function getLogoBase64() {
     if (cachedLogoBase64) return cachedLogoBase64;
     try {
-      const res = await fetch(window.location.origin + '/legal-pro-logo.svg');
+      const res = await fetch(window.location.origin + '/vbai-logo.jpg');
       const blob = await res.blob();
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -884,7 +884,7 @@ CẤU TRÚC BẮT BUỘC:
       });
     } catch(e) {
       console.warn("Lỗi load logo:", e);
-      return window.location.origin + '/legal-pro-logo.svg';
+      return window.location.origin + '/vbai-logo.jpg';
     }
   }
 

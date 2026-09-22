@@ -15,7 +15,7 @@ export function renderLogin(container) {
     <div class="login-wrapper">
       <div class="login-card">
         <div class="login-logo">
-          <img src="/legal-pro-logo.svg" alt="Trợ lý Tra cứu Pháp luật" style="width: 80px; height: 80px; margin: 0 auto 15px auto; display: block; border-radius: 12px;">
+          <img src="/vbai-logo.jpg" alt="Trợ lý Tra cứu Pháp luật" style="width: 80px; height: 80px; margin: 0 auto 15px auto; display: block; border-radius: 12px;">
           <h2>Đăng nhập Trợ lý Tra cứu Pháp luật</h2>
         </div>
         
