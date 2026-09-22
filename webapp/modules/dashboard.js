@@ -9,8 +9,14 @@ export function renderDashboard(container, navigateTo) {
       <!-- HERO SECTION -->
       <section class="legal-home-hero">
         <div class="hero-brand-header">
-          <img src="/vbai-logo.jpg" alt="VBAI Legal Pro" class="legal-pro-main-logo">
-          <div class="hero-tagline-badge">VBAI · Tra cứu chính xác, không suy đoán</div>
+          <div class="hero-brand-lockup">
+            <img src="/vbai-logo.png" alt="VBAI" class="legal-pro-main-logo">
+            <div class="hero-brand-text">
+              <span class="hero-brand-name">VBAI</span>
+              <span class="hero-brand-sub">Legal Intelligence Platform</span>
+            </div>
+          </div>
+          <div class="hero-tagline-badge">Tra cứu chính xác, không suy đoán</div>
         </div>
 
         <h1 class="hero-main-title">Tra cứu pháp luật có kiểm chứng</h1>
