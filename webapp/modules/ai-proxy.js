@@ -142,6 +142,9 @@ async function getIdToken() {
 
 function getBackendBase() {
   const raw = typeof localStorage !== 'undefined' ? (localStorage.getItem('vbai_backend_url') || '').trim() : '';
+  if (!raw && typeof window !== 'undefined' && (window.Capacitor?.isNativePlatform?.() || window.location.hostname === 'localhost')) {
+    return 'https://vbai.tracuu.lamdong.vn/api';
+  }
   return sanitizeBackendBase(raw);
 }
 

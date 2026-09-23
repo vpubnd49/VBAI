@@ -1,0 +1,16 @@
+{
+  "appId": "com.vbai.legalpro",
+  "appName": "VBAI Legal Pro",
+  "webDir": "dist",
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https",
+    "allowNavigation": [
+      "*"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0F1117"
+  }
+}

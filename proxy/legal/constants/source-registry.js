@@ -28,18 +28,6 @@ const SOURCE_REGISTRY = Object.freeze({
       'phapluat_gov',
     ]),
   }),
-  lamdong_gov: Object.freeze({
-    id: 'lamdong_gov',
-    source: 'lamdong.gov.vn',
-    sourceKind: 'local_province',
-    tier: 1,
-    allowedHosts: Object.freeze(['lamdong.gov.vn', 'api.lamdong.gov.vn', 'w3.lamdong.gov.vn', 'media.lamdong.gov.vn', 'lamdong.edu.vn']),
-    aliases: Object.freeze([
-      'lâm đồng', 'lam dong', 'tỉnh lâm đồng', 'ubnd lâm đồng', 'hđnd lâm đồng',
-      'qppl lâm đồng', 'lamdong.gov.vn', 'lamdong_gov', 'vpubnd', 'dbnd',
-      'sở tư pháp lâm đồng', 'sở tài chính lâm đồng', 'sở nội vụ lâm đồng',
-    ]),
-  }),
 });
 
 function normalizeSourceAlias(value = '') {

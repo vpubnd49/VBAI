@@ -64,6 +64,7 @@ const PAGE_TITLES = {
   'search-history': 'Lịch sử Tra cứu',
   'admin-panel': 'Quản trị Hệ thống',
   'zalo-bot': 'Bot Zalo',
+  'tools-hub': 'Tiện ích',
 };
 
 function showPageLoading(container) {
@@ -123,12 +124,22 @@ export function navigateTo(page, initialQuery = '', initialMode = '', updateHash
     item.classList.toggle('active', item.dataset.page === page);
   });
 
+  // Update bottom nav
+  document.querySelectorAll('.bottom-nav-item, .bottom-nav-fab').forEach(bitem => {
+    bitem.classList.toggle('active', bitem.dataset.page === page);
+  });
+
   window.firstLoad = false;
 
   // Update breadcrumb
   const breadcrumb = document.getElementById('breadcrumb');
   if (breadcrumb) {
-    breadcrumb.innerHTML = `<span class="breadcrumb-item">${PAGE_TITLES[page]}</span>`;
+    breadcrumb.innerHTML = `
+      <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+        <img src="/vbai-logo.png?v=20260923_white" alt="VBAI" style="height:26px; width:26px; object-fit:contain; border-radius:6px; flex-shrink:0; background:#fff; border:1px solid var(--border-subtle, #E2E8F0);">
+        <span class="breadcrumb-item" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${PAGE_TITLES[page] || 'Trợ lý Tra cứu Pháp luật'}</span>
+      </div>
+    `;
   }
   // Render page
   renderPage(page, initialQuery, initialMode);
@@ -221,6 +232,12 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
         renderZaloBot(container);
         break;
       }
+      case 'tools-hub': {
+        const { renderToolsHub } = await import('./modules/tools-hub.js');
+        container.innerHTML = '';
+        renderToolsHub(container, navigateTo);
+        break;
+      }
       case 'admin-panel': {
         if (window.isAdmin === true || localStorage.getItem('vbai_is_admin') === 'true') {
           const { renderAdminPanel } = await import('./modules/admin-panel.js');
@@ -299,17 +316,11 @@ async function init() {
     loginOverlay.style.display = 'none';
     mainApp.style.display = 'flex';
 
-    // Update top bar with user info
-    const topBar = document.querySelector('.top-bar-actions');
-    if (topBar) {
-      topBar.innerHTML = `
-        <div style="font-size:0.85rem; font-weight:500; color:var(--text-secondary); margin-right:16px;">
-          ${user.email || user.displayName || 'Thành viên'}
-        </div>
-        <div class="dalat-time" id="dalat-clock"></div>
-      `;
-      updateClock();
-    }
+    // Update navbar user info
+    const navUserName = document.getElementById('navbar-user-name');
+    const navUserRole = document.getElementById('navbar-user-role');
+    if (navUserName) navUserName.textContent = user.displayName || user.name || user.email || 'Thành viên';
+    if (navUserRole) navUserRole.textContent = user.role === 'admin' ? 'Quản trị' : (user.email ? user.email.split('@')[0] : 'VBAI');
 
     const adminBtn = document.getElementById('nav-admin-panel');
     if (adminBtn) adminBtn.style.display = window.isAdmin ? 'flex' : 'none';
@@ -441,6 +452,48 @@ async function init() {
       }
     });
   });
+
+  // Bottom Navigation event handlers
+  document.querySelectorAll('.bottom-nav-item, .bottom-nav-fab').forEach(bitem => {
+    bitem.addEventListener('click', () => {
+      if (bitem.id === 'bnav-menu') {
+        sidebar.classList.remove('collapsed');
+        sidebar.classList.toggle('open');
+        if (overlay) overlay.classList.toggle('active');
+        return;
+      }
+      const page = bitem.dataset.page;
+      if (page) {
+        navigateTo(page);
+        closeMobileSidebar();
+      }
+    });
+  });
+
+  // Top search button
+  const topSearchBtn = document.getElementById('top-btn-search');
+  if (topSearchBtn) {
+    topSearchBtn.addEventListener('click', () => {
+      navigateTo('legal-search');
+      closeMobileSidebar();
+    });
+  }
+
+  // Intercept all links to keep 100% inside app (No external browser launch)
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a');
+    if (link) {
+      if (link.target === '_blank') {
+        link.target = '_self';
+      }
+      const href = link.getAttribute('href');
+      if (href && href.startsWith('#')) {
+        e.preventDefault();
+        const page = href.replace(/^#/, '').split('?')[0];
+        if (page) navigateTo(page);
+      }
+    }
+  }, true);
 
   // Logo click = Home / Refresh
   const logo = document.getElementById('logo-refresh');

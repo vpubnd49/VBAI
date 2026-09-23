@@ -3,167 +3,111 @@ import { getVisitCount, recordVisitSession } from './ai-proxy.js';
 export function renderDashboard(container, navigateTo) {
   const recentSearches = getRecentSearches();
 
+  let userObj = {};
+  try {
+    userObj = JSON.parse(localStorage.getItem('vbai_user') || '{}');
+  } catch (_) {}
+  const userName = userObj.displayName || userObj.name || window.currentUser?.displayName || 'Cán bộ tham mưu';
+  const userSub = userObj.role === 'admin' ? 'Quản trị hệ thống' : (userObj.email || 'VBAI Legal Pro');
 
   container.innerHTML = `
-    <div class="legal-home-wrapper">
-      <!-- HERO SECTION -->
-      <section class="legal-home-hero">
-        <div class="hero-brand-header">
-          <img src="/vbai-logo-full.png?v=2" alt="VBAI" class="legal-pro-main-logo-full">
-          <div class="hero-tagline-badge">Tra cứu chính xác, không suy đoán</div>
+    <div class="dash-wrapper">
+      <!-- KHUNG TRA CỨU -->
+      <section class="dash-search-section">
+        <!-- Logo & Branding -->
+        <div class="dash-brand-hero">
+          <img src="/vbai-logo.png?v=20260923_white" alt="VBAI" class="dash-brand-logo">
+          <div class="dash-brand-name">VBAI</div>
+          <div class="dash-brand-sub">LEGAL INTELLIGENCE PLATFORM</div>
+          <div class="dash-brand-badge">Tra cứu chính xác, không suy đoán</div>
         </div>
-
-        <h1 class="hero-main-title">Tra cứu pháp luật có kiểm chứng</h1>
-        <p class="hero-sub-title">Tìm đúng văn bản, đúng điều khoản, đúng thời điểm hiệu lực.</p>
-
-        <!-- LARGE CENTRAL SEARCH BOX -->
-        <div class="legal-home-search-box">
-          <div class="search-box-inner">
-            <span class="search-box-icon">🔍</span>
-            <input 
-              type="text" 
-              id="home-main-search-input" 
-              class="home-search-input" 
-              placeholder="Nhập câu hỏi, số hiệu văn bản, điều/khoản hoặc tình huống pháp lý..."
-            >
-            <button id="home-main-search-btn" class="btn btn-primary home-search-btn">
-              <span>Tra cứu ngay</span>
-            </button>
+        <h2 class="dash-search-title">Tra cứu pháp luật có kiểm chứng</h2>
+        <p class="dash-search-desc">Tìm đúng văn bản, đúng điều khoản, đúng thời điểm hiệu lực.</p>
+        <div class="dash-search-box">
+          <div class="dash-search-inner">
+            <svg class="dash-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="home-main-search-input" class="dash-search-input" placeholder="Nhập câu hỏi, số hiệu văn bản, điều/khoản...">
           </div>
-        </div>
-
-        <!-- QUICK ACTIONS GRID -->
-        <div class="legal-quick-actions">
-          <button class="quick-action-card" data-mode="legal-search">
-            <span class="action-icon">🔍</span>
-            <span class="action-title">Tra cứu pháp luật</span>
-            <span class="action-sub">Hỏi đáp quy định & trích dẫn</span>
-          </button>
-
-          <button class="quick-action-card" data-mode="document-lookup">
-            <span class="action-icon">📜</span>
-            <span class="action-title">Tra cứu văn bản</span>
-            <span class="action-sub">Số hiệu, ngày ban hành, hiệu lực</span>
-          </button>
-
-          <button class="quick-action-card" data-mode="effective-date">
-            <span class="action-icon">📅</span>
-            <span class="action-title">Kiểm tra hiệu lực</span>
-            <span class="action-sub">Rà soát theo mốc thời gian</span>
-          </button>
-
-          <button class="quick-action-card" data-mode="compare-regulations">
-            <span class="action-icon">🔄</span>
-            <span class="action-title">So sánh quy định</span>
-            <span class="action-sub">Đối chiếu điểm mới & sửa đổi</span>
-          </button>
-
-          <button class="quick-action-card" data-mode="situation-analysis">
-            <span class="action-icon">⚖️</span>
-            <span class="action-title">Phân tích tình huống</span>
-            <span class="action-sub">Đánh giá rủi ro & áp dụng</span>
+          <button id="home-main-search-btn" class="dash-search-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            Tra cứu
           </button>
         </div>
       </section>
 
-      <!-- TWO COLUMN INFO REGION: Recent Searches + Legal Sources -->
-      <div class="home-info-columns" style="grid-template-columns: 1fr;">
+      <!-- NHÓM DỊCH VỤ -->
+      <section class="dash-services-section">
+        <div class="dash-section-header">
+          <h3 class="dash-section-title">Dịch vụ</h3>
+          <span class="dash-section-count">${window.isAdmin ? '8' : '7'} chức năng</span>
+        </div>
+        <div class="dash-service-grid">
+          <button class="dash-svc-btn" data-page="vb-nd30">
+            <div class="dash-svc-icon teal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></div>
+            <span>Soạn thảo<br>NĐ 30</span>
+          </button>
+          <button class="dash-svc-btn" data-page="vb-dang">
+            <div class="dash-svc-icon coral"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></div>
+            <span>VB Đảng<br>HD 05</span>
+          </button>
+          <button class="dash-svc-btn" data-page="docx-tool">
+            <div class="dash-svc-icon blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></div>
+            <span>Tạo & Xuất<br>file Word</span>
+          </button>
+          <button class="dash-svc-btn" data-page="pdf-tool">
+            <div class="dash-svc-icon cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></div>
+            <span>Nhận dạng<br>PDF/OCR</span>
+          </button>
+          <button class="dash-svc-btn" data-page="spell-check">
+            <div class="dash-svc-icon amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
+            <span>Kiểm tra<br>thể thức</span>
+          </button>
+          <button class="dash-svc-btn" data-page="pdf-publisher">
+            <div class="dash-svc-icon emerald"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></div>
+            <span>Tóm tắt<br>hồ sơ</span>
+          </button>
+          <button class="dash-svc-btn" data-page="meeting-minutes">
+            <div class="dash-svc-icon purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg></div>
+            <span>Biên bản<br>cuộc họp</span>
+          </button>
+          <button class="dash-svc-btn" data-page="chat-assistant">
+            <div class="dash-svc-icon cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><circle cx="9" cy="10" r="1.5" fill="currentColor"></circle><circle cx="15" cy="10" r="1.5" fill="currentColor"></circle></svg></div>
+            <span>Trợ lý AI<br>pháp luật</span>
+          </button>
+          <button class="dash-svc-btn" data-page="search-history">
+            <div class="dash-svc-icon indigo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
+            <span>Lịch sử<br>tra cứu</span>
+          </button>
+          <button class="dash-svc-btn" id="btn-zalo-bot-catalog" data-page="zalo-bot">
+            <div class="dash-svc-icon blue"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zm4 0h3v3h-3zm-4 4h3v3h-3zm4 4h3v3h-3z"/></svg></div>
+            <span>Bot Zalo<br>VBAI</span>
+          </button>
+          <button class="dash-svc-btn" data-page="admin-panel" id="btn-admin-panel-catalog" style="${window.isAdmin ? '' : 'display:none;'}">
+            <div class="dash-svc-icon amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+            <span>Quản trị<br>hệ thống</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- TRA CỨU GẦN ĐÂY -->
+      <div class="home-info-columns" style="grid-template-columns: 1fr; margin-top: 10px;">
         <div id="recent-searches-region"></div>
       </div>
 
-      <!-- ANCILLARY TOOLS SHORTCUTS -->
-      <section class="home-ancillary-section">
-        <div class="section-head-row">
-          <h2>Công cụ Phụ trợ & Soạn thảo</h2>
-          <span>Nghiệp vụ hành chính số</span>
-        </div>
-        <div class="modules-grid ancillary-grid">
-          <div class="ancillary-card" data-page="vb-nd30">
-            <div class="card-icon ocean">📄</div>
-            <div class="card-info">
-              <div class="card-title">Soạn VB Hành chính (NĐ30)</div>
-              <div class="card-desc">Công văn, Quyết định, Báo cáo chuẩn Nghị định 30/2020/NĐ-CP</div>
-            </div>
-          </div>
-
-          <div class="ancillary-card" data-page="vb-dang">
-            <div class="card-icon daquy">✍️</div>
-            <div class="card-info">
-              <div class="card-title">Soạn VB Đảng (HD05)</div>
-              <div class="card-desc">Nghị quyết, Chỉ thị, Quyết định chuẩn Hướng dẫn 05-HD/VPTW</div>
-            </div>
-          </div>
-
-          <div class="ancillary-card" data-page="spell-check">
-            <div class="card-icon daquy">🔍</div>
-            <div class="card-info">
-              <div class="card-title">Kiểm tra Thể thức & Chính tả</div>
-              <div class="card-desc">Rà soát lỗi thể thức văn bản hành chính & văn bản Đảng</div>
-            </div>
-          </div>
-
-          <div class="ancillary-card" data-page="pdf-tool">
-            <div class="card-icon sunset">⚙️</div>
-            <div class="card-info">
-              <div class="card-title">Nhận dạng & Xử lý tài liệu</div>
-              <div class="card-desc">Trích xuất văn bản, gộp/tách trang và quét tài liệu PDF</div>
-            </div>
-          </div>
-
-          <div class="ancillary-card" data-page="meeting-minutes">
-            <div class="card-icon pine">🎙️</div>
-            <div class="card-info">
-              <div class="card-title">Xử lý Ghi âm Cuộc họp</div>
-              <div class="card-desc">Chuyển ghi âm thành biên bản và thông báo kết luận</div>
-            </div>
-          </div>
-
-          <div class="ancillary-card" data-page="docx-tool">
-            <div class="card-icon pine">📝</div>
-            <div class="card-info">
-              <div class="card-title">Tạo & Xuất văn bản</div>
-              <div class="card-desc">Biên tập tài liệu Word chuyên nghiệp và xuất file chuẩn</div>
-            </div>
+      <!-- LIÊN HỆ -->
+      <section id="contact-section" class="dash-contact-section">
+        <div class="dash-contact-head">📞 <strong>Liên hệ hỗ trợ</strong> <span class="dash-contact-tag">VP UBND tỉnh</span></div>
+        <div class="dash-contact-body">
+          <span>Trương Hải Châu · VP UBND tỉnh Lâm Đồng</span>
+          <div class="dash-contact-links">
+            <a href="https://m.me/haichau2404" target="_blank" class="dash-link msg">💬 Messenger</a>
+            <a href="https://zalo.me/0911667209" target="_blank" class="dash-link zalo">💬 Zalo</a>
           </div>
         </div>
       </section>
 
-      <!-- BOT ZALO VBAI -->
-      <section id="zalobot-home-section" class="home-card-panel" style="margin-top: 24px; border-left: 4px solid #0068FF; background: linear-gradient(135deg, rgba(0, 104, 255, 0.04) 0%, rgba(255, 255, 255, 0.95) 100%);">
-        <div class="panel-card-head">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0068FF" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            <h3 style="margin:0; font-size:1rem; font-weight:700; color:var(--text-primary);">Bot Zalo VBAI — Trợ lý AI trên Zalo</h3>
-          </div>
-          <span class="panel-head-tag" style="background:#e0edff; color:#0068FF; font-weight:600;">Mới</span>
-        </div>
-        <div class="panel-card-body" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; padding: 10px 0;">
-          <div style="font-size: 0.88rem; color: var(--text-secondary); max-width: 660px; line-height: 1.5;">
-            Trợ lý AI tra cứu pháp luật, soạn văn bản, phân tích tình huống ngay trên ứng dụng Zalo. Quét mã QR hoặc kết nối bot cá nhân để sử dụng mọi lúc, mọi nơi.
-          </div>
-          <a href="https://vbai.tracuu.lamdong.vn/#zalo-bot" class="btn btn-primary btn-zalo-home" style="display: inline-flex; align-items: center; gap: 8px; background: #0068FF; border-color: #0068FF; padding: 7px 16px; border-radius: 8px; text-decoration: none; font-size: 0.84rem; font-weight: 600; color: #fff; box-shadow: 0 2px 8px rgba(0,104,255,0.2);">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zm4 0h3v3h-3zm-4 4h3v3h-3zm4 4h3v3h-3z"/></svg>
-            Nhắn tin &amp; Kết nối Bot Zalo
-          </a>
-        </div>
-      </section>
-
-      <!-- LIÊN HỆ HỖ TRỢ -->
-      <section id="contact-section" class="home-card-panel" style="margin-top: 24px; border-left: 4px solid var(--brand-primary, #00778B);">
-        <div class="panel-card-head">
-          <h3>📞 Liên hệ hỗ trợ</h3>
-          <span class="panel-head-tag">Hỗ trợ kỹ thuật</span>
-        </div>
-        <div class="panel-card-body" style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 0;">
-          <span style="color: var(--text-secondary, #475569); font-size: 0.88rem;"><strong>Trương Hải Châu</strong> · VP UBND tỉnh Lâm Đồng</span>
-          <span style="color: var(--border-default, #CBD5E1);">|</span>
-          <a href="https://m.me/haichau2404" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: var(--accent-soft, #E7F7F9); color: var(--brand-primary, #00778B); border-radius: 20px; font-size: 0.84rem; font-weight: 600; text-decoration: none; transition: all 0.2s;">💬 Messenger</a>
-          <a href="https://zalo.me/0911667209" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #E8F5E9; color: #2E7D32; border-radius: 20px; font-size: 0.84rem; font-weight: 600; text-decoration: none; transition: all 0.2s;">💬 Zalo</a>
-        </div>
-      </section>
-
-      <!-- SUPPORT & FOOTER SECTION -->
-      <footer class="legal-pro-footer">
+      <!-- FOOTER -->
+      <footer class="legal-pro-footer" style="padding-top: 14px;">
         <div class="footer-build-badge">
           <span>Trợ lý Tra cứu Pháp luật</span>
           <span class="dot-sep">•</span>
@@ -192,6 +136,46 @@ export function renderDashboard(container, navigateTo) {
   mainInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') executeHomeSearch();
   });
+
+  // Bind quick chips
+  container.querySelectorAll('.search-chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const q = btn.dataset.query;
+      if (q) {
+        mainInput.value = q;
+        executeHomeSearch();
+      }
+    });
+  });
+
+  // Bind Mobile Quick Service Buttons (4 nút chức năng hay dùng)
+  container.querySelectorAll('.service-action-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const page = btn.dataset.page || 'legal-search';
+      const mode = btn.dataset.mode || '';
+      navigateTo(page, '', mode);
+    });
+  });
+
+  // Bind Dashboard Service Buttons
+  container.querySelectorAll('.dash-svc-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const page = btn.dataset.page;
+      if (page) navigateTo(page);
+    });
+  });
+
+  // Bind Refresh Dashboard Button
+  const btnRefresh = container.querySelector('#btn-refresh-dashboard');
+  if (btnRefresh) {
+    btnRefresh.addEventListener('click', () => {
+      btnRefresh.style.transform = 'rotate(180deg)';
+      btnRefresh.style.transition = 'transform 0.3s ease';
+      setTimeout(() => {
+        renderDashboard(container, navigateTo);
+      }, 300);
+    });
+  }
 
   // Bind Quick Actions
   container.querySelectorAll('.quick-action-card').forEach(card => {

@@ -1,5 +1,4 @@
 const { safeFetch } = require('../security/ssrf-guard');
-const DIRECT_SOURCE_USER_AGENT = 'VBAI-Freshness-Bot/1.0 (+https://vbai.tracuu.lamdong.vn)';
 /**
  * VBAI Real-Time Legal Crawler & Continuous Auto-Ingestion Service
  * Automated multi-source crawling and indexing of ONLY NEWEST laws, decrees, circulars, and official gazettes.
@@ -479,109 +478,93 @@ async function crawlBaochinhphu() {
  * list. Falls back gracefully to empty array if APIs are restricted.
  */
 async function crawlLamDongQPPL() {
-  const API_PROXY_URL = 'https://api.lamdong.gov.vn/RestApi/Readjson';
+  const QPPL_BASE = 'https://lamdong.gov.vn/sites/qppl';
   const now = new Date();
   const items = [];
   const seen = new Set();
 
-  const SOURCES = [
-    {
-      code: 'ubnd',
-      name: 'UBND tỉnh Lâm Đồng',
-      sourceUrl: "https://w3.lamdong.gov.vn/sites/vpubnd/_api/web/lists/getByTitle('Quản lý văn bản chỉ đạo')/items?$orderby=Modified desc&$top=30",
-    },
-    {
-      code: 'hdnd',
-      name: 'HĐND tỉnh Lâm Đồng',
-      sourceUrl: "https://w3.lamdong.gov.vn/sites/dbnd/_api/web/lists/getByTitle('Quản lý văn bản')/items?$orderby=Modified desc&$top=30",
-    },
-    {
-      code: 'stp',
-      name: 'Sở Tư pháp tỉnh Lâm Đồng',
-      sourceUrl: "https://w3.lamdong.gov.vn/sites/stp/_api/web/lists/getByTitle('Quản lý văn bản')/items?$orderby=Modified desc&$top=20",
-    },
-    {
-      code: 'stc',
-      name: 'Sở Tài chính tỉnh Lâm Đồng',
-      sourceUrl: "https://w3.lamdong.gov.vn/sites/stc/_api/web/lists/getByTitle('Quản Lý Văn Bản')/items?$orderby=Modified desc&$top=20",
-    },
-    {
-      code: 'snv',
-      name: 'Sở Nội vụ tỉnh Lâm Đồng',
-      sourceUrl: "https://w3.lamdong.gov.vn/sites/snv/_api/web/lists/getByTitle('Quản lý văn bản')/items?$orderby=Modified desc&$top=20",
-    },
+  // Strategy 1: Fetch config list to get sub-site GUIDs and crawl each
+  try {
+    const configUrl = `${QPPL_BASE}/_api/web/lists/getbytitle('C%E1%BA%A5u%20h%C3%ACnh%20t%E1%BB%95ng%20h%E1%BB%A3p%20v%C4%83n%20b%E1%BA%A3n')/items?$top=50`;
+    const configRes = await fetchWithRetry(configUrl, {
+      headers: { 'Accept': 'application/json;odata=nometadata' },
+    });
+    if (configRes.ok) {
+      const configData = await configRes.json();
+      const subSites = (configData.value || []).filter(s => s.GuildId && s.Title);
+
+      // Try each sub-site's SP list API for VB documents
+      for (const site of subSites) {
+        try {
+          const subsiteUrl = (site.OData__x0110__x01b0__x1edd_ng_x0020_d_ || '').trim();
+          if (!subsiteUrl || !subsiteUrl.startsWith('http')) continue;
+
+          // Attempt to read "Quản lý văn bản" or "Quản lý văn bản chỉ đạo" list
+          const listApiUrl = `${subsiteUrl.replace(/\/$/, '')}/_api/web/lists/getbytitle('Qu%E1%BA%A3n%20l%C3%BD%20v%C4%83n%20b%E1%BA%A3n')/items?$top=20&$orderby=Modified desc`;
+          const listRes = await fetchWithRetry(listApiUrl, {
+            headers: { 'Accept': 'application/json;odata=nometadata' },
+          });
+          if (!listRes.ok) continue;
+
+          const listData = await listRes.json();
+          for (const item of (listData.value || [])) {
+            const docNum = normalizeDocumentNumber(item.Title || item.SoHieu || '');
+            if (!docNum || seen.has(docNum)) continue;
+            if (!isValidLegalDocNumber(docNum)) continue;
+            seen.add(docNum);
+
+            const title = item.TrichYeu || item.Title || `Văn bản ${docNum}`;
+            const issuer = site.Title || 'UBND tỉnh Lâm Đồng';
+            const issueDate = item.NgayBanHanh ? new Date(item.NgayBanHanh).toISOString().split('T')[0] : null;
+            const effectiveDate = item.NgayHieuLuc ? new Date(item.NgayHieuLuc).toISOString().split('T')[0] : issueDate;
+
+            items.push({
+              document_number: docNum,
+              title: title,
+              document_type: detectDocType(title, docNum),
+              topic_aliases: [],
+              query_patterns: [],
+              issuer: issuer,
+              issue_date: issueDate,
+              effective_date: effectiveDate,
+              effective_status: 'in_force',
+              status_as_of: now.toISOString().split('T')[0],
+              tom_tat_chinh_sach: title,
+              noi_dung_chi_tiet: title,
+              official_source_urls: [subsiteUrl],
+              source_feed: 'lamdong.gov.vn/sites/qppl',
+              crawled_at: now,
+            });
+          }
+        } catch (_) { /* sub-site may be restricted, skip */ }
+      }
+    }
+  } catch (err) {
+    console.warn('[crawler] Lâm Đồng QPPL SharePoint API failed:', err.message);
+  }
+
+  // Strategy 2: Crawl the NQ HĐND and QĐ UBND sub-pages for static content
+  // These sub-pages may have static HTML with document numbers
+  const subPages = [
+    { url: `${QPPL_BASE}/qppl/quyet-dinh/SitePages/Home.aspx`, label: 'QĐ UBND' },
+    { url: `${QPPL_BASE}/qppl/nghi-quyet/SitePages/Home.aspx`, label: 'NQ HĐND' },
   ];
 
-  for (const src of SOURCES) {
+  for (const page of subPages) {
     try {
-      const res = await fetchWithRetry(API_PROXY_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json;odata=verbose',
-          'User-Agent': DIRECT_SOURCE_USER_AGENT,
-        },
-        body: JSON.stringify({ SourceUrl: src.sourceUrl }),
-      });
-
+      const res = await fetchWithRetry(page.url);
       if (!res.ok) continue;
-      const data = await res.json();
-      const rawItems = data?.d?.results || [];
-
-      for (const item of rawItems) {
-        const rawNum = String(item.S_x1ed1__x002f_K_x00fd__x0020_hi || item.Title || '').trim();
-        const docNum = normalizeDocumentNumber(rawNum);
-        if (!docNum || seen.has(docNum)) continue;
-        if (!isValidLegalDocNumber(docNum)) continue;
-        seen.add(docNum);
-
-        const title = String(item.Tr_x00ed_ch_x0020_y_x1ebf_u || item.Title || `Văn bản ${docNum}`).trim();
-        const issueDate = item.Ng_x00e0_y_x0020_ban_x0020_h_x00
-          ? new Date(item.Ng_x00e0_y_x0020_ban_x0020_h_x00).toISOString().split('T')[0]
-          : null;
-        const effectiveDate = item.Ng_x00e0_y_x0020_hi_x1ec7_u_x002
-          ? new Date(item.Ng_x00e0_y_x0020_hi_x1ec7_u_x002).toISOString().split('T')[0]
-          : issueDate;
-
-        // Parse file URLs from Urls field
-        let pdfDownloadUrl = null;
-        const pdfUrls = [];
-        const rawUrls = String(item.Urls || '');
-        const hrefMatches = rawUrls.matchAll(/href=["'](https?:\/\/[^"']+)["']/gi);
-        for (const m of hrefMatches) {
-          const u = m[1].replace(/&#58;/g, ':');
-          pdfUrls.push(u);
-          if (!pdfDownloadUrl && u.toLowerCase().endsWith('.pdf')) {
-            pdfDownloadUrl = u;
-          }
+      const html = await res.text();
+      const decoded = html.replace(/&amp;/g, '&').replace(/&quot;/g, '"')
+        .replace(/&#58;/g, ':').replace(/&#123;/g, '{').replace(/&#125;/g, '}');
+      const docs = extractDocumentsFromRawHtml(decoded, page.url, 'lamdong.gov.vn/sites/qppl');
+      for (const doc of docs) {
+        if (!seen.has(normalizeDocumentNumber(doc.document_number))) {
+          seen.add(normalizeDocumentNumber(doc.document_number));
+          items.push(doc);
         }
-        if (!pdfDownloadUrl && pdfUrls.length > 0) {
-          pdfDownloadUrl = pdfUrls[0];
-        }
-
-        items.push({
-          document_number: docNum,
-          title: title,
-          document_type: detectDocType(title, docNum),
-          topic_aliases: [],
-          query_patterns: [],
-          issuer: src.name,
-          issue_date: issueDate,
-          effective_date: effectiveDate,
-          effective_status: 'in_force',
-          status_as_of: now.toISOString().split('T')[0],
-          tom_tat_chinh_sach: title,
-          noi_dung_chi_tiet: title,
-          official_source_urls: ['https://lamdong.gov.vn/sites/qppl'],
-          pdf_download_url: pdfDownloadUrl,
-          pdf_download_urls: pdfUrls,
-          source_feed: 'lamdong.gov.vn/sites/qppl',
-          crawled_at: now,
-        });
       }
-    } catch (err) {
-      console.warn(`[crawler] Lâm Đồng QPPL fetch failed for ${src.code}:`, err.message);
-    }
+    } catch (_) {}
   }
 
   return items;
