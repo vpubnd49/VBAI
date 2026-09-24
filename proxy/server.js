@@ -8521,6 +8521,35 @@ function selectBestAlternative(items, requestedDocType, query) {
   return sorted.length > 0 ? sorted[0] : null;
 }
 
+// Resolve document number → detail URL + PDF link (public, no auth required)
+app.get('/api/legal/resolve-doc', async (req, res) => {
+  try {
+    const docNumber = String(req.query.docNumber || req.query.q || '').trim();
+    if (!docNumber) return res.json({ ok: false, error: 'Missing docNumber' });
+
+    const { searchVanbanChinhphu, resolveChinhphuDocument } = require('./legal/services/chinhphu-gov-crawler');
+    const result = await resolveChinhphuDocument(docNumber, {});
+
+    if (result) {
+      return res.json({
+        ok: true,
+        documentNumber: result.documentNumber || docNumber,
+        title: result.title || '',
+        issueDate: result.issueDate || '',
+        pdfUrl: result.pdfUrl || null,
+        pdfDownloadUrls: result.pdfUrl ? [result.pdfUrl] : [],
+        detailUrl: result.detailUrl || result.sourceUrl || null,
+        chinhphuDetailUrl: result.detailUrl || result.sourceUrl || null,
+        source: result.source || 'vanban_chinhphu',
+      });
+    }
+    return res.json({ ok: false, error: 'Document not found' });
+  } catch (err) {
+    console.error('GET /api/legal/resolve-doc error:', err.message);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Search History API — MongoDB is the canonical store; Firebase is auth-only.
 app.get('/api/search-history', async (req, res) => {
   try {
