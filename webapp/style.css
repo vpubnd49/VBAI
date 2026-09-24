@@ -1939,6 +1939,7 @@ a.chat-inline-link {
   transition: all 0.2s ease;
   vertical-align: middle;
   margin: 2px 3px;
+  white-space: nowrap;
 }
 .chat-msg-rich a.chat-inline-link:hover,
 .legal-table a.chat-inline-link:hover,
@@ -1956,10 +1957,7 @@ a.chat-inline-link:hover {
 .legal-answer-wrapper a.chat-inline-link::after,
 .chat-compare-table a.chat-inline-link::after,
 a.chat-inline-link::after {
-  content: " ↗";
-  font-size: 0.72rem;
-  margin-left: 2px;
-  font-weight: bold;
+  content: none;
 }
 
 /* 3. Custom Markdown Lists Spacing */
