@@ -4520,48 +4520,62 @@ table {
 
   /* Admin Panel Mobile */
   .admin-tab-btn {
-    padding: 10px 14px !important;
-    font-size: 0.84rem !important;
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
   }
 
   .config-key-row {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100% !important;
   }
 
   .config-key-input {
     width: 100% !important;
     min-width: 0 !important;
+    max-width: 100% !important;
+    flex: none !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
   }
 
   .config-key-actions {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
   }
 
   .config-key-actions .btn {
-    padding: 8px 4px !important;
-    font-size: 0.78rem !important;
-    justify-content: center;
-    text-align: center;
+    width: 100% !important;
+    padding: 8px 2px !important;
+    font-size: 0.74rem !important;
+    justify-content: center !important;
+    text-align: center !important;
+    white-space: nowrap !important;
   }
 
   .manual-ingest-row {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100% !important;
   }
 
   .manual-ingest-row input,
   .manual-ingest-row select,
   .manual-ingest-row button {
     width: 100% !important;
-    box-sizing: border-box;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
   }
 
   .config-section-card {
     padding: 14px 12px !important;
+    box-sizing: border-box !important;
   }
 
   /* Spell Check & Drafting Mobile */
@@ -6809,7 +6823,29 @@ img, svg, video, canvas, iframe, embed, object {
     width: 100% !important;
   }
 
-  /* 13. Admin Panel */
+  /* 13. Admin Panel Mobile */
+  .admin-user-status-banner {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 12px 14px !important;
+    margin-bottom: 14px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .admin-user-status-banner > div {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 4px 8px !important;
+    word-break: break-all !important;
+  }
+
+  .admin-user-status-banner strong {
+    word-break: break-all !important;
+  }
+
   .admin-tab-nav {
     display: flex !important;
     width: 100% !important;
@@ -6818,13 +6854,34 @@ img, svg, video, canvas, iframe, embed, object {
     -webkit-overflow-scrolling: touch !important;
     scrollbar-width: none !important;
     box-sizing: border-box !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    padding: 2px 2px 10px 2px !important;
+    margin-bottom: 14px !important;
+    border-bottom: 2px solid var(--border-subtle, #e2e8f0) !important;
+  }
+
+  .admin-tab-nav::-webkit-scrollbar {
+    display: none !important;
+    height: 0 !important;
   }
 
   .admin-tab-btn {
     white-space: nowrap !important;
-    padding: 10px 14px !important;
-    font-size: 0.82rem !important;
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
     flex-shrink: 0 !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-subtle, #e2e8f0) !important;
+    background: var(--bg-card, #ffffff) !important;
+    color: var(--text-secondary, #64748b) !important;
+  }
+
+  .admin-tab-btn.active {
+    background: var(--brand-cyan-light, #e7f7f9) !important;
+    color: var(--brand-primary, #008ca1) !important;
+    border-color: var(--brand-primary, #008ca1) !important;
+    font-weight: 700 !important;
   }
 
   .panel-header {
@@ -6835,15 +6892,57 @@ img, svg, video, canvas, iframe, embed, object {
     box-sizing: border-box !important;
   }
 
+  .panel-header > div:first-child {
+    font-size: 0.95rem !important;
+  }
+
+  .admin-config-panel .panel-body,
+  .panel-group .panel-body,
+  #tab-config .panel-body,
+  #tab-training .panel-body,
+  #tab-logs .panel-body,
+  #tab-users .panel-body {
+    padding: 12px 10px !important;
+    box-sizing: border-box !important;
+  }
+
+  .config-section-card {
+    padding: 14px 12px !important;
+    margin-bottom: 14px !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  .config-section-title {
+    font-size: 0.92rem !important;
+    line-height: 1.35 !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .config-section-title span:first-child,
+  .config-section-icon {
+    flex-shrink: 0 !important;
+  }
+
   .config-key-row {
     flex-direction: column !important;
     gap: 8px !important;
     width: 100% !important;
+    align-items: stretch !important;
   }
 
   .config-key-input {
     width: 100% !important;
     min-width: 0 !important;
+    max-width: 100% !important;
+    flex: none !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    box-sizing: border-box !important;
   }
 
   .config-key-actions {
@@ -6851,20 +6950,76 @@ img, svg, video, canvas, iframe, embed, object {
     display: grid !important;
     grid-template-columns: repeat(3, 1fr) !important;
     gap: 6px !important;
+    box-sizing: border-box !important;
   }
 
   .config-key-actions .btn {
     width: 100% !important;
-    padding: 8px 4px !important;
-    font-size: 0.76rem !important;
+    padding: 8px 2px !important;
+    font-size: 0.74rem !important;
     justify-content: center !important;
+    text-align: center !important;
+    white-space: nowrap !important;
   }
 
-  .panel-body[style*="overflow-x:auto"] {
+  .admin-config-panel div[style*="grid-template-columns"],
+  .system-config-form div[style*="grid-template-columns"],
+  #tab-config div[style*="grid-template-columns"],
+  #tab-training div[style*="grid-template-columns"],
+  #tab-logs div[style*="grid-template-columns"],
+  #tab-users div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .manual-ingest-row {
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+    width: 100% !important;
+  }
+
+  .manual-ingest-row input,
+  .manual-ingest-row select,
+  .manual-ingest-row button {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .config-inline-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .config-inline-row input {
+    min-width: 0 !important;
+  }
+
+  .panel-body[style*="overflow-x:auto"],
+  .panel-body table {
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
     -webkit-overflow-scrolling: touch !important;
+  }
+
+  #tab-training table,
+  #tab-logs table,
+  #tab-users table {
+    min-width: 540px !important;
+  }
+
+  .admin-config-toolbar-btn,
+  #refresh-config-btn,
+  #refresh-tuning-jobs-btn,
+  #refresh-logs-btn,
+  #delete-all-logs-btn,
+  #toggle-admin-logs-poll-btn,
+  #toggle-admin-users-poll-btn {
+    padding: 6px 10px !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap !important;
   }
 
   /* 14. Tools Hub */
