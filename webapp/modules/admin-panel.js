@@ -301,7 +301,7 @@ export function renderAdminPanel(container) {
                   <div class="config-section-title" style="color:#0284c7; font-size:1rem; font-weight:700; margin-bottom:16px;"><span class="config-section-icon">●</span> Web Search & Vertex AI Search</div>
                   <div class="form-group" style="margin-bottom:16px;">
                     <label class="form-label" style="display:block; font-weight:600; margin-bottom:8px;">Chế độ tra cứu web</label>
-                    <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                    <div class="config-radio-group" style="display:flex; gap:20px; flex-wrap:wrap;">
                       <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.9rem;">
                         <input type="radio" name="web_search_mode" value="direct" style="cursor:pointer;">
                         <span>Nhanh nhất (Nguồn trực tiếp)</span>
@@ -331,7 +331,7 @@ export function renderAdminPanel(container) {
                   </div>
                   <div class="form-group" style="margin-bottom:16px;">
                     <label class="form-label" style="display:block; font-weight:600; margin-bottom:8px;">Fallback Sources (Nguồn kiểm chứng chính thống)</label>
-                    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                    <div class="config-checkbox-group" style="display:flex; gap:16px; flex-wrap:wrap;">
                       <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.88rem;"><input type="checkbox" id="fallback_vbpl" checked style="cursor:pointer;"> vbpl.vn</label>
                       <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.88rem;"><input type="checkbox" id="fallback_chinhphu" checked style="cursor:pointer;"> chinhphu.vn</label>
                       <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.88rem;"><input type="checkbox" id="fallback_quochoi" checked style="cursor:pointer;"> quochoi.vn</label>
@@ -489,7 +489,7 @@ export function renderAdminPanel(container) {
             <button type="button" id="refresh-dataset-btn" class="btn btn-secondary btn-sm" style="padding:6px 14px; font-size:0.85rem; cursor:pointer">🔄 Làm mới</button>
           </div>
           <div class="panel-body" style="padding:0; overflow-x:auto">
-            <table style="width:100%; border-collapse: collapse; font-size:0.88rem">
+            <table class="admin-table admin-dataset-table" style="width:100%; border-collapse: collapse; font-size:0.88rem">
               <thead>
                 <tr style="background:var(--bg-secondary, #f8fafc); border-bottom:1px solid var(--border-color, #cbd5e1); text-align:left">
                   <th style="padding:14px; width:50px; text-align:center">STT</th>
@@ -520,7 +520,7 @@ export function renderAdminPanel(container) {
             <button type="button" id="refresh-tuning-jobs-btn" class="btn btn-secondary btn-sm" style="padding:6px 14px; font-size:0.85rem; cursor:pointer">🔄 Làm mới</button>
           </div>
           <div class="panel-body" style="padding:0; overflow-x:auto">
-            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+            <table class="admin-table admin-tuning-table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
               <thead>
                 <tr style="background:var(--bg-secondary,#f8fafc); border-bottom:1px solid var(--border-color,#cbd5e1); text-align:left;">
                   <th style="padding:12px 14px; min-width:160px;">Job ID</th>
@@ -564,7 +564,7 @@ export function renderAdminPanel(container) {
             <div style="font-size:0.82rem; color:var(--text-muted, #64748b);">Lọc nhanh truy vết tra cứu</div>
           </div>
           <div class="panel-body" style="padding:0; overflow-x:auto">
-            <table style="width:100%; border-collapse: collapse; font-size:0.88rem">
+            <table class="admin-table admin-logs-table" style="width:100%; border-collapse: collapse; font-size:0.88rem">
               <thead>
                 <tr style="background:var(--bg-secondary, #f8fafc); border-bottom:1px solid var(--border-color, #cbd5e1); text-align:left">
                   <th style="padding:14px; width:150px">Thời gian</th>
@@ -603,7 +603,7 @@ export function renderAdminPanel(container) {
             </div>
           </div>
           <div class="panel-body" style="padding:0; overflow-x:auto">
-            <table style="width:100%; border-collapse: collapse; font-size:0.88rem">
+            <table class="admin-table admin-users-table" style="width:100%; border-collapse: collapse; font-size:0.88rem">
               <thead>
                 <tr style="background:var(--bg-secondary, #f8fafc); border-bottom:1px solid var(--border-color, #cbd5e1); text-align:left">
                   <th style="padding:14px">Email</th>
