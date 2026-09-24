@@ -584,38 +584,41 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
     <p style="margin-top:10px;font-size:12px;color:var(--text-muted,#6c757d);font-style:italic">
       Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn ${escapeHtml(mainDocTitle)} ${escapeHtml(mainDocNum)} chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.
     </p>
-    <script>
-    (function(){
-      var cells = document.querySelectorAll('td[data-resolve-doc]');
-      cells.forEach(function(cell){
-        var docNum = cell.getAttribute('data-resolve-doc');
-        if (!docNum) return;
-        cell.removeAttribute('data-resolve-doc');
-        var div = cell.querySelector('div');
-        if (div) div.innerHTML = '<span style="color:#94a3b8;font-size:12px;">⏳ Đang tra cứu...</span>';
-        fetch('/api/legal/resolve-doc?docNumber=' + encodeURIComponent(docNum))
-          .then(function(r){ return r.json(); })
-          .then(function(d){
-            if (!d.ok || !div) return;
-            var links = [];
-            if (d.pdfUrl) {
-              links.push('<a href="' + d.pdfUrl + '" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#0d9488;">📥 Tải về (PDF)</a>');
-            }
-            if (d.chinhphuDetailUrl) {
-              links.push('<a href="' + d.chinhphuDetailUrl + '" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Xem văn bản gốc</a>');
-            }
-            if (links.length === 0) {
-              links.push('<a href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Cổng TTĐT Chính phủ</a>');
-            }
-            div.innerHTML = links.join('');
-          })
-          .catch(function(){
-            if (div) div.innerHTML = '<a href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Cổng TTĐT Chính phủ</a>';
-          });
-      });
-    })();
-    </script>
   `;
+}
+
+/**
+ * Call after buildCitationTable HTML is inserted into the DOM.
+ * Finds all td[data-resolve-doc] cells and resolves PDF/detail URLs.
+ */
+export function resolveDocLinks() {
+  const cells = document.querySelectorAll('td[data-resolve-doc]');
+  cells.forEach(cell => {
+    const docNum = cell.getAttribute('data-resolve-doc');
+    if (!docNum) return;
+    cell.removeAttribute('data-resolve-doc');
+    const div = cell.querySelector('div');
+    if (div) div.innerHTML = '<span style="color:#94a3b8;font-size:12px;">⏳ Đang tra cứu...</span>';
+    fetch('/api/legal/resolve-doc?docNumber=' + encodeURIComponent(docNum))
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok || !div) return;
+        const links = [];
+        if (d.pdfUrl) {
+          links.push(`<a href="${d.pdfUrl}" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#0d9488;">📥 Tải về (PDF)</a>`);
+        }
+        if (d.chinhphuDetailUrl) {
+          links.push(`<a href="${d.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Xem văn bản gốc</a>`);
+        }
+        if (links.length === 0) {
+          links.push('<a href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Cổng TTĐT Chính phủ</a>');
+        }
+        div.innerHTML = links.join('');
+      })
+      .catch(() => {
+        if (div) div.innerHTML = '<a href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Cổng TTĐT Chính phủ</a>';
+      });
+  });
 }
 
 export function buildKnownDocHeader(kd) {

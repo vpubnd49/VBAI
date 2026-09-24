@@ -4777,6 +4777,36 @@ app.post('/api/chat', async (req, res) => {
     let effectiveMessages = Array.isArray(normalizedMessages) ? [...normalizedMessages] : [];
     if (isLegalQuery && legalContext && legalContext.evidenceBundle && Array.isArray(legalContext.evidenceBundle.documents) && legalContext.evidenceBundle.documents.length > 0) {
       const docs = legalContext.evidenceBundle.documents;
+
+      // Pre-resolve: enrich docs missing PDF/detail URLs by searching vanban.chinhphu.vn
+      try {
+        const { resolveChinhphuDocument } = require('./legal/services/chinhphu-gov-crawler');
+        const resolvePromises = docs.map(async (doc) => {
+          const num = doc.documentNumber || '';
+          if (!num) return;
+          const hasPdf = doc.pdfDownloadUrl || (Array.isArray(doc.pdfDownloadUrls) && doc.pdfDownloadUrls.length > 0);
+          const hasDetail = doc.chinhphuDetailUrl && doc.chinhphuDetailUrl !== 'https://vanban.chinhphu.vn/';
+          if (hasPdf && hasDetail) return;
+          try {
+            const resolved = await resolveChinhphuDocument(num, {
+              issueDate: doc.issueDate || null,
+              title: doc.title || null,
+            });
+            if (resolved) {
+              if (!hasPdf && resolved.pdfUrl) {
+                doc.pdfDownloadUrl = resolved.pdfUrl;
+                doc.pdfDownloadUrls = [resolved.pdfUrl];
+              }
+              if (!hasDetail && resolved.detailUrl) {
+                doc.chinhphuDetailUrl = resolved.detailUrl;
+                doc.sourceUrl = doc.sourceUrl || resolved.sourceUrl || resolved.detailUrl;
+              }
+            }
+          } catch (_) {}
+        });
+        await Promise.allSettled(resolvePromises);
+      } catch (_) {}
+
       const contextLines = [
         '\n\n=== CĂN CỨ PHÁP LÝ ĐÃ KIỂM CHỨNG TỪ CƠ SỞ DỮ LIỆU CHÍNH THỨC ==='
       ];
@@ -4794,6 +4824,9 @@ app.post('/api/chat', async (req, res) => {
         if (effectiveDate) contextLines.push(`- Ngày hiệu lực: ${effectiveDate}`);
         contextLines.push(`- Trạng thái hiệu lực: ${statusStr}`);
         if (doc.sourceUrl) contextLines.push(`- Nguồn chính thức: ${doc.sourceUrl}`);
+        if (doc.chinhphuDetailUrl && doc.chinhphuDetailUrl !== 'https://vanban.chinhphu.vn/') {
+          contextLines.push(`- Link xem văn bản gốc: ${doc.chinhphuDetailUrl}`);
+        }
         if (doc.snippet) contextLines.push(`- Trích yếu: ${doc.snippet}`);
         if (doc.chapterArticleSummary) contextLines.push(`- Cấu trúc chương điều & quy định chi tiết:\n${doc.chapterArticleSummary}`);
         if (doc.summary) contextLines.push(`- Tóm tắt chính sách trọng tâm: ${doc.summary}`);
@@ -4830,11 +4863,14 @@ Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ b�
    B. PHÂN TÍCH CHI TIẾT TỪNG CHƯƠNG: Điểm qua nội dung, chính sách mới, biện pháp cụ thể, quyền và nghĩa vụ theo từng chương.
 5. V. TRÁCH NHIỆM THI HÀNH & TỔ CHỨC THỰC HIỆN (Trách nhiệm bộ ngành, UBND các cấp, điều khoản chuyển tiếp).
 6. VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE:
+   ⚠️ BẮT BUỘC: Liệt kê TẤT CẢ văn bản được nhắc đến trong bài phân tích (không chỉ VB chính).
+   ⚠️ BẮT BUỘC: Sử dụng CHÍNH XÁC link tải PDF và link xem văn bản gốc đã cung cấp trong phần [CĂN CỨ PHÁP LÝ] ở trên. TUYỆT ĐỐI KHÔNG thay thế bằng link chung https://vanban.chinhphu.vn/.
+   ⚠️ Cột "Link tải File / Nguồn kiểm chứng" BẮT BUỘC chứa: [📥 Tải về (PDF)](link_pdf_đã_cung_cấp) và [🔗 Xem văn bản gốc](link_chi_tiết_đã_cung_cấp). Nếu không có link PDF, chỉ hiện link xem văn bản gốc.
    Bảng Markdown:
    | Số hiệu văn bản | Tên loại & Trích yếu văn bản | Cơ quan ban hành | Ngày ban hành / Hiệu lực | Trạng thái hiệu lực | Link tải File / Nguồn kiểm chứng |
    | :--- | :--- | :--- | :--- | :--- | :--- |
-   | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [Tải về (PDF)](URL) hoặc [Tải về Phần 1 (PDF)](URL1)<br>[Tải về Phần 2 (PDF)](URL2) |
-   Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn [Số hiệu] chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.
+   | [Số hiệu] | [Tên văn bản] | [Cơ quan] | [Ngày ban hành/hiệu lực] | [Còn hiệu lực/...] | [📥 Tải về (PDF)](URL_PDF) [🔗 Xem văn bản gốc](URL_CHI_TIẾT) |
+   Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.
 === KẾT THÚC CĂN CỨ PHÁP LÝ ===\n`);
 
       const evidenceText = contextLines.join('\n');
