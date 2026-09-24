@@ -43,6 +43,11 @@ public class MainActivity extends BridgeActivity {
             settings.setSupportMultipleWindows(true);
             settings.setJavaScriptCanOpenWindowsAutomatically(true);
 
+            // Cho phep co gian (pinch-to-zoom) tren toan bo giao dien app
+            settings.setSupportZoom(true);
+            settings.setBuiltInZoomControls(true);
+            settings.setDisplayZoomControls(false);
+
             // Loai bo "; wv" khoi User-Agent de Google OAuth khong chan embedded WebView
             String ua = settings.getUserAgentString();
             if (ua != null && ua.contains("; wv")) {

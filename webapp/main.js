@@ -479,23 +479,132 @@ async function init() {
     });
   }
 
-  // Intercept all links to keep 100% inside app (No external browser launch)
-  document.addEventListener('click', (e) => {
+  // Intercept links: PDFs → in-app download, external → in-app browser, hash → SPA
+  document.addEventListener('click', async (e) => {
     const link = e.target.closest('a');
-    if (link) {
-      if (link.target === '_blank') {
-        link.target = '_self';
+    if (!link) return;
+    const href = link.getAttribute('href');
+    if (!href) return;
+
+    // Internal SPA hash routes
+    if (href.startsWith('#')) {
+      e.preventDefault();
+      const page = href.replace(/^#\/?/, '').split('?')[0];
+      if (page) navigateTo(page);
+      return;
+    }
+
+    // External URLs (http/https)
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      e.preventDefault();
+
+      // Check if it's a downloadable file (PDF, doc, etc.)
+      const isPdfDownload = /\.(pdf|doc|docx|xls|xlsx)(\?|$)/i.test(href)
+        || link.classList.contains('doc-card-btn-download')
+        || link.textContent.includes('Tải về')
+        || link.textContent.includes('Tải PDF');
+
+      if (isPdfDownload) {
+        // Download file directly to device
+        await handleInAppDownload(href, link);
+      } else {
+        // Open web page in in-app browser
+        try {
+          const { Browser } = await import('@capacitor/browser');
+          await Browser.open({ url: href });
+        } catch (_) {
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
       }
-      const href = link.getAttribute('href');
-      if (href && href.startsWith('#')) {
-        e.preventDefault();
-        const page = href.replace(/^#/, '').split('?')[0];
-        if (page) navigateTo(page);
-      }
+      return;
     }
   }, true);
 
-  // Logo click = Home / Refresh
+  // In-app file download handler
+  async function handleInAppDownload(url, linkEl) {
+    const originalText = linkEl ? linkEl.textContent : '';
+    try {
+      // Show downloading state
+      if (linkEl) {
+        linkEl.textContent = '⏳ Đang tải...';
+        linkEl.style.pointerEvents = 'none';
+        linkEl.style.opacity = '0.6';
+      }
+      showToast('📥 Đang tải file...', 'info');
+
+      // Extract filename from URL
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      let fileName = pathParts[pathParts.length - 1] || 'document.pdf';
+      fileName = decodeURIComponent(fileName);
+      if (!/\.\w{2,5}$/.test(fileName)) fileName += '.pdf';
+
+      // Fetch the file
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+
+      // Try Capacitor Filesystem (native Android)
+      try {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+
+        // Convert blob to base64
+        const reader = new FileReader();
+        const base64Data = await new Promise((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result;
+            resolve(result.split(',')[1]); // strip data:...;base64, prefix
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        // Save to Downloads directory
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Documents,
+          recursive: true
+        });
+
+        showToast(`✅ Đã lưu: ${fileName}`, 'success');
+        console.log('File saved:', savedFile.uri);
+
+      } catch (fsError) {
+        // Fallback for web: create blob URL and trigger download
+        console.log('Filesystem plugin unavailable, using blob download:', fsError);
+        const blobUrl = URL.createObjectURL(blob);
+        const tempLink = document.createElement('a');
+        tempLink.href = blobUrl;
+        tempLink.download = fileName;
+        tempLink.style.display = 'none';
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        document.body.removeChild(tempLink);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+        showToast(`✅ Đã tải: ${fileName}`, 'success');
+      }
+    } catch (err) {
+      console.error('Download failed:', err);
+      showToast('❌ Không tải được file. Đang mở trình duyệt...', 'error');
+      // Fallback: open in browser
+      try {
+        const { Browser } = await import('@capacitor/browser');
+        await Browser.open({ url: url });
+      } catch (_) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } finally {
+      // Restore button state
+      if (linkEl) {
+        linkEl.textContent = originalText;
+        linkEl.style.pointerEvents = '';
+        linkEl.style.opacity = '';
+      }
+    }
+  }
+
+
   const logo = document.getElementById('logo-refresh');
   if (logo) {
     logo.addEventListener('click', () => {
