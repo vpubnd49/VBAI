@@ -353,7 +353,7 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           status: d.effectiveStatus === 'in_force' || d.effectiveStatus === 'co_hieu_luc' ? 'Còn hiệu lực' : (d.effectiveStatus || 'Còn hiệu lực'),
           link: /^https:\/\/(?:www\.)?vbpl\.vn(?:\/|$)/i.test(String(d.sourceUrl || d.url || d.link || ''))
             ? String(d.sourceUrl || d.url || d.link)
-            : `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`,
+            : `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(num)}`,
           pdfDownloadUrls: pdfList,
           chinhphuDetailUrl: d.chinhphuDetailUrl || (Array.isArray(d.official_source_urls) ? d.official_source_urls[0] : null) || null,
         });
@@ -406,7 +406,7 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           issuer: issuer,
           dates: 'Đang áp dụng',
           status: 'Còn hiệu lực',
-          link: `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(num)}`,
+          link: `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(num)}`,
           pdfDownloadUrls: [],
           chinhphuDetailUrl: null,
         });

@@ -105,7 +105,7 @@ export function renderEvidenceCard(doc = {}, index = 1) {
     if (doc.chinhphuDetailUrl && !isGenericUrl(doc.chinhphuDetailUrl)) {
       url = doc.chinhphuDetailUrl;
     } else if (docNumber) {
-      url = `https://vbpl.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`;
+      url = `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`;
     }
   }
 
