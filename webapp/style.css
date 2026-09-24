@@ -5534,6 +5534,9 @@ table {
 .dash-search-box {
   width: 100%;
   margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .dash-search-inner {
   display: flex;
@@ -5542,7 +5545,7 @@ table {
   background: #fff;
   border: 2px solid #00778B;
   border-radius: 12px;
-  padding: 6px 6px 6px 14px;
+  padding: 10px 14px;
   box-shadow: 0 4px 14px rgba(0, 119, 139, 0.08);
   transition: all 0.2s ease;
   box-sizing: border-box;
@@ -5572,29 +5575,41 @@ table {
   background: transparent;
   font-family: inherit;
   min-width: 0;
+  width: 100%;
 }
 .dash-search-input::placeholder {
   color: var(--pine-400, #94a3b8);
 }
-.dash-search-btn {
-  flex: 0 0 auto;
-  display: inline-flex;
+
+/* Mobile Search Button: Underneath the input box */
+.dash-search-btn-mobile {
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 20px;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 20px;
   background: #00778B;
-  color: #fff;
+  color: #FFFFFF;
   border: none;
-  border-radius: 8px;
-  font-size: 0.92rem;
-  font-weight: 600;
+  border-radius: 12px;
+  font-size: 0.98rem;
+  font-weight: 700;
   cursor: pointer;
-  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 119, 139, 0.2);
+  transition: all 0.2s ease;
   font-family: inherit;
+  box-sizing: border-box;
 }
-.dash-search-btn:hover {
+.dash-search-btn-mobile:hover, .dash-search-btn-mobile:active {
   background: #005F70;
+  transform: translateY(-1px);
+}
+
+/* Desktop Search Button: Hidden by default on mobile */
+.dash-search-btn-desktop {
+  display: none;
 }
 
 /* 5 Quick Mode Chips */
@@ -5954,7 +5969,7 @@ table {
     color: #94a3b8 !important;
     font-size: 1.05rem !important;
   }
-  .dash-search-btn {
+  .dash-search-btn-desktop {
     flex: 0 0 auto !important;
     width: auto !important;
     min-width: 140px !important;
@@ -5972,9 +5987,12 @@ table {
     cursor: pointer !important;
     transition: all 0.2s ease !important;
   }
-  .dash-search-btn:hover {
+  .dash-search-btn-desktop:hover {
     background: #005F70 !important;
     box-shadow: 0 4px 14px rgba(0, 119, 139, 0.3) !important;
+  }
+  .dash-search-btn-mobile {
+    display: none !important;
   }
   .dash-mode-chips {
     display: flex !important;
@@ -6360,6 +6378,9 @@ img, svg, video, canvas, iframe, embed, object {
 
   .dash-search-box {
     width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
     box-sizing: border-box !important;
   }
 
@@ -6367,6 +6388,7 @@ img, svg, video, canvas, iframe, embed, object {
     width: 100% !important;
     min-width: 0 !important;
     box-sizing: border-box !important;
+    padding: 10px 14px !important;
   }
 
   .dash-search-input {
@@ -6374,9 +6396,15 @@ img, svg, video, canvas, iframe, embed, object {
     width: 100% !important;
   }
 
-  .dash-search-btn {
+  .dash-search-btn-desktop {
+    display: none !important;
+  }
+
+  .dash-search-btn-mobile {
+    display: flex !important;
     width: 100% !important;
     min-height: 44px !important;
+    box-sizing: border-box !important;
   }
 
   .dash-service-grid {

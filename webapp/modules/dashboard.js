@@ -29,8 +29,12 @@ export function renderDashboard(container, navigateTo) {
               <svg class="dash-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             </span>
             <input type="text" id="home-main-search-input" class="dash-search-input" placeholder="Nhập câu hỏi, số hiệu văn bản, điều/khoản hoặc tình huống pháp lý...">
-            <button id="home-main-search-btn" class="dash-search-btn">Tra cứu ngay</button>
+            <button id="home-main-search-btn" class="dash-search-btn dash-search-btn-desktop">Tra cứu ngay</button>
           </div>
+          <button id="home-main-search-btn-mobile" class="dash-search-btn dash-search-btn-mobile">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <span>Tra cứu ngay</span>
+          </button>
         </div>
         <div class="dash-mode-chips">
           <button class="dash-chip" data-mode="legal-search">Tra cứu chung</button>
@@ -136,7 +140,9 @@ export function renderDashboard(container, navigateTo) {
     navigateTo('legal-search', q);
   };
 
-  mainBtn.addEventListener('click', executeHomeSearch);
+  container.querySelectorAll('#home-main-search-btn, #home-main-search-btn-mobile, .dash-search-btn').forEach(btn => {
+    btn.addEventListener('click', executeHomeSearch);
+  });
   mainInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') executeHomeSearch();
   });
