@@ -133,12 +133,6 @@ export function renderToolsHub(container, navigateTo) {
           Trợ lý & Kết nối
         </div>
         <div class="tools-grid">
-          <button class="tool-card" data-page="chat-assistant">
-            <div class="tool-card-icon teal">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><circle cx="9" cy="10" r="1.5" fill="currentColor"></circle><circle cx="15" cy="10" r="1.5" fill="currentColor"></circle></svg>
-            </div>
-            <span class="tool-card-name">Trợ lý AI<br>pháp luật</span>
-          </button>
           <button class="tool-card" data-page="zalo-bot">
             <div class="tool-card-icon blue">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zm4 0h3v3h-3zm-4 4h3v3h-3zm4 4h3v3h-3z"/></svg>

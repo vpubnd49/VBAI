@@ -25,13 +25,19 @@ export function renderDashboard(container, navigateTo) {
         <p class="dash-search-desc">Tìm đúng văn bản, đúng điều khoản, đúng thời điểm hiệu lực.</p>
         <div class="dash-search-box">
           <div class="dash-search-inner">
-            <svg class="dash-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="text" id="home-main-search-input" class="dash-search-input" placeholder="Nhập câu hỏi, số hiệu văn bản, điều/khoản...">
+            <span class="dash-search-icon-wrapper">
+              <svg class="dash-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </span>
+            <input type="text" id="home-main-search-input" class="dash-search-input" placeholder="Nhập câu hỏi, số hiệu văn bản, điều/khoản hoặc tình huống pháp lý...">
+            <button id="home-main-search-btn" class="dash-search-btn">Tra cứu ngay</button>
           </div>
-          <button id="home-main-search-btn" class="dash-search-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            Tra cứu
-          </button>
+        </div>
+        <div class="dash-mode-chips">
+          <button class="dash-chip" data-mode="legal-search">Tra cứu chung</button>
+          <button class="dash-chip" data-mode="document-lookup">Tìm theo số hiệu</button>
+          <button class="dash-chip" data-mode="situation-analysis">Tình huống</button>
+          <button class="dash-chip" data-mode="compare-regulations">So sánh</button>
+          <button class="dash-chip" data-mode="effective-date">Kiểm tra hiệu lực</button>
         </div>
       </section>
 
@@ -39,7 +45,7 @@ export function renderDashboard(container, navigateTo) {
       <section class="dash-services-section">
         <div class="dash-section-header">
           <h3 class="dash-section-title">Dịch vụ</h3>
-          <span class="dash-section-count">${window.isAdmin ? '8' : '7'} chức năng</span>
+          <span class="dash-section-count">${window.isAdmin ? '9' : '8'} chức năng</span>
         </div>
         <div class="dash-service-grid">
           <button class="dash-svc-btn" data-page="vb-nd30">
@@ -69,10 +75,6 @@ export function renderDashboard(container, navigateTo) {
           <button class="dash-svc-btn" data-page="meeting-minutes">
             <div class="dash-svc-icon purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg></div>
             <span>Biên bản<br>cuộc họp</span>
-          </button>
-          <button class="dash-svc-btn" data-page="chat-assistant">
-            <div class="dash-svc-icon cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><circle cx="9" cy="10" r="1.5" fill="currentColor"></circle><circle cx="15" cy="10" r="1.5" fill="currentColor"></circle></svg></div>
-            <span>Trợ lý AI<br>pháp luật</span>
           </button>
           <button class="dash-svc-btn" data-page="search-history">
             <div class="dash-svc-icon indigo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
@@ -126,15 +128,26 @@ export function renderDashboard(container, navigateTo) {
   const mainBtn = container.querySelector('#home-main-search-btn');
 
   const executeHomeSearch = () => {
-    const q = mainInput.value.trim();
-    if (!q) return;
-    window.location.hash = `#legal-search?q=${encodeURIComponent(q)}`;
+    const q = mainInput ? mainInput.value.trim() : '';
+    if (!q) {
+      if (mainInput) mainInput.focus();
+      return;
+    }
     navigateTo('legal-search', q);
   };
 
   mainBtn.addEventListener('click', executeHomeSearch);
   mainInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') executeHomeSearch();
+  });
+
+  // Bind Dashboard Mode Chips
+  container.querySelectorAll('.dash-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.mode || 'legal-search';
+      const q = mainInput ? mainInput.value.trim() : '';
+      navigateTo('legal-search', q, mode);
+    });
   });
 
   // Bind quick chips
