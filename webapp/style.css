@@ -6037,3 +6037,620 @@ table {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* ============================================================
+   VBAI UNIVERSAL MOBILE OVERFLOW SHIELD (Chống tràn toàn diện)
+   Đảm bảo không bao giờ bị tràn giao diện hay cuộn ngang trên mobile
+   ============================================================ */
+
+/* Global Media & Content Constraints */
+img, svg, video, canvas, iframe, embed, object {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  /* 1. Global Viewport & Container Locking */
+  html, body, #app {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    position: relative !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    min-width: 0 !important;
+  }
+
+  .page-content {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    padding: 8px 8px calc(env(safe-area-inset-bottom, 0px) + 78px) 8px !important;
+  }
+
+  /* 2. Text & Content Word Break */
+  *, *::before, *::after {
+    box-sizing: border-box !important;
+  }
+
+  p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label {
+    overflow-wrap: break-word !important;
+    word-break: break-word;
+  }
+
+  a {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  pre, code {
+    max-width: 100% !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* 3. Global Table Horizontal Scroll Protection */
+  table {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 4. Form inputs, textareas, selects */
+  input, select, textarea, button {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 5. Top Bar & Header Protection */
+  .top-bar {
+    width: 100% !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+    padding: calc(env(safe-area-inset-top, 0px) + 6px) 10px 6px 10px !important;
+    gap: 8px !important;
+  }
+
+  .breadcrumb {
+    max-width: 140px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .navbar-user-info {
+    max-width: 36px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .navbar-user-details,
+  .navbar-user-meta {
+    display: none !important;
+  }
+
+  /* 6. Dashboard & Services Catalog */
+  .dash-wrapper {
+    max-width: 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding: 0 2px !important;
+  }
+
+  .dash-search-box {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-search-inner {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-search-input {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .dash-search-btn {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  .dash-service-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  .dash-contact-section {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .dash-contact-body {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .dash-contact-links {
+    display: flex !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .dash-contact-links .dash-link {
+    flex: 1 1 50% !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+
+  /* 7. Tra cứu Pháp luật (Legal Search) */
+  .legal-search-two-panel {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .legal-main-panel,
+  .legal-side-evidence-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .legal-search-box-unified {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .legal-input-row-modern {
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .legal-search-input-field {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .legal-file-attach-btn {
+    width: 100% !important;
+    min-height: 40px !important;
+    box-sizing: border-box !important;
+    justify-content: center !important;
+  }
+
+  .legal-search-submit-btn {
+    width: 100% !important;
+    min-height: 46px !important;
+    box-sizing: border-box !important;
+  }
+
+  .legal-mode-chips {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    width: 100% !important;
+  }
+
+  .mode-chip {
+    font-size: 0.70rem !important;
+    padding: 4px 8px !important;
+    white-space: nowrap !important;
+  }
+
+  .legal-kv-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    width: 100% !important;
+  }
+
+  .kv-label,
+  .kv-value {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .legal-diagram-box {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+
+  .legal-timeline,
+  .legal-hierarchy,
+  .document-lookup-result-card {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 8. Chat Assistant */
+  .chat-full-layout {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  #chat-sidebar {
+    width: 100% !important;
+    max-height: 80px !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-subtle, #cbd5e1) !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+  }
+
+  .chat-assistant-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .chat-messages-area {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+    padding: 10px !important;
+  }
+
+  .chat-msg {
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    box-sizing: border-box !important;
+  }
+
+  .chat-msg table {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .chat-table-wrap {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .chat-compare-table {
+    min-width: 480px !important;
+    width: 100% !important;
+  }
+
+  .chat-input-wrapper {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .chat-input-field {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    order: 1 !important;
+    box-sizing: border-box !important;
+  }
+
+  .chat-input-wrapper > button {
+    order: 2 !important;
+  }
+
+  .chat-send-btn {
+    flex: 1 !important;
+    order: 2 !important;
+    justify-content: center !important;
+  }
+
+  #chat-attach-btn,
+  .chat-send-btn {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  /* 9. Spell Check & Thể thức */
+  .sc-summary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .sc-preview-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .sc-preview-col {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .sc-preview-box {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 10. Document Drafting (NĐ30, HD05, Docx Tool) */
+  .steps-bar {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .form-group,
+  .form-group.span-2 {
+    grid-column: span 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .preview-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 14px 10px !important;
+    font-size: 10.5pt !important;
+  }
+
+  .preview-header-table {
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  .preview-header-table td {
+    font-size: 9.5pt !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    padding: 2px 4px !important;
+  }
+
+  .btn-row {
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .btn-row .btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* 11. PDF Publisher */
+  .pdf-publisher-container {
+    flex-direction: column !important;
+    height: auto !important;
+    gap: 14px !important;
+    width: 100% !important;
+    padding-bottom: 20px !important;
+  }
+
+  .editor-pane,
+  .preview-pane {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: none !important;
+    min-height: 320px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 12. Search History (Lịch sử tra cứu) */
+  .sh-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .sh-header-actions {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .sh-action-btn {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .sh-filter-bar {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .sh-search-wrapper,
+  .sh-mode-select {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .sh-table-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .sh-table-scroll {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .sh-table {
+    min-width: 520px !important;
+    width: 100% !important;
+  }
+
+  /* 13. Admin Panel */
+  .admin-tab-nav {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    box-sizing: border-box !important;
+  }
+
+  .admin-tab-btn {
+    white-space: nowrap !important;
+    padding: 10px 14px !important;
+    font-size: 0.82rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .panel-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 12px 14px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .config-key-row {
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .config-key-input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .config-key-actions {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .config-key-actions .btn {
+    width: 100% !important;
+    padding: 8px 4px !important;
+    font-size: 0.76rem !important;
+    justify-content: center !important;
+  }
+
+  .panel-body[style*="overflow-x:auto"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* 14. Tools Hub */
+  .tools-hub-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 12px 8px 80px 8px !important;
+  }
+
+  .tools-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .tool-card {
+    padding: 12px 4px 10px 4px !important;
+    min-height: 84px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 15. Zalo Bot Page */
+  .zalobot-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 0 8px 30px !important;
+  }
+
+  .zalobot-main {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .zalobot-features-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+}
+
+/* Extra small devices (<= 380px) */
+@media (max-width: 380px) {
+  .dash-service-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .tools-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .sc-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .sh-action-btn {
+    flex: 1 1 100% !important;
+  }
+}
+
