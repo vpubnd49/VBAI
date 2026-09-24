@@ -293,6 +293,97 @@ async function verifyPdfUrl(url) {
 }
 
 // ──────────────────────────────────────────────
+// vanban.chinhphu.vn PostBack Search
+// ──────────────────────────────────────────────
+
+/**
+ * Search vanban.chinhphu.vn using ASP.NET PostBack.
+ * Returns { docid, detailUrl, pdfUrl, title, documentNumber, issueDate } or null.
+ */
+async function searchVanbanChinhphu(keyword = '') {
+  if (!keyword) return null;
+  const cacheKey = `vanban:search:${String(keyword).trim().toLowerCase()}`;
+  const cached = _getCached(cacheKey);
+  if (cached) return cached;
+
+  try {
+    // Step 1: GET the page to obtain VIEWSTATE
+    const pageUrl = 'https://vanban.chinhphu.vn/';
+    const resp1 = await _fetchSafe(pageUrl);
+    if (!resp1.ok) return null;
+    const html1 = await resp1.text();
+
+    const vsMatch = html1.match(/name="__VIEWSTATE"[^>]*value="([^"]*)"/);
+    const evMatch = html1.match(/name="__EVENTVALIDATION"[^>]*value="([^"]*)"/);
+    const vsgMatch = html1.match(/name="__VIEWSTATEGENERATOR"[^>]*value="([^"]*)"/);
+    if (!vsMatch) return null;
+
+    // Step 2: POST search
+    const params = new URLSearchParams();
+    params.append('__VIEWSTATE', vsMatch[1]);
+    params.append('__EVENTVALIDATION', evMatch ? evMatch[1] : '');
+    params.append('__VIEWSTATEGENERATOR', vsgMatch ? vsgMatch[1] : '');
+    params.append('__VIEWSTATEENCRYPTED', '');
+    params.append('ctrl_191017_163$txtSearchKeyword', keyword);
+    params.append('ctrl_191017_163$btnSearch', 'Tìm kiếm');
+    params.append('ctrl_191017_163$hidIsSearch', '1');
+    params.append('ctrl_191017_163$drdRecordPerPage', '50');
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    try {
+      const resp2 = await fetch(pageUrl, {
+        method: 'POST',
+        body: params.toString(),
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'VBAI-LegalBot/1.0 (+https://vbai.tracuu.lamdong.vn)',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'text/html',
+          'Referer': pageUrl,
+        },
+      });
+      clearTimeout(timer);
+      if (!resp2.ok) return null;
+
+      const html2 = await resp2.text();
+
+      // Parse results
+      const docidMatches = html2.match(/pageid=27160[^"']*docid=(\d+)/);
+      if (!docidMatches) return null;
+
+      const docid = docidMatches[1];
+      const codeMatch = html2.match(/<span\s+class="code"[^>]*>([^<]+)<\/span>/);
+      const titleMatch = html2.match(/<span\s+class="substract"[^>]*>([^<]+)<\/span>/);
+      const dateMatch = html2.match(/<span\s+class="(?:issue-v2|issued-date)"[^>]*>([^<]+)<\/span>/);
+      const pdfMatch = html2.match(/href="(https:\/\/datafiles\.chinhphu\.vn\/[^"]+\.pdf)"/);
+
+      const result = {
+        docid,
+        documentNumber: codeMatch ? codeMatch[1].trim() : keyword,
+        title: titleMatch ? titleMatch[1].trim() : '',
+        issueDate: dateMatch ? dateMatch[1].trim() : '',
+        pdfUrl: pdfMatch ? pdfMatch[1] : null,
+        pdfVerified: Boolean(pdfMatch),
+        detailUrl: `https://vanban.chinhphu.vn/default.aspx?pageid=${CHINHPHU_DETAIL_PAGEID}&docid=${docid}`,
+        source: 'vanban_chinhphu',
+        sourceUrl: `https://vanban.chinhphu.vn/default.aspx?pageid=${CHINHPHU_DETAIL_PAGEID}&docid=${docid}`,
+      };
+
+      _setCache(cacheKey, result);
+      console.log(`[chinhphu-crawler] vanban.chinhphu.vn search: found ${result.documentNumber} → docid=${docid}, pdf=${Boolean(pdfMatch)}`);
+      return result;
+    } catch (e) {
+      clearTimeout(timer);
+      throw e;
+    }
+  } catch (err) {
+    console.warn(`[chinhphu-crawler] vanban.chinhphu.vn search error:`, err.message);
+    return null;
+  }
+}
+
+// ──────────────────────────────────────────────
 // Public API
 // ──────────────────────────────────────────────
 
@@ -430,6 +521,23 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
     }
   }
 
+  // Strategy 2.7: Search vanban.chinhphu.vn via PostBack (most reliable for any document number)
+  try {
+    const vanbanResult = await searchVanbanChinhphu(docNumber);
+    if (vanbanResult && (vanbanResult.pdfUrl || vanbanResult.detailUrl)) {
+      return {
+        documentNumber: docNumber,
+        title: vanbanResult.title || opts.title || `Văn bản số ${docNumber}`,
+        issueDate: vanbanResult.issueDate || opts.issueDate || null,
+        pdfUrl: vanbanResult.pdfUrl || null,
+        pdfVerified: vanbanResult.pdfVerified || false,
+        detailUrl: vanbanResult.detailUrl,
+        source: 'vanban_chinhphu',
+        sourceUrl: vanbanResult.sourceUrl || vanbanResult.detailUrl,
+      };
+    }
+  } catch (_) {}
+
   // Strategy 3: Predict PDF URL if we have issue date (only if verified via HTTP HEAD)
   const issueDate = opts.issueDate || opts.issue_date || null;
   if (issueDate) {
@@ -487,6 +595,7 @@ module.exports = {
   parseDetailHtml,
   fetchChinhphuDocuments,
   fetchChinhphuDocumentDetail,
+  searchVanbanChinhphu,
   resolveChinhphuDocument,
   verifyPdfUrl,
 };
