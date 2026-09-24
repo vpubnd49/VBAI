@@ -48,12 +48,9 @@ function _setCache(key, data) {
 // ──────────────────────────────────────────────
 
 function buildChinhphuSearchUrl(keyword = '') {
-  // The chinhphu.vn search is PostBack-based, but the listing page URL is stable
   const value = String(keyword || '').trim();
-  if (!value) return `${CHINHPHU_BASE}${CHINHPHU_LISTING_PAGE}`;
-  // For keyword search, we still link to the listing page
-  // (actual search requires PostBack, user will need to search manually)
-  return `${CHINHPHU_BASE}${CHINHPHU_LISTING_PAGE}`;
+  if (!value) return 'https://vanban.chinhphu.vn/';
+  return `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(value)}`;
 }
 
 function buildChinhphuDetailUrl(docid = '') {
