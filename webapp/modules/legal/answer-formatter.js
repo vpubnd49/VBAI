@@ -553,6 +553,47 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
     `;
   }).join('');
 
+  const cardsHtml = allDocs.map((doc) => {
+    const linksHtml = [];
+    const pdfUrls = doc.pdfDownloadUrls || [];
+
+    if (pdfUrls.length > 1) {
+      pdfUrls.forEach((url, i) => {
+        linksHtml.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-download">📥 Tải PDF Phần ${i + 1}</a>`);
+      });
+    } else if (pdfUrls.length === 1) {
+      linksHtml.push(`<a href="${pdfUrls[0]}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-download">📥 Tải về (PDF)</a>`);
+    }
+
+    if (doc.chinhphuDetailUrl) {
+      linksHtml.push(`<a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-view">🔗 Xem văn bản gốc</a>`);
+    } else if (doc.link) {
+      linksHtml.push(`<a href="${doc.link}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-view">🔗 Cổng TTĐT Chính phủ</a>`);
+    }
+
+    const needsResolve = pdfUrls.length === 0 && doc.number;
+    const resolveAttr = needsResolve ? ` data-resolve-doc="${escapeHtml(doc.number)}"` : '';
+
+    return `
+      <div class="legal-doc-mobile-card">
+        <div class="doc-mobile-header">
+          <span class="doc-mobile-num">📜 ${formatInlineMarkdown(doc.number)}</span>
+          <span class="doc-mobile-status">${formatInlineMarkdown(doc.status)}</span>
+        </div>
+        <div class="doc-mobile-title">${formatInlineMarkdown(doc.title)}</div>
+        <div class="doc-mobile-meta">
+          <div class="meta-item"><span>🏛️ Cơ quan ban hành:</span> <strong>${formatInlineMarkdown(doc.issuer)}</strong></div>
+          <div class="meta-item"><span>📅 Ngày ban hành / Hiệu lực:</span> <strong>${doc.dates}</strong></div>
+        </div>
+        <div class="doc-mobile-actions"${resolveAttr}>
+          <div class="doc-actions-inner">
+            ${linksHtml.join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
   const mainDoc = allDocs[0];
   const mainDocTitle = mainDoc?.title || 'văn bản';
   const mainDocNum = mainDoc?.number ? `số ${mainDoc.number}` : '';
@@ -563,10 +604,12 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
     </div>
     <div class="chat-compare-card legal-table-card">
       <div class="chat-compare-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-        <span>📊 Bảng danh mục trích dẫn văn bản chính thức</span>
+        <span>📊 Danh mục trích dẫn chính thức (${allDocs.length} văn bản)</span>
         <span class="mobile-table-scroll-hint" style="font-size:0.75rem; font-weight:normal; color:#0d9488;">👉 Vuốt ngang để xem thêm &amp; tải file</span>
       </div>
-      <div class="chat-table-wrap legal-grid-wrapper">
+
+      <!-- Desktop Table View -->
+      <div class="desktop-citation-table chat-table-wrap legal-grid-wrapper">
         <table class="chat-compare-table legal-grid-table">
           <thead>
             <tr>
@@ -583,38 +626,43 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           </tbody>
         </table>
       </div>
+
+      <!-- Mobile Clean Card View (no clipping, full width, easy touch targets) -->
+      <div class="mobile-citation-cards">
+        ${cardsHtml}
+      </div>
     </div>
     <p style="margin-top:10px;font-size:12px;color:var(--text-muted,#6c757d);font-style:italic">
-      Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF ở bảng trên để tải trọn bộ file nguyên văn ${escapeHtml(mainDocTitle)} ${escapeHtml(mainDocNum)} chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.
+      Ghi chú: Bạn có thể bấm trực tiếp vào liên kết PDF để tải trọn bộ file nguyên văn ${escapeHtml(mainDocTitle)} ${escapeHtml(mainDocNum)} chính thức từ Cổng Thông tin điện tử Chính phủ Việt Nam.
     </p>
   `;
 }
 
 /**
  * Call after buildCitationTable HTML is inserted into the DOM.
- * Finds all td[data-resolve-doc] cells and resolves PDF/detail URLs.
+ * Finds all [data-resolve-doc] elements (table cells or mobile cards) and resolves PDF/detail URLs.
  */
 export function resolveDocLinks() {
-  const cells = document.querySelectorAll('td[data-resolve-doc]');
+  const cells = document.querySelectorAll('[data-resolve-doc]');
   cells.forEach(cell => {
     const docNum = cell.getAttribute('data-resolve-doc');
     if (!docNum) return;
     cell.removeAttribute('data-resolve-doc');
-    const div = cell.querySelector('div');
-    if (div) div.innerHTML = '<span style="color:#94a3b8;font-size:12px;">⏳ Đang tra cứu...</span>';
+    const div = cell.querySelector('.doc-actions-inner') || cell.querySelector('div') || cell;
+    div.innerHTML = '<span style="color:#94a3b8;font-size:12px;">⏳ Đang tra cứu link tải...</span>';
     fetch('/api/legal/resolve-doc?docNumber=' + encodeURIComponent(docNum))
       .then(r => r.json())
       .then(d => {
         if (!d.ok || !div) return;
         const links = [];
         if (d.pdfUrl) {
-          links.push(`<a href="${d.pdfUrl}" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#0d9488;">📥 Tải về (PDF)</a>`);
+          links.push(`<a href="${d.pdfUrl}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-download" style="color:#ffffff;">📥 Tải về (PDF)</a>`);
         }
         if (d.chinhphuDetailUrl) {
-          links.push(`<a href="${d.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Xem văn bản gốc</a>`);
+          links.push(`<a href="${d.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-view">🔗 Xem văn bản gốc</a>`);
         }
         if (links.length === 0) {
-          links.push('<a href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Cổng TTĐT Chính phủ</a>');
+          links.push('<a href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-view">🔗 Cổng TTĐT Chính phủ</a>');
         }
         div.innerHTML = links.join('');
       })

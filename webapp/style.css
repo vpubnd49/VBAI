@@ -2768,11 +2768,17 @@ a.chat-inline-link::after {
   box-shadow: var(--shadow-sm);
 }
 
-.legal-query-input-row {
+.legal-search-box-unified {
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  align-items: stretch;
   margin-bottom: 12px;
+}
+
+.legal-input-row-modern {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
 }
 
 .legal-search-input-field {
@@ -2789,33 +2795,48 @@ a.chat-inline-link::after {
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-.legal-query-actions {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-  flex-shrink: 0;
+.legal-file-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  background: #ffffff;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
 }
 
-.legal-file-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.84rem;
-  padding: 0 14px;
-  white-space: nowrap;
+.legal-file-attach-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
 }
 
 .legal-search-submit-btn {
   padding: 12px 20px;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: var(--brand-primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-md);
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #00778B, #00A6B8) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--radius-md) !important;
   cursor: pointer;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 12px rgba(0, 119, 139, 0.24);
+  transition: all 0.25s ease;
+}
+
+.legal-search-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 119, 139, 0.35);
 }
 
 .search-submit-icon {
@@ -3269,30 +3290,115 @@ a.chat-inline-link::after {
   background: #e6fffa !important;
 }
 
-/* Mobile Sticky First Column so Document Number is always readable while scrolling */
+/* Citation Display: Desktop Table vs Mobile Cards */
+.desktop-citation-table {
+  display: block;
+}
+
+.mobile-citation-cards {
+  display: none;
+}
+
 @media (max-width: 768px) {
+  .desktop-citation-table {
+    display: none !important;
+  }
+
   .mobile-table-scroll-hint {
-    display: inline-block !important;
+    display: none !important;
   }
-  .legal-grid-table th:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 4;
-    background: #e6fffa !important;
-    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.08);
+
+  .mobile-citation-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
   }
-  .legal-grid-table td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 3;
-    background: #ffffff !important;
-    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.08);
+
+  .legal-doc-mobile-card {
+    background: #ffffff;
+    border: 1.5px solid #008ca1;
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 2px 8px rgba(0, 140, 161, 0.08);
   }
-  .legal-grid-table tbody tr:nth-child(even) td:first-child {
-    background: #f8fafc !important;
+
+  .doc-mobile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
   }
-  .legal-grid-table tbody tr:hover td:first-child {
-    background: #e6fffa !important;
+
+  .doc-mobile-num {
+    font-weight: 700;
+    color: var(--brand-primary, #008ca1);
+    font-size: 0.92rem;
+  }
+
+  .doc-mobile-status {
+    font-size: 0.76rem;
+  }
+
+  .doc-mobile-title {
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: #1e293b;
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  .doc-mobile-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: #475569;
+    margin-bottom: 12px;
+    background: #f8fafc;
+    padding: 8px 10px;
+    border-radius: 8px;
+  }
+
+  .doc-mobile-meta .meta-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .doc-mobile-actions,
+  .doc-actions-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .doc-card-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .doc-card-btn-download {
+    background: #0d9488 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25);
+  }
+
+  .doc-card-btn-view {
+    background: #f0fdfa !important;
+    color: #0f766e !important;
+    border: 1px solid #99f6e4;
   }
 }
 
@@ -4075,20 +4181,6 @@ table {
     font-size: 0.58rem;
   }
 
-  @media (max-width: 480px) {
-    .navbar-user-details {
-      display: none !important;
-    }
-    .navbar-user-info {
-      max-width: 36px !important;
-      padding: 2px !important;
-      background: transparent !important;
-      border: none !important;
-    }
-    .breadcrumb-item {
-      max-width: 160px !important;
-    }
-  }
 
   /* Legal Home Hero */
   .legal-home-wrapper {
@@ -4211,42 +4303,59 @@ table {
     padding: 10px;
   }
 
-  .legal-query-input-row {
-    flex-direction: column !important;
-    gap: 8px !important;
+  .legal-search-box-unified {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .legal-input-row-modern {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .legal-search-input-field {
     width: 100% !important;
-    flex: 1 1 100% !important;
-    font-size: 0.88rem !important;
-    padding: 10px 12px !important;
-    min-height: 40px;
+    font-size: 0.9rem !important;
+    padding: 11px 12px !important;
+    min-height: 42px;
+    box-sizing: border-box;
   }
 
-  .legal-query-actions {
-    display: flex !important;
-    gap: 8px !important;
+  .legal-file-attach-btn {
     width: 100% !important;
-  }
-
-  #legal-file-btn,
-  .legal-file-btn {
-    flex: 1 1 42% !important;
-    min-height: 42px !important;
+    min-height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
     justify-content: center !important;
-    font-size: 0.82rem !important;
-    padding: 0 10px !important;
-    white-space: nowrap;
+    font-size: 0.84rem !important;
+    padding: 8px 12px !important;
+    box-sizing: border-box;
+    background: #ffffff;
+    border: 1.5px solid var(--border-default, #cbd5e1);
+    border-radius: var(--radius-md, 10px);
+    color: #475569;
+    font-weight: 500;
   }
 
   .legal-search-submit-btn {
-    flex: 1 1 58% !important;
-    width: auto !important;
-    min-height: 42px !important;
+    width: 100% !important;
+    min-height: 46px !important;
+    display: flex !important;
+    align-items: center !important;
     justify-content: center !important;
-    padding: 8px 14px !important;
-    font-size: 0.88rem !important;
+    gap: 8px;
+    padding: 10px 16px !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    box-sizing: border-box;
+    background: linear-gradient(135deg, #00778B, #00A6B8) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: var(--radius-md, 10px) !important;
+    box-shadow: 0 4px 12px rgba(0, 119, 139, 0.25);
   }
 
   .legal-mode-chips {
@@ -4530,22 +4639,19 @@ table {
     font-size: 0.6rem;
   }
 
-  .legal-query-actions {
-    display: flex !important;
-    gap: 6px !important;
+  .navbar-user-details {
+    display: none !important;
   }
 
-  #legal-file-btn,
-  .legal-file-btn {
-    flex: 1 1 42% !important;
-    font-size: 0.78rem !important;
-    padding: 0 6px !important;
+  .navbar-user-info {
+    max-width: 36px !important;
+    padding: 2px !important;
+    background: transparent !important;
+    border: none !important;
   }
 
-  .legal-search-submit-btn {
-    flex: 1 1 58% !important;
-    font-size: 0.84rem !important;
-    padding: 6px 10px !important;
+  .breadcrumb-item {
+    max-width: 160px !important;
   }
 
   .config-key-actions {

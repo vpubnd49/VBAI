@@ -57,24 +57,24 @@ export async function renderLegalSearchUI(container, initialMode = 'legal-search
         <!-- LEFT PANEL: Query Input + Answer Display -->
         <div class="legal-main-panel">
           <div class="legal-query-box-card">
-            <div class="legal-query-input-row">
-              <input 
-                type="text" 
-                id="legal-search-input" 
-                class="legal-search-input-field" 
-                placeholder="${getPlaceholderForMode(currentSearchState.mode)}"
-                value="${escapeAttribute(currentSearchState.query)}"
-              >
-              <div class="legal-query-actions">
-                <button type="button" id="legal-file-btn" class="btn btn-secondary legal-file-btn" title="Đính kèm file Word, Excel, PDF để đối chiếu quy định pháp luật">
+            <div class="legal-search-box-unified">
+              <div class="legal-input-row-modern">
+                <input 
+                  type="text" 
+                  id="legal-search-input" 
+                  class="legal-search-input-field" 
+                  placeholder="${getPlaceholderForMode(currentSearchState.mode)}"
+                  value="${escapeAttribute(currentSearchState.query)}"
+                >
+                <button type="button" id="legal-file-btn" class="legal-file-attach-btn" title="Đính kèm file Word, Excel, PDF để đối chiếu quy định">
                   <span>📎 Đính kèm tệp</span>
                 </button>
                 <input type="file" id="legal-file-input" accept=".docx,.doc,.xlsx,.xls,.csv,.pdf,.txt,.json" style="display:none;">
-                <button id="legal-search-btn" class="btn btn-primary legal-search-submit-btn">
-                  <span class="search-submit-icon">🔍</span>
-                  <span>Tra cứu</span>
-                </button>
               </div>
+              <button id="legal-search-btn" class="btn btn-primary legal-search-submit-btn">
+                <span class="search-submit-icon">🔍</span>
+                <span>Tra cứu Pháp luật</span>
+              </button>
             </div>
             <div id="legal-file-preview" style="display:none; margin: 8px 0; padding: 6px 12px; background: var(--surface-soft, #f1f5f9); border-radius: 8px; border: 1px dashed var(--border-default, #cbd5e1); font-size: 0.8rem; align-items: center; justify-content: space-between;"></div>
 
