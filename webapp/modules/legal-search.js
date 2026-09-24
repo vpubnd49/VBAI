@@ -65,14 +65,16 @@ export async function renderLegalSearchUI(container, initialMode = 'legal-search
                 placeholder="${getPlaceholderForMode(currentSearchState.mode)}"
                 value="${escapeAttribute(currentSearchState.query)}"
               >
-              <button type="button" id="legal-file-btn" class="btn btn-secondary" title="Đính kèm file Word, Excel, PDF để đối chiếu quy định pháp luật" style="display:flex; align-items:center; gap:4px; font-size:0.82rem; padding:0 12px; white-space:nowrap;">
-                <span>📎 Đính kèm tệp</span>
-              </button>
-              <input type="file" id="legal-file-input" accept=".docx,.doc,.xlsx,.xls,.csv,.pdf,.txt,.json" style="display:none;">
-              <button id="legal-search-btn" class="btn btn-primary legal-search-submit-btn">
-                <span class="btn-icon">🔍</span>
-                <span>Tra cứu</span>
-              </button>
+              <div class="legal-query-actions">
+                <button type="button" id="legal-file-btn" class="btn btn-secondary legal-file-btn" title="Đính kèm file Word, Excel, PDF để đối chiếu quy định pháp luật">
+                  <span>📎 Đính kèm tệp</span>
+                </button>
+                <input type="file" id="legal-file-input" accept=".docx,.doc,.xlsx,.xls,.csv,.pdf,.txt,.json" style="display:none;">
+                <button id="legal-search-btn" class="btn btn-primary legal-search-submit-btn">
+                  <span class="search-submit-icon">🔍</span>
+                  <span>Tra cứu</span>
+                </button>
+              </div>
             </div>
             <div id="legal-file-preview" style="display:none; margin: 8px 0; padding: 6px 12px; background: var(--surface-soft, #f1f5f9); border-radius: 8px; border: 1px dashed var(--border-default, #cbd5e1); font-size: 0.8rem; align-items: center; justify-content: space-between;"></div>
 

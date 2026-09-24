@@ -561,18 +561,21 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
     <div class="legal-section-header" style="margin-top:28px; margin-bottom:12px;">
       <h3 class="legal-section-heading">VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE</h3>
     </div>
-    <div class="chat-compare-card">
-      <div class="chat-compare-title">📊 Bảng danh mục trích dẫn văn bản chính thức</div>
+    <div class="chat-compare-card legal-table-card">
+      <div class="chat-compare-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+        <span>📊 Bảng danh mục trích dẫn văn bản chính thức</span>
+        <span class="mobile-table-scroll-hint" style="font-size:0.75rem; font-weight:normal; color:#0d9488;">👉 Vuốt ngang để xem thêm &amp; tải file</span>
+      </div>
       <div class="chat-table-wrap legal-grid-wrapper">
         <table class="chat-compare-table legal-grid-table">
           <thead>
             <tr>
-              <th style="width: 15%;">Số hiệu văn bản</th>
-              <th style="width: 32%;">Tên loại & Trích yếu văn bản</th>
-              <th style="width: 13%;">Cơ quan ban hành</th>
-              <th style="width: 14%;">Ngày ban hành / Hiệu lực</th>
-              <th style="width: 11%;">Trạng thái hiệu lực</th>
-              <th style="width: 15%;">Link tải File / Nguồn kiểm chứng</th>
+              <th style="min-width: 110px; width: 15%;">Số hiệu văn bản</th>
+              <th style="min-width: 220px; width: 32%;">Tên loại & Trích yếu văn bản</th>
+              <th style="min-width: 100px; width: 13%;">Cơ quan ban hành</th>
+              <th style="min-width: 110px; width: 14%;">Ngày ban hành / Hiệu lực</th>
+              <th style="min-width: 100px; width: 11%;">Trạng thái hiệu lực</th>
+              <th style="min-width: 150px; width: 15%;">Link tải File / Nguồn kiểm chứng</th>
             </tr>
           </thead>
           <tbody>

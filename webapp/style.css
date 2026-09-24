@@ -2771,6 +2771,7 @@ a.chat-inline-link::after {
 .legal-query-input-row {
   display: flex;
   gap: 10px;
+  align-items: stretch;
   margin-bottom: 12px;
 }
 
@@ -2788,6 +2789,22 @@ a.chat-inline-link::after {
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+.legal-query-actions {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.legal-file-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.84rem;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
 .legal-search-submit-btn {
   padding: 12px 20px;
   font-weight: 600;
@@ -2799,6 +2816,12 @@ a.chat-inline-link::after {
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
+}
+
+.search-submit-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1rem;
 }
 
 .legal-mode-chips {
@@ -3183,7 +3206,19 @@ a.chat-inline-link::after {
 }
 
 /* Distinct Grid Table Styling (Kẻ ô chuyên nghiệp) */
+.legal-table-card {
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.mobile-table-scroll-hint {
+  display: none;
+}
+
 .legal-grid-wrapper {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
   border: 1.5px solid #008ca1 !important;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 140, 161, 0.08);
@@ -3192,26 +3227,38 @@ a.chat-inline-link::after {
 }
 
 .legal-grid-table {
-  border-collapse: collapse !important;
+  border-collapse: separate !important;
+  border-spacing: 0;
   width: 100%;
+  min-width: 700px;
 }
 
 .legal-grid-table th {
   background: #f0fdfa !important;
   color: #0f766e !important;
   font-weight: 700 !important;
-  border: 1px solid #99f6e4 !important;
+  border-bottom: 1.5px solid #0d9488 !important;
+  border-right: 1px solid #99f6e4 !important;
+  border-top: 1px solid #99f6e4 !important;
   padding: 11px 12px !important;
-  font-size: 0.88rem;
-  white-space: nowrap;
+  font-size: 0.86rem;
+}
+
+.legal-grid-table th:first-child {
+  border-left: 1px solid #99f6e4 !important;
 }
 
 .legal-grid-table td {
-  border: 1px solid #cbd5e1 !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  border-right: 1px solid #cbd5e1 !important;
   padding: 10px 12px !important;
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   color: #1e293b;
-  vertical-align: middle;
+  vertical-align: top;
+}
+
+.legal-grid-table td:first-child {
+  border-left: 1px solid #cbd5e1 !important;
 }
 
 .legal-grid-table tbody tr:nth-child(even) {
@@ -3220,6 +3267,33 @@ a.chat-inline-link::after {
 
 .legal-grid-table tbody tr:hover {
   background: #e6fffa !important;
+}
+
+/* Mobile Sticky First Column so Document Number is always readable while scrolling */
+@media (max-width: 768px) {
+  .mobile-table-scroll-hint {
+    display: inline-block !important;
+  }
+  .legal-grid-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    background: #e6fffa !important;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.08);
+  }
+  .legal-grid-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: #ffffff !important;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.08);
+  }
+  .legal-grid-table tbody tr:nth-child(even) td:first-child {
+    background: #f8fafc !important;
+  }
+  .legal-grid-table tbody tr:hover td:first-child {
+    background: #e6fffa !important;
+  }
 }
 
 .legal-bullet-list {
@@ -4001,6 +4075,21 @@ table {
     font-size: 0.58rem;
   }
 
+  @media (max-width: 480px) {
+    .navbar-user-details {
+      display: none !important;
+    }
+    .navbar-user-info {
+      max-width: 36px !important;
+      padding: 2px !important;
+      background: transparent !important;
+      border: none !important;
+    }
+    .breadcrumb-item {
+      max-width: 160px !important;
+    }
+  }
+
   /* Legal Home Hero */
   .legal-home-wrapper {
     padding: 0 4px;
@@ -4124,29 +4213,39 @@ table {
 
   .legal-query-input-row {
     flex-direction: column !important;
-    gap: 6px !important;
+    gap: 8px !important;
   }
 
   .legal-search-input-field {
     width: 100% !important;
     flex: 1 1 100% !important;
-    font-size: 0.85rem !important;
-    padding: 9px 12px !important;
-    min-height: 38px;
+    font-size: 0.88rem !important;
+    padding: 10px 12px !important;
+    min-height: 40px;
   }
 
-  #legal-file-btn {
-    min-height: 36px !important;
+  .legal-query-actions {
+    display: flex !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  #legal-file-btn,
+  .legal-file-btn {
+    flex: 1 1 42% !important;
+    min-height: 42px !important;
     justify-content: center !important;
-    font-size: 0.78rem !important;
+    font-size: 0.82rem !important;
     padding: 0 10px !important;
+    white-space: nowrap;
   }
 
   .legal-search-submit-btn {
-    width: 100% !important;
-    min-height: 40px !important;
+    flex: 1 1 58% !important;
+    width: auto !important;
+    min-height: 42px !important;
     justify-content: center !important;
-    padding: 8px 16px !important;
+    padding: 8px 14px !important;
     font-size: 0.88rem !important;
   }
 
@@ -4431,10 +4530,22 @@ table {
     font-size: 0.6rem;
   }
 
+  .legal-query-actions {
+    display: flex !important;
+    gap: 6px !important;
+  }
+
   #legal-file-btn,
+  .legal-file-btn {
+    flex: 1 1 42% !important;
+    font-size: 0.78rem !important;
+    padding: 0 6px !important;
+  }
+
   .legal-search-submit-btn {
-    flex: 1 1 100% !important;
-    width: 100% !important;
+    flex: 1 1 58% !important;
+    font-size: 0.84rem !important;
+    padding: 6px 10px !important;
   }
 
   .config-key-actions {
