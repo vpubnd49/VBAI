@@ -105,7 +105,7 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
       results.push({
         title: hotItem.title || metaDoc.title || `Văn bản số ${docNumber}`,
         snippet: hotItem.snippet || `Văn bản quy phạm pháp luật số ${docNumber}`,
-        link: hotItem.sourceUrl || metaDoc.sourceUrl || `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`,
+        link: hotItem.sourceUrl || metaDoc.sourceUrl || `https://vanban.chinhphu.vn/`,
         source: 'hot_index',
         documentNumber: docNumber,
         issuer: hotItem.issuer || metaDoc?.issuer || (knownDoc && knownDoc.issuer) || null,
@@ -148,7 +148,7 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
       results.push({
         title: `Không tìm thấy văn bản số ${docNumber}`,
         snippet: `Hệ thống cơ sở dữ liệu văn bản pháp luật quốc gia không ghi nhận văn bản số ${docNumber}. Số hiệu văn bản này không tồn tại trong hệ thống pháp luật Việt Nam hoặc chưa được ban hành.`,
-        link: `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(docNumber)}`,
+        link: `https://vanban.chinhphu.vn/`,
         source: 'reference',
         documentNumber: docNumber,
         issuer: null,
@@ -165,7 +165,7 @@ async function orchestrateLegalSearch({ query, forceFresh = false, mode = 'cse_w
     results.push({
       title: `Cổng Văn bản Quy phạm Pháp luật: ${cleanQuery}`,
       snippet: `Căn cứ dữ liệu pháp luật và Cổng VBPL chính thức đối với nội dung "${cleanQuery}".`,
-      link: `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(cleanQuery)}`,
+      link: `https://vanban.chinhphu.vn/`,
       source: 'official',
       documentNumber: null,
       effectiveStatus: 'in_force',

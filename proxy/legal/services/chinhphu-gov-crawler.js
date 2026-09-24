@@ -48,9 +48,9 @@ function _setCache(key, data) {
 // ──────────────────────────────────────────────
 
 function buildChinhphuSearchUrl(keyword = '') {
-  const value = String(keyword || '').trim();
-  if (!value) return 'https://vanban.chinhphu.vn/';
-  return `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(value)}`;
+  // vanban.chinhphu.vn uses ASP.NET PostBack for search — no URL-based search available
+  // Link to homepage where users can manually enter the keyword
+  return 'https://vanban.chinhphu.vn/';
 }
 
 function buildChinhphuDetailUrl(docid = '') {

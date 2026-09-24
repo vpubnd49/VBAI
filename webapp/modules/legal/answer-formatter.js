@@ -357,7 +357,7 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           issuer: d.issuer || (num.includes('QH') ? 'Quốc hội' : (num.includes('NĐ-CP') ? 'Chính phủ' : 'Cơ quan có thẩm quyền')),
           dates: dateFormatted,
           status: d.effectiveStatus === 'in_force' || d.effectiveStatus === 'co_hieu_luc' ? 'Còn hiệu lực' : (d.effectiveStatus || 'Còn hiệu lực'),
-          link: directUrl || (isDirectDocUrl ? rawLink : `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(num)}`),
+          link: directUrl || (isDirectDocUrl ? rawLink : `https://vanban.chinhphu.vn/`),
           pdfDownloadUrls: pdfList,
           chinhphuDetailUrl: directUrl || null,
         });
@@ -410,7 +410,7 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           issuer: issuer,
           dates: 'Đang áp dụng',
           status: 'Còn hiệu lực',
-          link: `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(num)}`,
+          link: `https://vanban.chinhphu.vn/`,
           pdfDownloadUrls: [],
           chinhphuDetailUrl: null,
         });
@@ -536,7 +536,7 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
 
     // If no PDF available, add a search/download fallback
     if (pdfUrls.length === 0 && doc.number) {
-      linksHtml.push(`<a href="https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(doc.number)}" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#6366f1;">🔍 Tìm & Tải về</a>`);
+      linksHtml.push(`<a href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#6366f1;">🔍 Tìm & Tải về</a>`);
     }
 
     return `

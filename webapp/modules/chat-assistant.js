@@ -1393,7 +1393,7 @@ function renderComparisonTable(blockLines = []) {
         // Fix generic chinhphu.vn homepage/search links — replace with VBPL search
         if (/^\[.*\]\(https:\/\/vanban\.chinhphu\.vn\/?\)$/i.test(cellStr) || /^https:\/\/vanban\.chinhphu\.vn\/?$/i.test(cellStr)) {
           if (rowDocNum) {
-            return `[Cổng TTĐT Chính phủ](https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(rowDocNum)})`;
+            return `[Cổng TTĐT Chính phủ](https://vanban.chinhphu.vn/)`;
           }
         }
       }

@@ -4555,7 +4555,7 @@ function synthesizeServerLegalSections(rawAnswer = '', mainDoc = null) {
   } else if (finalPdfs.length === 1) {
     pdfLinksMd = `[Tải về (PDF)](${finalPdfs[0]})`;
   } else {
-    pdfLinksMd = `[Cổng TTĐT Chính phủ](https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(docNo)})`;
+    pdfLinksMd = `[Cổng TTĐT Chính phủ](https://vanban.chinhphu.vn/)`;
   }
 
   const verifiedSectionVI = `VI. BẢNG DANH MỤC TRÍCH DẪN VĂN BẢN PHÁP LÝ CHÍNH THỨC & TẢI FILE
@@ -8027,7 +8027,7 @@ function normalizeVertexSearchItems(rawItems = []) {
         const loaiLabel = String(struct.loai_van_ban || 'Văn bản').toUpperCase();
         title = `${loaiLabel} ${struct.so_hieu}: ${struct.trich_yeu || title}`.trim();
         if (!link) {
-          link = `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(struct.so_hieu)}`;
+          link = `https://vanban.chinhphu.vn/`;
         }
         
         const sourceUrls = Array.isArray(struct.official_source_urls) ? struct.official_source_urls : [];
