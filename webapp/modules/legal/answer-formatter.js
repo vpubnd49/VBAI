@@ -345,17 +345,21 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
           }
         });
 
+        const directUrl = d.chinhphuDetailUrl
+          || (Array.isArray(d.official_source_urls) && d.official_source_urls[0])
+          || null;
+        const rawLink = String(d.sourceUrl || d.url || d.link || '');
+        const isDirectDocUrl = /^https?:\/\/(?:www\.)?(vanban\.chinhphu\.vn\/default|chinhphu\.vn|congbao\.chinhphu\.vn|thuvienphapluat\.vn|quochoi\.vn|phapluat\.gov\.vn)/i.test(rawLink);
+
         docsMap.set(num.toLowerCase(), {
           number: num || 'VBPL',
           title: d.title || d.titleHint || d.snippet || `Văn bản số ${num || 'VBPL'}`,
           issuer: d.issuer || (num.includes('QH') ? 'Quốc hội' : (num.includes('NĐ-CP') ? 'Chính phủ' : 'Cơ quan có thẩm quyền')),
           dates: dateFormatted,
           status: d.effectiveStatus === 'in_force' || d.effectiveStatus === 'co_hieu_luc' ? 'Còn hiệu lực' : (d.effectiveStatus || 'Còn hiệu lực'),
-          link: /^https:\/\/(?:www\.)?vbpl\.vn(?:\/|$)/i.test(String(d.sourceUrl || d.url || d.link || ''))
-            ? String(d.sourceUrl || d.url || d.link)
-            : `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(num)}`,
+          link: directUrl || (isDirectDocUrl ? rawLink : `https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(num)}`),
           pdfDownloadUrls: pdfList,
-          chinhphuDetailUrl: d.chinhphuDetailUrl || (Array.isArray(d.official_source_urls) ? d.official_source_urls[0] : null) || null,
+          chinhphuDetailUrl: directUrl || null,
         });
       }
     });
@@ -514,18 +518,25 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
     const linksHtml = [];
     const pdfUrls = doc.pdfDownloadUrls || [];
 
+    // Always show PDF download links
     if (pdfUrls.length > 1) {
       pdfUrls.forEach((url, i) => {
-        linksHtml.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">Tải về Phần ${i + 1} (PDF)</a>`);
+        linksHtml.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#0d9488;">📥 Tải PDF Phần ${i + 1}</a>`);
       });
     } else if (pdfUrls.length === 1) {
-      linksHtml.push(`<a href="${pdfUrls[0]}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">Tải về (PDF)</a>`);
+      linksHtml.push(`<a href="${pdfUrls[0]}" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#0d9488;">📥 Tải về (PDF)</a>`);
     }
 
+    // Always show document source link
     if (doc.chinhphuDetailUrl) {
-      linksHtml.push(`<a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">Cổng TTĐT Chính phủ</a>`);
-    } else if (doc.link && linksHtml.length === 0) {
-      linksHtml.push(`<a href="${doc.link}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">Cổng TTĐT Chính phủ</a>`);
+      linksHtml.push(`<a href="${doc.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Xem văn bản gốc</a>`);
+    } else if (doc.link) {
+      linksHtml.push(`<a href="${doc.link}" target="_blank" rel="noopener noreferrer" class="chat-inline-link">🔗 Cổng TTĐT Chính phủ</a>`);
+    }
+
+    // If no PDF available, add a search/download fallback
+    if (pdfUrls.length === 0 && doc.number) {
+      linksHtml.push(`<a href="https://vanban.chinhphu.vn/tim-kiem?q=${encodeURIComponent(doc.number)}" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#6366f1;">🔍 Tìm & Tải về</a>`);
     }
 
     return `
