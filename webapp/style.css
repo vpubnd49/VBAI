@@ -6082,6 +6082,25 @@ table {
     gap: 8px !important;
   }
 
+  .sidebar-header {
+    height: auto !important;
+    min-height: 48px !important;
+    padding: calc(env(safe-area-inset-top, 0px) + 6px) 14px 6px 14px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .sidebar-header .logo img {
+    height: 38px !important;
+    width: 38px !important;
+  }
+
+  .sidebar-header .logo-text {
+    line-height: 1;
+    justify-content: center;
+  }
+
   .dalat-time {
     display: none !important;
   }
@@ -6350,6 +6369,12 @@ img, svg, video, canvas, iframe, embed, object {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
+  }
+
+  .sidebar-header {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: calc(env(safe-area-inset-top, 0px) + 6px) 14px 6px 14px !important;
   }
 
   .breadcrumb {
