@@ -16,6 +16,80 @@ import {
 import { convertToWav, compressIfLargeWav } from './audio-utils.js';
 import { fetchSystemConfig } from './system-config.js';
 
+/**
+ * Lưu blob vào thư mục Tải xuống (Downloads) trên thiết bị mobile.
+ * - Android: ExternalStorage/Download/
+ * - iOS: Documents/ (hiển thị trong app Files nhờ UIFileSharingEnabled)
+ * - Browser desktop: fallback dùng anchor download.
+ */
+async function saveToDownloads(blob, filename) {
+  // Kiểm tra có đang chạy trong Capacitor native app không
+  const isCapacitor = typeof window !== 'undefined'
+    && window.Capacitor
+    && window.Capacitor.isNativePlatform
+    && window.Capacitor.isNativePlatform();
+
+  if (isCapacitor) {
+    try {
+      const { Filesystem, Directory } = await import('@capacitor/filesystem');
+      // Chuyển blob sang base64
+      const reader = new FileReader();
+      const base64Data = await new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          const result = reader.result;
+          // Bỏ phần prefix 'data:...;base64,'
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const platform = window.Capacitor.getPlatform();
+      if (platform === 'ios') {
+        // iOS: lưu vào Documents (hiện trong Files app > VBAI Legal Pro)
+        await Filesystem.writeFile({
+          path: 'VBAI_Recordings/' + filename,
+          data: base64Data,
+          directory: Directory.Documents,
+          recursive: true,
+        });
+        showToast('✅ Đã lưu file vào Files → VBAI Legal Pro → VBAI_Recordings', 'success');
+      } else {
+        // Android: lưu vào VBAI Legal Pro/VBAI_Recordings/
+        await Filesystem.writeFile({
+          path: 'VBAI Legal Pro/VBAI_Recordings/' + filename,
+          data: base64Data,
+          directory: Directory.ExternalStorage,
+          recursive: true,
+        });
+        showToast('✅ Đã lưu file vào VBAI Legal Pro → VBAI_Recordings', 'success');
+      }
+      return;
+    } catch (capErr) {
+      console.warn('Capacitor Filesystem fallback:', capErr);
+      // Fallback sang anchor download nếu Capacitor không khả dụng
+    }
+  }
+
+  // Fallback: anchor download cho browser desktop
+  try {
+    const downloadUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+    }, 150);
+    showToast('Đã lưu file ghi âm về máy!', 'success');
+  } catch (downloadErr) {
+    console.error('Không thể tự động tải file xuống:', downloadErr);
+  }
+}
+
 let systemConfigCache = null;
 let meetingTemplateMeta = null;
 
@@ -161,11 +235,11 @@ function doRender(c) {
       <div class="page-title">🎙️ Ghi Âm → Thông Báo Kết Luận</div>
       <div class="page-subtitle">Sử dụng AI phân tích file ghi âm cuộc họp và tự động tạo Thông báo kết luận (NĐ30/HD05)</div>
     </div>
-    <div class="steps-bar" style="display:flex; align-items:center;">
-      ${[1, 2, 3].map(i => `<button class="step-indicator ${formState.step === i ? 'active' : formState.step > i ? 'completed' : ''}" data-step="${i}"><span class="step-num">${formState.step > i ? '✓' : i}</span><span>${['Upload & Phân tích', 'Chỉnh sửa nội dung', 'Xuất văn bản'][i - 1]}</span></button>`).join('')}
-      <button class="btn btn-secondary" onclick="window.location.reload();" style="margin-left:auto; display:flex; align-items:center; gap:6px; padding:6px 12px; font-size:12px; border-radius:6px;" title="Làm mới quy trình">
+    <div class="steps-bar" style="display:flex; align-items:center; overflow-x:auto;">
+      ${[1, 2, 3].map(i => `<button class="step-indicator ${formState.step === i ? 'active' : formState.step > i ? 'completed' : ''}" data-step="${i}"><span class="step-num">${formState.step > i ? '✓' : i}</span><span>${['Tải lên', 'Nội dung', 'Xuất VB'][i - 1]}</span></button>`).join('')}
+      <button class="btn btn-secondary" onclick="window.location.reload();" style="margin-left:auto; display:flex; align-items:center; gap:4px; padding:6px 10px; font-size:12px; border-radius:6px; flex-shrink:0;" title="Làm mới quy trình">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-        Làm mới
+        <span class="hide-on-mobile">Làm mới</span>
       </button>
     </div>
     <div id="sc" class="section-card"></div>
@@ -254,6 +328,17 @@ function renderStep1(sc, c) {
 
   async function startRecording() {
     try {
+      // Kiểm tra quyền micro trước khi yêu cầu (Permissions API)
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          const permStatus = await navigator.permissions.query({ name: 'microphone' });
+          if (permStatus.state === 'denied') {
+            showToast('Quyền Microphone đã bị từ chối. Vào Cài đặt → Ứng dụng → VBAI Legal Pro → Quyền → bật Micro rồi thử lại.', 'error');
+            return;
+          }
+        } catch (_) { /* Permissions API không khả dụng, bỏ qua */ }
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -283,8 +368,14 @@ function renderStep1(sc, c) {
       startTimer();
       doRender(c);
     } catch (err) {
-      console.error(err);
-      showToast('Không thể truy cập Microphone. Vui lòng cấp quyền trong trình duyệt.', 'error');
+      console.error('startRecording error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showToast('Chưa cấp quyền Micro. Vào Cài đặt → Ứng dụng → VBAI Legal Pro → Quyền → bật Micro, sau đó khởi động lại app.', 'error');
+      } else if (err.name === 'NotFoundError') {
+        showToast('Không tìm thấy Microphone trên thiết bị.', 'error');
+      } else {
+        showToast('Lỗi truy cập Microphone: ' + (err.message || err), 'error');
+      }
     }
   }
 
@@ -334,23 +425,8 @@ function renderStep1(sc, c) {
         releaseWakeLock();
         stopSilentAudio();
 
-        // Lưu trực tiếp tệp âm thanh về máy (PC/Mobile)
-        try {
-          const downloadUrl = URL.createObjectURL(audioBlob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = downloadUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => {
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(downloadUrl);
-          }, 150);
-          showToast('Đã lưu bản sao file ghi âm về máy của bạn!', 'success');
-        } catch (downloadErr) {
-          console.error('Không thể tự động tải file xuống:', downloadErr);
-        }
+        // Lưu trực tiếp tệp âm thanh vào thư mục Tải xuống trên thiết bị
+        saveToDownloads(audioBlob, filename);
 
         doRender(c);
       };

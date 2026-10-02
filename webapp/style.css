@@ -711,7 +711,8 @@ body {
   padding: 10px 16px; border-radius: var(--radius-md);
   font-size: 0.8rem; font-weight: 500; color: var(--text-muted);
   cursor: pointer; transition: all 0.3s ease; border: none; background: transparent;
-  font-family: inherit; white-space: nowrap;
+  font-family: inherit; white-space: normal;
+  min-width: 0;
 }
 .step-indicator.active {
   background: var(--surface-blue);
@@ -1229,8 +1230,23 @@ body {
   .steps-bar {
     overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 2px;
   }
-  .step-indicator { padding: 8px 12px; }
+  .steps-bar::-webkit-scrollbar { display: none; }
+  .step-indicator {
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    flex: 0 0 auto;
+    min-width: 0;
+    gap: 4px;
+  }
+  .step-indicator > span:not(.step-num) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+  }
   .btn-row { flex-direction: column; gap: 12px; }
   .btn-row .btn { width: 100%; justify-content: center; }
   .section-card { padding: 16px; }
@@ -4144,6 +4160,9 @@ table {
     max-width: 100vw !important;
   }
 
+  /* Utility: hide text on mobile */
+  .hide-on-mobile { display: none !important; }
+
   .page-content {
     padding: 12px 10px 24px;
   }
@@ -4607,8 +4626,20 @@ table {
 
   .step-indicator {
     padding: 6px 8px !important;
-    font-size: 0.75rem !important;
+    font-size: 0.72rem !important;
     white-space: nowrap;
+    flex: 0 0 auto !important;
+    gap: 4px !important;
+  }
+  .step-indicator > span:not(.step-num) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 72px;
+  }
+  .step-num {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 0.6rem !important;
   }
 
   /* Citation Popover Mobile */
@@ -7163,6 +7194,643 @@ img, svg, video, canvas, iframe, embed, object {
 
   .sh-action-btn {
     flex: 1 1 100% !important;
+  }
+}
+
+/* ================================================================
+   🍎 APPLE DEVICE RESPONSIVE SYSTEM (2024–2026+)
+   Viewport CSS pixels (with preferredContentMode: mobile):
+   ──────────────────────────────────────────────────────────
+   iPHONE
+   iPhone SE 3rd:              375 × 667    (4.7", 2x)
+   iPhone 14/15/16:            393 × 852    (6.1", 3x)
+   iPhone 14/15/16 Plus:       430 × 932    (6.7", 3x)
+   iPhone 16 Pro:              402 × 874    (6.3", 3x)
+   iPhone 16 Pro Max:          440 × 956    (6.9", 3x)
+   iPhone 17 Pro:              402 × 874    (6.3", 3x)
+   iPhone 17 Pro Max:          440 × 956    (6.9", 3x)
+   iPhone 18 Pro:              402 × 874    (6.3", 3x)
+   iPhone 18 Pro Max:          440 × 956    (6.9", 3x)
+   ──────────────────────────────────────────────────────────
+   iPHONE DUO (Foldable)
+   Outer display (closed):     466 × 678    (5.4", 3x)
+   Inner display (open):       626 × 890    (7.6", 3x)
+   Inner landscape (open):     890 × 626    (7.6", 3x)
+   ──────────────────────────────────────────────────────────
+   iPAD
+   iPad mini (A17 Pro, 2024):   744 × 1133   (8.3", 2x)
+   iPad 10th (2022):            820 × 1180   (10.9", 2x)
+   iPad 11th (A16, 2025):       820 × 1180   (10.9", 2x)
+   iPad Air 11" M2 (2024):      820 × 1180   (11", 2x)
+   iPad Air 11" M3 (2025):      820 × 1180   (11", 2x)
+   iPad Air 11" M4 (2026):      820 × 1180   (11", 2x)
+   iPad Pro 11" M4 (2024):      834 × 1194   (11", 2x)
+   iPad Pro 11" M5 (2025):      834 × 1210   (11", 2x)
+   iPad Air 13" M2 (2024):     1024 × 1366   (13", 2x)
+   iPad Air 13" M3 (2025):     1024 × 1366   (13", 2x)
+   iPad Air 13" M4 (2026):     1024 × 1366   (13", 2x)
+   iPad Pro 13" M4 (2024):     1032 × 1376   (13", 2x)
+   iPad Pro 13" M5 (2025):     1032 × 1376   (13", 2x)
+   ================================================================ */
+
+/* ─────────────────────────────────────
+   A. iPHONE PRO MAX LANDSCAPE (≈ 932px wide)
+   Khi xoay ngang iPhone Plus/Pro Max
+   ───────────────────────────────────── */
+@media (min-width: 769px) and (max-width: 956px) and (max-height: 450px) {
+  /* Landscape phone: hide sidebar, keep bottom nav but thinner */
+  .sidebar {
+    position: fixed !important;
+    transform: translateX(-100%) !important;
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+  .main-content {
+    margin-left: 0 !important;
+  }
+  .bottom-nav {
+    display: flex !important;
+    height: calc(env(safe-area-inset-bottom, 0px) + 44px) !important;
+    min-height: calc(env(safe-area-inset-bottom, 0px) + 44px) !important;
+    max-height: calc(env(safe-area-inset-bottom, 0px) + 48px) !important;
+    padding: 2px 8px calc(env(safe-area-inset-bottom, 0px) + 2px) 8px !important;
+  }
+  .bottom-nav-item span {
+    font-size: 0.58rem !important;
+  }
+  .page-content {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 56px) !important;
+  }
+  .top-bar {
+    min-height: 40px !important;
+    padding: calc(env(safe-area-inset-top, 0px) + 4px) 12px 4px calc(env(safe-area-inset-left, 0px) + 12px) !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   B. iPAD MINI PORTRAIT (744px)
+   Nằm dưới 768px → giống mobile nhưng cần tối ưu thêm
+   ───────────────────────────────────── */
+@media (min-width: 700px) and (max-width: 768px) {
+  /* iPad mini portrait: show bottom nav, hide sidebar, but use wider grid */
+  .tools-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 12px !important;
+  }
+  .tools-hub-page {
+    max-width: 700px !important;
+    padding: 20px 20px 80px 20px !important;
+  }
+  .tool-card {
+    padding: 16px 8px 14px 8px !important;
+    min-height: 100px !important;
+  }
+  .tool-card-icon {
+    width: 48px !important;
+    height: 48px !important;
+  }
+  .tool-card-name {
+    font-size: 0.78rem !important;
+  }
+  .dash-service-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 12px !important;
+  }
+  .page-content {
+    padding: 14px 20px !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px) !important;
+  }
+  /* Better form layout on iPad mini */
+  .legal-search-input-group {
+    max-width: 100% !important;
+  }
+  .dash-search-section {
+    padding: 32px 28px 28px !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   C. iPAD PORTRAIT (769px – 1079px)
+   iPad 10th (820px), iPad Air (820px), iPad Pro 11" (834px)
+   iPad Air 13"/Pro 13" portrait (1024px)
+   iPad Pro 13" M4/M5 portrait (1032px)
+   Sidebar collapsed mặc định, hiện bottom nav, nội dung rộng hơn mobile
+   ───────────────────────────────────── */
+@media (min-width: 769px) and (max-width: 1079px) and (min-height: 900px) {
+  /* Sidebar: collapse by default, open as overlay */
+  .sidebar {
+    position: fixed !important;
+    transform: translateX(-100%) !important;
+    z-index: 200 !important;
+    width: 280px !important;
+    height: 100% !important;
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+  .sidebar.collapsed {
+    transform: translateX(-100%) !important;
+    position: fixed !important;
+  }
+  .sidebar.collapsed.open {
+    transform: translateX(0) !important;
+  }
+
+  /* Main content fills full width */
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Show bottom nav on iPad portrait */
+  .bottom-nav {
+    display: flex !important;
+    height: calc(env(safe-area-inset-bottom, 0px) + 60px) !important;
+    min-height: calc(env(safe-area-inset-bottom, 0px) + 60px) !important;
+    max-height: calc(env(safe-area-inset-bottom, 0px) + 66px) !important;
+    padding: 4px 16px calc(env(safe-area-inset-bottom, 0px) + 4px) 16px !important;
+  }
+  .bottom-nav-item svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  .bottom-nav-item span {
+    font-size: 0.72rem !important;
+  }
+
+  /* Top bar */
+  .top-bar {
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 20px 8px 20px !important;
+    min-height: 52px !important;
+  }
+  #top-btn-search {
+    display: flex !important;
+  }
+
+  /* Page content: more breathing room than phone */
+  .page-content {
+    padding: 20px 24px !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px) !important;
+    max-width: 100% !important;
+  }
+
+  /* Tools Hub: 4 columns with bigger cards */
+  .tools-hub-page {
+    max-width: 780px !important;
+    padding: 24px 24px 90px 24px !important;
+  }
+  .tools-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 14px !important;
+  }
+  .tool-card {
+    padding: 18px 10px 16px 10px !important;
+    min-height: 110px !important;
+    border-radius: 16px !important;
+  }
+  .tool-card-icon {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 14px !important;
+  }
+  .tool-card-name {
+    font-size: 0.82rem !important;
+  }
+
+  /* Dashboard: adapt for tablet width */
+  .dash-wrapper {
+    padding: 20px 24px 48px !important;
+    max-width: 100% !important;
+  }
+  .dash-search-section {
+    padding: 36px 40px 32px !important;
+    border-radius: 18px !important;
+  }
+  .dash-brand-name {
+    font-size: 1.8rem !important;
+  }
+  .dash-search-title {
+    font-size: 1.6rem !important;
+  }
+  .dash-search-desc {
+    font-size: 1rem !important;
+  }
+  .dash-service-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 14px !important;
+  }
+  .dash-svc-btn {
+    padding: 18px 12px 14px !important;
+    min-height: 95px !important;
+  }
+
+  /* Search page: single column but wider */
+  .legal-search-two-panel {
+    grid-template-columns: 1fr !important;
+    max-width: 700px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Form elements: wider and more comfortable */
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    font-size: 1rem !important;
+    padding: 12px 16px !important;
+  }
+
+  /* Step wizard: wider */
+  .wizard-steps,
+  .step-nav {
+    max-width: 700px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Upload zones: wider */
+  .upload-zone,
+  .pdf-upload-zone,
+  .sc-upload-zone {
+    max-width: 600px !important;
+    margin: 0 auto !important;
+    min-height: 220px !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   D. iPAD LANDSCAPE (≥ 1080px)
+   iPad mini landscape (1133px), iPad Air landscape (1180px),
+   iPad Pro 11" landscape (1194-1210px), iPad Pro 13" landscape (1366-1376px)
+   Sidebar luôn hiện, bottom nav ẩn
+   ───────────────────────────────────── */
+@media (min-width: 1080px) and (max-width: 1400px) {
+  /* Sidebar always visible, slightly narrower on smaller iPads */
+  .sidebar {
+    position: relative !important;
+    transform: none !important;
+    width: 240px !important;
+  }
+  .sidebar.collapsed {
+    width: 240px !important;
+    transform: none !important;
+    position: relative !important;
+  }
+
+  /* Bottom nav hidden on iPad landscape */
+  .bottom-nav {
+    display: none !important;
+  }
+
+  /* Content area */
+  .page-content {
+    padding: 24px 28px 40px !important;
+  }
+
+  /* Tools Hub: 5 columns */
+  .tools-hub-page {
+    max-width: 900px !important;
+    padding: 24px 20px 40px !important;
+  }
+  .tools-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 14px !important;
+  }
+  .tool-card {
+    min-height: 110px !important;
+  }
+
+  /* Dashboard */
+  .dash-wrapper {
+    max-width: 100% !important;
+  }
+  .dash-service-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  /* Search: two-panel layout */
+  .legal-search-two-panel {
+    grid-template-columns: 1fr 380px !important;
+    gap: 20px !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   E. iPAD SPLIT VIEW / SLIDE OVER
+   Khi app chạy ở Split View 50/50 hoặc Slide Over (~320-507px)
+   ───────────────────────────────────── */
+@media (min-width: 300px) and (max-width: 520px) and (min-height: 800px) {
+  /* Slide Over / narrow Split View: force mobile layout */
+  .sidebar {
+    position: fixed !important;
+    transform: translateX(-100%) !important;
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+    width: 260px !important;
+  }
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  .bottom-nav {
+    display: flex !important;
+  }
+  .tools-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+  .tools-hub-page {
+    max-width: 100% !important;
+    padding: 12px 10px 80px 10px !important;
+  }
+  .dash-service-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   F. iPHONE 16/17/18 PRO MAX (440px width)
+   Tối ưu cho iPhone lớn (430-466px)
+   Bao gồm iPhone Duo outer display (466px)
+   ───────────────────────────────────── */
+@media (min-width: 420px) and (max-width: 480px) {
+  .tools-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 10px !important;
+  }
+  .dash-service-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 10px !important;
+  }
+  .page-content {
+    padding: 12px 14px !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px) !important;
+  }
+  .dash-search-section {
+    padding: 28px 20px 24px !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   F2. iPHONE DUO — INNER DISPLAY (626px × 890px, portrait)
+   Khi mở ra: 7.6" gần như mini-tablet
+   Lớn hơn phone nhưng nhỏ hơn iPad mini
+   Cần layout riêng: 4 cột tools, wider forms, bottom nav
+   ───────────────────────────────────── */
+@media (min-width: 520px) and (max-width: 699px) {
+  /* Bottom nav vẫn hiện (không phải iPad) */
+  .bottom-nav {
+    display: flex !important;
+    height: calc(env(safe-area-inset-bottom, 0px) + 58px) !important;
+    min-height: calc(env(safe-area-inset-bottom, 0px) + 58px) !important;
+    padding: 4px 12px calc(env(safe-area-inset-bottom, 0px) + 3px) 12px !important;
+  }
+
+  /* Sidebar ẩn, mở overlay */
+  .sidebar {
+    position: fixed !important;
+    transform: translateX(-100%) !important;
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+    width: 280px !important;
+  }
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Top bar */
+  .top-bar {
+    padding: calc(env(safe-area-inset-top, 0px) + 6px) 16px 6px 16px !important;
+    min-height: 48px !important;
+  }
+  #top-btn-search {
+    display: flex !important;
+  }
+
+  /* Tools Hub: 4 cột to hơn */
+  .tools-hub-page {
+    max-width: 600px !important;
+    padding: 16px 16px 80px 16px !important;
+  }
+  .tools-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 12px !important;
+  }
+  .tool-card {
+    padding: 14px 8px 12px 8px !important;
+    min-height: 96px !important;
+    border-radius: 14px !important;
+  }
+  .tool-card-icon {
+    width: 46px !important;
+    height: 46px !important;
+  }
+  .tool-card-name {
+    font-size: 0.76rem !important;
+  }
+
+  /* Dashboard */
+  .dash-service-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 12px !important;
+  }
+  .dash-search-section {
+    padding: 30px 24px 26px !important;
+  }
+  .dash-brand-name {
+    font-size: 1.6rem !important;
+  }
+  .dash-search-title {
+    font-size: 1.4rem !important;
+  }
+
+  /* Page content: wider than phone */
+  .page-content {
+    padding: 14px 18px !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 76px) !important;
+  }
+
+  /* Forms wider */
+  .legal-search-input-group {
+    max-width: 100% !important;
+  }
+  .upload-zone,
+  .pdf-upload-zone,
+  .sc-upload-zone {
+    max-width: 500px !important;
+    margin: 0 auto !important;
+    min-height: 200px !important;
+  }
+
+  /* Step wizard */
+  .wizard-steps,
+  .step-nav {
+    max-width: 560px !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   F3. iPHONE DUO — INNER DISPLAY LANDSCAPE (890px × 626px)
+   Khi mở ra + xoay ngang: rộng 890px, cao chỉ 626px
+   Nên sidebar ẩn, top bar compact, content rộng
+   ───────────────────────────────────── */
+@media (min-width: 800px) and (max-width: 950px) and (max-height: 650px) {
+  .sidebar {
+    position: fixed !important;
+    transform: translateX(-100%) !important;
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  .bottom-nav {
+    display: flex !important;
+    height: calc(env(safe-area-inset-bottom, 0px) + 44px) !important;
+    min-height: calc(env(safe-area-inset-bottom, 0px) + 44px) !important;
+    padding: 2px 12px calc(env(safe-area-inset-bottom, 0px) + 2px) 12px !important;
+  }
+  .bottom-nav-item span {
+    font-size: 0.6rem !important;
+  }
+  .top-bar {
+    min-height: 40px !important;
+    padding: calc(env(safe-area-inset-top, 0px) + 4px) 16px 4px calc(env(safe-area-inset-left, 0px) + 16px) !important;
+  }
+  .page-content {
+    padding: 10px 20px !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 56px) !important;
+  }
+  /* Wider tools grid */
+  .tools-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 12px !important;
+  }
+  .tools-hub-page {
+    max-width: 850px !important;
+  }
+  .dash-service-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   G. iPHONE SE / SMALL (≤ 375px)
+   Compact layout cho màn hình nhỏ nhất
+   ───────────────────────────────────── */
+@media (max-width: 375px) {
+  .tools-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+  .tool-card {
+    padding: 10px 4px 8px 4px !important;
+    min-height: 80px !important;
+    border-radius: 10px !important;
+  }
+  .tool-card-icon {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 8px !important;
+  }
+  .tool-card-name {
+    font-size: 0.65rem !important;
+  }
+  .bottom-nav-item span {
+    font-size: 0.6rem !important;
+  }
+  .dash-brand-name {
+    font-size: 1.3rem !important;
+  }
+  .dash-search-title {
+    font-size: 1.2rem !important;
+  }
+  .dash-search-section {
+    padding: 20px 14px 18px !important;
+  }
+  .page-content {
+    padding: 8px 8px !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 72px) !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   H. iPAD PRO 13" LANDSCAPE (1366px width)
+   Layout desktop đầy đủ với side panel
+   ───────────────────────────────────── */
+@media (min-width: 1300px) {
+  .sidebar {
+    width: 260px !important;
+  }
+  .tools-hub-page {
+    max-width: 1000px !important;
+  }
+  .tools-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 16px !important;
+  }
+  .tool-card {
+    min-height: 120px !important;
+    padding: 20px 10px 16px !important;
+  }
+  .tool-card-icon {
+    width: 56px !important;
+    height: 56px !important;
+  }
+  .tool-card-name {
+    font-size: 0.85rem !important;
+  }
+  .dash-service-grid {
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 18px !important;
+  }
+  /* Two-panel search layout */
+  .legal-search-two-panel {
+    grid-template-columns: 1fr 420px !important;
+  }
+  .page-content {
+    padding: 28px 36px 40px !important;
+  }
+}
+
+/* ─────────────────────────────────────
+   I. DARK MODE SAFE AREA (iOS Dynamic Island)
+   Đảm bảo background color match ở safe area
+   ───────────────────────────────────── */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    /* NOTE: padding-top is NOT set here — .top-bar handles env(safe-area-inset-top)
+       via its own padding-top so the content sits flush under the status bar. */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  /* Ensure top-bar fills behind status bar */
+  .top-bar {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 6px);
+  }
+  .sidebar-header {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  }
+}
+
+/* ─────────────────────────────────────
+   J. iPHONE DUO — HINGE SAFE AREA
+   Foldable hinge gap protection
+   Apple sử dụng env(safe-area-inset-*) cho khu vực bản lề
+   ───────────────────────────────────── */
+@supports (padding: env(safe-area-inset-top)) {
+  /* Khi mở ngang (book mode), bản lề nằm giữa → chia 2 nửa */
+  .page-content,
+  .dash-wrapper,
+  .tools-hub-page {
+    padding-left: max(env(safe-area-inset-left, 0px), 12px);
+    padding-right: max(env(safe-area-inset-right, 0px), 12px);
   }
 }
 

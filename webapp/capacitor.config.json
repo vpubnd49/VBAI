@@ -5,12 +5,27 @@
   "server": {
     "hostname": "localhost",
     "androidScheme": "https",
+    "iosScheme": "https",
     "allowNavigation": [
-      "*"
+      "vbai.tracuu.lamdong.vn",
+      "vbai.tracuu.lamdong.gov.vn",
+      "*.google.com",
+      "*.gstatic.com",
+      "*.googleapis.com",
+      "*.firebaseapp.com",
+      "accounts.google.com"
     ]
   },
   "android": {
     "allowMixedContent": false,
     "backgroundColor": "#0F1117"
+  },
+  "ios": {
+    "backgroundColor": "#0F1117",
+    "contentInset": "automatic",
+    "allowsLinkPreview": true,
+    "scrollEnabled": true,
+    "limitsNavigationsToAppBoundDomains": false,
+    "preferredContentMode": "mobile"
   }
 }
