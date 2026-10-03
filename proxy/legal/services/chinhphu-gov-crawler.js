@@ -556,30 +556,32 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
       // Extract the number part (e.g. "376" from "376/2026/NĐ-CP")
       const numOnly = normDocNum.match(/^(\d+)\//)?.[1];
       if (numOnly) {
-        // Search for this number in bl-doc-info rows
-        const rowPattern = new RegExp(`<div[^>]*class="bl-doc-info"[^>]*>([\\s\\S]*?)</div>\\s*(?:<div|$)`, 'gi');
-        let match;
-        while ((match = rowPattern.exec(html)) !== null) {
-          const rowHtml = match[1];
-          // Check if this row contains our document number
-          if (rowHtml.includes(`>${numOnly}/`) || rowHtml.includes(`${numOnly}/2`)) {
-            // Extract PDF link
-            const pdfM = rowHtml.match(/href="(https:\/\/datafiles\.chinhphu\.vn\/[^"]+\.pdf)"/i);
-            // Extract docid
-            const docidM = rowHtml.match(/docid=(\d+)/i);
-            if (pdfM || docidM) {
-              const detailUrl = docidM ? buildChinhphuDetailUrl(docidM[1]) : 'https://vanban.chinhphu.vn/';
-              return {
-                documentNumber: docNumber,
-                title: opts.title || `Văn bản số ${docNumber}`,
-                issueDate: opts.issueDate || '',
-                pdfUrl: pdfM ? pdfM[1] : null,
-                pdfVerified: Boolean(pdfM),
-                detailUrl,
-                source: 'chinhphu_gov',
-                sourceUrl: detailUrl,
-              };
-            }
+        // Split HTML by table rows and search each row
+        const rows = html.split(/<\/tr>/i);
+        for (const rowHtml of rows) {
+          // Check if this row contains our document number (check span.code or PDF filename)
+          const hasDocNum = rowHtml.includes(`>${numOnly}/`) 
+            || rowHtml.includes(`/${numOnly}_`)
+            || rowHtml.includes(`/${numOnly}-`);
+          if (!hasDocNum) continue;
+
+          // Extract PDF link from bl-doc-file
+          const pdfM = rowHtml.match(/href="(https:\/\/datafiles\.chinhphu\.vn\/[^"]+\.pdf)"/i);
+          // Extract docid from detail link
+          const docidM = rowHtml.match(/docid=(\d+)/i);
+          if (pdfM || docidM) {
+            const detailUrl = docidM ? buildChinhphuDetailUrl(docidM[1]) : 'https://vanban.chinhphu.vn/';
+            console.log(`[chinhphu-crawler] Strategy 2.1: found ${docNumber} on homepage → pdf=${Boolean(pdfM)}, docid=${docidM?.[1] || 'none'}`);
+            return {
+              documentNumber: docNumber,
+              title: opts.title || `Văn bản số ${docNumber}`,
+              issueDate: opts.issueDate || '',
+              pdfUrl: pdfM ? pdfM[1] : null,
+              pdfVerified: Boolean(pdfM),
+              detailUrl,
+              source: 'chinhphu_gov',
+              sourceUrl: detailUrl,
+            };
           }
         }
       }
