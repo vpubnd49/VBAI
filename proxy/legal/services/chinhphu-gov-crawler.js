@@ -123,14 +123,22 @@ function predictPdfUrl(docNumber = '', issueDate = '') {
     candidates.push(`${base}/${num}-${lastType}.signed.pdf`);
     // Pattern 2: 243-nd-cp.signed.pdf
     candidates.push(`${base}/${num}-${typeParts}.signed.pdf`);
-    // Pattern 3: 243_nd-cp_ddmmyyyy-signed.pdf (old format)
+    // Pattern 3: 376_nd-cp_ddmmyyyy-signed.pdf (old format)
     if (day) {
       const dateStr = `${day.padStart(2,'0')}${month.padStart(2,'0')}${year}`;
       candidates.push(`${base}/${num}_${typeParts}_${dateStr}-signed.pdf`);
+      // Pattern 3b: 376_nd-cp_ddmmyyyy-signed.signed.pdf (double signed — very common!)
+      candidates.push(`${base}/${num}_${typeParts}_${dateStr}-signed.signed.pdf`);
     }
-    // Pattern 4: 243-2025-nd-cp.pdf or 31-2024-qh15.pdf
+    // Pattern 4: 376_2026_nd-cp_ddmmyyyy-signed.signed.pdf (with year in filename)
+    if (day) {
+      const dateStr = `${day.padStart(2,'0')}${month.padStart(2,'0')}${year}`;
+      candidates.push(`${base}/${num}_${year}_${typeParts}_${dateStr}-signed.signed.pdf`);
+      candidates.push(`${base}/${num}_${year}_${typeParts}_${dateStr}-signed.pdf`);
+    }
+    // Pattern 5: 243-2025-nd-cp.pdf or 31-2024-qh15.pdf
     candidates.push(`${base}/${num}-${year}-${typeParts}.pdf`);
-    // Pattern 5: Try adjacent months (docs sometimes filed under different month)
+    // Pattern 6: Try adjacent months (docs sometimes filed under different month)
     const adjMonth = monthNum > 1 ? monthNum - 1 : monthNum + 1;
     candidates.push(`${DATAFILES_BASE}/${year}/${adjMonth}/${num}-${lastType}.signed.pdf`);
     candidates.push(`${DATAFILES_BASE}/${year}/${adjMonth}/${num}-${typeParts}.signed.pdf`);
@@ -537,6 +545,45 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
       return dn === normDocNum;
     });
     if (found) return found;
+  } catch (_) {}
+
+  // Strategy 2.1: Fetch homepage HTML and search for doc number directly
+  // (handles encoding issues where doc number in HTML may differ from MongoDB)
+  try {
+    const resp = await _fetchSafe('https://vanban.chinhphu.vn/');
+    if (resp.ok) {
+      const html = await resp.text();
+      // Extract the number part (e.g. "376" from "376/2026/NĐ-CP")
+      const numOnly = normDocNum.match(/^(\d+)\//)?.[1];
+      if (numOnly) {
+        // Search for this number in bl-doc-info rows
+        const rowPattern = new RegExp(`<div[^>]*class="bl-doc-info"[^>]*>([\\s\\S]*?)</div>\\s*(?:<div|$)`, 'gi');
+        let match;
+        while ((match = rowPattern.exec(html)) !== null) {
+          const rowHtml = match[1];
+          // Check if this row contains our document number
+          if (rowHtml.includes(`>${numOnly}/`) || rowHtml.includes(`${numOnly}/2`)) {
+            // Extract PDF link
+            const pdfM = rowHtml.match(/href="(https:\/\/datafiles\.chinhphu\.vn\/[^"]+\.pdf)"/i);
+            // Extract docid
+            const docidM = rowHtml.match(/docid=(\d+)/i);
+            if (pdfM || docidM) {
+              const detailUrl = docidM ? buildChinhphuDetailUrl(docidM[1]) : 'https://vanban.chinhphu.vn/';
+              return {
+                documentNumber: docNumber,
+                title: opts.title || `Văn bản số ${docNumber}`,
+                issueDate: opts.issueDate || '',
+                pdfUrl: pdfM ? pdfM[1] : null,
+                pdfVerified: Boolean(pdfM),
+                detailUrl,
+                source: 'chinhphu_gov',
+                sourceUrl: detailUrl,
+              };
+            }
+          }
+        }
+      }
+    }
   } catch (_) {}
 
   // Strategy 2.3: Check MongoDB known_documents for source_url / official_source_urls
