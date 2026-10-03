@@ -4888,6 +4888,77 @@ app.post('/api/chat', async (req, res) => {
             }
           }
         } catch (_) {}
+
+        // When user says "cũ và mới" without explicit doc numbers,
+        // find the superseded/replaced document from MongoDB
+        const isOldNewCompare = /cũ.*mới|mới.*cũ|trước.*sau|thay thế|sửa đổi bổ sung/i.test(userMessage || '');
+        if (isOldNewCompare) {
+          try {
+            const { getDb } = require('./services/db.service');
+            const db = await getDb();
+            const existingNums = new Set(docs.map(d => (d.documentNumber || '').toUpperCase().replace(/\s+/g, '')));
+
+            // For each existing doc, find the document it replaced or was replaced by
+            for (const doc of [...docs]) {
+              const docNum = doc.documentNumber || '';
+              // Look for the superseded version
+              const superseded = await db.collection('known_documents').findOne({
+                $or: [
+                  { superseded_by: docNum },
+                  { superseded_by: { $regex: new RegExp(docNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }
+                ]
+              });
+              if (superseded) {
+                const sNum = (superseded.documentNumber || superseded.document_number || '').toUpperCase().replace(/\s+/g, '');
+                if (sNum && !existingNums.has(sNum)) {
+                  existingNums.add(sNum);
+                  docs.push({
+                    documentNumber: superseded.documentNumber || superseded.document_number,
+                    title: superseded.title || superseded.trich_yeu || '',
+                    issuer: superseded.issuer || 'Quốc hội',
+                    issueDate: superseded.issueDate || superseded.issue_date || '',
+                    effectiveDate: superseded.effectiveDate || superseded.effective_date || '',
+                    effectiveStatus: superseded.effectiveStatus || superseded.effective_status || 'het_hieu_luc',
+                    sourceUrl: superseded.source_url || '',
+                    chinhphuDetailUrl: superseded.source_url || '',
+                    snippet: superseded.tom_tat_chinh_sach || superseded.summary || '',
+                  });
+                }
+              }
+            }
+
+            // Also try searching by topic alias from the query
+            const topicMatch = (userMessage || '').match(/luật\s+([^,.\s]+(?:\s+[^,.\s]+){0,3})/i);
+            if (topicMatch) {
+              const topicKeyword = topicMatch[1].toLowerCase().trim();
+              const relatedDocs = await db.collection('known_documents').find({
+                $or: [
+                  { topic_aliases: { $regex: new RegExp(topicKeyword, 'i') } },
+                  { title: { $regex: new RegExp(topicKeyword, 'i') } }
+                ],
+                document_type: { $in: ['luat', 'bo_luat'] }
+              }).sort({ issue_date: -1 }).limit(5).toArray();
+
+              for (const rd of relatedDocs) {
+                const rdNum = (rd.documentNumber || rd.document_number || '').toUpperCase().replace(/\s+/g, '');
+                if (rdNum && !existingNums.has(rdNum)) {
+                  existingNums.add(rdNum);
+                  docs.push({
+                    documentNumber: rd.documentNumber || rd.document_number,
+                    title: rd.title || rd.trich_yeu || '',
+                    issuer: rd.issuer || 'Quốc hội',
+                    issueDate: rd.issueDate || rd.issue_date || '',
+                    effectiveDate: rd.effectiveDate || rd.effective_date || '',
+                    effectiveStatus: rd.effectiveStatus || rd.effective_status || 'in_force',
+                    sourceUrl: rd.source_url || '',
+                    chinhphuDetailUrl: rd.source_url || '',
+                    snippet: rd.tom_tat_chinh_sach || rd.summary || '',
+                  });
+                }
+              }
+            }
+          } catch (_) {}
+        }
       }
 
       // Pre-resolve: enrich docs missing PDF/detail URLs by searching vanban.chinhphu.vn
@@ -5001,6 +5072,12 @@ C) QUY TẮC CHUNG CHO MỌI LOẠI SO SÁNH:
 - SAU BẢNG: Phân tích ngắn gọn 3-5 điểm khác biệt quan trọng nhất, tác động thực tiễn.
 - CUỐI CÙNG: Bảng VI (trích dẫn) chứa CẢ HAI văn bản kèm link tải PDF và link xem văn bản gốc.
 - KHÔNG cần trình bày đủ 6 phần I-VI khi ở chế độ so sánh. Tập trung vào bảng so sánh và phân tích khác biệt.
+
+⚠️ QUY TẮC NGHIÊM NGẶT VỀ SỐ HIỆU VĂN BẢN:
+- CHỈ ĐƯỢC SỬ DỤNG số hiệu văn bản từ phần [CĂN CỨ PHÁP LÝ ĐÃ KIỂM CHỨNG] ở trên.
+- TUYỆT ĐỐI CẤM tự bịa/đoán số hiệu văn bản. Nếu không tìm thấy VB trong dữ liệu, hãy nói rõ "Không tìm thấy dữ liệu VB này trong hệ thống".
+- Khi user nói "cũ và mới" / "trước và sau" → xác định đúng VB cũ bị thay thế từ dữ liệu evidence. Ví dụ: Luật Đất đai cũ = 45/2013/QH13, Luật Đất đai mới = 31/2024/QH15. KHÔNG được nhầm sang VB khác.
+- Bảng VI chỉ liệt kê các VB có trong dữ liệu evidence kèm link chính xác. KHÔNG tự tạo link.
 
 [CHỈ THỊ TỐI CAO - BẮT BUỘC TRÌNH BÀY ĐỦ CẢ 6 PHẦN TỪ I ĐẾN VI]:
 Dù câu hỏi của người dùng ngắn gọn (như "luật đất đai mới số bao nhiêu", "luật 72/2025 là gì", "tải file luật về cho tôi", "cho xem luật"), BẠN BẮT BUỘC PHẢI VIẾT ĐẦY ĐỦ TOÀN BỘ 6 PHẦN TỪ I ĐẾN VI!
