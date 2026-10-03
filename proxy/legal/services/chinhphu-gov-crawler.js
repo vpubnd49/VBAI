@@ -62,20 +62,26 @@ function buildChinhphuDetailUrl(docid = '') {
 
 /**
  * Attempt to predict PDF URL from document metadata.
- * Pattern: datafiles.chinhphu.vn/cpp/files/vbpq/{YYYY}/{M}/{number}_{type}_{ddmmyyyy}-signed.signed.pdf
+ * Real chinhphu.vn PDF patterns observed:
+ *   - 243-cp.signed.pdf
+ *   - 243-nd-cp.signed.pdf  (NĐ-CP → nd-cp)
+ *   - 31-2024-qh15_3.pdf
+ *   - 1805_qd-ttg_18092026-signed.pdf
  *
- * @param {string} docNumber e.g. "1805/QĐ-TTg"
- * @param {string} issueDate e.g. "18/09/2026" or "18-09-2026"
- * @returns {string|null}
+ * Returns an ARRAY of candidate URLs to try with HTTP HEAD.
+ *
+ * @param {string} docNumber e.g. "243/2025/NĐ-CP" or "1805/QĐ-TTg"
+ * @param {string} issueDate e.g. "18/09/2026" or "2026-09-18"
+ * @returns {string[]}
  */
 function predictPdfUrl(docNumber = '', issueDate = '') {
-  if (!docNumber || !issueDate) return null;
+  if (!docNumber) return [];
   try {
-    // Parse document number: "1805/QĐ-TTg" → number=1805, type=qd-ttg
     const parts = String(docNumber).split('/');
-    if (parts.length < 2) return null;
+    if (parts.length < 2) return [];
     const num = parts[0].trim();
-    // Combine remaining parts and normalize to ASCII lowercase with hyphens
+
+    // Normalize type: "NĐ-CP" → "nd-cp", "QĐ-TTg" → "qd-ttg"
     const typeParts = parts.slice(1).join('-')
       .toLowerCase()
       .normalize('NFD')
@@ -85,18 +91,54 @@ function predictPdfUrl(docNumber = '', issueDate = '') {
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
 
-    // Parse date
-    const dateParts = String(issueDate).replace(/-/g, '/').split('/');
-    if (dateParts.length < 3) return null;
-    const day = dateParts[0].padStart(2, '0');
-    const month = dateParts[1].padStart(2, '0');
-    const year = dateParts[2];
+    // Extract year from doc number (e.g. "243/2025/NĐ-CP" → 2025)
+    const yearFromNum = parts.find(p => /^20\d{2}$/.test(p.trim()));
 
-    const dateStr = `${day}${month}${year}`;
-    const filename = `${num}_${typeParts}_${dateStr}-signed.pdf`;
-    return `${DATAFILES_BASE}/${year}/${parseInt(month, 10)}/${filename}`;
+    // Parse issue date if provided (dd/mm/yyyy or yyyy-mm-dd)
+    let year = '', month = '', day = '';
+    if (issueDate) {
+      const ds = String(issueDate).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(ds)) {
+        // yyyy-mm-dd format
+        [year, month, day] = ds.split(/[-T]/);
+      } else {
+        const dp = ds.replace(/-/g, '/').split('/');
+        if (dp.length >= 3) { day = dp[0]; month = dp[1]; year = dp[2]; }
+      }
+    }
+    if (!year && yearFromNum) year = yearFromNum;
+    if (!year) return [];
+    month = month || '1';
+    const monthNum = parseInt(month, 10);
+
+    // Short type for simple patterns: "NĐ-CP" → "cp", "QĐ-TTg" → "ttg"
+    const lastType = (parts[parts.length - 1] || '')
+      .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
+      .replace(/[^a-z0-9]/g, '').trim();
+
+    const candidates = [];
+    const base = `${DATAFILES_BASE}/${year}/${monthNum}`;
+
+    // Pattern 1: 243-cp.signed.pdf (most common for NĐ-CP)
+    candidates.push(`${base}/${num}-${lastType}.signed.pdf`);
+    // Pattern 2: 243-nd-cp.signed.pdf
+    candidates.push(`${base}/${num}-${typeParts}.signed.pdf`);
+    // Pattern 3: 243_nd-cp_ddmmyyyy-signed.pdf (old format)
+    if (day) {
+      const dateStr = `${day.padStart(2,'0')}${month.padStart(2,'0')}${year}`;
+      candidates.push(`${base}/${num}_${typeParts}_${dateStr}-signed.pdf`);
+    }
+    // Pattern 4: 243-2025-nd-cp.pdf or 31-2024-qh15.pdf
+    candidates.push(`${base}/${num}-${year}-${typeParts}.pdf`);
+    // Pattern 5: Try adjacent months (docs sometimes filed under different month)
+    const adjMonth = monthNum > 1 ? monthNum - 1 : monthNum + 1;
+    candidates.push(`${DATAFILES_BASE}/${year}/${adjMonth}/${num}-${lastType}.signed.pdf`);
+    candidates.push(`${DATAFILES_BASE}/${year}/${adjMonth}/${num}-${typeParts}.signed.pdf`);
+
+    // Deduplicate
+    return [...new Set(candidates)];
   } catch (_) {
-    return null;
+    return [];
   }
 }
 
@@ -497,6 +539,46 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
     if (found) return found;
   } catch (_) {}
 
+  // Strategy 2.3: Check MongoDB known_documents for source_url / official_source_urls
+  try {
+    const { getDb } = require('../../services/db.service');
+    const db = await getDb();
+    const mongoDoc = await db.collection('known_documents').findOne({
+      $or: [
+        { document_number: docNumber },
+        { documentNumber: docNumber },
+        { normalized_number: normDocNum.replace(/[\s/]/g, '').toLowerCase() }
+      ]
+    });
+    if (mongoDoc) {
+      const srcUrl = mongoDoc.source_url
+        || (Array.isArray(mongoDoc.official_source_urls) && mongoDoc.official_source_urls[0])
+        || '';
+      // If source URL has docid, fetch detail page for PDF
+      const docidMatch = srcUrl.match(/docid=(\d+)/i);
+      if (docidMatch) {
+        try {
+          const detail = await fetchChinhphuDocumentDetail(docidMatch[1]);
+          if (detail && detail.pdfUrl) {
+            return {
+              documentNumber: docNumber,
+              title: mongoDoc.title || detail.title || `Văn bản số ${docNumber}`,
+              issueDate: mongoDoc.issue_date || mongoDoc.issueDate || detail.issueDate || '',
+              pdfUrl: detail.pdfUrl,
+              pdfVerified: true,
+              detailUrl: detail.detailUrl || srcUrl,
+              source: 'chinhphu_gov',
+              sourceUrl: detail.detailUrl || srcUrl,
+            };
+          }
+        } catch (_) {}
+      }
+      // Use MongoDB data for predict
+      opts.issueDate = opts.issueDate || mongoDoc.issue_date || mongoDoc.issueDate || '';
+      opts.title = opts.title || mongoDoc.title || '';
+    }
+  } catch (_) {}
+
   // Strategy 2.5: Check official source URLs for chinhphu docid to crawl detail page directly
   const officialUrls = Array.isArray(opts.official_source_urls)
     ? opts.official_source_urls
@@ -538,23 +620,21 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
     }
   } catch (_) {}
 
-  // Strategy 3: Predict PDF URL if we have issue date (only if verified via HTTP HEAD)
+  // Strategy 3: Predict PDF URL — try multiple patterns with HTTP HEAD verification
   const issueDate = opts.issueDate || opts.issue_date || null;
-  if (issueDate) {
-    const predicted = predictPdfUrl(docNumber, issueDate);
-    if (predicted) {
-      const verified = await verifyPdfUrl(predicted);
-      if (verified) {
-        return {
-          documentNumber: docNumber,
-          title: opts.title || `Văn bản số ${docNumber}`,
-          pdfUrl: verified,
-          pdfVerified: true,
-          detailUrl: buildChinhphuSearchUrl(docNumber),
-          source: 'chinhphu_gov',
-          sourceUrl: buildChinhphuSearchUrl(docNumber),
-        };
-      }
+  const candidates = predictPdfUrl(docNumber, issueDate);
+  for (const candidate of candidates) {
+    const verified = await verifyPdfUrl(candidate);
+    if (verified) {
+      return {
+        documentNumber: docNumber,
+        title: opts.title || `Văn bản số ${docNumber}`,
+        pdfUrl: verified,
+        pdfVerified: true,
+        detailUrl: `https://vanban.chinhphu.vn/`,
+        source: 'chinhphu_gov',
+        sourceUrl: `https://vanban.chinhphu.vn/`,
+      };
     }
   }
 
@@ -564,9 +644,9 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
     title: opts.title || `Tra cứu VB ${docNumber} trên Cổng Chính phủ`,
     pdfUrl: null,
     pdfVerified: false,
-    detailUrl: buildChinhphuSearchUrl(docNumber),
+    detailUrl: `https://vanban.chinhphu.vn/`,
     source: 'chinhphu_gov',
-    sourceUrl: buildChinhphuSearchUrl(docNumber),
+    sourceUrl: `https://vanban.chinhphu.vn/`,
     link_reference: true,
   };
 }

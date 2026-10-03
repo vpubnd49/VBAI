@@ -4813,6 +4813,44 @@ app.post('/api/chat', async (req, res) => {
     if (isLegalQuery && legalContext && legalContext.evidenceBundle && Array.isArray(legalContext.evidenceBundle.documents) && legalContext.evidenceBundle.documents.length > 0) {
       const docs = legalContext.evidenceBundle.documents;
 
+      // For listing/statistics queries, supplement with recent docs from MongoDB
+      const isListingQuery = /liệt kê|thống kê|tổng hợp|danh sách|cho biết các|có những.*nào|tất cả.*mới nhất/i.test(userMessage || '');
+      if (isListingQuery) {
+        try {
+          const { getDb } = require('./services/db.service');
+          const db = await getDb();
+          // Detect document type filter from query
+          const docTypeFilter = {};
+          if (/nghị định|NĐ-CP/i.test(userMessage)) docTypeFilter.document_type = 'nghi_dinh';
+          else if (/thông tư|TT-/i.test(userMessage)) docTypeFilter.document_type = 'thong_tu';
+          else if (/luật|QH/i.test(userMessage)) docTypeFilter.document_type = 'luat';
+          else if (/quyết định|QĐ/i.test(userMessage)) docTypeFilter.document_type = 'quyet_dinh';
+
+          const dbRecents = await db.collection('known_documents')
+            .find({ document_number: { $not: /\.docx$|\.doc$|\.pdf$/i }, ...docTypeFilter })
+            .sort({ issue_date: -1, crawled_at: -1 })
+            .limit(15)
+            .toArray();
+          const existingNums = new Set(docs.map(d => (d.documentNumber || '').toUpperCase()));
+          for (const d of dbRecents) {
+            const num = d.documentNumber || d.document_number || '';
+            if (!num || existingNums.has(num.toUpperCase())) continue;
+            existingNums.add(num.toUpperCase());
+            docs.push({
+              documentNumber: num,
+              title: d.title || d.trich_yeu || `Văn bản số ${num}`,
+              issuer: d.issuer || 'Chính phủ',
+              issueDate: d.issueDate || d.issue_date || '',
+              effectiveDate: d.effectiveDate || d.effective_date || '',
+              effectiveStatus: d.effectiveStatus || d.effective_status || 'in_force',
+              sourceUrl: d.source_url || (Array.isArray(d.official_source_urls) && d.official_source_urls[0]) || '',
+              chinhphuDetailUrl: d.source_url || (Array.isArray(d.official_source_urls) && d.official_source_urls[0]) || '',
+              snippet: d.tom_tat_chinh_sach || d.summary || '',
+            });
+          }
+        } catch (_) {}
+      }
+
       // Pre-resolve: enrich docs missing PDF/detail URLs by searching vanban.chinhphu.vn
       try {
         const { resolveChinhphuDocument } = require('./legal/services/chinhphu-gov-crawler');
@@ -4876,6 +4914,14 @@ app.post('/api/chat', async (req, res) => {
 - Bạn PHẢI tập trung phân tích ĐẦY ĐỦ, TOÀN DIỆN nội dung của VĂN BẢN CHÍNH mà người dùng hỏi.
 - Phân tích CHI TIẾT từng nhóm quy định, biện pháp, chế tài, mốc thời hạn, quyền/nghĩa vụ. KHÔNG trả lời sơ sài.
 - TUYỆT ĐỐI CẤM vẽ sơ đồ ASCII art (┌───┐, │, └───┘, ▼). BẮT BUỘC dùng danh sách phân cấp và Bảng Markdown chuẩn.
+
+[QUY TẮC ĐẶC BIỆT - CÂU HỎI LIỆT KÊ / THỐNG KÊ]:
+⚠️ Khi người dùng yêu cầu "liệt kê", "thống kê", "tổng hợp", "danh sách", "cho biết các", "có những ... nào", "tất cả ... mới nhất" → BẮT BUỘC:
+- Liệt kê TẤT CẢ văn bản liên quan từ dữ liệu cung cấp (KHÔNG được chỉ nêu 1 văn bản rồi phân tích sâu).
+- Mỗi văn bản trình bày ngắn gọn: Số hiệu, Tên/Trích yếu, Cơ quan ban hành, Ngày ban hành, Tình trạng hiệu lực.
+- Sắp xếp theo thứ tự thời gian (mới nhất trước).
+- Sau danh sách, trình bày bảng VI (Bảng trích dẫn) chứa TẤT CẢ các văn bản đã liệt kê kèm link tải PDF và link xem văn bản gốc.
+- KHÔNG phân tích chi tiết từng chương/điều khi đang ở chế độ liệt kê. Chỉ tóm tắt nội dung chính 1-2 câu cho mỗi VB.
 
 [CHỈ THỊ TỐI CAO - BẮT BUỘC TRÌNH BÀY ĐỦ CẢ 6 PHẦN TỪ I ĐẾN VI]:
 Dù câu hỏi của người dùng ngắn gọn (như "luật đất đai mới số bao nhiêu", "luật 72/2025 là gì", "tải file luật về cho tôi", "cho xem luật"), BẠN BẮT BUỘC PHẢI VIẾT ĐẦY ĐỦ TOÀN BỘ 6 PHẦN TỪ I ĐẾN VI!

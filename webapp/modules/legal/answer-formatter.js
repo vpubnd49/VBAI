@@ -521,10 +521,10 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
     // Always show PDF download links
     if (pdfUrls.length > 1) {
       pdfUrls.forEach((url, i) => {
-        linksHtml.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#0d9488;">📥 Tải PDF Phần ${i + 1}</a>`);
+        linksHtml.push(`<a href="${url}" download class="chat-inline-link" style="color:#0d9488;">📥 Tải PDF Phần ${i + 1}</a>`);
       });
     } else if (pdfUrls.length === 1) {
-      linksHtml.push(`<a href="${pdfUrls[0]}" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#0d9488;">📥 Tải về (PDF)</a>`);
+      linksHtml.push(`<a href="${pdfUrls[0]}" download class="chat-inline-link" style="color:#0d9488;">📥 Tải về (PDF)</a>`);
     }
 
     // Always show document source link
@@ -559,10 +559,10 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
 
     if (pdfUrls.length > 1) {
       pdfUrls.forEach((url, i) => {
-        linksHtml.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-download">📥 Tải PDF Phần ${i + 1}</a>`);
+        linksHtml.push(`<a href="${url}" download class="doc-card-btn doc-card-btn-download">📥 Tải PDF Phần ${i + 1}</a>`);
       });
     } else if (pdfUrls.length === 1) {
-      linksHtml.push(`<a href="${pdfUrls[0]}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-download">📥 Tải về (PDF)</a>`);
+      linksHtml.push(`<a href="${pdfUrls[0]}" download class="doc-card-btn doc-card-btn-download">📥 Tải về (PDF)</a>`);
     }
 
     if (doc.chinhphuDetailUrl) {
@@ -656,7 +656,7 @@ export function resolveDocLinks() {
         if (!d.ok || !div) return;
         const links = [];
         if (d.pdfUrl) {
-          links.push(`<a href="${d.pdfUrl}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-download" style="color:#ffffff;">📥 Tải về (PDF)</a>`);
+          links.push(`<a href="${d.pdfUrl}" download class="doc-card-btn doc-card-btn-download" style="color:#ffffff;">📥 Tải về (PDF)</a>`);
         }
         if (d.chinhphuDetailUrl) {
           links.push(`<a href="${d.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-view">🔗 Xem văn bản gốc</a>`);

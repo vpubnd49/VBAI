@@ -400,6 +400,7 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
     const resolvedIssueDate = issueDate || null;
     const resolvedEffectiveDate = effectiveDate || issueDate || null;
 
+    const resolvedSourceUrl = detailUrl || baseUrl;
     items.push({
       document_number: docNum,
       title: finalTitle,
@@ -413,7 +414,8 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
       status_as_of: now.toISOString().split('T')[0],
       tom_tat_chinh_sach: finalSummary,
       noi_dung_chi_tiet: finalSummary,
-      official_source_urls: [detailUrl || baseUrl],
+      official_source_urls: [resolvedSourceUrl],
+      source_url: resolvedSourceUrl,
       source_feed: sourceFeedName,
       crawled_at: now
     });
@@ -1003,6 +1005,7 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
           finalIssueDate = existing.issue_date;
         }
 
+        const mergedSourceUrls = mergedUrls.length > 0 ? mergedUrls : [doc.official_source_urls?.[0] || 'https://phaply.net.vn/'];
         await db.collection('known_documents').updateOne(
           { _id: existing._id },
           {
@@ -1012,7 +1015,8 @@ async function runCrawlerTask(requestedBy = 'scheduler') {
               tom_tat_chinh_sach: betterSummary,
               summary: betterSummary,
               noi_dung_chi_tiet: betterDetail,
-              official_source_urls: mergedUrls.length > 0 ? mergedUrls : [doc.official_source_urls?.[0] || 'https://phaply.net.vn/'],
+              official_source_urls: mergedSourceUrls,
+              source_url: doc.source_url || mergedSourceUrls[0] || existing.source_url || '',
               documentNumber: doc.document_number,
               issue_date: finalIssueDate,
               issueDate: finalIssueDate,
