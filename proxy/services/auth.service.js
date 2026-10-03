@@ -201,6 +201,7 @@ function sanitizeUser(user) {
   delete safe.token;
   delete safe.apiKey;
   delete safe.gemini_api_key;
+  delete safe.meeting_api_key;
   delete safe.google_search_key;
   // Keep the admin user contract stable across Mongo/Firebase records.
   safe.uid = safe.uid || safe._id || null;

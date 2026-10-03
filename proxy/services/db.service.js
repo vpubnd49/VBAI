@@ -188,6 +188,8 @@ async function getSystemConfig(forceReload = false) {
     gemini_endpoint: '',
     transcribe_model: '',
     meeting_model: '',
+    meeting_endpoint: '',
+    meeting_api_key: '',
     web_search_mode: 'cse_with_fallback',
     web_search_fallback_sources: {
       chinhphu: true,

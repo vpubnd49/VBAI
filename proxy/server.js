@@ -275,6 +275,26 @@ function resolveGeminiConfig(config = {}, requestConfig = {}) {
   return { apiKey, endpoint, model };
 }
 
+/**
+ * Resolve meeting-specific AI configuration.
+ * When meeting_endpoint, meeting_api_key and meeting_model are ALL explicitly set,
+ * those are returned so that Meeting Minutes uses a dedicated model (e.g. Google
+ * official Gemini 3.6) while everything else goes through the default gateway.
+ * Falls back to standard resolveGeminiConfig when any meeting field is missing.
+ */
+function resolveMeetingConfig(config = {}) {
+  const meetingEndpoint = String(config.meeting_endpoint || '').trim().replace(/\/+$/, '');
+  const meetingApiKey = String(config.meeting_api_key || '').trim();
+  const meetingModel = String(config.meeting_model || '').trim();
+  if (meetingEndpoint && meetingApiKey && meetingModel) {
+    return { apiKey: meetingApiKey, endpoint: meetingEndpoint, model: meetingModel };
+  }
+  // Fallback: use default config but override model if meeting_model is set
+  const base = resolveGeminiConfig(config);
+  if (meetingModel) base.model = meetingModel;
+  return base;
+}
+
   // Canonical Gemini configuration is resolved only from explicit admin fields.
 const LEGAL_MATCH_PASS_SCORE = 70;
 const OFFICIAL_SOURCE_HOSTS = Object.freeze([
@@ -2088,8 +2108,10 @@ async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, p
 
 async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt }) {
   const audioConfig = await getCachedSystemConfig();
-  const resolved = resolveGeminiConfig(audioConfig);
-  const effectiveModel = String(model || audioConfig.transcribe_model || resolved.model || 'gemini-3.6-flash').trim();
+  // Audio transcription ALWAYS uses meeting config (Google official Gemini)
+  // because transcription requires native Gemini API audio support
+  const resolved = resolveMeetingConfig(audioConfig);
+  const effectiveModel = String(model || audioConfig.meeting_model || audioConfig.transcribe_model || resolved.model || 'gemini-3.6-flash').trim();
   if (!resolved.apiKey || !resolved.endpoint || !effectiveModel) {
     throw Object.assign(new Error('Gemini configuration is incomplete.'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
@@ -3444,6 +3466,8 @@ app.post('/api/admin/system-config', async (req, res) => {
       web_search_fallback_sources,
       transcribe_model,
        meeting_model,
+       meeting_endpoint,
+       meeting_api_key,
        gemini_models,
        app_product_name,
        app_firebase_project
@@ -3474,6 +3498,13 @@ app.post('/api/admin/system-config', async (req, res) => {
     if (meeting_model !== undefined) {
       const val = String(meeting_model || '').trim();
       if (val) updateData.meeting_model = val;
+    }
+    if (meeting_endpoint !== undefined) {
+      updateData.meeting_endpoint = String(meeting_endpoint || '').trim();
+    }
+    if (meeting_api_key !== undefined) {
+      const val = String(meeting_api_key || '').trim();
+      if (val) updateData.meeting_api_key = val;
     }
     if (app_product_name !== undefined) updateData.app_product_name = String(app_product_name || '').trim().slice(0, 120);
     if (app_firebase_project !== undefined) updateData.app_firebase_project = String(app_firebase_project || '').trim().slice(0, 120);
@@ -4642,7 +4673,9 @@ app.post('/api/chat', async (req, res) => {
 
     // Fetch system config (từ cache để giảm độ trễ phản hồi)
     const config = await getCachedSystemConfig();
-    const ai = resolveGeminiConfig(config);
+    // Meeting minutes uses dedicated model/endpoint (Google official Gemini 3.6)
+    const isMeetingFeature = String(traceMeta?.feature || '').includes('meeting');
+    const ai = isMeetingFeature ? resolveMeetingConfig(config) : resolveGeminiConfig(config);
     const endpoint = ai.endpoint;
     const apiKey = ai.apiKey;
     const effectiveModel = ai.model;
