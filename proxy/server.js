@@ -3275,6 +3275,8 @@ app.get('/api/system-config-summary', async (req, res) => {
       vertex_serving_config: requesterIsAdmin ? (data.vertex_serving_config || '') : '',
        transcribe_model: data.transcribe_model || '',
        meeting_model: data.meeting_model || data.transcribe_model || '',
+       meeting_endpoint: requesterIsAdmin ? (data.meeting_endpoint || '') : '',
+       has_meeting_api_key: requesterIsAdmin ? Boolean(String(data.meeting_api_key || '').trim()) : false,
        app_product_name: requesterIsAdmin ? (data.app_product_name || '') : '',
        app_firebase_project: requesterIsAdmin ? (data.app_firebase_project || '') : '',
        app_environment: data.app_environment || process.env.NODE_ENV || 'production',

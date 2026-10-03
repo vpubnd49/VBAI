@@ -244,6 +244,19 @@ export function renderAdminPanel(container) {
                     </div>
                   </div>
 
+                  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-bottom:16px;">
+                    <div class="form-group">
+                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Meeting/Transcription Endpoint (Google chính hãng)</label>
+                      <input type="text" id="meeting_endpoint" class="form-input" placeholder="https://generativelanguage.googleapis.com/v1beta/openai" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
+                      <small class="config-hint" style="color:#64748b; font-size:12px;">Endpoint riêng cho ghi âm/bóc băng/biên bản cuộc họp (để trống = dùng endpoint chính)</small>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Meeting/Transcription API Key</label>
+                      <input type="password" id="meeting_api_key" class="form-input" placeholder="API key riêng cho meeting (để trống = giữ key hiện tại)" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
+                      <small class="config-hint" style="color:#64748b; font-size:12px;">API key riêng cho ghi âm/biên bản (để trống = dùng key chính)</small>
+                    </div>
+                  </div>
+
                   <div class="form-group">
                     <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Danh sách Model gemini khả dụng</label>
                     <div class="config-inline-row" style="display:flex; gap:10px; align-items:center;">
@@ -1193,6 +1206,8 @@ const geminiEndpointInput = formEl.querySelector('#gemini_endpoint');
   
   const transcribeModelInput = formEl.querySelector('#transcribe_model');
   const meetingModelInput = formEl.querySelector('#meeting_model');
+  const meetingEndpointInput = formEl.querySelector('#meeting_endpoint');
+  const meetingApiKeyInput = formEl.querySelector('#meeting_api_key');
   const vertexProjectIdInput = formEl.querySelector('#vertex_project_id');
   const vertexLocationInput = formEl.querySelector('#vertex_location');
   const vertexDataStoreIdInput = formEl.querySelector('#vertex_data_store_id');
@@ -1356,6 +1371,8 @@ setInputValue(geminiModelInput, config.gemini_model || '');
        // Load other configs
       setInputValue(transcribeModelInput, config.transcribe_model || config.gemini_model || '');
       setInputValue(meetingModelInput, config.meeting_model || config.transcribe_model || config.gemini_model || '');
+      setInputValue(meetingEndpointInput, config.meeting_endpoint || '');
+      if (meetingApiKeyInput) meetingApiKeyInput.placeholder = config.has_meeting_api_key ? 'API key đã cấu hình (để trống = giữ key hiện tại)' : 'Nhập API key riêng cho meeting';
       setInputValue(vertexProjectIdInput, config.vertex_project_id || '');
       setInputValue(vertexLocationInput, config.vertex_location || 'global');
       setInputValue(vertexDataStoreIdInput, config.vertex_data_store_id || '');
@@ -1385,6 +1402,8 @@ setInputValue(geminiModelInput, config.gemini_model || '');
     const activeAiModel = getInputValue(geminiModelInput);
     const activeTranscribeModel = getInputValue(transcribeModelInput);
     const activeMeetingModel = getInputValue(meetingModelInput);
+    const activeMeetingEndpoint = getInputValue(meetingEndpointInput);
+    const newMeetingKeyEntered = !!getInputValue(meetingApiKeyInput);
     const newKeyEntered = !!getInputValue(geminiKeyInput);
 
     const payload = {
@@ -1397,6 +1416,8 @@ setInputValue(geminiModelInput, config.gemini_model || '');
       // Other Settings
       transcribe_model: activeTranscribeModel,
       meeting_model: activeMeetingModel,
+      meeting_endpoint: activeMeetingEndpoint,
+      ...(newMeetingKeyEntered ? { meeting_api_key: getInputValue(meetingApiKeyInput) } : {}),
       web_search_provider: 'vertex_search',
       web_search_mode: getSelectedRadio('web_search_mode', 'vertex_first'),
       web_search_fallback_sources: getFallbackSources(),
