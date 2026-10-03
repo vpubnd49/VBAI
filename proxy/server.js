@@ -8746,6 +8746,67 @@ app.get('/api/legal/resolve-doc', async (req, res) => {
   }
 });
 
+// PDF Download Proxy — streams PDF from chinhphu.vn with Content-Disposition for direct browser download
+app.get('/api/legal/download-pdf', async (req, res) => {
+  try {
+    const pdfUrl = String(req.query.url || '').trim();
+    if (!pdfUrl) return res.status(400).json({ ok: false, error: 'Missing url parameter' });
+
+    // SSRF protection: only allow whitelisted domains
+    const { URL } = require('url');
+    const parsed = new URL(pdfUrl);
+    const allowedHosts = ['datafiles.chinhphu.vn', 'chinhphu.vn', 'vanban.chinhphu.vn', 'congbao.chinhphu.vn'];
+    if (!allowedHosts.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
+      return res.status(403).json({ ok: false, error: 'Domain not allowed' });
+    }
+
+    // Must be a PDF
+    if (!pdfUrl.toLowerCase().endsWith('.pdf')) {
+      return res.status(400).json({ ok: false, error: 'URL must point to a PDF file' });
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    const upstream = await fetch(pdfUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'VBAI-LegalBot/1.0 (+https://vbai.tracuu.lamdong.vn)',
+        'Accept': 'application/pdf,*/*',
+      },
+    });
+    clearTimeout(timer);
+
+    if (!upstream.ok) {
+      return res.status(upstream.status).json({ ok: false, error: `Upstream returned ${upstream.status}` });
+    }
+
+    // Extract filename from URL
+    const filename = decodeURIComponent(pdfUrl.split('/').pop() || 'document.pdf');
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    if (upstream.headers.get('content-length')) {
+      res.setHeader('Content-Length', upstream.headers.get('content-length'));
+    }
+
+    // Stream the response body
+    const reader = upstream.body.getReader();
+    const pump = async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) { res.end(); return; }
+        res.write(Buffer.from(value));
+      }
+    };
+    await pump();
+  } catch (err) {
+    console.error('GET /api/legal/download-pdf error:', err.message);
+    if (!res.headersSent) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  }
+});
+
 // Search History API — MongoDB is the canonical store; Firebase is auth-only.
 app.get('/api/search-history', async (req, res) => {
   try {

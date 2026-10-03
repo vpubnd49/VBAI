@@ -400,7 +400,11 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
     const resolvedIssueDate = issueDate || null;
     const resolvedEffectiveDate = effectiveDate || issueDate || null;
 
-    const resolvedSourceUrl = detailUrl || baseUrl;
+    let resolvedSourceUrl = detailUrl || baseUrl;
+    // Filter out news sites — only keep official document portal URLs
+    if (/baochinhphu\.vn|xaydungchinhsach|phaply\.net/i.test(resolvedSourceUrl)) {
+      resolvedSourceUrl = 'https://vanban.chinhphu.vn/';
+    }
     items.push({
       document_number: docNum,
       title: finalTitle,

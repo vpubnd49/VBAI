@@ -5,6 +5,16 @@
  */
 import { renderCitationChip } from './citation-renderer.js';
 
+/** Convert a raw PDF URL to a proxy download URL for direct browser download */
+function pdfProxyUrl(rawUrl) {
+  if (!rawUrl) return '';
+  // Only proxy chinhphu.vn PDFs (cross-origin); same-origin PDFs work with download attr
+  if (/datafiles\.chinhphu\.vn|chinhphu\.vn/i.test(rawUrl)) {
+    return `/api/legal/download-pdf?url=${encodeURIComponent(rawUrl)}`;
+  }
+  return rawUrl;
+}
+
 function escapeHtml(str = '') {
   return String(str || '')
     .replace(/&/g, '&amp;')
@@ -518,13 +528,13 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
     const linksHtml = [];
     const pdfUrls = doc.pdfDownloadUrls || [];
 
-    // Always show PDF download links
+    // Always show PDF download links (via proxy for direct download)
     if (pdfUrls.length > 1) {
       pdfUrls.forEach((url, i) => {
-        linksHtml.push(`<a href="${url}" download class="chat-inline-link" style="color:#0d9488;">📥 Tải PDF Phần ${i + 1}</a>`);
+        linksHtml.push(`<a href="${pdfProxyUrl(url)}" download class="chat-inline-link" style="color:#0d9488;">📥 Tải PDF Phần ${i + 1}</a>`);
       });
     } else if (pdfUrls.length === 1) {
-      linksHtml.push(`<a href="${pdfUrls[0]}" download class="chat-inline-link" style="color:#0d9488;">📥 Tải về (PDF)</a>`);
+      linksHtml.push(`<a href="${pdfProxyUrl(pdfUrls[0])}" download class="chat-inline-link" style="color:#0d9488;">📥 Tải về (PDF)</a>`);
     }
 
     // Always show document source link
@@ -559,10 +569,10 @@ function buildLegalCitationTable(rawAnswer = '', documents = []) {
 
     if (pdfUrls.length > 1) {
       pdfUrls.forEach((url, i) => {
-        linksHtml.push(`<a href="${url}" download class="doc-card-btn doc-card-btn-download">📥 Tải PDF Phần ${i + 1}</a>`);
+        linksHtml.push(`<a href="${pdfProxyUrl(url)}" download class="doc-card-btn doc-card-btn-download">📥 Tải PDF Phần ${i + 1}</a>`);
       });
     } else if (pdfUrls.length === 1) {
-      linksHtml.push(`<a href="${pdfUrls[0]}" download class="doc-card-btn doc-card-btn-download">📥 Tải về (PDF)</a>`);
+      linksHtml.push(`<a href="${pdfProxyUrl(pdfUrls[0])}" download class="doc-card-btn doc-card-btn-download">📥 Tải về (PDF)</a>`);
     }
 
     if (doc.chinhphuDetailUrl) {
@@ -656,7 +666,7 @@ export function resolveDocLinks() {
         if (!d.ok || !div) return;
         const links = [];
         if (d.pdfUrl) {
-          links.push(`<a href="${d.pdfUrl}" download class="doc-card-btn doc-card-btn-download" style="color:#ffffff;">📥 Tải về (PDF)</a>`);
+          links.push(`<a href="${pdfProxyUrl(d.pdfUrl)}" download class="doc-card-btn doc-card-btn-download" style="color:#ffffff;">📥 Tải về (PDF)</a>`);
         }
         if (d.chinhphuDetailUrl) {
           links.push(`<a href="${d.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="doc-card-btn doc-card-btn-view">🔗 Xem văn bản gốc</a>`);
