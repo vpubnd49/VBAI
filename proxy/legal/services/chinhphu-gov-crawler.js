@@ -13,7 +13,7 @@
 
 const { SOURCE_REGISTRY } = require('../constants/source-registry');
 
-const CHINHPHU_BASE = 'https://chinhphu.vn';
+const CHINHPHU_BASE = 'https://vanban.chinhphu.vn';
 const CHINHPHU_LISTING_PAGE = '/?pageid=41852&mode=0';
 const CHINHPHU_DETAIL_PAGEID = 27160;
 const DATAFILES_BASE = 'https://datafiles.chinhphu.vn/cpp/files/vbpq';
