@@ -970,3 +970,74 @@ export function formatLegalAnswer(rawAnswer = '', evidenceBundle = {}, warnings 
   `;
 }
 
+/**
+ * Post-render: scan ALL document numbers in the rendered HTML,
+ * call resolve-doc API for each, and inject PDF/source links
+ * where AI wrote "⚠️ Hệ thống đang tìm link" or where links are missing.
+ * 
+ * This makes the system SELF-HEALING — no MongoDB pre-population needed.
+ * @param {HTMLElement} containerEl The DOM element containing the rendered answer
+ */
+export function postResolveAllDocNumbers(containerEl) {
+  if (!containerEl) return;
+
+  // Find all table cells that might contain document numbers
+  const allCells = containerEl.querySelectorAll('td, th');
+  const docNumPattern = /(\d+\/\d{4}\/[A-ZĐa-zđ\-]+\d*)/g;
+  const resolvedNums = new Set();
+
+  allCells.forEach(cell => {
+    const text = cell.textContent || '';
+    const matches = text.match(docNumPattern);
+    if (!matches) return;
+
+    matches.forEach(docNum => {
+      if (resolvedNums.has(docNum)) return;
+      resolvedNums.add(docNum);
+
+      // Find the row this cell belongs to
+      const row = cell.closest('tr');
+      if (!row) return;
+
+      // Find the last cell in the row (likely the "Link" column)
+      const lastCell = row.querySelector('td:last-child');
+      if (!lastCell) return;
+
+      // Check if this row needs resolution (has placeholder or no links)
+      const cellText = lastCell.textContent || '';
+      const hasLinks = lastCell.querySelector('a[href]');
+      const needsResolve = cellText.includes('đang tìm') || cellText.includes('⚠️') || !hasLinks;
+
+      if (!needsResolve) return;
+
+      // Show loading state
+      if (!hasLinks) {
+        lastCell.innerHTML = '<span style="color:#94a3b8;font-size:0.85em;">⏳ Đang tìm link...</span>';
+      }
+
+      // Call resolve API
+      fetch(`/api/legal/resolve-doc?docNumber=${encodeURIComponent(docNum)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (!d.ok) return;
+          const links = [];
+          if (d.pdfUrl) {
+            links.push(`<a href="${pdfProxyUrl(d.pdfUrl)}" download class="chat-inline-link" style="color:#0d9488;">📥 Tải về (PDF)</a>`);
+          }
+          if (d.chinhphuDetailUrl && d.chinhphuDetailUrl !== 'https://vanban.chinhphu.vn/') {
+            links.push(`<a href="${d.chinhphuDetailUrl}" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#2563eb;">🔗 Xem văn bản gốc</a>`);
+          }
+          if (links.length > 0) {
+            lastCell.innerHTML = links.join('<br>');
+          } else {
+            lastCell.innerHTML = '<a href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#64748b;">🔗 Tra cứu trên Cổng CP</a>';
+          }
+        })
+        .catch(() => {
+          if (cellText.includes('đang tìm') || cellText.includes('⚠️')) {
+            lastCell.innerHTML = '<a href="https://vanban.chinhphu.vn/" target="_blank" rel="noopener noreferrer" class="chat-inline-link" style="color:#64748b;">🔗 Cổng TTĐT Chính phủ</a>';
+          }
+        });
+    });
+  });
+}

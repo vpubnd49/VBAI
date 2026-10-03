@@ -527,6 +527,12 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
   if (!docNumber) return null;
   const normDocNum = String(docNumber).trim().toUpperCase().replace(/\s+/g, '');
 
+  // Helper: return result and auto-save to MongoDB (fire-and-forget)
+  function _returnResolved(result) {
+    _autoSaveToMongo(docNumber, result);
+    return result;
+  }
+
   // Strategy 1: Check cached listing data (exact match only)
   for (const [, entry] of _cache) {
     if (!Array.isArray(entry.data)) continue;
@@ -534,7 +540,7 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
       const dn = String(d.documentNumber || '').toUpperCase().replace(/\s+/g, '');
       return dn === normDocNum;
     });
-    if (found) return found;
+    if (found) return _returnResolved(found);
   }
 
   // Strategy 2: Try to fetch from listing (exact match only)
@@ -544,35 +550,30 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
       const dn = String(d.documentNumber || '').toUpperCase().replace(/\s+/g, '');
       return dn === normDocNum;
     });
-    if (found) return found;
+    if (found) return _returnResolved(found);
   } catch (_) {}
 
   // Strategy 2.1: Fetch homepage HTML and search for doc number directly
-  // (handles encoding issues where doc number in HTML may differ from MongoDB)
+  // (handles encoding issues where doc number in HTML may differ)
   try {
     const resp = await _fetchSafe('https://vanban.chinhphu.vn/');
     if (resp.ok) {
       const html = await resp.text();
-      // Extract the number part (e.g. "376" from "376/2026/NĐ-CP")
       const numOnly = normDocNum.match(/^(\d+)\//)?.[1];
       if (numOnly) {
-        // Split HTML by table rows and search each row
         const rows = html.split(/<\/tr>/i);
         for (const rowHtml of rows) {
-          // Check if this row contains our document number (check span.code or PDF filename)
           const hasDocNum = rowHtml.includes(`>${numOnly}/`) 
             || rowHtml.includes(`/${numOnly}_`)
             || rowHtml.includes(`/${numOnly}-`);
           if (!hasDocNum) continue;
 
-          // Extract PDF link from bl-doc-file
           const pdfM = rowHtml.match(/href="(https:\/\/datafiles\.chinhphu\.vn\/[^"]+\.pdf)"/i);
-          // Extract docid from detail link
           const docidM = rowHtml.match(/docid=(\d+)/i);
           if (pdfM || docidM) {
             const detailUrl = docidM ? buildChinhphuDetailUrl(docidM[1]) : 'https://vanban.chinhphu.vn/';
             console.log(`[chinhphu-crawler] Strategy 2.1: found ${docNumber} on homepage → pdf=${Boolean(pdfM)}, docid=${docidM?.[1] || 'none'}`);
-            return {
+            return _returnResolved({
               documentNumber: docNumber,
               title: opts.title || `Văn bản số ${docNumber}`,
               issueDate: opts.issueDate || '',
@@ -581,14 +582,32 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
               detailUrl,
               source: 'chinhphu_gov',
               sourceUrl: detailUrl,
-            };
+            });
           }
         }
       }
     }
   } catch (_) {}
 
-  // Strategy 2.3: Check MongoDB known_documents for source_url / official_source_urls
+  // Strategy 2.7: Search vanban.chinhphu.vn via PostBack (reliable for any doc number)
+  // ⚡ MOVED BEFORE MongoDB — system works WITHOUT MongoDB data
+  try {
+    const vanbanResult = await searchVanbanChinhphu(docNumber);
+    if (vanbanResult && (vanbanResult.pdfUrl || vanbanResult.detailUrl)) {
+      return _returnResolved({
+        documentNumber: docNumber,
+        title: vanbanResult.title || opts.title || `Văn bản số ${docNumber}`,
+        issueDate: vanbanResult.issueDate || opts.issueDate || null,
+        pdfUrl: vanbanResult.pdfUrl || null,
+        pdfVerified: vanbanResult.pdfVerified || false,
+        detailUrl: vanbanResult.detailUrl,
+        source: 'vanban_chinhphu',
+        sourceUrl: vanbanResult.sourceUrl || vanbanResult.detailUrl,
+      });
+    }
+  } catch (_) {}
+
+  // Strategy 3: Check MongoDB as CACHE (not primary source)
   try {
     const { getDb } = require('../../services/db.service');
     const db = await getDb();
@@ -603,13 +622,12 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
       const srcUrl = mongoDoc.source_url
         || (Array.isArray(mongoDoc.official_source_urls) && mongoDoc.official_source_urls[0])
         || '';
-      // If source URL has docid, fetch detail page for PDF
       const docidMatch = srcUrl.match(/docid=(\d+)/i);
       if (docidMatch) {
         try {
           const detail = await fetchChinhphuDocumentDetail(docidMatch[1]);
           if (detail && detail.pdfUrl) {
-            return {
+            return _returnResolved({
               documentNumber: docNumber,
               title: mongoDoc.title || detail.title || `Văn bản số ${docNumber}`,
               issueDate: mongoDoc.issue_date || mongoDoc.issueDate || detail.issueDate || '',
@@ -618,17 +636,17 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
               detailUrl: detail.detailUrl || srcUrl,
               source: 'chinhphu_gov',
               sourceUrl: detail.detailUrl || srcUrl,
-            };
+            });
           }
         } catch (_) {}
       }
-      // Use MongoDB data for predict
+      // Use MongoDB data to help predict
       opts.issueDate = opts.issueDate || mongoDoc.issue_date || mongoDoc.issueDate || '';
       opts.title = opts.title || mongoDoc.title || '';
     }
   } catch (_) {}
 
-  // Strategy 2.5: Check official source URLs for chinhphu docid to crawl detail page directly
+  // Strategy 3.5: Check official source URLs for chinhphu docid
   const officialUrls = Array.isArray(opts.official_source_urls)
     ? opts.official_source_urls
     : (opts.officialUrl ? [opts.officialUrl] : []);
@@ -638,7 +656,7 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
       try {
         const detail = await fetchChinhphuDocumentDetail(docidMatch[1]);
         if (detail && detail.pdfUrl) {
-          return {
+          return _returnResolved({
             documentNumber: docNumber,
             title: opts.title || detail.title || `Văn bản số ${docNumber}`,
             pdfUrl: detail.pdfUrl,
@@ -646,36 +664,72 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
             detailUrl: detail.detailUrl || u,
             source: 'chinhphu_gov',
             sourceUrl: detail.detailUrl || u,
-          };
+          });
         }
       } catch (_) {}
     }
   }
 
-  // Strategy 2.7: Search vanban.chinhphu.vn via PostBack (most reliable for any document number)
+  // Strategy 3.7: Search vbaibot's qppl_documents SQLite as additional knowledge source
+  // This has 2340+ documents from Lâm Đồng UBND with file download links
   try {
-    const vanbanResult = await searchVanbanChinhphu(docNumber);
-    if (vanbanResult && (vanbanResult.pdfUrl || vanbanResult.detailUrl)) {
-      return {
-        documentNumber: docNumber,
-        title: vanbanResult.title || opts.title || `Văn bản số ${docNumber}`,
-        issueDate: vanbanResult.issueDate || opts.issueDate || null,
-        pdfUrl: vanbanResult.pdfUrl || null,
-        pdfVerified: vanbanResult.pdfVerified || false,
-        detailUrl: vanbanResult.detailUrl,
-        source: 'vanban_chinhphu',
-        sourceUrl: vanbanResult.sourceUrl || vanbanResult.detailUrl,
-      };
-    }
-  } catch (_) {}
+    const Database = require('better-sqlite3');
+    const vbaibotDbPath = '/var/www/vbaibot/data/zalo-agent.db';
+    const fs = require('fs');
+    if (fs.existsSync(vbaibotDbPath)) {
+      const vbotDb = new Database(vbaibotDbPath, { readonly: true });
+      // Search by document number (flexible matching)
+      const numOnly = normDocNum.match(/^(\d+)\//)?.[1];
+      let row = vbotDb.prepare(
+        `SELECT so_ky_hieu, trich_yeu, loai_van_ban, co_quan, hieu_luc, ngay_ban_hanh, file_urls
+         FROM qppl_documents WHERE so_ky_hieu = ? LIMIT 1`
+      ).get(docNumber);
 
-  // Strategy 3: Predict PDF URL — try multiple patterns with HTTP HEAD verification
+      // Fallback: search by number prefix
+      if (!row && numOnly) {
+        row = vbotDb.prepare(
+          `SELECT so_ky_hieu, trich_yeu, loai_van_ban, co_quan, hieu_luc, ngay_ban_hanh, file_urls
+           FROM qppl_documents WHERE so_ky_hieu LIKE ? LIMIT 1`
+        ).get(`${numOnly}/%`);
+      }
+
+      vbotDb.close();
+
+      if (row) {
+        let fileUrls = [];
+        try { fileUrls = JSON.parse(row.file_urls || '[]'); } catch (_) {}
+        const pdfFile = fileUrls.find(f => /\.pdf$/i.test(f.name || f.url || ''));
+        const pdfUrl = pdfFile ? (pdfFile.url || null) : null;
+        console.log(`[chinhphu-crawler] Strategy 3.7: found ${docNumber} in vbaibot DB → pdf=${Boolean(pdfUrl)}, files=${fileUrls.length}`);
+        return _returnResolved({
+          documentNumber: row.so_ky_hieu || docNumber,
+          title: row.trich_yeu || opts.title || `Văn bản số ${docNumber}`,
+          issueDate: row.ngay_ban_hanh || opts.issueDate || '',
+          pdfUrl,
+          pdfDownloadUrls: fileUrls.filter(f => /\.pdf$/i.test(f.name || f.url || '')).map(f => f.url),
+          pdfVerified: Boolean(pdfUrl),
+          detailUrl: 'https://vanban.chinhphu.vn/',
+          source: 'vbaibot_qppl',
+          sourceUrl: 'https://vanban.chinhphu.vn/',
+          issuer: row.co_quan || '',
+          effectiveStatus: (row.hieu_luc || '').includes('Còn') ? 'in_force' : 'het_hieu_luc',
+        });
+      }
+    }
+  } catch (err) {
+    // better-sqlite3 may not be installed — silently skip
+    if (!err.message?.includes('Cannot find module')) {
+      console.warn(`[chinhphu-crawler] Strategy 3.7 vbaibot error:`, err.message);
+    }
+  }
+
+  // Strategy 4: Predict PDF URL — try multiple patterns with HTTP HEAD verification
   const issueDate = opts.issueDate || opts.issue_date || null;
   const candidates = predictPdfUrl(docNumber, issueDate);
   for (const candidate of candidates) {
     const verified = await verifyPdfUrl(candidate);
     if (verified) {
-      return {
+      return _returnResolved({
         documentNumber: docNumber,
         title: opts.title || `Văn bản số ${docNumber}`,
         pdfUrl: verified,
@@ -683,11 +737,11 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
         detailUrl: `https://vanban.chinhphu.vn/`,
         source: 'chinhphu_gov',
         sourceUrl: `https://vanban.chinhphu.vn/`,
-      };
+      });
     }
   }
 
-  // Strategy 4: Return link-reference fallback
+  // Strategy 5: Return link-reference fallback (no auto-save needed)
   return {
     documentNumber: docNumber,
     title: opts.title || `Tra cứu VB ${docNumber} trên Cổng Chính phủ`,
@@ -698,6 +752,92 @@ async function resolveChinhphuDocument(docNumber = '', opts = {}) {
     sourceUrl: `https://vanban.chinhphu.vn/`,
     link_reference: true,
   };
+}
+
+/**
+ * Auto-save a resolved document to MongoDB known_documents.
+ * Runs async — does NOT block the resolve flow.
+ * Only saves if:
+ *  1. The document has a verified PDF URL or a specific detail URL with docid
+ *  2. The document is not already saved with the same data
+ */
+function _autoSaveToMongo(docNumber, resolveResult) {
+  if (!docNumber || !resolveResult) return;
+  // Only auto-save if we found something useful
+  if (!resolveResult.pdfUrl && (!resolveResult.detailUrl || resolveResult.detailUrl === 'https://vanban.chinhphu.vn/')) return;
+
+  // Fire-and-forget
+  (async () => {
+    try {
+      const { getDb } = require('../../services/db.service');
+      const db = await getDb();
+      const normNum = String(docNumber).trim();
+
+      // Check if already exists with same quality data
+      const existing = await db.collection('known_documents').findOne({
+        $or: [
+          { document_number: normNum },
+          { documentNumber: normNum },
+          { document_number: { $regex: new RegExp('^' + normNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') } }
+        ]
+      });
+
+      if (existing) {
+        // Update if we have better data (PDF URL where there was none)
+        const updates = {};
+        if (resolveResult.pdfUrl && !existing.pdf_url) {
+          updates.pdf_url = resolveResult.pdfUrl;
+        }
+        if (resolveResult.detailUrl && resolveResult.detailUrl !== 'https://vanban.chinhphu.vn/' && 
+            (!existing.source_url || existing.source_url === 'https://vanban.chinhphu.vn/')) {
+          updates.source_url = resolveResult.detailUrl;
+          updates.official_source_urls = [resolveResult.detailUrl];
+        }
+        if (Object.keys(updates).length > 0) {
+          updates.auto_updated_at = new Date();
+          await db.collection('known_documents').updateOne({ _id: existing._id }, { $set: updates });
+          console.log(`[auto-save] Updated ${normNum}: ${Object.keys(updates).join(', ')}`);
+        }
+        return;
+      }
+
+      // Insert new document
+      // Detect document type from number
+      const typeMap = {
+        'QH': 'luat', 'NĐ-CP': 'nghi_dinh', 'NĐ': 'nghi_dinh',
+        'TT-': 'thong_tu', 'QĐ-TTg': 'quyet_dinh', 'QĐ-': 'quyet_dinh',
+        'NQ-': 'nghi_quyet', 'CT-': 'chi_thi',
+      };
+      let docType = 'unknown';
+      for (const [pattern, type] of Object.entries(typeMap)) {
+        if (normNum.includes(pattern)) { docType = type; break; }
+      }
+
+      const newDoc = {
+        document_number: normNum,
+        title: resolveResult.title || `Văn bản số ${normNum}`,
+        document_type: docType,
+        issuer: resolveResult.issuer || '',
+        issue_date: resolveResult.issueDate || '',
+        effective_date: resolveResult.effectiveDate || '',
+        effective_status: 'in_force',
+        source_url: resolveResult.detailUrl || 'https://vanban.chinhphu.vn/',
+        official_source_urls: resolveResult.detailUrl ? [resolveResult.detailUrl] : [],
+        pdf_url: resolveResult.pdfUrl || null,
+        auto_saved: true,
+        auto_saved_at: new Date(),
+        crawled_at: new Date(),
+      };
+
+      await db.collection('known_documents').insertOne(newDoc);
+      console.log(`[auto-save] New document saved: ${normNum} (pdf=${Boolean(resolveResult.pdfUrl)})`);
+    } catch (err) {
+      // Silently ignore — auto-save is best-effort
+      if (err.code !== 11000) { // Ignore duplicate key
+        console.warn(`[auto-save] Error saving ${docNumber}:`, err.message);
+      }
+    }
+  })();
 }
 
 function _buildFallbackResult(keyword = '') {

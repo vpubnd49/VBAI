@@ -7,7 +7,7 @@ import { parseUniversalFile } from './universal-doc-parser.js';
 
 import { renderEvidencePanel } from './evidence-panel.js';
 import { sendStructuredChatRequest, sendLegalAgentRequest } from './ai-proxy.js';
-import { formatLegalAnswer, resolveDocLinks } from './legal/answer-formatter.js';
+import { formatLegalAnswer, resolveDocLinks, postResolveAllDocNumbers } from './legal/answer-formatter.js';
 import { showToast } from './ui-utils.js';
 
 let currentSearchState = {
@@ -283,6 +283,7 @@ async function executeLegalSearch(container, query) {
   if (cached) {
     answerArea.innerHTML = cached.formattedAnswerHtml;
     resolveDocLinks();
+    postResolveAllDocNumbers(answerArea);
     renderEvidencePanel(evidenceContainer, cached.response);
     bindCitationInteractions(container);
     searchBtn.disabled = false;
@@ -405,6 +406,8 @@ async function executeLegalSearch(container, query) {
 
     // Resolve document links (PDF + detail URLs) for unresolved docs in citation table
     resolveDocLinks();
+    // Self-healing: scan ALL doc numbers in rendered HTML, auto-resolve links
+    postResolveAllDocNumbers(answerArea);
 
     // Cache successful search for instant next-time retrieval
     legalSearchMemoryCache.set(cacheKey, { formattedAnswerHtml, response });
