@@ -4852,7 +4852,7 @@ app.post('/api/chat', async (req, res) => {
       }
 
       // For comparison queries, ensure BOTH documents are in the evidence
-      const isComparisonQuery = /so sánh|đối chiếu|khác nhau|khác biệt|giống nhau|thay đổi gì so với|sửa đổi gì so với/i.test(userMessage || '');
+      const isComparisonQuery = /so sánh|đối chiếu|khác nhau|khác biệt|giống nhau|thay đổi gì so với|sửa đổi gì so với|sự khác nhau|điểm khác|quy định khác/i.test(userMessage || '');
       if (isComparisonQuery) {
         try {
           // Extract all document numbers from the query
@@ -4963,7 +4963,9 @@ app.post('/api/chat', async (req, res) => {
 - KHÔNG phân tích chi tiết từng chương/điều khi đang ở chế độ liệt kê. Chỉ tóm tắt nội dung chính 1-2 câu cho mỗi VB.
 
 [QUY TẮC ĐẶC BIỆT - CÂU HỎI SO SÁNH VĂN BẢN]:
-⚠️ Khi người dùng yêu cầu "so sánh", "đối chiếu", "khác nhau", "khác biệt", "giống nhau", "thay đổi gì", "sửa đổi gì so với" → BẮT BUỘC:
+⚠️ Khi người dùng yêu cầu "so sánh", "đối chiếu", "khác nhau", "khác biệt", "giống nhau", "thay đổi gì", "sửa đổi gì so với", "sự khác nhau", "điểm khác", "quy định khác" → BẮT BUỘC:
+
+A) SO SÁNH TOÀN BỘ 2 VĂN BẢN (khi user không chỉ rõ điều/khoản cụ thể):
 - MỞ ĐẦU: Nêu rõ 2 (hoặc nhiều) văn bản đang so sánh với số hiệu, cơ quan ban hành, ngày ban hành.
 - BẢNG SO SÁNH (BẮT BUỘC): Trình bày bảng Markdown so sánh song song với cấu trúc sau:
 
@@ -4981,6 +4983,20 @@ app.post('/api/chat', async (req, res) => {
 | Văn bản thay thế/bãi bỏ | ... | ... |
 | Tình trạng hiệu lực | ... | ... |
 
+B) SO SÁNH CẤP ĐIỀU/KHOẢN/ĐIỂM CỤ THỂ (khi user hỏi ví dụ: "Điều 5 Luật A với Điều 5 Luật B", "Khoản 2 Điều 10 NĐ A và NĐ B"):
+- MỞ ĐẦU: Xác nhận rõ điều/khoản/điểm cụ thể đang so sánh thuộc văn bản nào.
+- TRÍCH DẪN NGUYÊN VĂN (BẮT BUỘC): Trích dẫn NGUYÊN VĂN nội dung của từng điều/khoản/điểm từ MỖI văn bản.
+- BẢNG SO SÁNH TỪNG KHOẢN/ĐIỂM:
+
+| Nội dung | [VB 1: Điều X] | [VB 2: Điều X] | Nhận xét thay đổi |
+| :--- | :--- | :--- | :--- |
+| Khoản 1 | (nội dung nguyên văn) | (nội dung nguyên văn) | Giữ nguyên / Sửa đổi / Bổ sung mới / Bãi bỏ |
+| Khoản 2 | ... | ... | ... |
+| ... | ... | ... | ... |
+
+- PHÂN TÍCH: Sau bảng, phân tích TÁC ĐỘNG của từng thay đổi (mở rộng/thu hẹp quyền, tăng/giảm mức phạt, thêm điều kiện, v.v.).
+
+C) QUY TẮC CHUNG CHO MỌI LOẠI SO SÁNH:
 - Các tiêu chí trên là gợi ý, BẮT BUỘC thêm/bớt tiêu chí phù hợp với nội dung cụ thể của 2 VB.
 - SAU BẢNG: Phân tích ngắn gọn 3-5 điểm khác biệt quan trọng nhất, tác động thực tiễn.
 - CUỐI CÙNG: Bảng VI (trích dẫn) chứa CẢ HAI văn bản kèm link tải PDF và link xem văn bản gốc.
