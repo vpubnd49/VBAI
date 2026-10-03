@@ -424,14 +424,40 @@ function extractDocumentsFromRawHtml(rawHtml, baseUrl, sourceFeedName) {
 
 /**
  * Source 1: vanban.chinhphu.vn - Document listing page
+ * NOTE (2026-10): pageid=27160 (old search page) no longer returns results.
+ * pageid=41852 is the new listing page with latest VB; supports pagination &page=N.
+ * Each page contains ~20 unique documents.
  */
 async function crawlVanbanChinhphu() {
-  const year = new Date().getFullYear();
-  const url = `https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=0&classid=0&TypeSearch=0&KeySearch=&KeyOganization=0&OrganizationSearch=&Keyword=&KeyOrganization=&SignerName=&FieldNum=&Year=${year}&MonthPublish=0&LoaiVanBan=0&IssuedDateFrom=&IssuedDateTo=&EffectedDateFrom=&EffectedDateTo=&PublishStatus=1`;
-  const res = await fetchWithRetry(url);
-  if (!res.ok) return [];
-  const html = await res.text();
-  return extractDocumentsFromRawHtml(html, url, 'vanban.chinhphu.vn');
+  const items = [];
+  const seen = new Set();
+
+  // Crawl multiple pages of the new listing (pageid=41852)
+  const urls = [
+    'https://vanban.chinhphu.vn/default.aspx?pageid=41852',
+    'https://vanban.chinhphu.vn/default.aspx?pageid=41852&page=2',
+    'https://vanban.chinhphu.vn/default.aspx?pageid=41852&page=3',
+    'https://vanban.chinhphu.vn/default.aspx?pageid=41852&page=4',
+    'https://vanban.chinhphu.vn/default.aspx?pageid=41852&page=5',
+    'https://vanban.chinhphu.vn/',
+  ];
+
+  for (const url of urls) {
+    try {
+      const res = await fetchWithRetry(url);
+      if (!res.ok) continue;
+      const html = await res.text();
+      const docs = extractDocumentsFromRawHtml(html, url, 'vanban.chinhphu.vn');
+      for (const d of docs) {
+        if (!seen.has(d.document_number)) {
+          seen.add(d.document_number);
+          items.push(d);
+        }
+      }
+    } catch (_) {}
+  }
+
+  return items;
 }
 
 /**
@@ -465,73 +491,145 @@ async function crawlBaochinhphu() {
 }
 
 /**
- * Source 5: lamdong.gov.vn/sites/qppl - Lam Dong province QPPL (SharePoint)
+ * Source 5: lamdong.gov.vn - Lam Dong province QPPL (SharePoint)
+ * URL: https://lamdong.gov.vn/sites/qppl/the-loai/toan-bo/SitePages/Home.aspx
  *
- * IMPORTANT: This is a SharePoint Modern (SPFx) site — the static HTML
- * contains NO document data (content is loaded by JavaScript). Previous
- * approach used extractDocumentsFromRawHtml on the static page, which either
- * found zero docs or mismatched nearby numbers with unrelated titles/links.
- *
- * New approach: Use SharePoint REST API to fetch the config list containing
- * links to sub-sites (UBND, HĐND, Sở...) and their SP list GUIDs. Then
- * attempt to fetch document items from each sub-site's "Quản lý văn bản"
- * list. Falls back gracefully to empty array if APIs are restricted.
+ * Uses SharePoint REST API at /sites/vpubnd/ which has 64,235+ documents
+ * in list "Quản lý văn bản chỉ đạo". Field mapping (SP internal → meaning):
+ *   S_x1ed1__x002f_K_x00fd__x0020_hi → Số/Ký hiệu
+ *   Tr_x00ed_ch_x0020_y_x1ebf_u → Trích yếu
+ *   Ng_x00e0_y → Ngày ban hành
+ *   C_x01a1__x0020_quan_x0020_ban_x0 → Cơ quan ban hành
+ *   Lo_x1ea1_i_x0020_v_x0103_n_x0020 → Loại văn bản
+ *   Hi_x1ec7_u_x0020_l_x1ef1_c → Hiệu lực (Còn/Hết)
+ *   Ng_x01b0__x1edd_i_x0020_k_x00fd_ → Người ký
  */
 async function crawlLamDongQPPL() {
-  const QPPL_BASE = 'https://lamdong.gov.vn/sites/qppl';
   const now = new Date();
   const items = [];
   const seen = new Set();
 
-  // Strategy 1: Fetch config list to get sub-site GUIDs and crawl each
+  // SP field name aliases (encoded Vietnamese)
+  const F_SO_HIEU = 'S_x1ed1__x002f_K_x00fd__x0020_hi';
+  const F_TRICH_YEU = 'Tr_x00ed_ch_x0020_y_x1ebf_u';
+  const F_NGAY = 'Ng_x00e0_y';
+  const F_CO_QUAN = 'C_x01a1__x0020_quan_x0020_ban_x0';
+  const F_LOAI_VB = 'Lo_x1ea1_i_x0020_v_x0103_n_x0020';
+  const F_HIEU_LUC = 'Hi_x1ec7_u_x0020_l_x1ef1_c';
+
+  // Strategy 1: Direct REST API to UBND tỉnh VB list (most reliable, 64K+ items)
   try {
-    const configUrl = `${QPPL_BASE}/_api/web/lists/getbytitle('C%E1%BA%A5u%20h%C3%ACnh%20t%E1%BB%95ng%20h%E1%BB%A3p%20v%C4%83n%20b%E1%BA%A3n')/items?$top=50`;
+    const listApiUrl = `https://lamdong.gov.vn/sites/vpubnd/_api/web/lists/getbytitle('Qu%E1%BA%A3n%20l%C3%BD%20v%C4%83n%20b%E1%BA%A3n%20ch%E1%BB%89%20%C4%91%E1%BA%A1o')/items?$top=50&$orderby=Modified%20desc&$select=Title,${F_SO_HIEU},${F_TRICH_YEU},${F_NGAY},${F_CO_QUAN},${F_LOAI_VB},${F_HIEU_LUC},Modified`;
+    const controller = new AbortController();
+    const spTimeout = setTimeout(() => controller.abort(), 20000);
+    const listRes = await fetchWithRetry(listApiUrl, {
+      headers: { 'Accept': 'application/json;odata=nometadata' },
+      signal: controller.signal,
+    });
+    clearTimeout(spTimeout);
+
+    if (listRes.ok) {
+      const listData = await listRes.json();
+      for (const item of (listData.value || [])) {
+        const rawNum = item[F_SO_HIEU] || item.Title || '';
+        const docNum = normalizeDocumentNumber(rawNum);
+        if (!docNum || seen.has(docNum)) continue;
+        if (!isValidLegalDocNumber(docNum)) continue;
+        seen.add(docNum);
+
+        const title = item[F_TRICH_YEU] || item.Title || `Văn bản ${docNum}`;
+        const issuer = item[F_CO_QUAN] || 'UBND tỉnh Lâm Đồng';
+        const loaiVb = item[F_LOAI_VB] || '';
+        const hieuLuc = item[F_HIEU_LUC] || 'Còn';
+        let issueDate = null;
+        if (item[F_NGAY]) {
+          try { issueDate = new Date(item[F_NGAY]).toISOString().split('T')[0]; } catch (_) {}
+        }
+
+        const { topic_aliases, query_patterns } = generateAliasesAndPatterns(docNum, title, '');
+
+        items.push({
+          document_number: docNum,
+          title: title,
+          document_type: detectDocType(loaiVb || title, docNum),
+          topic_aliases,
+          query_patterns,
+          issuer: issuer,
+          issue_date: issueDate,
+          effective_date: issueDate,
+          effective_status: hieuLuc === 'Hết' ? 'expired' : 'in_force',
+          status_as_of: now.toISOString().split('T')[0],
+          tom_tat_chinh_sach: title,
+          noi_dung_chi_tiet: title,
+          official_source_urls: ['https://lamdong.gov.vn/sites/qppl/the-loai/toan-bo/SitePages/Home.aspx'],
+          source_feed: 'lamdong.gov.vn/sites/vpubnd',
+          crawled_at: now,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[crawler] Lâm Đồng UBND SharePoint API failed:', err.message);
+  }
+
+  // Strategy 2: Also fetch from QPPL config sub-sites (with timeout)
+  try {
+    const configUrl = `https://lamdong.gov.vn/sites/qppl/_api/web/lists/getbyid('b3b79293-55f4-48d3-83c3-9a1f2c933313')/items?$top=50`;
+    const controller = new AbortController();
+    const spTimeout = setTimeout(() => controller.abort(), 15000);
     const configRes = await fetchWithRetry(configUrl, {
       headers: { 'Accept': 'application/json;odata=nometadata' },
+      signal: controller.signal,
     });
+    clearTimeout(spTimeout);
+
     if (configRes.ok) {
       const configData = await configRes.json();
-      const subSites = (configData.value || []).filter(s => s.GuildId && s.Title);
+      const subSites = (configData.value || []).filter(s => s.Title);
 
-      // Try each sub-site's SP list API for VB documents
       for (const site of subSites) {
+        const subsiteUrl = (site.OData__x0110__x01b0__x1edd_ng_x0020_d_ || '').trim();
+        if (!subsiteUrl || !subsiteUrl.startsWith('http')) continue;
+
+        // Map internal w3. domain to public domain
+        const publicUrl = subsiteUrl.replace('http://w3.lamdong.gov.vn', 'https://lamdong.gov.vn')
+          .replace('http://w3.beta.lamdong.gov.vn', 'https://lamdong.gov.vn')
+          .replace('https://w3.lamdong.gov.vn', 'https://lamdong.gov.vn');
+
         try {
-          const subsiteUrl = (site.OData__x0110__x01b0__x1edd_ng_x0020_d_ || '').trim();
-          if (!subsiteUrl || !subsiteUrl.startsWith('http')) continue;
-
-          // Attempt to read "Quản lý văn bản" or "Quản lý văn bản chỉ đạo" list
-          const listApiUrl = `${subsiteUrl.replace(/\/$/, '')}/_api/web/lists/getbytitle('Qu%E1%BA%A3n%20l%C3%BD%20v%C4%83n%20b%E1%BA%A3n')/items?$top=20&$orderby=Modified desc`;
-          const listRes = await fetchWithRetry(listApiUrl, {
+          // Try fetching the VB list from this sub-site
+          const vbListUrl = `${publicUrl.replace(/\/$/, '')}/_api/web/lists/getbytitle('Qu%E1%BA%A3n%20l%C3%BD%20v%C4%83n%20b%E1%BA%A3n%20ch%E1%BB%89%20%C4%91%E1%BA%A1o')/items?$top=20&$orderby=Modified%20desc&$select=Title,${F_SO_HIEU},${F_TRICH_YEU},${F_NGAY},${F_CO_QUAN},${F_LOAI_VB},${F_HIEU_LUC}`;
+          const ctrl2 = new AbortController();
+          const t2 = setTimeout(() => ctrl2.abort(), 10000);
+          const vbRes = await fetchWithRetry(vbListUrl, {
             headers: { 'Accept': 'application/json;odata=nometadata' },
-          });
-          if (!listRes.ok) continue;
+            signal: ctrl2.signal,
+          }, 0);
+          clearTimeout(t2);
+          if (!vbRes || !vbRes.ok) continue;
 
-          const listData = await listRes.json();
-          for (const item of (listData.value || [])) {
-            const docNum = normalizeDocumentNumber(item.Title || item.SoHieu || '');
+          const vbData = await vbRes.json();
+          for (const item of (vbData.value || [])) {
+            const rawNum = item[F_SO_HIEU] || item.Title || '';
+            const docNum = normalizeDocumentNumber(rawNum);
             if (!docNum || seen.has(docNum)) continue;
             if (!isValidLegalDocNumber(docNum)) continue;
             seen.add(docNum);
 
-            const title = item.TrichYeu || item.Title || `Văn bản ${docNum}`;
-            const issuer = site.Title || 'UBND tỉnh Lâm Đồng';
-            const issueDate = item.NgayBanHanh ? new Date(item.NgayBanHanh).toISOString().split('T')[0] : null;
-            const effectiveDate = item.NgayHieuLuc ? new Date(item.NgayHieuLuc).toISOString().split('T')[0] : issueDate;
-
+            const title = item[F_TRICH_YEU] || item.Title || `Văn bản ${docNum}`;
             items.push({
               document_number: docNum,
               title: title,
               document_type: detectDocType(title, docNum),
               topic_aliases: [],
               query_patterns: [],
-              issuer: issuer,
-              issue_date: issueDate,
-              effective_date: effectiveDate,
+              issuer: site.Title || 'Sở ban ngành Lâm Đồng',
+              issue_date: item[F_NGAY] ? new Date(item[F_NGAY]).toISOString().split('T')[0] : null,
+              effective_date: item[F_NGAY] ? new Date(item[F_NGAY]).toISOString().split('T')[0] : null,
               effective_status: 'in_force',
               status_as_of: now.toISOString().split('T')[0],
               tom_tat_chinh_sach: title,
               noi_dung_chi_tiet: title,
-              official_source_urls: [subsiteUrl],
+              official_source_urls: [publicUrl],
               source_feed: 'lamdong.gov.vn/sites/qppl',
               crawled_at: now,
             });
@@ -540,31 +638,7 @@ async function crawlLamDongQPPL() {
       }
     }
   } catch (err) {
-    console.warn('[crawler] Lâm Đồng QPPL SharePoint API failed:', err.message);
-  }
-
-  // Strategy 2: Crawl the NQ HĐND and QĐ UBND sub-pages for static content
-  // These sub-pages may have static HTML with document numbers
-  const subPages = [
-    { url: `${QPPL_BASE}/qppl/quyet-dinh/SitePages/Home.aspx`, label: 'QĐ UBND' },
-    { url: `${QPPL_BASE}/qppl/nghi-quyet/SitePages/Home.aspx`, label: 'NQ HĐND' },
-  ];
-
-  for (const page of subPages) {
-    try {
-      const res = await fetchWithRetry(page.url);
-      if (!res.ok) continue;
-      const html = await res.text();
-      const decoded = html.replace(/&amp;/g, '&').replace(/&quot;/g, '"')
-        .replace(/&#58;/g, ':').replace(/&#123;/g, '{').replace(/&#125;/g, '}');
-      const docs = extractDocumentsFromRawHtml(decoded, page.url, 'lamdong.gov.vn/sites/qppl');
-      for (const doc of docs) {
-        if (!seen.has(normalizeDocumentNumber(doc.document_number))) {
-          seen.add(normalizeDocumentNumber(doc.document_number));
-          items.push(doc);
-        }
-      }
-    } catch (_) {}
+    console.warn('[crawler] Lâm Đồng QPPL config crawl failed:', err.message);
   }
 
   return items;
@@ -595,6 +669,39 @@ async function crawlCongbaoVanbanMoi() {
 }
 
 /**
+ * Source 8: luatvietnam.vn - Major legal document aggregator
+ * Crawls latest VB listings and detail pages with rich trích yếu.
+ */
+async function crawlLuatVietNam() {
+  const items = [];
+  const seen = new Set();
+  const now = new Date();
+
+  const urls = [
+    'https://luatvietnam.vn/van-ban-moi.html',
+    'https://luatvietnam.vn/nghi-dinh.html',
+    'https://luatvietnam.vn/thong-tu.html',
+    'https://luatvietnam.vn/luat.html',
+  ];
+
+  for (const url of urls) {
+    try {
+      const res = await fetchWithRetry(url);
+      if (!res.ok) continue;
+      const html = await res.text();
+      const docs = extractDocumentsFromRawHtml(html, url, 'luatvietnam.vn');
+      for (const d of docs) {
+        if (!seen.has(d.document_number)) {
+          seen.add(d.document_number);
+          items.push(d);
+        }
+      }
+    } catch (_) {}
+  }
+
+  return items;
+}
+
 /**
  * Source: phaply.net.vn - Legal news and analysis site
  * Crawls RSS feeds (structured titles, descriptions, direct links) and HTML category pages.
@@ -757,6 +864,7 @@ async function crawlOfficialSources() {
     { name: 'congbao.chinhphu.vn', fn: crawlCongbao, scope: 'central' },
     { name: 'congbao (van ban moi)', fn: crawlCongbaoVanbanMoi, scope: 'central' },
     { name: 'vanban.chinhphu.vn', fn: crawlVanbanChinhphu, scope: 'central' },
+    { name: 'luatvietnam.vn', fn: crawlLuatVietNam, scope: 'central' },
     { name: 'chinhphu.vn (trang chu)', fn: crawlChinhphuHomepage, scope: 'central' },
     { name: 'chinhphu.vn (VB chi dao)', fn: crawlChinhphuVBCD, scope: 'central' },
     { name: 'baochinhphu.vn', fn: crawlBaochinhphu, scope: 'central' },
