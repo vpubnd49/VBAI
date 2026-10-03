@@ -4851,6 +4851,45 @@ app.post('/api/chat', async (req, res) => {
         } catch (_) {}
       }
 
+      // For comparison queries, ensure BOTH documents are in the evidence
+      const isComparisonQuery = /so sánh|đối chiếu|khác nhau|khác biệt|giống nhau|thay đổi gì so với|sửa đổi gì so với/i.test(userMessage || '');
+      if (isComparisonQuery) {
+        try {
+          // Extract all document numbers from the query
+          const docNumRegex = /(\d+\/\d{4}\/[A-ZĐa-zđ\-]+|\d+\/[A-ZĐa-zđ\-]+)/gi;
+          const queryDocNums = [...new Set((userMessage || '').match(docNumRegex) || [])];
+          if (queryDocNums.length > 0) {
+            const { getDb } = require('./services/db.service');
+            const db = await getDb();
+            const existingNums = new Set(docs.map(d => (d.documentNumber || '').toUpperCase().replace(/\s+/g, '')));
+            for (const qNum of queryDocNums) {
+              const normQNum = qNum.toUpperCase().replace(/\s+/g, '');
+              if (existingNums.has(normQNum)) continue;
+              const mongoDoc = await db.collection('known_documents').findOne({
+                $or: [
+                  { document_number: { $regex: new RegExp(qNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } },
+                  { documentNumber: { $regex: new RegExp(qNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }
+                ]
+              });
+              if (mongoDoc) {
+                existingNums.add(normQNum);
+                docs.push({
+                  documentNumber: mongoDoc.documentNumber || mongoDoc.document_number || qNum,
+                  title: mongoDoc.title || mongoDoc.trich_yeu || `Văn bản số ${qNum}`,
+                  issuer: mongoDoc.issuer || 'Chính phủ',
+                  issueDate: mongoDoc.issueDate || mongoDoc.issue_date || '',
+                  effectiveDate: mongoDoc.effectiveDate || mongoDoc.effective_date || '',
+                  effectiveStatus: mongoDoc.effectiveStatus || mongoDoc.effective_status || 'in_force',
+                  sourceUrl: mongoDoc.source_url || (Array.isArray(mongoDoc.official_source_urls) && mongoDoc.official_source_urls[0]) || '',
+                  chinhphuDetailUrl: mongoDoc.source_url || (Array.isArray(mongoDoc.official_source_urls) && mongoDoc.official_source_urls[0]) || '',
+                  snippet: mongoDoc.tom_tat_chinh_sach || mongoDoc.summary || '',
+                });
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
       // Pre-resolve: enrich docs missing PDF/detail URLs by searching vanban.chinhphu.vn
       try {
         const { resolveChinhphuDocument } = require('./legal/services/chinhphu-gov-crawler');
@@ -4922,6 +4961,30 @@ app.post('/api/chat', async (req, res) => {
 - Sắp xếp theo thứ tự thời gian (mới nhất trước).
 - Sau danh sách, trình bày bảng VI (Bảng trích dẫn) chứa TẤT CẢ các văn bản đã liệt kê kèm link tải PDF và link xem văn bản gốc.
 - KHÔNG phân tích chi tiết từng chương/điều khi đang ở chế độ liệt kê. Chỉ tóm tắt nội dung chính 1-2 câu cho mỗi VB.
+
+[QUY TẮC ĐẶC BIỆT - CÂU HỎI SO SÁNH VĂN BẢN]:
+⚠️ Khi người dùng yêu cầu "so sánh", "đối chiếu", "khác nhau", "khác biệt", "giống nhau", "thay đổi gì", "sửa đổi gì so với" → BẮT BUỘC:
+- MỞ ĐẦU: Nêu rõ 2 (hoặc nhiều) văn bản đang so sánh với số hiệu, cơ quan ban hành, ngày ban hành.
+- BẢNG SO SÁNH (BẮT BUỘC): Trình bày bảng Markdown so sánh song song với cấu trúc sau:
+
+| Tiêu chí so sánh | [Số hiệu VB 1] | [Số hiệu VB 2] |
+| :--- | :--- | :--- |
+| Cơ quan ban hành | ... | ... |
+| Ngày ban hành | ... | ... |
+| Ngày hiệu lực | ... | ... |
+| Phạm vi điều chỉnh | ... | ... |
+| Đối tượng áp dụng | ... | ... |
+| Cấu trúc (số chương/điều) | ... | ... |
+| Điểm mới/thay đổi quan trọng | ... | ... |
+| Chế tài/Mức phạt | ... | ... |
+| Mốc thời hạn chuyển tiếp | ... | ... |
+| Văn bản thay thế/bãi bỏ | ... | ... |
+| Tình trạng hiệu lực | ... | ... |
+
+- Các tiêu chí trên là gợi ý, BẮT BUỘC thêm/bớt tiêu chí phù hợp với nội dung cụ thể của 2 VB.
+- SAU BẢNG: Phân tích ngắn gọn 3-5 điểm khác biệt quan trọng nhất, tác động thực tiễn.
+- CUỐI CÙNG: Bảng VI (trích dẫn) chứa CẢ HAI văn bản kèm link tải PDF và link xem văn bản gốc.
+- KHÔNG cần trình bày đủ 6 phần I-VI khi ở chế độ so sánh. Tập trung vào bảng so sánh và phân tích khác biệt.
 
 [CHỈ THỊ TỐI CAO - BẮT BUỘC TRÌNH BÀY ĐỦ CẢ 6 PHẦN TỪ I ĐẾN VI]:
 Dù câu hỏi của người dùng ngắn gọn (như "luật đất đai mới số bao nhiêu", "luật 72/2025 là gì", "tải file luật về cho tôi", "cho xem luật"), BẠN BẮT BUỘC PHẢI VIẾT ĐẦY ĐỦ TOÀN BỘ 6 PHẦN TỪ I ĐẾN VI!
