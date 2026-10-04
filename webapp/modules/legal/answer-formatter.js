@@ -8,8 +8,8 @@ import { renderCitationChip } from './citation-renderer.js';
 /** Convert a raw PDF URL to a proxy download URL for direct browser download */
 function pdfProxyUrl(rawUrl) {
   if (!rawUrl) return '';
-  // Only proxy chinhphu.vn PDFs (cross-origin); same-origin PDFs work with download attr
-  if (/datafiles\.chinhphu\.vn|chinhphu\.vn/i.test(rawUrl)) {
+  // Proxy cross-origin PDF sources through our download endpoint
+  if (/datafiles\.chinhphu\.vn|chinhphu\.vn|media\.lamdong\.gov\.vn|lamdong\.gov\.vn/i.test(rawUrl)) {
     return `/api/legal/download-pdf?url=${encodeURIComponent(rawUrl)}`;
   }
   return rawUrl;

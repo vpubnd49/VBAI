@@ -11,6 +11,7 @@ let cachedDocuments = null;
 let cachedBosung = null;
 let cachedMongoDocuments = new Map();
 let lastMongoSync = 0;
+let vbaibotSyncDone = false;
 
 function isCodeOrCorruptedText(str) {
   if (!str || typeof str !== 'string') return true;
@@ -28,11 +29,98 @@ function isCodeOrCorruptedText(str) {
   return false;
 }
 
+/**
+ * Load vbaibot SQLite qppl_documents into a Map (same shape as MongoDB cache).
+ * Returns a Map keyed by normalized document number.
+ */
+function syncVbaibotDocuments() {
+  const vbaibotDbPath = '/var/www/vbaibot/data/zalo-agent.db';
+  const result = new Map();
+  try {
+    if (!fs.existsSync(vbaibotDbPath)) return result;
+    const Database = require('better-sqlite3');
+    const vbotDb = new Database(vbaibotDbPath, { readonly: true });
+    const rows = vbotDb.prepare(
+      `SELECT so_ky_hieu, trich_yeu, loai_van_ban, co_quan, linh_vuc, hieu_luc, ngay_ban_hanh, file_urls
+       FROM qppl_documents WHERE so_ky_hieu != '' ORDER BY id DESC`
+    ).all();
+    vbotDb.close();
+
+    // Map vbaibot loai_van_ban to canonical types
+    const typeMap = {
+      'Quyết định': 'quyet_dinh', 'Quyết định QPPL': 'quyet_dinh',
+      'Công văn': 'cong_van', 'Công văn văn phòng': 'cong_van',
+      'Nghị quyết': 'nghi_quyet', 'Kế hoạch': 'ke_hoach', 'Kế hoạch ': 'ke_hoach',
+      'Báo cáo': 'bao_cao', 'Thông báo': 'thong_bao', 'Chỉ thị': 'chi_thi',
+      'Tờ trình': 'to_trinh', 'Kết luận': 'ket_luan', 'Giấy mời': 'giay_moi',
+    };
+
+    for (const row of rows) {
+      const docNum = String(row.so_ky_hieu || '').trim();
+      if (!docNum) continue;
+      const target = normalizeDocumentNumber(docNum);
+      if (!target) continue;
+      if (result.has(target)) continue; // first entry wins (newest by id DESC)
+
+      const title = String(row.trich_yeu || '').trim();
+      const docType = typeMap[row.loai_van_ban] || 'van_ban';
+      const effectiveStatus = (row.hieu_luc || '').includes('Còn') ? 'in_force' : 'het_hieu_luc';
+
+      // Parse file_urls JSON for PDF links
+      let fileUrls = [];
+      try { fileUrls = JSON.parse(row.file_urls || '[]'); } catch (_) {}
+      const pdfFiles = fileUrls.filter(f => /\.pdf$/i.test(f.name || f.url || ''));
+
+      result.set(target, {
+        id: 'vbaibot_' + target,
+        document_number: docNum,
+        title: title || `Văn bản số ${docNum}`,
+        document_type: docType,
+        topic_aliases: [],
+        query_patterns: [],
+        issuer: row.co_quan || '',
+        issue_date: row.ngay_ban_hanh || null,
+        effective_date: null,
+        effective_status: effectiveStatus,
+        status_as_of: null,
+        replaces: [],
+        amends: [],
+        superseded_by: [],
+        official_source_urls: [],
+        tom_tat_chinh_sach: title,
+        noi_dung_chi_tiet: title,
+        chapterArticleSummary: '',
+        tom_tat_chuong_dieu: '',
+        can_cu_phap_ly: [],
+        nguoi_ky: null,
+        pdf_download_urls: pdfFiles.map(f => f.url),
+        all_file_urls: fileUrls,
+        verification_status: 'verified',
+        review_state: 'published',
+        source: 'vbaibot_qppl',
+        match_type: 'direct'
+      });
+    }
+    console.log(`[known-documents] Synced ${result.size} documents from vbaibot SQLite`);
+  } catch (err) {
+    if (!err.message?.includes('Cannot find module')) {
+      console.warn('[known-documents] vbaibot sync error:', err.message);
+    }
+  }
+  return result;
+}
+
 async function syncMongoDocuments(forceReload = false) {
   const now = Date.now();
   if (!forceReload && (now - lastMongoSync < 60000) && cachedMongoDocuments.size > 0) {
     return cachedMongoDocuments;
   }
+
+  // Step 1: Load vbaibot SQLite as BASE layer (2,340+ docs)
+  const newMap = vbaibotSyncDone ? new Map(cachedMongoDocuments) : syncVbaibotDocuments();
+  vbaibotSyncDone = true;
+
+  // Step 2: Overlay MongoDB on top (higher quality data overwrites vbaibot)
   try {
     const { getDb } = require('../../services/db.service');
     const db = await getDb();
@@ -40,7 +128,6 @@ async function syncMongoDocuments(forceReload = false) {
       .find({ document_number: { $not: /\.docx$|\.doc$|\.pdf$/i } })
       .toArray();
 
-    const newMap = new Map();
     for (const d of docs) {
       const docNum = d.document_number || d.documentNumber;
       if (!docNum) continue;
@@ -88,9 +175,15 @@ async function syncMongoDocuments(forceReload = false) {
         });
       }
     }
-    cachedMongoDocuments = newMap;
-    lastMongoSync = now;
-  } catch (_) {}
+  } catch (mongoErr) {
+    // MongoDB unavailable — vbaibot data still in cache
+    if (newMap.size === 0) {
+      console.warn('[known-documents] MongoDB unavailable and no vbaibot data, cache empty');
+    }
+  }
+
+  cachedMongoDocuments = newMap;
+  lastMongoSync = now;
   return cachedMongoDocuments;
 }
 
@@ -439,6 +532,27 @@ function findByPartialNumber(number = '', docType = null, yearFilter = null) {
     // Silently ignore if bosung is not available
   }
 
+  // Search cachedMongoDocuments (includes vbaibot + MongoDB data)
+  if (cachedMongoDocuments && cachedMongoDocuments.size > 0) {
+    for (const doc of cachedMongoDocuments.values()) {
+      const dn = String(doc.document_number || '');
+      if (dn.startsWith(numStr + '/') || dn === numStr) {
+        if (docType && doc.document_type !== docType) continue;
+        if (yearFilter && !dn.includes('/' + yearFilter + '/')) continue;
+        if (!results.some(r => normalizeDocumentNumber(r.documentNumber) === normalizeDocumentNumber(dn))) {
+          results.push({
+            documentNumber: dn,
+            title: doc.title || '',
+            documentType: doc.document_type || '',
+            issuer: doc.issuer || '',
+            effectiveStatus: doc.effective_status || 'in_force',
+            source: doc.source || 'cache',
+          });
+        }
+      }
+    }
+  }
+
   return results;
 }
 
@@ -502,6 +616,100 @@ function findByTopicInBosung(topic = '') {
   return results;
 }
 
+/**
+ * Get recent documents from the unified cache (vbaibot + MongoDB).
+ * Used by /api/chat for listing queries — NO direct MongoDB dependency.
+ */
+function getRecentDocumentsFromCache(limit = 15, docTypeFilter = null) {
+  const allDocs = [...cachedMongoDocuments.values()];
+  let filtered = allDocs;
+  if (docTypeFilter) {
+    filtered = allDocs.filter(d => d.document_type === docTypeFilter);
+    if (filtered.length === 0) filtered = allDocs; // fallback to all if filter matches nothing
+  }
+  // Sort by issue_date DESC (newest first)
+  filtered.sort((a, b) => {
+    const da = a.issue_date || '';
+    const db_ = b.issue_date || '';
+    return db_.localeCompare(da);
+  });
+  return filtered.slice(0, limit).map(d => ({
+    documentNumber: d.document_number,
+    title: d.title || '',
+    issuer: d.issuer || 'Chính phủ',
+    issueDate: d.issue_date || '',
+    effectiveDate: d.effective_date || '',
+    effectiveStatus: d.effective_status || 'in_force',
+    sourceUrl: (d.official_source_urls && d.official_source_urls[0]) || '',
+    chinhphuDetailUrl: (d.official_source_urls && d.official_source_urls[0]) || '',
+    snippet: d.tom_tat_chinh_sach || d.title || '',
+    source: d.source || 'cache',
+  }));
+}
+
+/**
+ * Find a document by number across ALL sources (local files + vbaibot + MongoDB cache).
+ * Single entry point — no direct MongoDB dependency.
+ */
+function findDocFromAllSources(docNumber = '') {
+  if (!docNumber) return null;
+  // findKnownDocumentByNumber already searches: MongoDB cache → known-documents.json → bosung_metadata
+  // Since cachedMongoDocuments now includes vbaibot data, this covers all sources.
+  return findKnownDocumentByNumber(docNumber);
+}
+
+/**
+ * Find superseded/replaced documents from bosung_metadata relationships + cache.
+ */
+function findSupersededDocument(docNumber = '') {
+  if (!docNumber) return null;
+  const target = normalizeDocumentNumber(docNumber);
+  if (!target) return null;
+
+  // Check bosung_metadata for replacement relationships
+  try {
+    const bosung = loadBosungMetadataIndex();
+    for (const { record: entry } of bosung.records.values()) {
+      if (!entry) continue;
+      // This document was replaced by docNumber
+      if (Array.isArray(entry.thay_the_cho)) {
+        for (const replaced of entry.thay_the_cho) {
+          if (normalizeDocumentNumber(replaced) === target) {
+            // Return the CURRENT document (the one that replaced)
+            return findKnownDocumentByNumber(entry.so_hieu);
+          }
+        }
+      }
+      // This document replaces something → if docNumber matches, return the replaced one
+      if (normalizeDocumentNumber(entry.so_hieu) === target && Array.isArray(entry.thay_the_cho)) {
+        for (const replaced of entry.thay_the_cho) {
+          const replacedDoc = findKnownDocumentByNumber(replaced);
+          if (replacedDoc) return replacedDoc;
+        }
+      }
+    }
+  } catch (_) {}
+
+  // Check cachedMongoDocuments for superseded_by relationships
+  for (const doc of cachedMongoDocuments.values()) {
+    if (Array.isArray(doc.superseded_by)) {
+      for (const s of doc.superseded_by) {
+        if (normalizeDocumentNumber(s) === target) return doc;
+      }
+    }
+    if (Array.isArray(doc.replaces)) {
+      const docTarget = normalizeDocumentNumber(doc.document_number);
+      if (docTarget === target) {
+        for (const r of doc.replaces) {
+          const replacedDoc = findKnownDocumentByNumber(r);
+          if (replacedDoc) return replacedDoc;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 module.exports = {
   loadKnownDocuments,
   loadBosungMetadata,
@@ -511,4 +719,7 @@ module.exports = {
   findByPartialNumber,
   findByTopicInBosung,
   syncMongoDocuments,
+  getRecentDocumentsFromCache,
+  findDocFromAllSources,
+  findSupersededDocument,
 };

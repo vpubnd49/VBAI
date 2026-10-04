@@ -4813,40 +4813,25 @@ app.post('/api/chat', async (req, res) => {
     if (isLegalQuery && legalContext && legalContext.evidenceBundle && Array.isArray(legalContext.evidenceBundle.documents) && legalContext.evidenceBundle.documents.length > 0) {
       const docs = legalContext.evidenceBundle.documents;
 
-      // For listing/statistics queries, supplement with recent docs from MongoDB
+      // For listing/statistics queries, supplement with recent docs from unified cache (vbaibot + MongoDB)
       const isListingQuery = /liệt kê|thống kê|tổng hợp|danh sách|cho biết các|có những.*nào|tất cả.*mới nhất/i.test(userMessage || '');
       if (isListingQuery) {
         try {
-          const { getDb } = require('./services/db.service');
-          const db = await getDb();
+          const { getRecentDocumentsFromCache } = require('./legal/repositories/known-documents.repository');
           // Detect document type filter from query
-          const docTypeFilter = {};
-          if (/nghị định|NĐ-CP/i.test(userMessage)) docTypeFilter.document_type = 'nghi_dinh';
-          else if (/thông tư|TT-/i.test(userMessage)) docTypeFilter.document_type = 'thong_tu';
-          else if (/luật|QH/i.test(userMessage)) docTypeFilter.document_type = 'luat';
-          else if (/quyết định|QĐ/i.test(userMessage)) docTypeFilter.document_type = 'quyet_dinh';
+          let docTypeFilter = null;
+          if (/nghị định|NĐ-CP/i.test(userMessage)) docTypeFilter = 'nghi_dinh';
+          else if (/thông tư|TT-/i.test(userMessage)) docTypeFilter = 'thong_tu';
+          else if (/luật|QH/i.test(userMessage)) docTypeFilter = 'luat';
+          else if (/quyết định|QĐ/i.test(userMessage)) docTypeFilter = 'quyet_dinh';
 
-          const dbRecents = await db.collection('known_documents')
-            .find({ document_number: { $not: /\.docx$|\.doc$|\.pdf$/i }, ...docTypeFilter })
-            .sort({ issue_date: -1, crawled_at: -1 })
-            .limit(15)
-            .toArray();
+          const recentDocs = getRecentDocumentsFromCache(15, docTypeFilter);
           const existingNums = new Set(docs.map(d => (d.documentNumber || '').toUpperCase()));
-          for (const d of dbRecents) {
-            const num = d.documentNumber || d.document_number || '';
+          for (const d of recentDocs) {
+            const num = d.documentNumber || '';
             if (!num || existingNums.has(num.toUpperCase())) continue;
             existingNums.add(num.toUpperCase());
-            docs.push({
-              documentNumber: num,
-              title: d.title || d.trich_yeu || `Văn bản số ${num}`,
-              issuer: d.issuer || 'Chính phủ',
-              issueDate: d.issueDate || d.issue_date || '',
-              effectiveDate: d.effectiveDate || d.effective_date || '',
-              effectiveStatus: d.effectiveStatus || d.effective_status || 'in_force',
-              sourceUrl: d.source_url || (Array.isArray(d.official_source_urls) && d.official_source_urls[0]) || '',
-              chinhphuDetailUrl: d.source_url || (Array.isArray(d.official_source_urls) && d.official_source_urls[0]) || '',
-              snippet: d.tom_tat_chinh_sach || d.summary || '',
-            });
+            docs.push(d);
           }
         } catch (_) {}
       }
@@ -4855,110 +4840,84 @@ app.post('/api/chat', async (req, res) => {
       const isComparisonQuery = /so sánh|đối chiếu|khác nhau|khác biệt|giống nhau|thay đổi gì so với|sửa đổi gì so với|sự khác nhau|điểm khác|quy định khác/i.test(userMessage || '');
       if (isComparisonQuery) {
         try {
+          const { findDocFromAllSources, findSupersededDocument, findByTopicInBosung } = require('./legal/repositories/known-documents.repository');
           // Extract all document numbers from the query
           const docNumRegex = /(\d+\/\d{4}\/[A-ZĐa-zđ\-]+|\d+\/[A-ZĐa-zđ\-]+)/gi;
           const queryDocNums = [...new Set((userMessage || '').match(docNumRegex) || [])];
-          if (queryDocNums.length > 0) {
-            const { getDb } = require('./services/db.service');
-            const db = await getDb();
-            const existingNums = new Set(docs.map(d => (d.documentNumber || '').toUpperCase().replace(/\s+/g, '')));
-            for (const qNum of queryDocNums) {
-              const normQNum = qNum.toUpperCase().replace(/\s+/g, '');
-              if (existingNums.has(normQNum)) continue;
-              const mongoDoc = await db.collection('known_documents').findOne({
-                $or: [
-                  { document_number: { $regex: new RegExp(qNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } },
-                  { documentNumber: { $regex: new RegExp(qNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }
-                ]
+          const existingNums = new Set(docs.map(d => (d.documentNumber || '').toUpperCase().replace(/\s+/g, '')));
+
+          // Find each mentioned document from unified cache
+          for (const qNum of queryDocNums) {
+            const normQNum = qNum.toUpperCase().replace(/\s+/g, '');
+            if (existingNums.has(normQNum)) continue;
+            const found = findDocFromAllSources(qNum);
+            if (found) {
+              existingNums.add(normQNum);
+              docs.push({
+                documentNumber: found.document_number || qNum,
+                title: found.title || `Văn bản số ${qNum}`,
+                issuer: found.issuer || 'Chính phủ',
+                issueDate: found.issue_date || '',
+                effectiveDate: found.effective_date || '',
+                effectiveStatus: found.effective_status || 'in_force',
+                sourceUrl: (found.official_source_urls && found.official_source_urls[0]) || '',
+                chinhphuDetailUrl: (found.official_source_urls && found.official_source_urls[0]) || '',
+                snippet: found.tom_tat_chinh_sach || found.title || '',
               });
-              if (mongoDoc) {
-                existingNums.add(normQNum);
-                docs.push({
-                  documentNumber: mongoDoc.documentNumber || mongoDoc.document_number || qNum,
-                  title: mongoDoc.title || mongoDoc.trich_yeu || `Văn bản số ${qNum}`,
-                  issuer: mongoDoc.issuer || 'Chính phủ',
-                  issueDate: mongoDoc.issueDate || mongoDoc.issue_date || '',
-                  effectiveDate: mongoDoc.effectiveDate || mongoDoc.effective_date || '',
-                  effectiveStatus: mongoDoc.effectiveStatus || mongoDoc.effective_status || 'in_force',
-                  sourceUrl: mongoDoc.source_url || (Array.isArray(mongoDoc.official_source_urls) && mongoDoc.official_source_urls[0]) || '',
-                  chinhphuDetailUrl: mongoDoc.source_url || (Array.isArray(mongoDoc.official_source_urls) && mongoDoc.official_source_urls[0]) || '',
-                  snippet: mongoDoc.tom_tat_chinh_sach || mongoDoc.summary || '',
-                });
+            }
+          }
+
+          // When user says "cũ và mới", find superseded/replaced documents
+          const isOldNewCompare = /cũ.*mới|mới.*cũ|trước.*sau|thay thế|sửa đổi bổ sung/i.test(userMessage || '');
+          if (isOldNewCompare) {
+            for (const doc of [...docs]) {
+              const docNum = doc.documentNumber || '';
+              if (!docNum) continue;
+              const superseded = findSupersededDocument(docNum);
+              if (superseded) {
+                const sNum = (superseded.document_number || '').toUpperCase().replace(/\s+/g, '');
+                if (sNum && !existingNums.has(sNum)) {
+                  existingNums.add(sNum);
+                  docs.push({
+                    documentNumber: superseded.document_number,
+                    title: superseded.title || '',
+                    issuer: superseded.issuer || 'Quốc hội',
+                    issueDate: superseded.issue_date || '',
+                    effectiveDate: superseded.effective_date || '',
+                    effectiveStatus: superseded.effective_status || 'het_hieu_luc',
+                    sourceUrl: (superseded.official_source_urls && superseded.official_source_urls[0]) || '',
+                    chinhphuDetailUrl: (superseded.official_source_urls && superseded.official_source_urls[0]) || '',
+                    snippet: superseded.tom_tat_chinh_sach || superseded.title || '',
+                  });
+                }
+              }
+            }
+
+            // Also try searching by topic keyword
+            const topicMatch = (userMessage || '').match(/luật\s+([^,.\s]+(?:\s+[^,.\s]+){0,3})/i);
+            if (topicMatch) {
+              const topicKeyword = topicMatch[1].trim();
+              const relatedDocs = findByTopicInBosung(topicKeyword);
+              for (const rd of relatedDocs.slice(0, 5)) {
+                const rdNum = (rd.documentNumber || '').toUpperCase().replace(/\s+/g, '');
+                if (rdNum && !existingNums.has(rdNum)) {
+                  existingNums.add(rdNum);
+                  docs.push({
+                    documentNumber: rd.documentNumber,
+                    title: rd.title || '',
+                    issuer: rd.issuer || 'Quốc hội',
+                    issueDate: '',
+                    effectiveDate: '',
+                    effectiveStatus: rd.effectiveStatus || 'in_force',
+                    sourceUrl: '',
+                    chinhphuDetailUrl: '',
+                    snippet: rd.title || '',
+                  });
+                }
               }
             }
           }
         } catch (_) {}
-
-        // When user says "cũ và mới" without explicit doc numbers,
-        // find the superseded/replaced document from MongoDB
-        const isOldNewCompare = /cũ.*mới|mới.*cũ|trước.*sau|thay thế|sửa đổi bổ sung/i.test(userMessage || '');
-        if (isOldNewCompare) {
-          try {
-            const { getDb } = require('./services/db.service');
-            const db = await getDb();
-            const existingNums = new Set(docs.map(d => (d.documentNumber || '').toUpperCase().replace(/\s+/g, '')));
-
-            // For each existing doc, find the document it replaced or was replaced by
-            for (const doc of [...docs]) {
-              const docNum = doc.documentNumber || '';
-              // Look for the superseded version
-              const superseded = await db.collection('known_documents').findOne({
-                $or: [
-                  { superseded_by: docNum },
-                  { superseded_by: { $regex: new RegExp(docNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } }
-                ]
-              });
-              if (superseded) {
-                const sNum = (superseded.documentNumber || superseded.document_number || '').toUpperCase().replace(/\s+/g, '');
-                if (sNum && !existingNums.has(sNum)) {
-                  existingNums.add(sNum);
-                  docs.push({
-                    documentNumber: superseded.documentNumber || superseded.document_number,
-                    title: superseded.title || superseded.trich_yeu || '',
-                    issuer: superseded.issuer || 'Quốc hội',
-                    issueDate: superseded.issueDate || superseded.issue_date || '',
-                    effectiveDate: superseded.effectiveDate || superseded.effective_date || '',
-                    effectiveStatus: superseded.effectiveStatus || superseded.effective_status || 'het_hieu_luc',
-                    sourceUrl: superseded.source_url || '',
-                    chinhphuDetailUrl: superseded.source_url || '',
-                    snippet: superseded.tom_tat_chinh_sach || superseded.summary || '',
-                  });
-                }
-              }
-            }
-
-            // Also try searching by topic alias from the query
-            const topicMatch = (userMessage || '').match(/luật\s+([^,.\s]+(?:\s+[^,.\s]+){0,3})/i);
-            if (topicMatch) {
-              const topicKeyword = topicMatch[1].toLowerCase().trim();
-              const relatedDocs = await db.collection('known_documents').find({
-                $or: [
-                  { topic_aliases: { $regex: new RegExp(topicKeyword, 'i') } },
-                  { title: { $regex: new RegExp(topicKeyword, 'i') } }
-                ],
-                document_type: { $in: ['luat', 'bo_luat'] }
-              }).sort({ issue_date: -1 }).limit(5).toArray();
-
-              for (const rd of relatedDocs) {
-                const rdNum = (rd.documentNumber || rd.document_number || '').toUpperCase().replace(/\s+/g, '');
-                if (rdNum && !existingNums.has(rdNum)) {
-                  existingNums.add(rdNum);
-                  docs.push({
-                    documentNumber: rd.documentNumber || rd.document_number,
-                    title: rd.title || rd.trich_yeu || '',
-                    issuer: rd.issuer || 'Quốc hội',
-                    issueDate: rd.issueDate || rd.issue_date || '',
-                    effectiveDate: rd.effectiveDate || rd.effective_date || '',
-                    effectiveStatus: rd.effectiveStatus || rd.effective_status || 'in_force',
-                    sourceUrl: rd.source_url || '',
-                    chinhphuDetailUrl: rd.source_url || '',
-                    snippet: rd.tom_tat_chinh_sach || rd.summary || '',
-                  });
-                }
-              }
-            }
-          } catch (_) {}
-        }
       }
 
       // Pre-resolve: enrich docs missing PDF/detail URLs by searching vanban.chinhphu.vn
@@ -8822,7 +8781,7 @@ app.get('/api/legal/resolve-doc', async (req, res) => {
         title: result.title || '',
         issueDate: result.issueDate || '',
         pdfUrl: result.pdfUrl || null,
-        pdfDownloadUrls: result.pdfUrl ? [result.pdfUrl] : [],
+        pdfDownloadUrls: result.pdfDownloadUrls || (result.pdfUrl ? [result.pdfUrl] : []),
         detailUrl: result.detailUrl || result.sourceUrl || null,
         chinhphuDetailUrl: result.detailUrl || result.sourceUrl || null,
         source: result.source || 'vanban_chinhphu',
@@ -8844,14 +8803,16 @@ app.get('/api/legal/download-pdf', async (req, res) => {
     // SSRF protection: only allow whitelisted domains
     const { URL } = require('url');
     const parsed = new URL(pdfUrl);
-    const allowedHosts = ['datafiles.chinhphu.vn', 'chinhphu.vn', 'vanban.chinhphu.vn', 'congbao.chinhphu.vn'];
+    const allowedHosts = ['datafiles.chinhphu.vn', 'chinhphu.vn', 'vanban.chinhphu.vn', 'congbao.chinhphu.vn', 'media.lamdong.gov.vn', 'lamdong.gov.vn'];
     if (!allowedHosts.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
       return res.status(403).json({ ok: false, error: 'Domain not allowed' });
     }
 
-    // Must be a PDF
-    if (!pdfUrl.toLowerCase().endsWith('.pdf')) {
-      return res.status(400).json({ ok: false, error: 'URL must point to a PDF file' });
+    // Allow PDF files and UUID-style URLs (vbaibot uses /media/<uuid> without extension)
+    const isPdfExtension = pdfUrl.toLowerCase().endsWith('.pdf');
+    const isMediaUrl = /\/media\/[0-9a-f-]{36}$/i.test(parsed.pathname);
+    if (!isPdfExtension && !isMediaUrl) {
+      return res.status(400).json({ ok: false, error: 'URL must point to a PDF file or media resource' });
     }
 
     const controller = new AbortController();
