@@ -69,7 +69,7 @@ npm run build
 # 6. Cài đặt dependency cho Backend Proxy
 echo "=== 6. Cài đặt dependencies cho Backend Proxy ==="
 cd "$APP_DIR/proxy"
-npm ci
+npm ci || npm install --no-audit
 
 # Kiểm tra tệp tin service-account.json
 if [ ! -f "$APP_DIR/proxy/service-account.json" ]; then
