@@ -1,5 +1,101 @@
 [
   {
+    "id": "179-2025-nd-cp",
+    "document_number": "179/2025/NĐ-CP",
+    "document_type": "nghi_dinh",
+    "title": "Nghị định quy định về mức hỗ trợ đối với người làm công tác chuyên trách về chuyển đổi số, an toàn thông tin mạng, an ninh mạng",
+    "topic_aliases": [
+      "mức hỗ trợ người làm chuyển đổi số",
+      "chế độ chuyển đổi số",
+      "hỗ trợ an toàn thông tin mạng an ninh mạng",
+      "hỗ trợ 5 triệu chuyển đổi số",
+      "chế độ cán bộ chuyên trách công nghệ thông tin",
+      "179/2025/NĐ-CP",
+      "nghị định 179",
+      "nghị định 179/2025",
+      "nghi dinh 179",
+      "nghi dinh so 179/2025",
+      "nghị định số 179/2025",
+      "nghị định 179 về chuyển đổi số"
+    ],
+    "query_patterns": [
+      "nghi dinh 179",
+      "179/2025/nd-cp",
+      "nghi dinh 179/2025",
+      "nghi dinh so 179",
+      "nghi dinh so 179/2025",
+      "che do chuyen doi so",
+      "muc ho tro chuyen doi so",
+      "ho tro an toan thong tin mang",
+      "phu cap chuyen doi so 5 trieu",
+      "nghi dinh 179 chuyen doi so"
+    ],
+    "issuer": "Chính phủ",
+    "issue_date": "2025-07-01",
+    "effective_date": "2025-08-15",
+    "effective_status": "co_hieu_luc",
+    "status_as_of": "2026-10-06",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/",
+      "https://xaydungchinhsach.chinhphu.vn/"
+    ],
+    "tom_tat_chinh_sach": "Chính phủ ban hành Nghị định số 179/2025/NĐ-CP ngày 01/07/2025 quy định mức hỗ trợ đối với người làm công tác chuyên trách về chuyển đổi số, an toàn thông tin mạng, an ninh mạng: 1. Mức hỗ trợ: 5.000.000 đồng/người/tháng. Khoản hỗ trợ này được chi trả cùng kỳ lương hàng tháng, không dùng để tính đóng, hưởng bảo hiểm xã hội (BHXH) và bảo hiểm y tế (BHYT). 2. Đối tượng thụ hưởng: Cán bộ, công chức, viên chức, lực lượng vũ trang (sĩ quan, hạ sĩ quan nghiệp vụ, chuyên môn kỹ thuật, công nhân công an, quân nhân chuyên nghiệp, công nhân viên chức quốc phòng, cơ yếu) hưởng lương từ ngân sách nhà nước đảm nhiệm vị trí việc làm chuyên trách về quản lý CNTT, công nghiệp công nghệ số, chuyển đổi số, an toàn thông tin mạng, an ninh mạng, giao dịch điện tử trong các cơ quan của Đảng, Nhà nước, Mặt trận Tổ quốc Việt Nam từ trung ương đến cấp xã. 3. Điều kiện thụ hưởng: Phải được cấp có thẩm quyền giao hoặc bố trí vị trí việc làm chuyên trách bằng văn bản (không áp dụng đối với người kiêm nhiệm một phần nhiệm vụ). 4. Nguồn kinh phí: Do ngân sách nhà nước bảo đảm theo phân cấp ngân sách hiện hành. 5. Văn bản hướng dẫn thi hành: Thông tư số 23/2025/TT-BKHCN ngày 20/10/2025 của Bộ Khoa học và Công nghệ hướng dẫn xác định vị trí việc làm chuyên trách về chuyển đổi số.",
+    "tom_tat_chuong_dieu": "Nghị định quy định toàn diện: Điều 1 (Phạm vi điều chỉnh); Điều 2 (Đối tượng áp dụng: Cán bộ, công chức, viên chức, lực lượng vũ trang chuyên trách CNTT, an toàn thông tin, chuyển đổi số); Điều 3 (Mức hỗ trợ: 5 triệu đồng/tháng cùng kỳ lương, không tính đóng hưởng BHXH, BHYT); Điều 4 (Nguồn kinh phí thực hiện); Điều 5 (Trách nhiệm của các Bộ: Khoa học & Công nghệ, TT&TT, Công an, Quốc phòng, Tài chính, Nội vụ và UBND các cấp); Điều 6 (Hiệu lực thi hành từ ngày 15/08/2025).",
+    "can_cu_phap_ly": [
+      "Luật Tổ chức Chính phủ",
+      "Luật Cán bộ, công chức",
+      "Luật Viên chức",
+      "Luật An toàn thông tin mạng",
+      "Luật An ninh mạng",
+      "Luật Giao dịch điện tử"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-10-06T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2
+  },
+  {
+    "id": "23-2025-tt-bkhcn",
+    "document_number": "23/2025/TT-BKHCN",
+    "document_type": "thong_tu",
+    "title": "Thông tư hướng dẫn xác định vị trí việc làm chuyên trách về chuyển đổi số được hưởng mức hỗ trợ theo Nghị định số 179/2025/NĐ-CP",
+    "topic_aliases": [
+      "thông tư 23 bkhcn chuyển đổi số",
+      "vị trí việc làm chuyên trách chuyển đổi số",
+      "hướng dẫn nghị định 179",
+      "23/2025/TT-BKHCN"
+    ],
+    "query_patterns": [
+      "thong tu 23/2025",
+      "23/2025/tt-bkhcn",
+      "thong tu 23 bkhcn"
+    ],
+    "issuer": "Bộ Khoa học và Công nghệ",
+    "issue_date": "2025-10-20",
+    "effective_date": "2025-12-05",
+    "effective_status": "co_hieu_luc",
+    "status_as_of": "2026-10-06",
+    "replaces": [],
+    "amends": [],
+    "superseded_by": [],
+    "official_source_urls": [
+      "https://vanban.chinhphu.vn/",
+      "https://mst.gov.vn/"
+    ],
+    "tom_tat_chinh_sach": "Thông tư hướng dẫn chi tiết tiêu chí, danh mục vị trí việc làm chuyên trách về chuyển đổi số, an toàn thông tin mạng trong các cơ quan, tổ chức để làm căn cứ chi trả chế độ hỗ trợ 5 triệu đồng/tháng theo Nghị định 179/2025/NĐ-CP.",
+    "tom_tat_chuong_dieu": "Quy định nguyên tắc xác định vị trí việc làm, tiêu chuẩn chuyên môn kỹ thuật, điều kiện văn bằng chứng chỉ và trách nhiệm của người đứng đầu cơ quan trong việc phê duyệt danh sách.",
+    "can_cu_phap_ly": [
+      "Nghị định số 179/2025/NĐ-CP của Chính phủ"
+    ],
+    "verification_status": "verified",
+    "verified_at": "2026-10-06T00:00:00+07:00",
+    "review_state": "published",
+    "data_version": 2
+  },
+  {
     "id": "327-2026-nd-cp",
     "document_number": "327/2026/NĐ-CP",
     "document_type": "nghi_dinh",
