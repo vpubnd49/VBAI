@@ -129,6 +129,23 @@ export function normalizeAiProxyConfig(raw = {}) {
   delete cleaned.ai_provider;
   delete cleaned.ai_model;
   delete cleaned.ai_endpoint;
+
+  // Auto-correct obsolete dead endpoints and unprefixed 9Router model names
+  if (typeof cleaned.gemini_endpoint === 'string' && (cleaned.gemini_endpoint.includes(':20128') || cleaned.gemini_endpoint.includes('127.0.0.1'))) {
+    cleaned.gemini_endpoint = 'https://9router.flowgiare.com/v1';
+  }
+  if (typeof cleaned.meeting_endpoint === 'string' && (cleaned.meeting_endpoint.includes(':20128') || cleaned.meeting_endpoint.includes('127.0.0.1'))) {
+    cleaned.meeting_endpoint = 'https://9router.flowgiare.com/v1';
+  }
+  if (cleaned.gemini_model === 'smart-pool' || cleaned.gemini_model === 'gemini-3.8-flash' || cleaned.gemini_model === 'gemini-3.6-flash') {
+    cleaned.gemini_model = 'ag/gemini-3.8-flash';
+  }
+  if (cleaned.transcribe_model === 'smart-pool' || cleaned.transcribe_model === 'gemini-3.8-flash' || cleaned.transcribe_model === 'gemini-3-flash') {
+    cleaned.transcribe_model = 'ag/gemini-3-flash';
+  }
+  if (cleaned.meeting_model === 'smart-pool' || cleaned.meeting_model === 'gemini-3.8-flash' || cleaned.meeting_model === 'gemini-3.6-flash') {
+    cleaned.meeting_model = 'ag/gemini-3.8-flash';
+  }
   return cleaned;
 }
 

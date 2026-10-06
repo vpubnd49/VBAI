@@ -292,39 +292,69 @@ function resolveGeminiConfig(config = {}, requestConfig = {}) {
   const source = requestConfig && typeof requestConfig === 'object' ? requestConfig : {};
   // This is intentionally not a generic provider credential resolver. Gemini is the only AI runtime.
   const apiKey = String(source.gemini_api_key || config.gemini_api_key || '').trim();
-  const endpoint = String(source.gemini_endpoint || config.gemini_endpoint || '').trim().replace(/\/+$/, '');
-  // Runtime model selection is configuration-owned. Request model values are never trusted.
+  let endpoint = String(source.gemini_endpoint || config.gemini_endpoint || '').trim().replace(/\/+$/, '');
   const configuredModels = Array.isArray(config.gemini_models) ? config.gemini_models : [];
-  const model = String(config.gemini_model || configuredModels[0] || '').trim();
+  let model = String(source.gemini_model || config.gemini_model || configuredModels[0] || '').trim();
+
+  const isGoogleKey = apiKey.startsWith('AIza') || apiKey.startsWith('AQ.');
+
+  if (!isGoogleKey) {
+    // 9Router / OpenAI-compatible gateway (sk- keys)
+    if (!endpoint || endpoint.includes(':20128') || endpoint.includes('generativelanguage.googleapis.com')) {
+      endpoint = 'https://9router.flowgiare.com/v1';
+    }
+    if (!model || model === 'smart-pool' || model === 'gemini-3.8-flash' || model === 'gemini-3.6-flash' || model === 'gemini-2.5-flash' || !model.startsWith('ag/')) {
+      model = 'ag/gemini-3.8-flash';
+    }
+  } else {
+    // Google official direct key
+    if (!endpoint || endpoint.includes(':20128') || endpoint.includes('9router')) {
+      endpoint = GEMINI_API_BASE;
+    }
+    if (!model || model.startsWith('ag/') || model === 'smart-pool') {
+      model = 'gemini-2.5-flash';
+    }
+  }
+
   return { apiKey, endpoint, model };
 }
 
 /**
  * Resolve meeting-specific AI configuration.
  * Prioritizes dedicated meeting credentials (meeting_api_key / meeting_endpoint / meeting_model).
- * When meeting_api_key is set, defaults endpoint to Google official Gemini API (GEMINI_API_BASE)
- * so audio transcription and meeting minutes use Google's native multimodal capabilities.
- * Falls back to standard resolveGeminiConfig when meeting_api_key is omitted.
+ * Strictly normalizes to 9Router when using sk- keys, preventing invalid Google endpoint calls.
  */
 function resolveMeetingConfig(config = {}) {
-  const meetingApiKey = String(config.meeting_api_key || '').trim();
-  const meetingEndpoint = String(config.meeting_endpoint || '').trim().replace(/\/+$/, '');
-  const meetingModel = String(config.meeting_model || config.transcribe_model || '').trim();
+  const base = resolveGeminiConfig(config);
+  let meetingApiKey = String(config.meeting_api_key || '').trim() || base.apiKey;
+  let meetingEndpoint = String(config.meeting_endpoint || '').trim().replace(/\/+$/, '') || base.endpoint;
+  let meetingModel = String(config.meeting_model || config.transcribe_model || '').trim();
 
-  if (meetingApiKey) {
-    return {
-      apiKey: meetingApiKey,
-      endpoint: meetingEndpoint || GEMINI_API_BASE,
-      model: meetingModel || 'gemini-3.6-flash',
-    };
+  const isGoogleKey = meetingApiKey.startsWith('AIza') || meetingApiKey.startsWith('AQ.');
+
+  if (!isGoogleKey) {
+    // 9Router
+    if (!meetingEndpoint || meetingEndpoint.includes(':20128') || meetingEndpoint.includes('generativelanguage.googleapis.com')) {
+      meetingEndpoint = 'https://9router.flowgiare.com/v1';
+    }
+    if (!meetingModel || meetingModel === 'smart-pool' || meetingModel === 'gemini-3.8-flash' || meetingModel === 'gemini-3.6-flash' || !meetingModel.startsWith('ag/')) {
+      meetingModel = 'ag/gemini-3.8-flash';
+    }
+  } else {
+    // Google official
+    if (!meetingEndpoint || meetingEndpoint.includes(':20128') || meetingEndpoint.includes('9router')) {
+      meetingEndpoint = GEMINI_API_BASE;
+    }
+    if (!meetingModel || meetingModel.startsWith('ag/') || meetingModel === 'smart-pool') {
+      meetingModel = 'gemini-2.5-flash';
+    }
   }
 
-  // Fallback: use default gemini config
-  const base = resolveGeminiConfig(config);
-  if (meetingModel) base.model = meetingModel;
-  if (!base.endpoint) base.endpoint = GEMINI_API_BASE;
-  if (!base.model) base.model = 'gemini-3.6-flash';
-  return base;
+  return {
+    apiKey: meetingApiKey,
+    endpoint: meetingEndpoint,
+    model: meetingModel,
+  };
 }
 
   // Canonical Gemini configuration is resolved only from explicit admin fields.
@@ -2816,8 +2846,8 @@ async function executeGeminiNativeAudioTranscription({
     const data = await providerRes.json();
     let text = extractTextFromProviderPayload(data);
 
-    // If model blocked (e.g. gemini-3.8 blockReason: OTHER) or returned empty text, fallback to gemini-3.6-flash
-    if (!text && modelName !== 'gemini-3.6-flash') {
+    // If model blocked (e.g. gemini-3.8 blockReason: OTHER) or returned empty text, fallback to gemini-3.6-flash (Google official only)
+    if (!text && isGoogleKey && modelName !== 'gemini-3.6-flash') {
       console.warn(`[Audio Transcribe] Model ${modelName} returned empty/blocked response (blockReason: ${data?.promptFeedback?.blockReason || 'none'}). Falling back to gemini-3.6-flash...`);
       const fallbackEndpoint = `${GEMINI_API_BASE}/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
       const fbController = new AbortController();
@@ -3713,18 +3743,29 @@ app.post('/api/admin/system-config', async (req, res) => {
       updateData.gemini_model = String(gemini_model || '').trim();
     }
     if (gemini_endpoint !== undefined) {
-      updateData.gemini_endpoint = String(gemini_endpoint || '').trim();
+      let val = String(gemini_endpoint || '').trim();
+      if (!val || val.includes(':20128')) val = 'https://9router.flowgiare.com/v1';
+      updateData.gemini_endpoint = val;
+    }
+    if (gemini_model !== undefined) {
+      let val = String(gemini_model || '').trim();
+      if (!val || val === 'smart-pool' || val === 'gemini-3.8-flash' || val === 'gemini-3.6-flash') val = 'ag/gemini-3.8-flash';
+      updateData.gemini_model = val;
     }
     if (transcribe_model !== undefined) {
-      const val = String(transcribe_model || '').trim();
-      if (val) updateData.transcribe_model = val;
+      let val = String(transcribe_model || '').trim();
+      if (!val || val === 'gemini-3.8-flash' || val === 'smart-pool' || val === 'gemini-3-flash') val = 'ag/gemini-3-flash';
+      updateData.transcribe_model = val;
     }
     if (meeting_model !== undefined) {
-      const val = String(meeting_model || '').trim();
-      if (val) updateData.meeting_model = val;
+      let val = String(meeting_model || '').trim();
+      if (!val || val === 'gemini-3.8-flash' || val === 'smart-pool' || val === 'gemini-3.6-flash') val = 'ag/gemini-3.8-flash';
+      updateData.meeting_model = val;
     }
     if (meeting_endpoint !== undefined) {
-      updateData.meeting_endpoint = String(meeting_endpoint || '').trim();
+      let val = String(meeting_endpoint || '').trim();
+      if (!val || val.includes(':20128')) val = 'https://9router.flowgiare.com/v1';
+      updateData.meeting_endpoint = val;
     }
     if (meeting_api_key !== undefined) {
       const val = String(meeting_api_key || '').trim();
@@ -3737,6 +3778,19 @@ app.post('/api/admin/system-config', async (req, res) => {
     } else if (gemini_api_key !== undefined) {
       updateData.gemini_api_key = String(gemini_api_key || '').trim();
     }
+
+    const inputModels = Array.isArray(gemini_models)
+      ? gemini_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim())
+      : [];
+    const standard9RouterModels = ['ag/gemini-3.8-flash', 'ag/gemini-3-flash', 'ag/gemini-3.7-flash', 'ag/claude-sonnet-4-6'];
+    const mergedModels = Array.from(new Set([
+      updateData.gemini_model,
+      updateData.transcribe_model,
+      updateData.meeting_model,
+      ...inputModels,
+      ...standard9RouterModels
+    ].filter(Boolean))).filter(m => m !== 'smart-pool' && m !== 'gemini-3.8-flash' && m !== 'gemini-3.6-flash');
+    updateData.gemini_models = mergedModels;
 
     if (google_search_key !== undefined) {
       updateData.google_search_key = String(google_search_key || '').trim();
@@ -3755,23 +3809,6 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
     if (vertex_serving_config !== undefined) {
       updateData.vertex_serving_config = String(vertex_serving_config || '').trim();
-    }
-    
-    // Automatically preserve and merge all manual models into gemini_models list
-    let modelsList = Array.isArray(gemini_models)
-      ? gemini_models.filter(m => typeof m === 'string' && m.trim()).map(m => m.trim())
-      : [];
-    if (updateData.gemini_model && !modelsList.includes(updateData.gemini_model)) {
-      modelsList.unshift(updateData.gemini_model);
-    }
-    if (updateData.transcribe_model && !modelsList.includes(updateData.transcribe_model)) {
-      modelsList.unshift(updateData.transcribe_model);
-    }
-    if (updateData.meeting_model && !modelsList.includes(updateData.meeting_model)) {
-      modelsList.unshift(updateData.meeting_model);
-    }
-    if (modelsList.length > 0) {
-      updateData.gemini_models = Array.from(new Set(modelsList));
     }
 
     if (web_search_fallback_sources && typeof web_search_fallback_sources === 'object' && !Array.isArray(web_search_fallback_sources)) {

@@ -197,8 +197,9 @@ export function renderAdminPanel(container) {
                 
                 <!-- Section 1: AI Engine (gemini / provider-neutral) - FULL WIDTH -->
                 <section class="config-section-card" style="width:100%; box-sizing:border-box; background:var(--bg-card, #ffffff); border:1px solid var(--border-color, #cbd5e1); border-radius:10px; padding:20px 24px; border-left:4px solid var(--brand-primary, #008ca1);">
-                  <div class="config-section-title" style="color: var(--brand-primary, #008ca1); font-size:1rem; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
-                    <span>●</span> AI Engine (gemini / provider-neutral)
+                  <div class="config-section-title" style="color: var(--brand-primary, #008ca1); font-size:1rem; font-weight:700; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                    <div><span>●</span> AI Engine (gemini / provider-neutral)</div>
+                    <button type="button" id="apply-9router-preset-btn" class="btn btn-secondary btn-sm" style="background:#0284c7; color:white; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:600;">⚡ Nạp Cấu Hình Chuẩn 9Router</button>
                   </div>
                   
                   <div class="form-group" style="margin-bottom:16px;">
@@ -1358,20 +1359,34 @@ const geminiEndpointInput = formEl.querySelector('#gemini_endpoint');
       const setInputValue = (el, val) => { if (el) el.value = val; };
       const getInputValue = (el, fallback = '') => el ? el.value.trim() : fallback;
 
-      // Load gemini
-setInputValue(geminiModelInput, config.gemini_model || '');
-       setInputValue(geminiEndpointInput, config.gemini_endpoint || '');
-       setInputValue(geminiKeyInput, '');
+      // Normalize values if corrupted or from stale port 20128
+      let effEndpoint = config.gemini_endpoint || '';
+      if (!effEndpoint || effEndpoint.includes(':20128')) effEndpoint = 'https://9router.flowgiare.com/v1';
+      let effModel = config.gemini_model || '';
+      if (!effModel || effModel === 'smart-pool' || effModel === 'gemini-3.8-flash' || effModel === 'gemini-3.6-flash') effModel = 'ag/gemini-3.8-flash';
+      let effTranscribeModel = config.transcribe_model || '';
+      if (!effTranscribeModel || effTranscribeModel === 'gemini-3.8-flash' || effTranscribeModel === 'smart-pool') effTranscribeModel = 'ag/gemini-3-flash';
+      let effMeetingModel = config.meeting_model || '';
+      if (!effMeetingModel || effMeetingModel === 'gemini-3.8-flash' || effMeetingModel === 'smart-pool') effMeetingModel = 'ag/gemini-3.8-flash';
+      let effMeetingEndpoint = config.meeting_endpoint || '';
+      if (!effMeetingEndpoint || effMeetingEndpoint.includes(':20128')) effMeetingEndpoint = 'https://9router.flowgiare.com/v1';
+
+      setInputValue(geminiModelInput, effModel);
+      setInputValue(geminiEndpointInput, effEndpoint);
+      setInputValue(geminiKeyInput, '');
       if (geminiKeyInput) geminiKeyInput.type = 'password';
       if (togglegeminiKeyBtn) togglegeminiKeyBtn.textContent = 'Hiện key';
       setgeminiKeyVerifyStatus(config.has_gemini_key ? 'Đã lưu gemini API key. Bạn có thể xác nhận lại bất cứ lúc nào.' : 'Chưa có gemini API key.');
       updategeminiRuntimeWarning(geminiModelInput ? geminiModelInput.value : '', !!config.has_gemini_key);
-       geminiModels = Array.isArray(config.gemini_models) ? [...config.gemini_models] : [];
-       renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
-       // Load other configs
-      setInputValue(transcribeModelInput, config.transcribe_model || config.gemini_model || '');
-      setInputValue(meetingModelInput, config.meeting_model || config.transcribe_model || config.gemini_model || '');
-      setInputValue(meetingEndpointInput, config.meeting_endpoint || '');
+      const defaultChips = ['ag/gemini-3.8-flash', 'ag/gemini-3-flash', 'ag/gemini-3.7-flash', 'ag/claude-sonnet-4-6'];
+      geminiModels = Array.isArray(config.gemini_models) && config.gemini_models.length
+        ? Array.from(new Set([...config.gemini_models, ...defaultChips])).filter(m => m !== 'smart-pool' && m !== 'gemini-3.8-flash')
+        : defaultChips;
+      renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
+      // Load other configs
+      setInputValue(transcribeModelInput, effTranscribeModel);
+      setInputValue(meetingModelInput, effMeetingModel);
+      setInputValue(meetingEndpointInput, effMeetingEndpoint);
       if (meetingApiKeyInput) meetingApiKeyInput.placeholder = config.has_meeting_api_key ? 'API key đã cấu hình (để trống = giữ key hiện tại)' : 'Nhập API key riêng cho meeting';
       setInputValue(vertexProjectIdInput, config.vertex_project_id || '');
       setInputValue(vertexLocationInput, config.vertex_location || 'global');
@@ -1399,17 +1414,38 @@ setInputValue(geminiModelInput, config.gemini_model || '');
 
   async function saveConfig() {
     const getInputValue = (el, fallback = '') => el ? el.value.trim() : fallback;
-    const activeAiModel = getInputValue(geminiModelInput);
-    const activeTranscribeModel = getInputValue(transcribeModelInput);
-    const activeMeetingModel = getInputValue(meetingModelInput);
-    const activeMeetingEndpoint = getInputValue(meetingEndpointInput);
+    let activeAiModel = getInputValue(geminiModelInput);
+    if (!activeAiModel || activeAiModel === 'smart-pool' || activeAiModel === 'gemini-3.8-flash' || activeAiModel === 'gemini-3.6-flash') {
+      activeAiModel = 'ag/gemini-3.8-flash';
+      if (geminiModelInput) geminiModelInput.value = activeAiModel;
+    }
+    let effEndpoint = getInputValue(geminiEndpointInput);
+    if (!effEndpoint || effEndpoint.includes(':20128') || effEndpoint.includes('127.0.0.1')) {
+      effEndpoint = 'https://9router.flowgiare.com/v1';
+      if (geminiEndpointInput) geminiEndpointInput.value = effEndpoint;
+    }
+    let activeTranscribeModel = getInputValue(transcribeModelInput);
+    if (!activeTranscribeModel || activeTranscribeModel === 'gemini-3.8-flash' || activeTranscribeModel === 'smart-pool' || activeTranscribeModel === 'gemini-3-flash') {
+      activeTranscribeModel = 'ag/gemini-3-flash';
+      if (transcribeModelInput) transcribeModelInput.value = activeTranscribeModel;
+    }
+    let activeMeetingModel = getInputValue(meetingModelInput);
+    if (!activeMeetingModel || activeMeetingModel === 'gemini-3.8-flash' || activeMeetingModel === 'smart-pool' || activeMeetingModel === 'gemini-3.6-flash') {
+      activeMeetingModel = 'ag/gemini-3.8-flash';
+      if (meetingModelInput) meetingModelInput.value = activeMeetingModel;
+    }
+    let activeMeetingEndpoint = getInputValue(meetingEndpointInput);
+    if (!activeMeetingEndpoint || activeMeetingEndpoint.includes(':20128') || activeMeetingEndpoint.includes('127.0.0.1')) {
+      activeMeetingEndpoint = 'https://9router.flowgiare.com/v1';
+      if (meetingEndpointInput) meetingEndpointInput.value = activeMeetingEndpoint;
+    }
     const newMeetingKeyEntered = !!getInputValue(meetingApiKeyInput);
     const newKeyEntered = !!getInputValue(geminiKeyInput);
 
     const payload = {
       // gemini
       gemini_model: activeAiModel,
-      gemini_endpoint: getInputValue(geminiEndpointInput),
+      gemini_endpoint: effEndpoint,
       // Only submit a key when an administrator manually entered a new one.
       ...(newKeyEntered ? { gemini_api_key: getInputValue(geminiKeyInput) } : {}),
 
@@ -1418,15 +1454,16 @@ setInputValue(geminiModelInput, config.gemini_model || '');
       meeting_model: activeMeetingModel,
       meeting_endpoint: activeMeetingEndpoint,
       ...(newMeetingKeyEntered ? { meeting_api_key: getInputValue(meetingApiKeyInput) } : {}),
+      gemini_models: ['ag/gemini-3.8-flash', 'ag/gemini-3-flash', 'ag/gemini-3.7-flash', 'ag/claude-sonnet-4-6'],
       web_search_provider: 'vertex_search',
       web_search_mode: getSelectedRadio('web_search_mode', 'vertex_first'),
       web_search_fallback_sources: getFallbackSources(),
       vertex_project_id: getInputValue(vertexProjectIdInput),
       vertex_location: getInputValue(vertexLocationInput, 'global'),
       vertex_data_store_id: getInputValue(vertexDataStoreIdInput),
-       vertex_serving_config: getInputValue(vertexServingConfigInput),
-       app_product_name: getInputValue(appProductNameInput),
-       app_firebase_project: getInputValue(appFirebaseProjectInput),
+      vertex_serving_config: getInputValue(vertexServingConfigInput),
+      app_product_name: getInputValue(appProductNameInput),
+      app_firebase_project: getInputValue(appFirebaseProjectInput),
     };
 
     saveBtn.disabled = true;
@@ -1490,6 +1527,18 @@ setInputValue(geminiModelInput, config.gemini_model || '');
   });
 
   refreshBtn.addEventListener('click', loadConfig);
+
+  const apply9RouterBtn = formEl.querySelector('#apply-9router-preset-btn');
+  apply9RouterBtn?.addEventListener('click', () => {
+    if (geminiEndpointInput) geminiEndpointInput.value = 'https://9router.flowgiare.com/v1';
+    if (geminiModelInput) geminiModelInput.value = 'ag/gemini-3.8-flash';
+    if (transcribeModelInput) transcribeModelInput.value = 'ag/gemini-3-flash';
+    if (meetingModelInput) meetingModelInput.value = 'ag/gemini-3.8-flash';
+    if (meetingEndpointInput) meetingEndpointInput.value = 'https://9router.flowgiare.com/v1';
+    geminiModels = ['ag/gemini-3.8-flash', 'ag/gemini-3-flash', 'ag/gemini-3.7-flash', 'ag/claude-sonnet-4-6'];
+    renderModelChips(geminiListEl, geminiModels, 'gemini', (next) => { geminiModels = next; });
+    showToast('⚡ Đã nạp cấu hình chuẩn 9Router! Vui lòng bấm "💾 Lưu cấu hình" để lưu lại.', 'success');
+  });
   triggerVertexIngestBtn?.addEventListener('click', async () => {
     if (!confirm('Bạn có chắc chắn muốn kích hoạt tiến trình đồng bộ (Ingest) dữ liệu từ GCS Storage vào Vertex AI Search ngay bây giờ không?')) return;
     
