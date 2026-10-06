@@ -247,8 +247,8 @@ export function renderAdminPanel(container) {
                   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-bottom:16px;">
                     <div class="form-group">
                       <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Meeting/Transcription Endpoint (Google chính hãng)</label>
-                      <input type="text" id="meeting_endpoint" class="form-input" placeholder="https://generativelanguage.googleapis.com/v1beta/openai" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
-                      <small class="config-hint" style="color:#64748b; font-size:12px;">Endpoint riêng cho ghi âm/bóc băng/biên bản cuộc họp (để trống = dùng endpoint chính)</small>
+                      <input type="text" id="meeting_endpoint" class="form-input" placeholder="https://generativelanguage.googleapis.com/v1beta" style="width:100%; padding:10px 12px; border-radius:6px; border:1px solid var(--border-subtle, #cbd5e1); box-sizing:border-box;">
+                      <small class="config-hint" style="color:#64748b; font-size:12px;">Endpoint bóc băng âm thanh (để trống = mặc định Google Gemini v1beta chính hãng)</small>
                     </div>
                     <div class="form-group">
                       <label class="form-label" style="display:block; font-weight:600; margin-bottom:6px;">Meeting/Transcription API Key</label>

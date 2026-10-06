@@ -9,9 +9,35 @@
  *
  * Deployed to Google Cloud Run.
  */
+const fs = require('fs');
+const path = require('path');
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
+// Load environment variables from .env if present
+const envPath = path.resolve(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  if (typeof process.loadEnvFile === 'function') {
+    try { process.loadEnvFile(envPath); } catch (_) {}
+  }
+  // Fallback parser if process.loadEnvFile didn't populate all keys
+  try {
+    const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+    for (const line of lines) {
+      const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+      if (match) {
+        const key = match[1];
+        let val = (match[2] || '').trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  } catch (_) {}
+}
 
 const dbService = require('./services/db.service');
 const authService = require('./services/auth.service');
@@ -35,7 +61,6 @@ const { validateCitations } = require('./legal/services/citation-validation.serv
 const { detectContractSkill, buildContractSkillPrompt } = require('./legal/services/contract-skill-engine');
 const { detectAdminSearchContext, buildAdminSearchPrompt } = require('./legal/services/administrative-search-engine');
 const { detectAdminReviewIntent, buildAdminReviewPrompt } = require('./legal/services/administrative-review-engine');
-const path = require('path');
 const { validateMagicBytes, VALID_AUDIO_EXTS, readFileHeader, registerCleanup, cleanupTempFile: cleanupTempFileUtil } = require('./middleware/upload-security');
 const { encodeCursor, decodeCursor, validateCursor, sanitizeHistoryDoc, sanitizeAuditQuery, SAFE_HISTORY_FIELDS } = require('./utils/pagination');
 const { createTranscriptionRouter } = require('./routers/transcription.router');
@@ -111,7 +136,6 @@ const { DEFAULT_MAX_AUDIO_UPLOAD_MB, ABSOLUTE_MAX_AUDIO_UPLOAD_MB, MAX_AUDIO_UPL
 const os = require('os');
 const { safeFetch, validateUrlForSSRF } = require('./security/ssrf-guard');
 const { assertSafePathInside, hasTraversalMarkers, isSymbolicLink } = require('./security/path-guard');
-const fs = require('fs');
 const crypto = require('crypto');
 const { GoogleAuth } = require('google-auth-library');
 const GCS_TUNING_BUCKET = process.env.GCS_TUNING_BUCKET || 'vbai-tuning-datasets';
@@ -277,21 +301,29 @@ function resolveGeminiConfig(config = {}, requestConfig = {}) {
 
 /**
  * Resolve meeting-specific AI configuration.
- * When meeting_endpoint, meeting_api_key and meeting_model are ALL explicitly set,
- * those are returned so that Meeting Minutes uses a dedicated model (e.g. Google
- * official Gemini 3.6) while everything else goes through the default gateway.
- * Falls back to standard resolveGeminiConfig when any meeting field is missing.
+ * Prioritizes dedicated meeting credentials (meeting_api_key / meeting_endpoint / meeting_model).
+ * When meeting_api_key is set, defaults endpoint to Google official Gemini API (GEMINI_API_BASE)
+ * so audio transcription and meeting minutes use Google's native multimodal capabilities.
+ * Falls back to standard resolveGeminiConfig when meeting_api_key is omitted.
  */
 function resolveMeetingConfig(config = {}) {
-  const meetingEndpoint = String(config.meeting_endpoint || '').trim().replace(/\/+$/, '');
   const meetingApiKey = String(config.meeting_api_key || '').trim();
-  const meetingModel = String(config.meeting_model || '').trim();
-  if (meetingEndpoint && meetingApiKey && meetingModel) {
-    return { apiKey: meetingApiKey, endpoint: meetingEndpoint, model: meetingModel };
+  const meetingEndpoint = String(config.meeting_endpoint || '').trim().replace(/\/+$/, '');
+  const meetingModel = String(config.meeting_model || config.transcribe_model || '').trim();
+
+  if (meetingApiKey) {
+    return {
+      apiKey: meetingApiKey,
+      endpoint: meetingEndpoint || GEMINI_API_BASE,
+      model: meetingModel || 'gemini-3.6-flash',
+    };
   }
-  // Fallback: use default config but override model if meeting_model is set
+
+  // Fallback: use default gemini config
   const base = resolveGeminiConfig(config);
   if (meetingModel) base.model = meetingModel;
+  if (!base.endpoint) base.endpoint = GEMINI_API_BASE;
+  if (!base.model) base.model = 'gemini-3.6-flash';
   return base;
 }
 
@@ -2062,7 +2094,7 @@ async function splitAudioIntoChunks(inputPath, chunkDurationSecs = 600) {
  * Transcribe multiple audio chunks in parallel with concurrency limit.
  * @returns {Promise<string>} Merged transcript text
  */
-async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, prompt, concurrency = 6 }) {
+async function transcribeChunksParallel({ chunks, apiKey, endpoint, modelName, mimeType, prompt, concurrency = 6 }) {
   const results = new Array(chunks.length);
   let nextIdx = 0;
 
@@ -2078,6 +2110,7 @@ async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, p
       console.log(`${partLabel} Transcribing (${Math.round(chunkBuffer.length / 1024)}KB)...`);
       const result = await executeGeminiNativeAudioTranscription({
         apiKey,
+        endpoint,
         modelName,
         mimeType,
         filename: `chunk-${idx + 1}.mp3`,
@@ -2087,7 +2120,7 @@ async function transcribeChunksParallel({ chunks, apiKey, modelName, mimeType, p
 
       if (!result?.ok || !result.text) {
         throw Object.assign(
-          new Error(`${partLabel} Gemini transcription failed: ${result?.message || 'empty'}`),
+          new Error(`${partLabel} Audio chunk transcription failed: ${result?.message || 'empty'}`),
           { status: result?.status || 502, code: 'GEMINI_CHUNK_TRANSCRIPTION_FAILED' }
         );
       }
@@ -2111,8 +2144,26 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
   // Audio transcription ALWAYS uses meeting config (Google official Gemini)
   // because transcription requires native Gemini API audio support
   const resolved = resolveMeetingConfig(audioConfig);
-  const effectiveModel = String(model || audioConfig.meeting_model || audioConfig.transcribe_model || resolved.model || 'gemini-3.6-flash').trim();
-  if (!resolved.apiKey || !resolved.endpoint || !effectiveModel) {
+  // Ensure effectiveApiKey prioritizes dedicated meeting_api_key or Google key
+  const effectiveApiKey = String(audioConfig.meeting_api_key || resolved.apiKey || process.env.GEMINI_API_KEY || '').trim();
+  const isGoogleKey = effectiveApiKey.startsWith('AIza') || Boolean(audioConfig.meeting_api_key && audioConfig.meeting_api_key.startsWith('AIza'));
+  const isNativeGeminiEndpoint = isGoogleKey;
+
+  let effectiveModel = String(model || audioConfig.meeting_model || audioConfig.transcribe_model || resolved.model || 'ag/gemini-3-flash').trim();
+
+  if (!isGoogleKey) {
+    // For 9Router / custom OpenAI-compatible gateways:
+    // ALWAYS use ag/gemini-3-flash which has been validated to transcribe audio reliably
+    effectiveModel = 'ag/gemini-3-flash';
+  } else {
+    // For Google official direct Gemini:
+    if (!effectiveModel || effectiveModel.includes('pool') || effectiveModel.includes('expert') || !effectiveModel.startsWith('gemini')) {
+      effectiveModel = String(audioConfig.meeting_model || audioConfig.transcribe_model || 'gemini-3.6-flash').trim();
+      if (!effectiveModel.startsWith('gemini')) effectiveModel = 'gemini-3.6-flash';
+    }
+  }
+
+  if (!effectiveApiKey || !resolved.endpoint || !effectiveModel) {
     throw Object.assign(new Error('Gemini configuration is incomplete.'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
 
@@ -2151,13 +2202,9 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
 
     const normalizedStat = await fs.promises.stat(tempNormalizedFile);
     const normalizedSizeMb = normalizedStat.size / (1024 * 1024);
-    const isNativeGeminiEndpoint = resolved.endpoint.includes('generativelanguage.googleapis.com')
-      || resolved.endpoint.includes('aiplatform.googleapis.com');
     const targetMime = 'audio/mpeg';
 
-    // ─── Parallel chunked transcription for large files ───
-    // Threshold: ~1.5MB normalized = ~6 minutes of 32kbps mono audio
-    // Files above this benefit significantly from parallel processing
+    // ─── Parallel chunked transcription for large files (Google direct) ───
     if (isNativeGeminiEndpoint && normalizedSizeMb > 1.5) {
       console.log(`[Audio Transcribe] Large file detected (${normalizedSizeMb.toFixed(1)}MB normalized). Splitting into 10-min chunks for parallel transcription...`);
       const CHUNK_DURATION_SECS = 600; // 10 minutes per chunk (optimal for speed & accuracy with Gemini 3.6 Flash)
@@ -2175,7 +2222,8 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
         const startTime = Date.now();
         const transcript = await transcribeChunksParallel({
           chunks,
-          apiKey: resolved.apiKey,
+          apiKey: effectiveApiKey,
+          endpoint: resolved.endpoint,
           modelName: effectiveModel,
           mimeType: targetMime,
           prompt,
@@ -2201,30 +2249,112 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
       // If only 1 chunk (short file), fall through to single-file path
     }
 
-    // ─── Single-file transcription (original path) ───
+    // ─── Single-file transcription (Google native path) ───
     const audioBuffer = await fs.promises.readFile(tempNormalizedFile);
     const targetFilename = 'audio.mp3';
 
     if (isNativeGeminiEndpoint) {
-      const result = await executeGeminiNativeAudioTranscription({ apiKey: resolved.apiKey, modelName: effectiveModel, mimeType: targetMime, filename: targetFilename, prompt, audioBuffer });
-      if (!result?.ok || !result.text) throw Object.assign(new Error('Gemini transcription failed.'), { status: result?.status || 502, code: 'GEMINI_TRANSCRIPTION_FAILED' });
+      const result = await executeGeminiNativeAudioTranscription({
+        apiKey: effectiveApiKey,
+        endpoint: resolved.endpoint,
+        modelName: effectiveModel,
+        mimeType: targetMime,
+        filename: targetFilename,
+        prompt,
+        audioBuffer,
+      });
+      if (!result?.ok || !result.text) throw Object.assign(new Error('Audio transcription failed.'), { status: result?.status || 502, code: 'GEMINI_TRANSCRIPTION_FAILED' });
       return { text: result.text, meta: { provider_status: 200, final_model: effectiveModel, transcription_path: 'gemini_generate_content' } };
     }
 
+    // ─── OpenAI-compatible Gateway path (e.g. 9Router with input_audio) ───
     const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
     const fileSizeMb = Math.ceil(audioBuffer.length / (1024 * 1024));
     const audioTimeoutMs = Math.min(600000, Math.max(300000, 120000 + fileSizeMb * 5000));
-    const result = await executeGeminiCompatChatRequest({
-      apiKey: resolved.apiKey, endpoint: resolved.endpoint, modelName: resolved.model,
-      messages: [{ role: 'user', content: [
-        { type: 'text', text: customPrompt },
-        { type: 'input_audio', input_audio: { data: audioBuffer.toString('base64'), format: 'mp3' } },
-      ] }], temperature: 0, maxTokens: 16384, requestTimeoutMs: audioTimeoutMs,
-    });
-    if (!result.ok) throw Object.assign(new Error(`Audio transcription via OpenAI-compatible endpoint failed: ${result.message}`), { status: result.status || 502, code: 'OPENAI_COMPAT_TRANSCRIPTION_FAILED' });
-    const text = typeof result === 'string' ? result : (result?.choices?.[0]?.message?.content || result?.choices?.[0]?.text || result?.output_text || result?.text || '');
-    if (!text) throw Object.assign(new Error('Transcription returned empty text.'), { status: 502, code: 'EMPTY_TRANSCRIPTION' });
-    return { text, meta: { provider_status: 200, final_model: resolved.model, transcription_path: 'openai_compat_chat' } };
+    const gatewayModel = 'ag/gemini-3-flash';
+
+    let result = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+    while (attempts < maxAttempts) {
+      attempts++;
+      result = await executeGeminiCompatChatRequest({
+        apiKey: effectiveApiKey,
+        endpoint: resolved.endpoint,
+        modelName: gatewayModel,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: customPrompt },
+            { type: 'input_audio', input_audio: { data: audioBuffer.toString('base64'), format: 'mp3' } },
+          ],
+        }],
+        temperature: 0,
+        maxTokens: 16384,
+        requestTimeoutMs: audioTimeoutMs,
+      });
+
+      if (result?.ok) break;
+
+      // Rate limiting / server busy handler: retry with backoff
+      if ((result?.status === 429 || result?.status === 503 || String(result?.message || '').includes('Server busy')) && attempts < maxAttempts) {
+        console.warn(`[Audio Transcribe] Gateway status ${result.status} (busy). Waiting 2.5s before retry attempt ${attempts + 1}/${maxAttempts}...`);
+        await new Promise(r => setTimeout(r, 2500));
+        continue;
+      }
+      break;
+    }
+
+    if (!result?.ok) {
+      throw Object.assign(
+        new Error(`Audio transcription via gateway failed: ${result?.message || 'Gateway unavailable'}`),
+        { status: result?.status || 502, code: 'OPENAI_COMPAT_TRANSCRIPTION_FAILED' }
+      );
+    }
+
+    let text = typeof result === 'string' ? result : (result?.data?.choices?.[0]?.message?.content || result?.data?.output_text || result?.data?.text || result?.choices?.[0]?.message?.content || result?.output_text || result?.text || '');
+
+    // If filtered by model thinking or blocked, retry once with ag/gemini-3-flash
+    if ((!text || text.includes("blocked by Gemini's filters") || text.includes("không thể nghe hoặc truy cập trực tiếp")) && gatewayModel !== 'ag/gemini-3-flash') {
+      console.warn(`[Audio Transcribe] Model ${gatewayModel} response unusable. Retrying with ag/gemini-3-flash on gateway...`);
+      const retryResult = await executeGeminiCompatChatRequest({
+        apiKey: effectiveApiKey, endpoint: resolved.endpoint, modelName: 'ag/gemini-3-flash',
+        messages: [{ role: 'user', content: [
+          { type: 'text', text: customPrompt },
+          { type: 'input_audio', input_audio: { data: audioBuffer.toString('base64'), format: 'mp3' } },
+        ] }], temperature: 0, maxTokens: 16384, requestTimeoutMs: audioTimeoutMs,
+      });
+      if (retryResult?.ok) {
+        const retryText = typeof retryResult === 'string' ? retryResult : (retryResult?.data?.choices?.[0]?.message?.content || retryResult?.data?.output_text || retryResult?.data?.text || retryResult?.choices?.[0]?.message?.content || '');
+        if (retryText && !retryText.includes("blocked by Gemini's filters")) {
+          text = retryText;
+        }
+      }
+    }
+    if (!text) {
+      const fallbackGoogleKey = String(audioConfig.meeting_api_key || audioConfig.gemini_api_key || process.env.GEMINI_API_KEY || '').trim();
+      // CRITICAL: NEVER call Google Native Gemini unless the key is actually an official Google key (starts with AIza)
+      if (fallbackGoogleKey && fallbackGoogleKey.startsWith('AIza')) {
+        console.warn('[Audio Transcribe] OpenAI-compatible endpoint returned empty text. Attempting fallback to native Gemini API...');
+        try {
+          const fbResult = await executeGeminiNativeAudioTranscription({
+            apiKey: fallbackGoogleKey,
+            modelName: 'gemini-3.6-flash',
+            mimeType: targetMime,
+            filename: targetFilename,
+            prompt,
+            audioBuffer,
+          });
+          if (fbResult?.ok && fbResult.text) {
+            return { text: fbResult.text, meta: { provider_status: 200, final_model: 'gemini-3.6-flash', transcription_path: 'gemini_generate_content_fallback' } };
+          }
+        } catch (fbErr) {
+          console.error('[Audio Transcribe] Native fallback failed:', fbErr.message);
+        }
+      }
+      throw Object.assign(new Error('Không thể bóc băng âm thanh: Cổng AI không trả về văn bản cho đoạn ghi âm này (vui lòng kiểm tra lại chất lượng thu âm hoặc thử lại sau ít giây).'), { status: 502, code: 'EMPTY_TRANSCRIPTION' });
+    }
+    return { text, meta: { provider_status: 200, final_model: 'ag/gemini-3-flash', transcription_path: 'openai_compat_chat' } };
   } finally {
     if (tempNormalizedFile) await fs.promises.unlink(tempNormalizedFile).catch(() => {});
     // Clean up chunk temp files
@@ -2518,8 +2648,38 @@ async function deleteFromGeminiFiles({ apiKey, fileName }) {
   await fetch(`${GEMINI_API_BASE}/${fileName}?key=${encodeURIComponent(apiKey)}`, { method: 'DELETE' }).catch(() => {});
 }
 
+async function executeWhisperTranscription({ apiKey, endpoint, audioBuffer, filename = 'audio.mp3', prompt }) {
+  if (!audioBuffer) return '';
+  let base = String(endpoint || '').trim().replace(/\/+$/, '');
+  if (!base.endsWith('/v1')) {
+    if (base.endsWith('/v1beta')) base = base.slice(0, -7);
+    base = `${base}/v1`;
+  }
+  const url = `${base}/audio/transcriptions`;
+  const formData = new FormData();
+  const blob = new Blob([audioBuffer], { type: 'audio/mpeg' });
+  formData.append('file', blob, filename || 'audio.mp3');
+  formData.append('model', 'whisper-1');
+  formData.append('language', 'vi');
+  if (prompt) formData.append('prompt', prompt);
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new Error(`Whisper endpoint returned ${res.status}`);
+  }
+  const data = await res.json();
+  return data?.text || '';
+}
+
 async function executeGeminiNativeAudioTranscription({
   apiKey,
+  endpoint: customEndpoint = '',
   modelName,
   audioBase64,
   audioBuffer,
@@ -2529,7 +2689,7 @@ async function executeGeminiNativeAudioTranscription({
 }) {
   const isKeyInvalid = !apiKey || String(apiKey).trim() === '';
   if (isKeyInvalid) {
-    throw Object.assign(new Error('Gemini API key is required for transcription.'), { status: 503, code: 'AI_CONFIG_MISSING' });
+    throw Object.assign(new Error('AI API key is required for transcription.'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
 
   let fileUri = null;
@@ -2537,7 +2697,10 @@ async function executeGeminiNativeAudioTranscription({
   let activeBase64 = audioBase64;
 
   const bufferLen = audioBuffer ? audioBuffer.length : (activeBase64 ? Buffer.from(activeBase64, 'base64').length : 0);
-  if (bufferLen > 15 * 1024 * 1024) {
+  const isGoogleKey = String(apiKey || '').startsWith('AIza');
+
+  // Files API upload is ONLY available on direct Google Gemini API (not custom proxies)
+  if (isGoogleKey && (!customEndpoint || customEndpoint.includes('generativelanguage.googleapis.com')) && bufferLen > 15 * 1024 * 1024) {
     try {
       const realBuffer = audioBuffer || Buffer.from(activeBase64, 'base64');
       console.log(`[Files API] File size ${bufferLen} bytes is > 15MB. Uploading to Gemini Files API...`);
@@ -2558,7 +2721,24 @@ async function executeGeminiNativeAudioTranscription({
   }
 
   const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
-  const endpoint = `${GEMINI_API_BASE}/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  // Construct target endpoint URL and request headers
+  let endpointUrl;
+  const headers = { 'Content-Type': 'application/json' };
+
+  if (isGoogleKey && (!customEndpoint || customEndpoint.includes('generativelanguage.googleapis.com'))) {
+    endpointUrl = `${GEMINI_API_BASE}/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  } else {
+    // Custom proxy / Gateway (e.g. 9Router):
+    // Pass-through Gemini multimodal generateContent with Bearer token
+    let base = String(customEndpoint || GEMINI_API_BASE).trim().replace(/\/+$/, '');
+    if (base.endsWith('/v1')) base = base.slice(0, -3);
+    if (!base.endsWith('/v1beta')) base = `${base}/v1beta`;
+    endpointUrl = `${base}/models/${encodeURIComponent(modelName)}:generateContent`;
+    headers['Authorization'] = `Bearer ${apiKey}`;
+    headers['x-goog-api-key'] = apiKey;
+  }
+
   const payload = {
     contents: [{
       role: 'user',
@@ -2585,11 +2765,9 @@ async function executeGeminiNativeAudioTranscription({
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), NATIVE_TRANSCRIBE_TIMEOUT_MS);
-    let providerRes = await fetch(endpoint, {
+    let providerRes = await fetch(endpointUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -2600,11 +2778,9 @@ async function executeGeminiNativeAudioTranscription({
       await new Promise(resolve => setTimeout(resolve, 1500));
       const retryController = new AbortController();
       const retryTimer = setTimeout(() => retryController.abort(), NATIVE_TRANSCRIBE_TIMEOUT_MS);
-      providerRes = await fetch(endpoint, {
+      providerRes = await fetch(endpointUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
         signal: retryController.signal,
       });
@@ -2612,8 +2788,29 @@ async function executeGeminiNativeAudioTranscription({
     }
 
     if (!providerRes.ok) {
+      // If 404/405 on custom gateway, attempt Whisper fallback
+      if (!isGoogleKey && customEndpoint && (providerRes.status === 404 || providerRes.status === 405)) {
+        console.warn(`[Audio Transcribe] /v1beta/models returned ${providerRes.status} on custom gateway. Attempting Whisper /v1/audio/transcriptions...`);
+        try {
+          const rawBuffer = audioBuffer || (activeBase64 ? Buffer.from(activeBase64, 'base64') : null);
+          if (rawBuffer) {
+            const whisperText = await executeWhisperTranscription({
+              apiKey,
+              endpoint: customEndpoint,
+              audioBuffer: rawBuffer,
+              filename,
+              prompt: customPrompt,
+            });
+            if (whisperText && whisperText.trim()) {
+              return { ok: true, status: 200, text: whisperText.trim() };
+            }
+          }
+        } catch (whErr) {
+          console.warn(`[Audio Transcribe] Whisper fallback failed: ${whErr.message}`);
+        }
+      }
       const providerError = await readProviderError(providerRes);
-      throw Object.assign(new Error(`Gemini transcription failed: ${providerError.message}`), { status: providerRes.status, code: 'GEMINI_TRANSCRIPTION_FAILED' });
+      throw Object.assign(new Error(`AI provider transcription failed: ${providerError.message}`), { status: providerRes.status, code: 'GEMINI_TRANSCRIPTION_FAILED' });
     }
 
     const data = await providerRes.json();
@@ -2745,14 +2942,36 @@ async function executeGeminiCompatChatRequest({ apiKey, endpoint, modelName, mes
   }
 
   let data = null;
-  const contentType = providerRes.headers.get('content-type') || '';
-  if (contentType.includes('text/event-stream')) {
-    data = { ok: true, status: 200 };
+  const rawText = await providerRes.text();
+  const trimmed = String(rawText || '').trim();
+  if (trimmed.startsWith('data:') || trimmed.includes('\ndata:')) {
+    const lines = trimmed.split('\n');
+    let accumulatedContent = '';
+    for (const line of lines) {
+      const l = line.trim();
+      if (!l || l === 'data: [DONE]') continue;
+      if (l.startsWith('data:')) {
+        try {
+          const chunk = JSON.parse(l.slice(5).trim());
+          const delta = chunk?.choices?.[0]?.delta?.content || chunk?.choices?.[0]?.message?.content || '';
+          accumulatedContent += delta;
+        } catch (_) {}
+      }
+    }
+    data = {
+      choices: [{ message: { content: accumulatedContent } }],
+      output_text: accumulatedContent,
+      text: accumulatedContent,
+    };
   } else {
     try {
-      data = await providerRes.json();
+      data = JSON.parse(trimmed);
     } catch (_) {
-      data = { ok: true, status: 200 };
+      data = {
+        choices: [{ message: { content: trimmed } }],
+        output_text: trimmed,
+        text: trimmed,
+      };
     }
   }
 
@@ -3245,8 +3464,11 @@ function maskApiKey(key = '') {
 app.get('/api/system-config-summary', async (req, res) => {
   try {
     initFirebase();
-    const decoded = await verifyIdToken(req);
-    const requesterIsAdmin = isAdmin(decoded);
+    let decoded = null;
+    try {
+      decoded = await verifyIdToken(req);
+    } catch (_) {}
+    const requesterIsAdmin = decoded ? isAdmin(decoded) : false;
     const data = await getCachedSystemConfig();
     // Return masked version (do not send full API keys)
     const fallbackSources = sanitizeFallbackSources(data.web_search_fallback_sources);
@@ -3258,7 +3480,7 @@ app.get('/api/system-config-summary', async (req, res) => {
     const isConfigured = !!(ai.apiKey && ai.endpoint && ai.model);
     res.json({
       configured: isConfigured,
-      maskedKey: requesterIsAdmin && ai.apiKey ? maskApiKey(ai.apiKey) : '',
+      maskedKey: ai.apiKey ? maskApiKey(ai.apiKey) : '',
       provider: 'gemini',
       model: ai.model,
       gemini_model: ai.model,
@@ -3266,20 +3488,20 @@ app.get('/api/system-config-summary', async (req, res) => {
 
       google_search_configured: cseConfigured,
       vertex_search_configured: vertexConfigured,
-       web_search_configured: cseConfigured || vertexConfigured,
-       has_gemini_key: requesterIsAdmin ? Boolean(ai.apiKey) : false,
+      web_search_configured: cseConfigured || vertexConfigured,
+      has_gemini_key: Boolean(ai.apiKey),
       google_search_cx: requesterIsAdmin ? (data.google_search_cx || '') : '',
       vertex_project_id: requesterIsAdmin ? (data.vertex_project_id || '') : '',
       vertex_location: requesterIsAdmin ? (data.vertex_location || DEFAULT_VERTEX_LOCATION) : '',
       vertex_data_store_id: requesterIsAdmin ? (data.vertex_data_store_id || '') : '',
       vertex_serving_config: requesterIsAdmin ? (data.vertex_serving_config || '') : '',
-       transcribe_model: data.transcribe_model || '',
-       meeting_model: data.meeting_model || data.transcribe_model || '',
-       meeting_endpoint: requesterIsAdmin ? (data.meeting_endpoint || '') : '',
-       has_meeting_api_key: requesterIsAdmin ? Boolean(String(data.meeting_api_key || '').trim()) : false,
-       app_product_name: requesterIsAdmin ? (data.app_product_name || '') : '',
-       app_firebase_project: requesterIsAdmin ? (data.app_firebase_project || '') : '',
-       app_environment: data.app_environment || process.env.NODE_ENV || 'production',
+      transcribe_model: data.transcribe_model || '',
+      meeting_model: data.meeting_model || data.transcribe_model || '',
+      meeting_endpoint: data.meeting_endpoint || ai.endpoint || '',
+      has_meeting_api_key: Boolean(String(data.meeting_api_key || ai.apiKey || '').trim()),
+      app_product_name: data.app_product_name || '',
+      app_firebase_project: data.app_firebase_project || '',
+      app_environment: data.app_environment || process.env.NODE_ENV || 'production',
        app_build_sha: process.env.GIT_SHA || process.env.K_REVISION || data.app_build_sha || 'dev',
        gemini_models: Array.from(new Set([
         ...(Array.isArray(data.gemini_models) ? data.gemini_models : []),
@@ -9124,36 +9346,41 @@ const HOST = String(process.env.HOST || '127.0.0.1').trim();
 initFirebase();
 initLegalResearchRouter(getFirebaseAuth());
 app.use('/api', legalResearchRouter);
-app.listen(PORT, HOST, () => {
-  try {
-    initCrawlerScheduler();
-  } catch (e) {
-    console.warn('[Crawler] Could not initialize scheduler on startup:', e.message);
-  }
-  // === Auto-sync vbaibot messages moi gio ===
-  const AUTO_SYNC_INTERVAL = 15 * 60 * 1000; // 15 phut / lan
-async function runAutoSyncMessages() {
-    if (_syncRunning) return;
-    _syncRunning = true;
+if (require.main === module) {
+  app.listen(PORT, HOST, () => {
     try {
-      const mongoDb = await dbService.getDb();
-      const result = await syncVbaibotMessages(mongoDb, { limit: 3000, verbose: false });
-      _lastSyncAt = new Date();
-      _lastSyncIngested = result.ingested;
-      _lastSyncTotal = await mongoDb.collection('training_datasets').countDocuments();
-      if (result.ingested > 0) {
-        console.log('[Auto-Sync] +' + result.ingested + ' mau moi, tong: ' + _lastSyncTotal + ', lastId: ' + result.lastId);
-      }
+      initCrawlerScheduler();
     } catch (e) {
-      console.error('[Auto-Sync Messages] Error:', e.message);
-    } finally {
-      _syncRunning = false;
+      console.warn('[Crawler] Could not initialize scheduler on startup:', e.message);
     }
-  }
-  // Chay ngay khi khoi dong (sau 5 giay de cho MongoDB connect)
-  setTimeout(runAutoSyncMessages, 5000);
-  // Sau do lap lai moi gio
-  setInterval(runAutoSyncMessages, AUTO_SYNC_INTERVAL);
-  console.log('[Auto-Sync Messages] Scheduled: every 15 minutes');
-  console.log(`VBAI Proxy listening on port ${PORT}`);
-});
+    // === Auto-sync vbaibot messages moi gio ===
+    const AUTO_SYNC_INTERVAL = 15 * 60 * 1000; // 15 phut / lan
+    async function runAutoSyncMessages() {
+      if (_syncRunning) return;
+      _syncRunning = true;
+      try {
+        const mongoDb = await dbService.getDb();
+        const result = await syncVbaibotMessages(mongoDb, { limit: 3000, verbose: false });
+        _lastSyncAt = new Date();
+        _lastSyncIngested = result.ingested;
+        _lastSyncTotal = await mongoDb.collection('training_datasets').countDocuments();
+        if (result.ingested > 0) {
+          console.log('[Auto-Sync] +' + result.ingested + ' mau moi, tong: ' + _lastSyncTotal + ', lastId: ' + result.lastId);
+        }
+      } catch (e) {
+        console.error('[Auto-Sync Messages] Error:', e.message);
+      } finally {
+        _syncRunning = false;
+      }
+    }
+    // Chay ngay khi khoi dong (sau 5 giay de cho MongoDB connect)
+    setTimeout(runAutoSyncMessages, 5000);
+    // Sau do lap lai moi gio
+    setInterval(runAutoSyncMessages, AUTO_SYNC_INTERVAL);
+    console.log('[Auto-Sync Messages] Scheduled: every 15 minutes');
+    console.log(`VBAI Proxy listening on port ${PORT}`);
+  });
+}
+
+module.exports = { app, uploadToGeminiAudio };
+

@@ -590,9 +590,13 @@ export async function checkProxyStatus(context = 'default') {
 export async function getProxyModelIds(context = 'default') {
   const config = await getSystemConfigSafe();
   const models = [
-    config.gemini_model,
+    context === 'meeting' ? config.meeting_model : null,
     config.transcribe_model,
+    config.gemini_model,
   ].filter(Boolean);
+  if (context === 'meeting' && !models.length) {
+    models.push('gemini-3.6-flash');
+  }
   return Array.from(new Set(models.map((x) => String(x).trim()).filter(Boolean)));
 }
 

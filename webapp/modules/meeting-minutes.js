@@ -113,7 +113,7 @@ async function ensureSystemConfig() {
   return systemConfigCache;
 }
 
-const MEETING_MODEL_FALLBACK_ORDER = [];
+const MEETING_MODEL_FALLBACK_ORDER = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
 
 function getMeetingModelFallbackOrder() {
   let preferred = '';
@@ -121,10 +121,15 @@ function getMeetingModelFallbackOrder() {
     const cached = localStorage.getItem('vbai_system_config_cache');
     if (cached) {
       const parsed = JSON.parse(cached);
-        preferred = parsed?.config?.meeting_model || parsed?.config?.transcribe_model || '';
+      preferred = parsed?.config?.meeting_model || parsed?.config?.transcribe_model || '';
     }
   } catch (_) {}
-  if (preferred) return [preferred];
+  if (preferred && !preferred.includes('pool') && !preferred.includes('expert')) {
+    if (preferred.startsWith('ag/')) {
+      return [preferred];
+    }
+    return [preferred, ...MEETING_MODEL_FALLBACK_ORDER.filter(m => m !== preferred)];
+  }
   return MEETING_MODEL_FALLBACK_ORDER;
 }
 
@@ -775,6 +780,10 @@ async function resolveMeetingAudioModelCandidates(context = "meeting") {
   const preferred = [];
   const fallbackOrder = getMeetingModelFallbackOrder();
 
+  if (fallbackOrder.length && fallbackOrder[0].startsWith('ag/')) {
+    return [fallbackOrder[0]];
+  }
+
   if (ids.length) {
     if (fallbackOrder.length) {
       for (const target of fallbackOrder) {
@@ -782,16 +791,21 @@ async function resolveMeetingAudioModelCandidates(context = "meeting") {
         if (hit) preferred.push(hit);
       }
     } else {
-      // No fallback list configured — use all available config model ids directly.
-      preferred.push(...ids);
+      // Filter out virtual pools
+      const validAudioIds = ids.filter(id => !id.includes('pool') && !id.includes('expert') && (id.startsWith('gemini') || id.startsWith('ag/')));
+      preferred.push(...validAudioIds);
     }
   }
 
   // Always append canonical fallback order so we still try when /models is incomplete.
-  return dedupeModelIds([
+  const candidates = dedupeModelIds([
     ...preferred,
     ...fallbackOrder,
-  ]);
+    'gemini-3.6-flash',
+    'gemini-1.5-flash',
+  ]).filter(id => !id.includes('pool') && !id.includes('expert'));
+
+  return candidates.length ? candidates : ['ag/gemini-3-flash'];
 }
 
 const TRANSCRIPTION_PROMPT = 'Hãy bóc băng toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt. Không tóm tắt, không trả về JSON, chỉ trả về transcript.';

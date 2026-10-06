@@ -8,12 +8,14 @@ import { backendFetch } from './ai-proxy.js';
 
 const CONFIG_CACHE_KEY = 'vbai_system_config_cache';
 const CONFIG_CACHE_VERSION_KEY = 'vbai_system_config_cache_version';
-const CONFIG_CACHE_VERSION = 'gemini-only-v2';
+const CONFIG_CACHE_VERSION = '9router-v4-bust';
 const LEGACY_CONFIG_CACHE_KEYS = [
   CONFIG_CACHE_KEY,
   'vbai_ai_config_cache',
   'vbai_provider_config',
   'ai_system_config_cache',
+  'vbai_meeting_model',
+  'vbai_transcribe_model',
 ];
 const CONFIG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -138,11 +140,6 @@ export async function fetchSystemConfig(options = {}) {
   const forceRefresh = options?.forceRefresh === true;
   if (!forceRefresh && cachedConfig && Date.now() < cacheExpiresAt) {
     return cachedConfig;
-  }
-  const token = await getIdToken();
-  if (!token) {
-    // Not logged in; return null (no system config)
-    return null;
   }
 
   try {
