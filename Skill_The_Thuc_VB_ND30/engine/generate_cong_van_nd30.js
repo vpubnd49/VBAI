@@ -46,18 +46,10 @@ async function main() {
     // 2. Kính gửi
     children.push(...createKinhGui(data));
 
-    // 3. Nội dung
+    // 3. Nội dung (đã gắn kết thúc ./. liền câu cuối)
     children.push(...createBody(data));
 
-    // 4. Khoảng cách
-    children.push(
-        new Paragraph({
-            spacing: { before: 240, after: 0 },
-            children: [new TextRun({ text: '' })],
-        })
-    );
-
-    // 5. Chữ ký + Nơi nhận
+    // 4. Chữ ký + Nơi nhận (liền kề, không chèn đoạn trống)
     children.push(createSignatureBlock(data));
 
     // Tạo Document + xuất file

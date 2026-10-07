@@ -36,6 +36,22 @@ async function main() {
     const data = JSON.parse(rawData);
     const outPath = outputPath || data.output_path || 'output_vb.docx';
 
+    const isPhieuTrinh = data.loai_van_ban === 'phieu_trinh' || 
+                         (data.ten_loai && data.ten_loai.toLowerCase().includes('phiếu trình')) ||
+                         (data.trich_yeu && data.trich_yeu.toLowerCase().includes('phiếu trình'));
+    if (isPhieuTrinh) {
+        const { createPhieuTrinhDocx } = require('./generate_phieu_trinh_nd30');
+        const doc = createPhieuTrinhDocx(data);
+        const buffer = await Packer.toBuffer(doc);
+        const outDir = path.dirname(outPath);
+        if (outDir && !fs.existsSync(outDir)) {
+            fs.mkdirSync(outDir, { recursive: true });
+        }
+        fs.writeFileSync(outPath, buffer);
+        console.log(`✓ Đã tạo Phiếu trình chuẩn khung viền: ${outPath}`);
+        return;
+    }
+
     const children = [];
 
     // 1. Header (CQ + Quốc hiệu + Số KH + Ngày tháng)
@@ -52,15 +68,7 @@ async function main() {
     // 4. Nội dung (căn cứ + body)
     children.push(...createBody(data));
 
-    // 5. Khoảng cách trước chữ ký
-    children.push(
-        new Paragraph({
-            spacing: { before: 240, after: 0 },
-            children: [new TextRun({ text: '' })],
-        })
-    );
-
-    // 6. Chữ ký + Nơi nhận
+    // 5. Chữ ký + Nơi nhận
     children.push(createSignatureBlock(data));
 
     // Tạo Document + xuất file
