@@ -9290,6 +9290,53 @@ app.delete('/api/nq57/tasks/:id', async (req, res) => {
   }
 });
 
+// ==================== PAKN (pakn.nq57.vn) API ====================
+app.get('/api/pakn', async (req, res) => {
+  try {
+    await verifyIdToken(req);
+    const { status = '', search = '', limit = 100 } = req.query;
+    const cases = await dbService.listPaknCases({ status, search, limit });
+    res.json({ success: true, cases });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể tải danh sách PAKN' });
+  }
+});
+
+app.post('/api/pakn', async (req, res) => {
+  try {
+    const decoded = await verifyIdToken(req);
+    if (!req.body?.content || !String(req.body.content).trim()) {
+      return res.status(400).json({ error: 'Vui lòng nhập nội dung phản ánh, kiến nghị.' });
+    }
+    const item = await dbService.createPaknCase(req.body, decoded);
+    res.status(201).json({ success: true, item });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể lưu hồ sơ PAKN' });
+  }
+});
+
+app.patch('/api/pakn/:id', async (req, res) => {
+  try {
+    await verifyIdToken(req);
+    const updated = await dbService.updatePaknCase(req.params.id, req.body || {});
+    if (!updated) return res.status(404).json({ error: 'Không tìm thấy hồ sơ PAKN.' });
+    res.json({ success: true, item: updated });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể cập nhật hồ sơ PAKN' });
+  }
+});
+
+app.delete('/api/pakn/:id', async (req, res) => {
+  try {
+    await verifyIdToken(req);
+    const ok = await dbService.deletePaknCase(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Không tìm thấy hồ sơ PAKN.' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể xóa hồ sơ PAKN' });
+  }
+});
+
 // Start server
 const PORT = Number(process.env.PORT || 8080);
 const HOST = String(process.env.HOST || '127.0.0.1').trim();

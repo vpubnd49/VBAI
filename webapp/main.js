@@ -62,6 +62,8 @@ const PAGE_TITLES = {
   'meeting-minutes': 'Xử lý Ghi âm & Biên bản',
   'nq57-tracker': 'Đôn đốc Nhiệm vụ NQ 57',
   'multi-report': 'Tổng hợp Báo cáo Đa đơn vị',
+  'pakn-assistant': 'Xử lý Phản ánh, Kiến nghị (pakn.nq57.vn)',
+  'digital-learning': 'Góc Học tập số & Cẩm nang AI',
   'pdf-publisher': 'Tóm tắt Hồ sơ & Xuất bản',
   'search-history': 'Lịch sử Tra cứu',
   'admin-panel': 'Quản trị Hệ thống',
@@ -244,6 +246,18 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
         const { renderMultiReportSynthesizer } = await import('./modules/multi-report-synthesizer.js');
         container.innerHTML = '';
         renderMultiReportSynthesizer(container);
+        break;
+      }
+      case 'pakn-assistant': {
+        const { renderPaknAssistant } = await import('./modules/pakn-assistant.js');
+        container.innerHTML = '';
+        renderPaknAssistant(container);
+        break;
+      }
+      case 'digital-learning': {
+        const { renderDigitalLearning } = await import('./modules/digital-learning.js');
+        container.innerHTML = '';
+        renderDigitalLearning(container, navigateTo);
         break;
       }
       case 'zalo-bot': {

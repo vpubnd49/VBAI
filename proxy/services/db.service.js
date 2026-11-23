@@ -55,6 +55,7 @@ async function getDb() {
     await db.collection('ai_tuning_jobs').createIndex({ createdAt: -1, _id: -1 }).catch(() => {});
     await db.collection('nq57_tasks').createIndex({ due_date: 1, status: 1 }).catch(() => {});
     await db.collection('nq57_tasks').createIndex({ lead_unit: 1, updated_at: -1 }).catch(() => {});
+    await db.collection('pakn_cases').createIndex({ status: 1, updated_at: -1 }).catch(() => {});
 
     isConnecting = false;
     return db;
@@ -468,6 +469,71 @@ async function getNq57TasksSummary() {
   return summary;
 }
 
+// ==================== PAKN (pakn.nq57.vn) OPERATIONS ====================
+async function listPaknCases({ status = '', search = '', limit = 100 } = {}) {
+  const database = await getDb();
+  const filter = {};
+  if (status && status !== 'all') filter.status = String(status).trim();
+  if (search) {
+    const rx = new RegExp(String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    filter.$or = [{ code: rx }, { title: rx }, { content: rx }, { assigned_unit: rx }, { field: rx }];
+  }
+  const rows = await database
+    .collection('pakn_cases')
+    .find(filter)
+    .sort({ updated_at: -1 })
+    .limit(Math.min(300, Math.max(1, Number(limit) || 100)))
+    .toArray();
+  return rows.map((r) => ({ ...r, id: String(r._id) }));
+}
+
+async function createPaknCase(payload = {}, actor = {}) {
+  const database = await getDb();
+  const now = new Date();
+  const doc = {
+    code: String(payload.code || `PAKN-${Date.now().toString().slice(-6)}`).trim(),
+    title: String(payload.title || '').trim(),
+    content: String(payload.content || '').trim(),
+    citizen_info: String(payload.citizen_info || '').trim(),
+    field: String(payload.field || 'Thủ tục hành chính / CĐS').trim(),
+    assigned_unit: String(payload.assigned_unit || '').trim(),
+    coord_units: Array.isArray(payload.coord_units) ? payload.coord_units : [],
+    due_date: String(payload.due_date || '').trim(),
+    legal_basis: Array.isArray(payload.legal_basis) ? payload.legal_basis : [],
+    draft_type: payload.draft_type === 'tra_loi' ? 'tra_loi' : 'chuyen_xu_ly',
+    draft_content: String(payload.draft_content || '').trim(),
+    status: payload.status || 'dang_xu_ly',
+    created_by: actor.email || actor.uid || 'system',
+    created_at: now,
+    updated_at: now,
+  };
+  const res = await database.collection('pakn_cases').insertOne(doc);
+  return { ...doc, _id: res.insertedId, id: String(res.insertedId) };
+}
+
+async function updatePaknCase(id, updates = {}) {
+  const database = await getDb();
+  const oid = ObjectId && ObjectId.isValid(String(id)) ? new ObjectId(String(id)) : String(id);
+  const allowed = ['title', 'field', 'assigned_unit', 'coord_units', 'due_date', 'draft_type', 'draft_content', 'status'];
+  const $set = { updated_at: new Date() };
+  for (const key of allowed) {
+    if (updates[key] !== undefined) $set[key] = updates[key];
+  }
+  const res = await database.collection('pakn_cases').findOneAndUpdate(
+    { _id: oid },
+    { $set },
+    { returnDocument: 'after' }
+  );
+  return res ? { ...res, id: String(res._id) } : null;
+}
+
+async function deletePaknCase(id) {
+  const database = await getDb();
+  const oid = ObjectId && ObjectId.isValid(String(id)) ? new ObjectId(String(id)) : String(id);
+  const res = await database.collection('pakn_cases').deleteOne({ _id: oid });
+  return res.deletedCount > 0;
+}
+
 module.exports = {
   getDb,
   getUserByEmail,
@@ -495,4 +561,8 @@ module.exports = {
   updateNq57Task,
   deleteNq57Task,
   getNq57TasksSummary,
+  listPaknCases,
+  createPaknCase,
+  updatePaknCase,
+  deletePaknCase,
 };

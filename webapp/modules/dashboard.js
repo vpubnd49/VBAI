@@ -1,4 +1,4 @@
-import { getVisitCount, recordVisitSession } from './ai-proxy.js';
+import { backendFetch, getVisitCount, recordVisitSession } from './ai-proxy.js';
 
 export function renderDashboard(container, navigateTo) {
   const recentSearches = getRecentSearches();
@@ -88,6 +88,14 @@ export function renderDashboard(container, navigateTo) {
             <div class="dash-svc-icon emerald"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg></div>
             <span>Tổng hợp<br>Báo cáo</span>
           </button>
+          <button class="dash-svc-btn" data-page="pakn-assistant">
+            <div class="dash-svc-icon coral"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
+            <span>Xử lý<br>PAKN 57</span>
+          </button>
+          <button class="dash-svc-btn" data-page="digital-learning">
+            <div class="dash-svc-icon cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg></div>
+            <span>Học tập<br>số AI</span>
+          </button>
           <button class="dash-svc-btn" data-page="search-history">
             <div class="dash-svc-icon indigo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
             <span>Lịch sử<br>tra cứu</span>
@@ -100,6 +108,21 @@ export function renderDashboard(container, navigateTo) {
             <div class="dash-svc-icon amber"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
             <span>Quản trị<br>hệ thống</span>
           </button>
+        </div>
+      </section>
+
+      <!-- ĐIỀU HÀNH NHANH NQ 57 & CĐS -->
+      <section class="panel-group" id="dash-nq57-banner" style="margin:12px 0;padding:14px 16px;border-left:4px solid #0f766e;">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;">
+          <div>
+            <div style="font-weight:700;font-size:0.98rem;color:#0f766e;">🚀 Điều hành Nghị quyết 57-NQ/TW & Chuyển đổi số</div>
+            <div id="dash-nq57-stats" style="font-size:0.86rem;color:var(--text-muted);margin-top:3px;">Đang đồng bộ tiến độ nhiệm vụ NQ 57...</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-sm btn-secondary" id="dash-go-nq57">Bảng đôn đốc →</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="dash-go-pakn">Xử lý PAKN →</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="dash-go-learn">Học tập số →</button>
+          </div>
         </div>
       </section>
 
@@ -136,6 +159,26 @@ export function renderDashboard(container, navigateTo) {
   `;
 
   // Bind Central Search Input & Button
+  container.querySelector('#dash-go-nq57')?.addEventListener('click', () => navigateTo('nq57-tracker'));
+  container.querySelector('#dash-go-pakn')?.addEventListener('click', () => navigateTo('pakn-assistant'));
+  container.querySelector('#dash-go-learn')?.addEventListener('click', () => navigateTo('digital-learning'));
+
+  // Tải nền thống kê nhiệm vụ NQ 57 (không chặn render trang chủ)
+  setTimeout(async () => {
+    const statsEl = container.querySelector('#dash-nq57-stats');
+    if (!statsEl) return;
+    try {
+      const res = await backendFetch('/nq57/tasks/summary');
+      const data = await res.json();
+      const s = data?.summary;
+      if (s) {
+        statsEl.innerHTML = `Tổng: <strong>${s.total || 0}</strong> nhiệm vụ · Hoàn thành: <strong style="color:#059669;">${s.hoan_thanh || 0}</strong> · Sắp hạn: <strong style="color:#d97706;">${s.sap_qua_han || 0}</strong> · Quá hạn: <strong style="color:#dc2626;">${s.qua_han || 0}</strong> · Bộ chỉ số 766 Lâm Đồng: <strong>90,09/100</strong>`;
+      }
+    } catch (_) {
+      statsEl.textContent = 'Bộ chỉ số 766 Lâm Đồng: 90,09/100 · Sẵn sàng đôn đốc nhiệm vụ NQ 57 & xử lý PAKN.';
+    }
+  }, 600);
+
   const mainInput = container.querySelector('#home-main-search-input');
   const mainBtn = container.querySelector('#home-main-search-btn');
 
