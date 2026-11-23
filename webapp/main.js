@@ -60,6 +60,7 @@ const PAGE_TITLES = {
   'docx-tool': 'Tạo & Xuất văn bản',
   'spell-check': 'Kiểm tra Văn bản & Thể thức',
   'meeting-minutes': 'Xử lý Ghi âm & Biên bản',
+  'nq57-tracker': 'Đôn đốc Nhiệm vụ NQ 57',
   'pdf-publisher': 'Tóm tắt Hồ sơ & Xuất bản',
   'search-history': 'Lịch sử Tra cứu',
   'admin-panel': 'Quản trị Hệ thống',
@@ -128,6 +129,12 @@ export function navigateTo(page, initialQuery = '', initialMode = '', updateHash
   document.querySelectorAll('.bottom-nav-item, .bottom-nav-fab').forEach(bitem => {
     bitem.classList.toggle('active', bitem.dataset.page === page);
   });
+
+  // Hide floating widget when on zalo-bot page
+  const floatingWidget = document.getElementById('vbai-zalo-floating-widget');
+  if (floatingWidget) {
+    floatingWidget.style.display = (page === 'zalo-bot' ? 'none' : '');
+  }
 
   window.firstLoad = false;
 
@@ -224,6 +231,12 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
         const { renderMeetingMinutes } = await import('./modules/meeting-minutes.js');
         container.innerHTML = '';
         renderMeetingMinutes(container);
+        break;
+      }
+      case 'nq57-tracker': {
+        const { renderNq57Tracker } = await import('./modules/nq57-tracker.js');
+        container.innerHTML = '';
+        renderNq57Tracker(container);
         break;
       }
       case 'zalo-bot': {

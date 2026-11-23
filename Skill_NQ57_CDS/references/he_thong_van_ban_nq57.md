@@ -1,0 +1,11 @@
+# Hệ thống Văn bản Nền tảng về Nghị quyết 57-NQ/TW & Chuyển đổi số (2024–2026)
+
+| STT | Số hiệu văn bản | Ngày ban hành | Cơ quan ban hành | Nội dung trọng tâm & Tình trạng hiệu lực |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | **57-NQ/TW** | `22/12/2024` | Bộ Chính trị | Nghị quyết về đột phá phát triển khoa học, công nghệ, đổi mới sáng tạo và chuyển đổi số quốc gia. (**Còn hiệu lực** — kim chỉ nam xuyên suốt). |
+| 2 | **03/NQ-CP** | `09/01/2025` | Chính phủ | Chương trình hành động ban đầu của Chính phủ thực hiện NQ 57-NQ/TW. (**Hết hiệu lực** — đã bị thay thế bởi NQ 71/NQ-CP ngày 01/04/2025). |
+| 3 | **71/NQ-CP** | `01/04/2025` | Chính phủ | Sửa đổi, bổ sung, cập nhật Chương trình hành động của Chính phủ thực hiện NQ 57-NQ/TW; thay thế NQ 03/NQ-CP. (**Còn hiệu lực**, được sửa đổi bổ sung bởi NQ 11/NQ-CP ngày 14/01/2026). |
+| 4 | **02-KH/BCĐTW** | `19/06/2025` | Ban Chỉ đạo TW về phát triển KHCN, ĐMST và CĐS | Kế hoạch thúc đẩy chuyển đổi số liên thông, đồng bộ, nhanh, hiệu quả đáp ứng yêu cầu sắp xếp tổ chức bộ máy của hệ thống chính trị (chính quyền 2 cấp). Nguyên tắc: *"Một hệ thống thống nhất - Một dữ liệu duy nhất - Một dịch vụ liền mạch"*. (**Còn hiệu lực**). |
+| 5 | **179/2025/NĐ-CP** | `01/07/2025` | Chính phủ | Quy định mức hỗ trợ 5.000.000 đồng/người/tháng đối với người làm công tác chuyên trách về chuyển đổi số, an toàn thông tin mạng, an ninh mạng (hiệu lực từ ngày 15/08/2025). Hướng dẫn bởi **Thông tư 23/2025/TT-BKHCN ngày 20/10/2025**. (**Còn hiệu lực**). |
+| 6 | **11/NQ-CP** | `14/01/2026` | Chính phủ | Sửa đổi, bổ sung, cập nhật một số chỉ tiêu (Phụ lục I) và nhiệm vụ trọng tâm (Phụ lục II) của Nghị quyết 71/NQ-CP. Nhấn mạnh mục tiêu kinh tế số $\ge$ 30% GDP vào năm 2030, tinh gọn chỉ tiêu hành chính, phát động phong trào **"Học tập số"** toàn dân, đẩy nhanh tiến độ CSDL quốc gia gắn với Đề án 06. (**Còn hiệu lực**). |
+| 7 | **1425/QĐ-TTg** | `29/07/2026` | Thủ tướng Chính phủ | Ban hành **Khung kiến trúc tổng thể quốc gia số (phiên bản 1.0)** gồm 4 lớp (Hạ tầng & An ninh mạng; Dữ liệu & Nền tảng lõi; Ứng dụng & Nghiệp vụ dùng chung; Kênh tương tác & Đo lường hiệu quả) với nguyên tắc **AI First có kiểm soát**, **Data-Centric**, **Security-by-design**, kết nối 79 nền tảng số quốc gia. (**Còn hiệu lực**). |

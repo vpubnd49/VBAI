@@ -19,17 +19,38 @@ if (IS_PRODUCTION && !JWT_SECRET) {
 }
 
 function getJwtSecret() {
-  if (!JWT_SECRET) {
+  const secret = String(process.env.JWT_SECRET || JWT_SECRET || '').trim();
+  if (!secret) {
     throw new Error('JWT_SECRET is not configured');
   }
-  return JWT_SECRET;
+  return secret;
 }
 
 const googleClient = new OAuth2Client();
 
+const VALID_ORG_LEVELS = new Set(['tinh', 'so_nganh', 'xa_phuong']);
+const VALID_ROLES = new Set(['admin', 'lanh_dao', 'chuyen_vien_tinh', 'can_bo_xa', 'user']);
+
+function normalizeRole(rawRole, isAdminFlag = false) {
+  const r = String(rawRole || '').trim().toLowerCase();
+  if (isAdminFlag || r === 'admin') return 'admin';
+  return VALID_ROLES.has(r) ? r : 'user';
+}
+
+function normalizeOrgLevel(rawLevel, role = 'user') {
+  const lv = String(rawLevel || '').trim().toLowerCase();
+  if (VALID_ORG_LEVELS.has(lv)) return lv;
+  if (role === 'can_bo_xa') return 'xa_phuong';
+  if (role === 'lanh_dao' || role === 'chuyen_vien_tinh' || role === 'admin') return 'tinh';
+  return 'tinh';
+}
+
 function generateToken(user) {
-  const role = String(user.role || user.system_role || '').trim().toLowerCase();
-  const admin = role === 'admin' || user.isAdmin === true || user.customClaims?.admin === true;
+  const rawRole = String(user.role || user.system_role || '').trim().toLowerCase();
+  const admin = rawRole === 'admin' || user.isAdmin === true || user.customClaims?.admin === true;
+  const role = normalizeRole(rawRole, admin);
+  const org_level = normalizeOrgLevel(user.org_level || user.customClaims?.org_level, role);
+  const org_name = String(user.org_name || user.department || user.customClaims?.org_name || '').trim();
   const payload = {
     uid: user.uid || user._id,
     user_id: user.uid || user._id,
@@ -37,18 +58,33 @@ function generateToken(user) {
     name: user.displayName || user.name || user.email?.split('@')[0],
     admin,
     isAdmin: admin,
-    role: admin ? 'admin' : (role || 'user')
+    role,
+    org_level,
+    org_name,
   };
   return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 }
 
 function verifyToken(token) {
+  const cleanToken = String(token || '').startsWith('Bearer ')
+    ? String(token || '').slice(7).trim()
+    : String(token || '').trim();
+  if (!cleanToken) return null;
+
+  const secret = getJwtSecret();
   try {
-    const cleanToken = token.startsWith('Bearer ') ? token.slice(7).trim() : token.trim();
-    return jwt.verify(cleanToken, getJwtSecret());
+    return jwt.verify(cleanToken, secret);
   } catch (error) {
-    return null;
+    if (error && error.name === 'TokenExpiredError') {
+      try {
+        const decoded = jwt.verify(cleanToken, secret, { ignoreExpiration: true });
+        if (decoded && (decoded.uid || decoded.user_id || decoded.email)) {
+          return { ...decoded, _tokenExpired: true };
+        }
+      } catch (_) {}
+    }
   }
+  return null;
 }
 
 async function registerWithEmail(email, password, displayName = '') {

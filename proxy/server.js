@@ -41,6 +41,7 @@ if (fs.existsSync(envPath)) {
 
 const dbService = require('./services/db.service');
 const authService = require('./services/auth.service');
+const securityGuard = require('./services/security-guard.service');
 
 const express = require('express');
 const cors = require('cors');
@@ -4721,12 +4722,27 @@ app.post('/api/chat', async (req, res) => {
     }
 
     const { messages, contents, model, stream = false, temperature = 0.7, max_tokens, provider } = req.body;
-    const normalizedMessages = Array.isArray(messages)
+    const rawNormalizedMessages = Array.isArray(messages)
       ? sanitizeMessagesForOpenAI(messages)
       : (Array.isArray(contents) ? convertContentsToMessages(contents) : null);
-    if (!normalizedMessages || !Array.isArray(normalizedMessages)) {
+    if (!rawNormalizedMessages || !Array.isArray(rawNormalizedMessages)) {
       return res.status(400).json({ error: 'messages or contents array required' });
     }
+
+    // Security-by-design (QĐ 1425/QĐ-TTg): Chặn cứng tài liệu Mật & ẩn danh PII trước khi gọi AI cloud
+    const guardResult = securityGuard.guardMessagesForCloudAI(rawNormalizedMessages);
+    if (guardResult.blocked) {
+      console.warn(`[SecurityGuard] Blocked classified content (${guardResult.level}) for user ${decoded?.email || decoded?.uid || 'unknown'}`);
+      return res.status(422).json({
+        error: 'CLASSIFIED_DOCUMENT_BLOCKED',
+        level: guardResult.level,
+        message: guardResult.reason,
+      });
+    }
+    if (guardResult.piiMaskedCount > 0) {
+      console.log(`[SecurityGuard] Masked ${guardResult.piiMaskedCount} PII items (${guardResult.piiTypes.join(',')}) before AI call`);
+    }
+    const normalizedMessages = guardResult.messages;
 
     if (provider && provider !== 'gemini') {
       return res.status(400).json({
@@ -9202,6 +9218,77 @@ app.get('/api/zalobot/health', async (req, res) => {
   }
 });
 
+
+// ==================== NQ57 TASK TRACKER API ====================
+app.get('/api/nq57/tasks', async (req, res) => {
+  try {
+    await verifyIdToken(req);
+    const { status = '', lead_unit = '', pillar = '', search = '', limit = 200 } = req.query;
+    const tasks = await dbService.listNq57Tasks({ status, lead_unit, pillar, search, limit });
+    res.json({ success: true, tasks });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể tải danh sách nhiệm vụ NQ 57' });
+  }
+});
+
+app.get('/api/nq57/tasks/summary', async (req, res) => {
+  try {
+    await verifyIdToken(req);
+    const summary = await dbService.getNq57TasksSummary();
+    res.json({ success: true, summary });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể tải thống kê nhiệm vụ NQ 57' });
+  }
+});
+
+app.post('/api/nq57/tasks', async (req, res) => {
+  try {
+    const decoded = await verifyIdToken(req);
+    if (!req.body?.title || !String(req.body.title).trim()) {
+      return res.status(400).json({ error: 'Vui lòng nhập nội dung nhiệm vụ.' });
+    }
+    const task = await dbService.createNq57Task(req.body, decoded);
+    res.status(201).json({ success: true, task });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể tạo nhiệm vụ NQ 57' });
+  }
+});
+
+app.post('/api/nq57/tasks/bulk-from-meeting', async (req, res) => {
+  try {
+    const decoded = await verifyIdToken(req);
+    const items = Array.isArray(req.body?.tasks) ? req.body.tasks : [];
+    if (!items.length) {
+      return res.status(400).json({ error: 'Danh sách nhiệm vụ trống.' });
+    }
+    const created = await dbService.bulkCreateNq57Tasks(items, decoded);
+    res.status(201).json({ success: true, count: created.length, tasks: created });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể lưu danh sách nhiệm vụ từ biên bản họp' });
+  }
+});
+
+app.patch('/api/nq57/tasks/:id', async (req, res) => {
+  try {
+    await verifyIdToken(req);
+    const updated = await dbService.updateNq57Task(req.params.id, req.body || {});
+    if (!updated) return res.status(404).json({ error: 'Không tìm thấy nhiệm vụ.' });
+    res.json({ success: true, task: updated });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể cập nhật nhiệm vụ' });
+  }
+});
+
+app.delete('/api/nq57/tasks/:id', async (req, res) => {
+  try {
+    await verifyIdToken(req);
+    const ok = await dbService.deleteNq57Task(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Không tìm thấy nhiệm vụ.' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || 'Không thể xóa nhiệm vụ' });
+  }
+});
 
 // Start server
 const PORT = Number(process.env.PORT || 8080);

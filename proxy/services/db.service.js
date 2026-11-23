@@ -53,6 +53,8 @@ async function getDb() {
     await db.collection('crawler_logs').createIndex({ started_at: -1 }).catch(() => {});
     await db.collection('training_datasets').createIndex({ createdAt: -1, _id: -1 }).catch(() => {});
     await db.collection('ai_tuning_jobs').createIndex({ createdAt: -1, _id: -1 }).catch(() => {});
+    await db.collection('nq57_tasks').createIndex({ due_date: 1, status: 1 }).catch(() => {});
+    await db.collection('nq57_tasks').createIndex({ lead_unit: 1, updated_at: -1 }).catch(() => {});
 
     isConnecting = false;
     return db;
@@ -342,6 +344,130 @@ async function updateWebSearchHotIndex(data) {
   );
 }
 
+// ==================== NQ57 TASK TRACKER OPERATIONS ====================
+function computeTaskEffectiveStatus(task, now = new Date()) {
+  if (task.status === 'hoan_thanh') return 'hoan_thanh';
+  if (!task.due_date) return task.status || 'dang_thuc_hien';
+  const due = new Date(`${task.due_date}T23:59:59+07:00`);
+  if (Number.isNaN(due.getTime())) return task.status || 'dang_thuc_hien';
+  const diffDays = Math.ceil((due.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+  if (diffDays < 0) return 'qua_han';
+  if (diffDays <= 3) return 'sap_qua_han';
+  return 'dang_thuc_hien';
+}
+
+async function listNq57Tasks({ status = '', lead_unit = '', pillar = '', search = '', limit = 200 } = {}) {
+  const database = await getDb();
+  const filter = {};
+  if (lead_unit) filter.lead_unit = { $regex: new RegExp(String(lead_unit).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') };
+  if (pillar) filter.pillar = String(pillar).trim();
+  if (search) {
+    const rx = new RegExp(String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    filter.$or = [{ title: rx }, { source_doc: rx }, { lead_unit: rx }, { notes: rx }];
+  }
+  const rows = await database
+    .collection('nq57_tasks')
+    .find(filter)
+    .sort({ due_date: 1, updated_at: -1 })
+    .limit(Math.min(500, Math.max(1, Number(limit) || 200)))
+    .toArray();
+  const now = new Date();
+  const mapped = rows.map((row) => ({
+    ...row,
+    id: String(row._id),
+    effective_status: computeTaskEffectiveStatus(row, now),
+  }));
+  if (status && status !== 'all') {
+    return mapped.filter((t) => t.effective_status === status || t.status === status);
+  }
+  return mapped;
+}
+
+async function createNq57Task(payload = {}, actor = {}) {
+  const database = await getDb();
+  const now = new Date();
+  const doc = {
+    title: String(payload.title || '').trim(),
+    source_doc: String(payload.source_doc || '').trim(),
+    source_date: String(payload.source_date || '').trim(),
+    lead_unit: String(payload.lead_unit || 'Chưa phân công').trim(),
+    coord_units: Array.isArray(payload.coord_units)
+      ? payload.coord_units.map((u) => String(u).trim()).filter(Boolean)
+      : String(payload.coord_units || '').split(/[,;]/).map((u) => u.trim()).filter(Boolean),
+    due_date: String(payload.due_date || '').trim(),
+    status: payload.status === 'hoan_thanh' ? 'hoan_thanh' : 'dang_thuc_hien',
+    pillar: String(payload.pillar || 'Chuyển đổi số').trim(),
+    notes: String(payload.notes || '').trim(),
+    created_by: actor.email || actor.uid || 'system',
+    created_at: now,
+    updated_at: now,
+  };
+  const res = await database.collection('nq57_tasks').insertOne(doc);
+  return { ...doc, _id: res.insertedId, id: String(res.insertedId), effective_status: computeTaskEffectiveStatus(doc, now) };
+}
+
+async function bulkCreateNq57Tasks(items = [], actor = {}) {
+  const results = [];
+  for (const item of items) {
+    if (!item || !String(item.title || '').trim()) continue;
+    results.push(await createNq57Task(item, actor));
+  }
+  return results;
+}
+
+async function updateNq57Task(id, updates = {}) {
+  const database = await getDb();
+  const oid = ObjectId && ObjectId.isValid(String(id)) ? new ObjectId(String(id)) : String(id);
+  const allowed = ['title', 'source_doc', 'source_date', 'lead_unit', 'coord_units', 'due_date', 'status', 'pillar', 'notes'];
+  const $set = { updated_at: new Date() };
+  for (const key of allowed) {
+    if (updates[key] !== undefined) {
+      if (key === 'coord_units' && typeof updates[key] === 'string') {
+        $set[key] = updates[key].split(/[,;]/).map((u) => u.trim()).filter(Boolean);
+      } else {
+        $set[key] = updates[key];
+      }
+    }
+  }
+  const res = await database.collection('nq57_tasks').findOneAndUpdate(
+    { _id: oid },
+    { $set },
+    { returnDocument: 'after' }
+  );
+  if (!res) return null;
+  return { ...res, id: String(res._id), effective_status: computeTaskEffectiveStatus(res) };
+}
+
+async function deleteNq57Task(id) {
+  const database = await getDb();
+  const oid = ObjectId && ObjectId.isValid(String(id)) ? new ObjectId(String(id)) : String(id);
+  const res = await database.collection('nq57_tasks').deleteOne({ _id: oid });
+  return res.deletedCount > 0;
+}
+
+async function getNq57TasksSummary() {
+  const tasks = await listNq57Tasks({ limit: 500 });
+  const summary = {
+    total: tasks.length,
+    hoan_thanh: 0,
+    dang_thuc_hien: 0,
+    sap_qua_han: 0,
+    qua_han: 0,
+    by_unit: {},
+  };
+  for (const t of tasks) {
+    const st = t.effective_status || 'dang_thuc_hien';
+    if (summary[st] !== undefined) summary[st] += 1;
+    const unit = t.lead_unit || 'Khác';
+    if (!summary.by_unit[unit]) summary.by_unit[unit] = { total: 0, hoan_thanh: 0, qua_han: 0, sap_qua_han: 0 };
+    summary.by_unit[unit].total += 1;
+    if (st === 'hoan_thanh') summary.by_unit[unit].hoan_thanh += 1;
+    if (st === 'qua_han') summary.by_unit[unit].qua_han += 1;
+    if (st === 'sap_qua_han') summary.by_unit[unit].sap_qua_han += 1;
+  }
+  return summary;
+}
+
 module.exports = {
   getDb,
   getUserByEmail,
@@ -363,4 +489,10 @@ module.exports = {
   checkAndIncrementRateLimit,
   getWebSearchHotIndex,
   updateWebSearchHotIndex,
+  listNq57Tasks,
+  createNq57Task,
+  bulkCreateNq57Tasks,
+  updateNq57Task,
+  deleteNq57Task,
+  getNq57TasksSummary,
 };

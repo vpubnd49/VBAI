@@ -87,6 +87,23 @@ function getDefaultTriggers(skillId) {
       'xuat word',
       'xuat docx',
       'soan thao word'
+    ],
+    Skill_NQ57_CDS: [
+      'nghi quyet 57',
+      'nq 57',
+      'nq57',
+      '57-nq/tw',
+      '71/nq-cp',
+      '11/nq-cp',
+      '02-kh/bcdtw',
+      '1425/qd-ttg',
+      'chuyen doi so',
+      'khung kien truc quoc gia so',
+      'hoc tap so',
+      'de an 06',
+      'dti',
+      'pakn',
+      'nq57.vn'
     ]
   };
 
@@ -234,9 +251,13 @@ async function compile() {
     }
   }
 
-  // Sắp xếp theo thứ tự mong muốn: LegalKit V3 -> Đảng -> Hành chính -> PDF -> DOCX
-  const order = ['Skill_LegalKit_V3', 'Skill_The_Thuc_VB_Dang_HD05', 'Skill_The_Thuc_VB_ND30', 'Skill_PDF', 'Skill_DOCX'];
-  skills.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  // Sắp xếp theo thứ tự mong muốn: LegalKit V3 -> NQ57/CĐS -> Đảng -> Hành chính -> PDF -> DOCX
+  const order = ['Skill_LegalKit_V3', 'Skill_NQ57_CDS', 'Skill_The_Thuc_VB_Dang_HD05', 'Skill_The_Thuc_VB_ND30', 'Skill_PDF', 'Skill_DOCX'];
+  skills.sort((a, b) => {
+    const ia = order.indexOf(a.id);
+    const ib = order.indexOf(b.id);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
 
   
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(skills, null, 2), 'utf8');
@@ -283,6 +304,9 @@ function processSkill(skillPath, skillId, skillsList, isExternal = false) {
 
     if (skillId.includes('LegalKit') || skillId === 'skill') {
       page = 'legal-search';
+      accent = 'daquy';
+    } else if (skillId.includes('NQ57')) {
+      page = 'nq57-tracker';
       accent = 'daquy';
     } else if (skillId.includes('ND30')) {
       page = 'vb-nd30';

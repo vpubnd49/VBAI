@@ -80,6 +80,10 @@ export function renderDashboard(container, navigateTo) {
             <div class="dash-svc-icon purple"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg></div>
             <span>Biên bản<br>cuộc họp</span>
           </button>
+          <button class="dash-svc-btn" data-page="nq57-tracker">
+            <div class="dash-svc-icon teal"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></div>
+            <span>Đôn đốc<br>NQ 57</span>
+          </button>
           <button class="dash-svc-btn" data-page="search-history">
             <div class="dash-svc-icon indigo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
             <span>Lịch sử<br>tra cứu</span>

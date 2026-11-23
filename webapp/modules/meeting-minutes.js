@@ -658,8 +658,9 @@ function renderStep3(sc, c) {
         <div class="form-group span-2"><label class="form-label">Nơi nhận</label><textarea class="form-textarea" id="f-nn" rows="4" placeholder="- Chủ tịch, các PCT UBND tỉnh;\n- Các sở, ban, ngành;\n- Lưu: VT, ...">${formState.noi_nhan}</textarea></div>
       </div>
     </div>
-    <div class="btn-row" style="justify-content: center; margin-top: 24px;">
+    <div class="btn-row" style="justify-content: center; margin-top: 24px; flex-wrap: wrap; gap: 10px;">
       <button class="btn btn-secondary" id="btn-back-2">← Quay lại chỉnh sửa</button>
+      <button class="btn btn-primary" id="btn-push-nq57">📌 Đẩy sang Đôn đốc NQ 57</button>
       <button class="btn btn-success" id="btn-export">⬇ Tải Thông báo (.DOCX)</button>
     </div>
   `;
@@ -679,6 +680,24 @@ function renderStep3(sc, c) {
   };
   sc.querySelectorAll('input[name="the_thuc"]').forEach(rad => rad.addEventListener('change', () => { saveState(); renderStep3(sc, c); }));
   sc.querySelector('#btn-back-2').addEventListener('click', () => { saveState(); formState.step = 2; doRender(c); });
+  sc.querySelector('#btn-push-nq57')?.addEventListener('click', async () => {
+    saveState();
+    const btn = sc.querySelector('#btn-push-nq57');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang lưu nhiệm vụ...';
+    try {
+      const { pushMeetingTasksToTracker } = await import('./nq57-tracker.js');
+      const res = await pushMeetingTasksToTracker(formState);
+      if (res?.count) {
+        showToast(`Đã đẩy ${res.count} nhiệm vụ sang Bảng đôn đốc NQ 57!`, 'success');
+      }
+    } catch (err) {
+      showToast('Lỗi đẩy nhiệm vụ NQ 57: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📌 Đẩy sang Đôn đốc NQ 57';
+    }
+  });
   sc.querySelector('#btn-export').addEventListener('click', () => {
     saveState();
      const required = { chuTri: formState.chu_tri, thoiGian: `${formState.ngay}/${formState.thang}/${formState.nam}`, diaDiem: formState.dia_diem, thanhPhan: formState.thanh_phan, noiDungKetLuan: formState.tom_tat, nhiemVu: (formState.noi_dung_cuoc_hop || []).flatMap((item) => item.ket_luan || []).join(' ') };
