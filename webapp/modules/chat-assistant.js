@@ -229,6 +229,7 @@ Bạn BẮT BUỘC tổ chức câu trả lời TOÀN DIỆN, ĐẦY ĐỦ THEO 
 [QUY TẮC BẮT BUỘC VỀ ĐỊNH DẠNG]:
 - TUYỆT ĐỐI KHÔNG vẽ sơ đồ bằng ký tự ASCII art hoặc khung viền nét vẽ (như ┌───┐, │, └───┘, ▼).
 - Trình bày trực tiếp bằng Tiêu đề Markdown, Danh sách phân cấp (Bullet / Numbered List) và Bảng Markdown chuẩn (| Cột 1 | Cột 2 |...).
+- **ĐỊNH DẠNG NGÀY VĂN BẢN (BẮT BUỘC 100%)**: Mọi ngày tháng văn bản (địa danh ngày ban hành, ngày trong căn cứ pháp lý, ngày trích dẫn văn bản, nội dung soạn thảo, bảng biểu, biên bản, kết luận) BẮT BUỘC viết theo định dạng **"ngày DD/MM/YYYY"** (2 chữ số cho ngày và tháng, 4 chữ số cho năm — ví dụ: "ngày 23/10/2026", "Lâm Đồng, ngày 23/10/2026", "ngày 05/03/2020"). TUYỆT ĐỐI KHÔNG viết dài dạng "ngày 23 tháng 10 năm 2026".
 
 1. **I. KẾT LUẬN VỀ HIỆU LỰC & THẨM QUYỀN BAN HÀNH**
    * Tên chính thức của văn bản: [Tên đầy đủ]
@@ -306,7 +307,7 @@ Khi người dùng yêu cầu soạn thảo văn bản, BẮT BUỘC phân biệ
   + Tờ trình Đảng: Dùng "Kính trình" thay vì "Kính gửi".
   + Các Khoản trong Điều: Dùng 1. 2. 3. (số in đậm), không dùng a), b), c).
 
-3. YÊU CẦU NỘI DUNG SOẠN THẢO: Viết ĐẦY ĐỦ, CHI TIẾT NỘI DUNG VĂN BẢN THỰC TẾ (năm mặc định 2026), không dùng placeholder "[Nhập nội dung...]". Đặt trong khung Markdown để người dùng dễ copy vào Word.
+3. YÊU CẦU NỘI DUNG SOẠN THẢO: Viết ĐẦY ĐỦ, CHI TIẾT NỘI DUNG VĂN BẢN THỰC TẾ (năm mặc định 2026), không dùng placeholder "[Nhập nội dung...]". Mọi ngày văn bản (kể cả dòng Địa danh, ngày tháng và các căn cứ pháp lý) BẮT BUỘC viết theo định dạng "ngày DD/MM/YYYY" (ví dụ: "Lâm Đồng, ngày 23/10/2026", "ngày 05/03/2020"), tuyệt đối KHÔNG viết "ngày 23 tháng 10 năm 2026". Đặt trong khung Markdown để người dùng dễ copy vào Word.
 
 [QUY TẮC TÌM KIẾM VÀ CHỐNG ẢO GIÁC (TỐI QUAN TRỌNG)]
 4. ĐỐI VỚI SO SÁNH LUẬT TỔ CHỨC CHÍNH QUYỀN ĐỊA PHƯƠNG (LUẬT CŨ VS LUẬT MỚI 72/2025/QH15): Bạn BẮT BUỘC phải làm nổi bật 2 thay đổi mang tính cách mạng sau trong bảng so sánh và phần phân tích:
@@ -2877,7 +2878,7 @@ export async function sendMessage(text, onChunk, fileAttachment = null) {
 
           finalUserText += metaLines.join('\n');
         }
-        if (Array.isArray(metaData?.recent_documents) && metaData.recent_documents.length > 0) {
+        if (!metaData?.known_document && Array.isArray(metaData?.recent_documents) && metaData.recent_documents.length > 0) {
           const recLines = ['\n\n[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT LIÊN QUAN TRÊN HỆ THỐNG (CHỈ THAM KHẢO - KHÔNG TỰ Ý ĐƯA VÀO BẢNG VI NẾU KHÔNG LIÊN QUAN TRỰC TIẾP)]:'];
           metaData.recent_documents.slice(0, 5).forEach(rd => {
             recLines.push(`- [${rd.documentNumber}] ${rd.title} (Ban hành: ${rd.issueDate || 'Đã ban hành'})`);

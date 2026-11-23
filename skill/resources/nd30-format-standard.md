@@ -62,7 +62,7 @@ section.right_margin  = Cm(2.0)
 │                       ─────────────────────────  │
 │                                                  │
 │  Số: .../HĐLĐ                                   │ ← Trái, 13pt
-│                   TP. HCM, ngày 21 tháng 07 năm 2026│ ← Phải, nghiêng
+│                          TP. HCM, ngày 21/07/2026│ ← Phải, nghiêng (định dạng ngày DD/MM/YYYY)
 │                                                  │
 │              HỢP ĐỒNG LAO ĐỘNG                  │ ← Giữa, 14pt, Đậm, Hoa
 │                   Số: .../HĐLĐ-TNHMD            │ ← Giữa, 13pt (nếu có)

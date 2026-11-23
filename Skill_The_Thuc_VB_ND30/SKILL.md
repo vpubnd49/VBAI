@@ -14,6 +14,7 @@ Skill chuyên sâu sinh file `.docx` và bảng biểu phụ lục `.xlsx` đún
 | Thành phần | Quy tắc chuẩn xác | Lỗi thường gặp (CẤM) |
 |:---|:---|:---|
 | **Header Table** | **BẮT BUỘC Table 2 hàng x 2 cột** ẩn viền.<br>Hàng 1: Cơ quan (trái) - Quốc hiệu, Tiêu ngữ (phải).<br>Hàng 2: Số ký hiệu + Trích yếu (trái) - Địa danh, ngày tháng (phải). | CẤM gộp 1 hàng duy nhất làm lệch hàng ngang giữa Số và Ngày tháng khi tên cơ quan dài. |
+| **Ngày văn bản & Địa danh** | **BẮT BUỘC định dạng `ngày DD/MM/YYYY`** (2 chữ số cho ngày và tháng, 4 chữ số cho năm) cho cả dòng địa danh ngày ban hành, căn cứ pháp lý và mọi ngày trích dẫn trong văn bản.<br>Ví dụ: `Lâm Đồng, ngày 23/10/2026`; `ngày 05/03/2020`. | **CẤM viết dài** dạng `ngày 23 tháng 10 năm 2026` hay `ngày 05 tháng 3 năm 2020`. |
 | **Trích yếu Công văn** | Chữ thường, cỡ **12-13pt**, kiểu chữ **ĐỨNG** (`italics: false`, `bold: false`), căn giữa ô trái dưới Số ký hiệu. *(Căn cứ NĐ30 Phụ lục I mục II.4.b)* | **CẤM IN NGHIÊNG**, cấm in đậm trích yếu công văn. |
 | **Dấu kết thúc `./.`** | Gắn **TRỰC TIẾP** vào từ cuối cùng của câu cuối cùng trong văn bản (ví dụ: `...theo quy định./.`). | **CẤM TÁCH DÒNG RIÊNG**, cấm tạo Paragraph riêng cho `./.`, cấm chèn dòng rỗng trước chữ ký. |
 | **Kính gửi** | Chữ thường, cỡ **14pt**, kiểu chữ **ĐỨNG** (`bold: false`). Thụt lề trái hoặc căn đều. | CẤM in đậm chữ "Kính gửi". |

@@ -201,9 +201,14 @@ function createHeader(data) {
     );
 
     // Địa danh, ngày tháng
-    const ngay = data.ngay || '    ';
-    const thang = data.thang || '    ';
-    const nam = data.nam || '2026';
+    const pad2 = (v, fallback) => {
+        const s = String(v ?? '').trim();
+        if (!s) return fallback;
+        return /^\d$/.test(s) ? `0${s}` : s;
+    };
+    const ngay = pad2(data.ngay, '...');
+    const thang = pad2(data.thang, '...');
+    const nam = String(data.nam ?? '2026').trim() || '2026';
     const diaDanh = data.dia_danh || 'Hà Nội';
     rightChildren.push(
         new Paragraph({
@@ -211,7 +216,7 @@ function createHeader(data) {
             spacing: { before: 0, after: 0 },
             children: [
                 new TextRun({
-                    text: `${diaDanh}, ngày ${ngay} tháng ${thang} năm ${nam}`,
+                    text: `${diaDanh}, ngày ${ngay}/${thang}/${nam}`,
                     font: LAYOUT.FONT, size: 28, italics: true, // cỡ 14, nghiêng
                 }),
             ],

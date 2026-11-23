@@ -253,7 +253,7 @@ Kiểm tra trước khi xuất bất kỳ output nào:
 - Mọi kết luận kèm **tọa độ pháp lý** trỏ về SOT
 - Thiếu dữ kiện → `[Giả định]` kèm tác động, hoặc hỏi user
 - Nguồn tra web → `[Web]` kèm URL
-- Ngày tháng: DD/MM/YYYY
+- Ngày tháng văn bản: **BẮT BUỘC định dạng `ngày DD/MM/YYYY`** (ví dụ: `ngày 23/10/2026`, `Lâm Đồng, ngày 23/10/2026`; TUYỆT ĐỐI KHÔNG viết dài dạng `ngày 23 tháng 10 năm 2026`)
 - Không tự bịa nội dung VB — phải copy nguyên văn từ nguồn
 - **Skill hỗ trợ nghiên cứu và soạn thảo sơ bộ; không thay thế ý kiến pháp lý chính thức**
 

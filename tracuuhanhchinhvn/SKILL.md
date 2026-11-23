@@ -35,6 +35,7 @@ Trả dữ liệu có cấu trúc, truy vết được nguồn và tách rõ d�
 - Với PAR Index/SIPAS/PAPI/PCI/Bộ chỉ số 766 và các tỷ lệ CCHC, luôn nêu kỳ và ngày chốt dữ liệu.
 - Nếu câu hỏi chứa “hiện nay”, “mới nhất”, “đang có hiệu lực”, “đang áp dụng” nhưng nguồn đóng gói không đủ mới, trả `needs_freshness_check` và không khẳng định hiện trạng.
 - Không tạo số văn bản, ngày, điều/khoản, chức danh hoặc số liệu không có trong nguồn.
+- Định dạng ngày văn bản bắt buộc thống nhất `ngày DD/MM/YYYY` (ví dụ: `ngày 23/10/2026`), không viết dạng `ngày 23 tháng 10 năm 2026`.
 - Nếu nguồn mâu thuẫn, trả `conflict`; mô tả khác biệt trước khi đề xuất kiểm tra nguồn có thẩm quyền hơn.
 
 ## Trả context cho mô-đun soạn thảo

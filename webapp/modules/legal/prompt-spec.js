@@ -8,6 +8,7 @@ Nguyên tắc trả lời:
 2. Trích dẫn rõ ràng Số hiệu văn bản, Điều, Khoản, Điểm nếu có.
 3. Không tự suy đoán hiệu lực nếu chưa có dữ liệu xác minh.
 4. Tuân thủ mô hình chính quyền địa phương hai cấp (tỉnh, xã) cho các quy định hiện hành.
+5. Mọi ngày tháng văn bản (ngày ban hành, ngày hiệu lực, căn cứ pháp lý, địa danh ngày tháng) BẮT BUỘC định dạng \`ngày DD/MM/YYYY\` (ví dụ: \`ngày 23/10/2026\`), tuyệt đối KHÔNG viết dài dạng \`ngày 23 tháng 10 năm 2026\`.
 `.trim();
 
 export function assembleLegalPrompt({ corePrompt = CORE_LEGAL_SYSTEM_PROMPT, domainPrompt = '', searchEvidence = '', history = [], maxHistoryItems = 6 }) {

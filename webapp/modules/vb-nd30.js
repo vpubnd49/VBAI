@@ -187,7 +187,8 @@ QUY TẮC SOẠN THẢO (BẤT BUỘC):
 1. Bạn CHỈ tạo ra phần nội dung chính để điền vào thân văn bản (không viết Tiêu ngữ, Quốc hiệu, Tiêu đề lớn, chữ ký hay nơi nhận).
 2. Nội dung phải viết CỰC KỲ CHI TIẾT, ĐẦY ĐỦ, mạch lạc và chuyên nghiệp. Tránh viết chung chung, sơ sài hoặc dùng các ký hiệu giữ chỗ trống kiểu "[nhập vào đây]".
 3. Chia nội dung thành các mục rõ ràng (ví dụ: 1., 2., 3. hoặc I, II, III) phù hợp với loại văn bản ${typeText}.
-4. Trả về thuần văn bản (text), không bọc trong khối code block (\`\`\`markdown).`;
+4. Mọi ngày tháng văn bản trong nội dung BẮT BUỘC viết theo định dạng "ngày DD/MM/YYYY" (ví dụ: "ngày 23/10/2026"), tuyệt đối KHÔNG viết dài dạng "ngày 23 tháng 10 năm 2026".
+5. Trả về thuần văn bản (text), không bọc trong khối code block (\`\`\`markdown).`;
 
         const responseText = await sendChatRequest([
           { role: 'system', content: systemPrompt },
@@ -228,7 +229,8 @@ Nhiệm vụ của bạn là liệt kê các CĂN CỨ PHÁP LÝ (ví dụ: Lu�
 QUY TẮC LIỆT KÊ (BẤT BUỘC):
 1. Mỗi căn cứ viết trên một dòng riêng biệt, bắt đầu bằng "Căn cứ...".
 2. Chỉ sử dụng các văn bản pháp luật thực tế, chính xác và có hiệu lực tại Việt Nam (đặc biệt ưu tiên các luật ban hành năm 2024, 2025, 2026 nếu có). Không bịa đặt số hiệu hay tên luật.
-3. Không trả về tiêu đề hay lời dẫn khác. Trả về thuần văn bản (text), không bọc trong khối code block.`;
+3. Mọi ngày ban hành trong căn cứ BẮT BUỘC viết theo định dạng "ngày DD/MM/YYYY" (ví dụ: "ngày 05/03/2020", "ngày 23/10/2026"), tuyệt đối KHÔNG viết dài dạng "ngày 23 tháng 10 năm 2026".
+4. Không trả về tiêu đề hay lời dẫn khác. Trả về thuần văn bản (text), không bọc trong khối code block.`;
 
         const responseText = await sendChatRequest([
           { role: 'system', content: systemPrompt },
@@ -250,13 +252,23 @@ QUY TẮC LIỆT KÊ (BẤT BUỘC):
   }
 }
 
+function formatDocDateParts(ngay, thang, nam) {
+  const pad2 = (v) => {
+    const s = String(v ?? '').trim();
+    if (!s) return '...';
+    return /^\d$/.test(s) ? `0${s}` : s;
+  };
+  return `${pad2(ngay)}/${pad2(thang)}/${String(nam ?? '2026').trim() || '2026'}`;
+}
+
 function renderS4(sc,c) {
+   const formattedDate = formatDocDateParts(fs.ngay, fs.thang, fs.nam);
    sc.innerHTML=`<div class="section-title">👁️ Xem trước & Tải file</div>
      <div class="template-meta"><small>Mẫu: ${templateMeta?.title || 'Văn bản hành chính NĐ30'} · templateId: ${templateMeta?.id || 'catalog-default'} · templateVersion: ${templateMeta?.templateVersion || 'catalog-1'}</small></div>
     <div class="preview-container">
       <table class="preview-header-table"><tr>
         <td style="width:40%;text-align:center">${fs.co_quan_chu_quan?`<div style="font-size:13pt">${fs.co_quan_chu_quan}</div>`:''}<div style="font-size:13pt;font-weight:bold">${fs.co_quan_ban_hanh}</div><div style="border-top:1px solid #000;width:30%;margin:4px auto"></div><div style="font-size:13pt">${fs.so_ky_hieu||'Số: /...'}</div>${fs.loai_van_ban.toLowerCase()==='cong_van'&&fs.trich_yeu.trim()?`<div style="font-size:11pt;margin-top:4pt">${fs.trich_yeu.trim().toLowerCase().startsWith('v/v')?'':'V/v '}${fs.trich_yeu.trim()}</div>`:''}</td>
-        <td style="width:60%;text-align:center"><div style="font-size:13pt;font-weight:bold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div style="font-size:14pt;font-weight:bold">Độc lập - Tự do - Hạnh phúc</div><div style="border-top:1px solid #000;width:50%;margin:4px auto"></div><div style="font-style:italic">${fs.dia_danh}, ngày ${fs.ngay||'...'} tháng ${fs.thang||'...'} năm ${fs.nam}</div></td>
+        <td style="width:60%;text-align:center"><div style="font-size:13pt;font-weight:bold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div><div style="font-size:14pt;font-weight:bold">Độc lập - Tự do - Hạnh phúc</div><div style="border-top:1px solid #000;width:50%;margin:4px auto"></div><div style="font-style:italic">${fs.dia_danh}, ngày ${formattedDate}</div></td>
       </tr></table>
       ${fs.loai_van_ban.toLowerCase()!=='cong_van'?`<div class="preview-center preview-bold" style="font-size:14pt;margin-top:16pt">${LOAI_VB[fs.loai_van_ban]||''}</div><div class="preview-center preview-bold">${fs.trich_yeu}</div><div class="preview-separator">_______________</div>`:''}
       ${fs.kinh_gui?`<div class="preview-center" style="margin-top:8pt;margin-bottom:8pt">Kính gửi: ${fs.kinh_gui}</div>`:''}
@@ -291,7 +303,7 @@ async function genND30() {
     rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',font:L.FONT,size:26,bold:true})]}));
     rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:'Độc lập - Tự do - Hạnh phúc',font:L.FONT,size:28,bold:true})]}));
     rc.push(new Paragraph({spacing:{before:20,after:0},border:{top:{style:BorderStyle.SINGLE,size:2,color:'000000',space:1}},indent:{left:1100,right:1100}}));
-    rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:`${fs.dia_danh}, ngày ${fs.ngay||'...'} tháng ${fs.thang||'...'} năm ${fs.nam}`,font:L.FONT,size:28,italics:true})]}));
+    rc.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:`${fs.dia_danh}, ngày ${formatDocDateParts(fs.ngay, fs.thang, fs.nam)}`,font:L.FONT,size:28,italics:true})]}));
     ch.push(new Table({width:{size:L.CW,type:WidthType.DXA},borders:BN,columnWidths:[3500,5571],rows:[new TableRow({children:[new TableCell({borders:BN,width:{size:3500,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:lc}),new TableCell({borders:BN,width:{size:5571,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:rc})]})]}));
     // Title
     if(fs.loai_van_ban.toLowerCase()!=='cong_van'&&LOAI_VB[fs.loai_van_ban]) {

@@ -183,7 +183,12 @@ function createHeaderTable(data) {
 
     // Dia danh, ngay thang
     const ngay = data.ngay_thang || {};
-    const ngayStr = `Hà Nội, ngày ${ngay.ngay || '    '} tháng ${ngay.thang || '    '} năm ${ngay.nam || '2026'}`;
+    const pad2 = (v, fallback) => {
+        const s = String(v ?? '').trim();
+        if (!s) return fallback;
+        return /^\d$/.test(s) ? `0${s}` : s;
+    };
+    const ngayStr = `Hà Nội, ngày ${pad2(ngay.ngay, '...')}/${pad2(ngay.thang, '...')}/${String(ngay.nam || '2026').trim()}`;
     rightChildren.push(
         new Paragraph({
             alignment: AlignmentType.CENTER,

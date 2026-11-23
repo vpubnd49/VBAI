@@ -173,9 +173,19 @@ function renderStep3(sc, container) {
   sc.querySelector('#btn-next3').addEventListener('click', () => { save(); if(!s.noi_dung){showToast('Vui lòng nhập nội dung','error');return;} s.step=4; renderStep(container); });
 }
 
+function formatDocDateParts(ngay, thang, nam) {
+  const pad2 = (v) => {
+    const s = String(v ?? '').trim();
+    if (!s) return '...';
+    return /^\d$/.test(s) ? `0${s}` : s;
+  };
+  return `${pad2(ngay)}/${pad2(thang)}/${String(nam ?? '2026').trim() || '2026'}`;
+}
+
 function renderStep4(sc, container) {
   const s = formState;
   const tenLoai = LOAI_VB[s.loai_van_ban] || '';
+  const formattedDate = formatDocDateParts(s.ngay, s.thang, s.nam);
   sc.innerHTML = `
      <div class="section-title">👁️ Bước 4: Xem trước & Tải file</div>
      <div class="template-meta"><small>Mẫu: ${templateMeta?.title || 'Văn bản Đảng HD05'} · templateId: ${templateMeta?.id || 'catalog-default'} · templateVersion: ${templateMeta?.templateVersion || 'catalog-1'}</small></div>
@@ -191,7 +201,7 @@ function renderStep4(sc, container) {
         <td style="width:60%;text-align:center">
           <div style="font-size:15pt;font-weight:bold">ĐẢNG CỘNG SẢN VIỆT NAM</div>
           <div style="border-top:1px solid #000;width:60%;margin:4px auto"></div>
-          <div style="font-size:13pt;font-style:italic">${s.dia_danh}, ngày ${s.ngay||'...'} tháng ${s.thang||'...'} năm ${s.nam}</div>
+          <div style="font-size:13pt;font-style:italic">${s.dia_danh}, ngày ${formattedDate}</div>
         </td>
       </tr></table>
       ${s.loai_van_ban.toLowerCase()!=='cong_van'?`
@@ -262,7 +272,7 @@ async function generateDangDocx(s) {
     const rightCells = [];
     rightCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:'ĐẢNG CỘNG SẢN VIỆT NAM',font:LAYOUT.FONT,size:30,bold:true})]}));
     rightCells.push(new Paragraph({spacing:{before:20,after:0},border:{top:{style:BorderStyle.SINGLE,size:2,color:'000000',space:1}},indent:{left:928,right:928}}));
-    rightCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:`${s.dia_danh}, ngày ${s.ngay||'...'} tháng ${s.thang||'...'} năm ${s.nam}`,font:LAYOUT.FONT,size:28,italics:true})]}));
+    rightCells.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new TextRun({text:`${s.dia_danh}, ngày ${formatDocDateParts(s.ngay, s.thang, s.nam)}`,font:LAYOUT.FONT,size:28,italics:true})]}));
 
     children.push(new Table({width:{size:LAYOUT.CONTENT_WIDTH,type:WidthType.DXA},borders:BORDERS_NONE,columnWidths:[3500,5855],rows:[new TableRow({children:[new TableCell({borders:BORDERS_NONE,width:{size:3500,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:leftCells}),new TableCell({borders:BORDERS_NONE,width:{size:5855,type:WidthType.DXA},verticalAlign:VerticalAlign.TOP,children:rightCells})]})]}));
 

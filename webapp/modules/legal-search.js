@@ -340,7 +340,7 @@ async function executeLegalSearch(container, query) {
 
         fullPrompt += metaLines.join('\n');
       }
-      if (Array.isArray(metaData?.recent_documents) && metaData.recent_documents.length > 0) {
+      if (!metaData?.known_document && Array.isArray(metaData?.recent_documents) && metaData.recent_documents.length > 0) {
         const recLines = ['\n\n[DANH MỤC VĂN BẢN QUY PHẠM PHÁP LUẬT LIÊN QUAN TRÊN HỆ THỐNG (CHỈ THAM KHẢO - KHÔNG TỰ Ý ĐƯA VÀO BẢNG VI NẾU KHÔNG LIÊN QUAN TRỰC TIẾP)]:'];
         metaData.recent_documents.slice(0, 5).forEach(rd => {
           recLines.push(`- [${rd.documentNumber}] ${rd.title} (Ban hành: ${rd.issueDate || 'Đã ban hành'})`);
@@ -509,6 +509,7 @@ TUYỆT ĐỐI NGHIÊM CẤM VIỆC CHỈ NÊU CÂU DẪN RỒI NHẢY CÓC SANG
 Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ bị xem là vi phạm quy định và không đạt chuẩn.
 
 [MỞ ĐẦU BẮT BUỘC]:
+- Mọi ngày tháng văn bản trong toàn bộ câu trả lời (mở đầu, phân tích, căn cứ, bảng trích dẫn) BẮT BUỘC trình bày theo định dạng \`ngày DD/MM/YYYY\` (ví dụ: \`ngày 23/10/2026\`), KHÔNG viết dạng \`ngày 23 tháng 10 năm 2026\`.
 - Khi người dùng hỏi về văn bản hoặc yêu cầu tải file văn bản:
   Trước khi vào Phần I, BẮT BUỘC mở đầu bằng 1-2 câu kết luận trực diện, xác nhận số hiệu văn bản mới nhất hiện nay và dẫn vào bản phân tích:
   "[Tên văn bản] mới nhất hiện nay là [Loại văn bản] số [Số hiệu] (được [Cơ quan] thông qua/ban hành ngày [Ngày ban hành]).

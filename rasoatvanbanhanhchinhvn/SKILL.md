@@ -86,6 +86,7 @@ Nếu hai tài liệu mâu thuẫn, ưu tiên nguồn theo `references/source_po
 - nhiều đầu mối nhưng không rõ ai chịu trách nhiệm chung;
 - vai trò đã giao ở văn bản trước bị mất trong dự thảo mới;
 - ngày tháng nội tại vô lý;
+- ngày văn bản sai định dạng chuẩn hệ thống: bắt buộc phải viết `ngày DD/MM/YYYY` (ví dụ: `ngày 23/10/2026`), nếu viết dài dạng `ngày 23 tháng 10 năm 2026` thì phải báo lỗi và đề xuất chỉnh về `ngày 23/10/2026`;
 - dùng sai động từ theo giai đoạn `nghiên cứu → xây dựng → trình → ban hành → tổ chức thực hiện`.
 
 ## Kiểm tra câu cú, chính tả

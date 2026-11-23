@@ -35,7 +35,7 @@ Tài liệu quy chuẩn chi tiết "pixel-perfect", rút ra từ Nghị định 
 |                                    |   + Đường kẻ ngang = chiều dài Tiêu ngữ  |
 +------------------------------------+------------------------------------------+
 | HÀNG 2 - Ô TRÁI (3500 dxa)         | HÀNG 2 - Ô PHẢI (5571 dxa)               |
-| - Số:      /UBND-NC (Cỡ 12-13)     | - Lâm Đồng, ngày    tháng    năm 2026    |
+| - Số:      /UBND-NC (Cỡ 12-13)     | - Lâm Đồng, ngày 23/10/2026              |
 | - V/v ... (ĐỨNG, cỡ 12-13)         |   (Cỡ 13-14, IN NGHIÊNG, Căn giữa)       |
 +------------------------------------+------------------------------------------+
 ```
@@ -57,7 +57,8 @@ Tài liệu quy chuẩn chi tiết "pixel-perfect", rút ra từ Nghị định 
 6. **Địa danh và ngày, tháng, năm ban hành**:
    - Nằm ở Hàng 2, ô phải (ngang hàng với Số ký hiệu).
    - Cỡ **13-14pt**, **IN NGHIÊNG**, căn giữa.
-   - Ví dụ: `Lâm Đồng, ngày       tháng 02 năm 2026`.
+   - **BẮT BUỘC định dạng `ngày DD/MM/YYYY`** (TUYỆT ĐỐI KHÔNG viết `ngày ... tháng ... năm ...`).
+   - Ví dụ: `Lâm Đồng, ngày 23/10/2026` (hoặc `Lâm Đồng, ngày .../10/2026` khi để trống ngày).
 
 ---
 
@@ -83,9 +84,9 @@ Tài liệu quy chuẩn chi tiết "pixel-perfect", rút ra từ Nghị định 
 - Dấu câu: Mỗi dòng căn cứ kết thúc bằng dấu chấm phẩy **`;`**. Dòng căn cứ cuối cùng (hoặc dòng "Theo đề nghị của...") kết thúc bằng dấu phẩy **`,`** hoặc dấu chấm **`.`**.
 - Ví dụ thực tế:
   ```
-  Căn cứ Luật Tổ chức chính quyền địa phương ngày 19 tháng 02 năm 2025;
-  Căn cứ Nghị định số 30/2020/NĐ-CP ngày 05 tháng 3 năm 2020 của Chính phủ về công tác văn thư;
-  Theo đề nghị của Giám đốc Sở Nội vụ tại Tờ trình số 120/TTr-SNV ngày 10 tháng 3 năm 2026,
+  Căn cứ Luật Tổ chức chính quyền địa phương ngày 19/02/2025;
+  Căn cứ Nghị định số 30/2020/NĐ-CP ngày 05/03/2020 của Chính phủ về công tác văn thư;
+  Theo đề nghị của Giám đốc Sở Nội vụ tại Tờ trình số 120/TTr-SNV ngày 10/03/2026,
   ```
 
 ---
@@ -192,7 +193,7 @@ Khi tạo phụ lục bảng số liệu, danh sách đính kèm bằng Word ho�
    - Ví dụ: `DANH MỤC THỦ TỤC HÀNH CHÍNH ÁP DỤNG TRÊN ĐỊA BÀN TỈNH LÂM ĐỒNG`
 3. **Dòng căn cứ ban hành**:
    - Nằm ngay dưới tiêu đề bảng. Cỡ **12-13pt**, *in nghiêng*, căn giữa.
-   - Ví dụ: `(Kèm theo Quyết định số       /QĐ-UBND ngày    tháng 4 năm 2026 của UBND tỉnh Lâm Đồng)`
+   - Ví dụ: `(Kèm theo Quyết định số       /QĐ-UBND ngày 23/10/2026 của UBND tỉnh Lâm Đồng)`
 4. **Hàng tiêu đề cột (Table Headers)**:
    - Cỡ **12-13pt**, **IN ĐẬM**, căn giữa cả chiều ngang lẫn chiều dọc (Center / Middle).
    - Tự động ngắt dòng (`Wrap Text = true`). Nền tiêu đề: màu xám nhạt (`#F2F2F2`) hoặc màu trắng sạch sẽ.

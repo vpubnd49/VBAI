@@ -26,6 +26,7 @@ function buildAdminReviewPrompt(userQuery = '') {
     `- Nguồn trước, sửa sau. Không tự đổi số hiệu hay ngày tháng khi chưa đối chiếu nguồn.`,
     `- Không làm thay đổi luồng báo cáo (Ví dụ: "Báo cáo trực tiếp Bộ" khác với "Tham mưu UBND tỉnh báo cáo Bộ").`,
     `- Kiểm tra khối chữ ký: TM. (Thay mặt), KT. (Ký thay), TL. (Thừa lệnh), TUQ. (Thừa ủy quyền).`,
+    `- Kiểm tra định dạng ngày văn bản: BẮT BUỘC chuẩn hóa theo định dạng "ngày DD/MM/YYYY" (ví dụ: "ngày 23/10/2026", "Lâm Đồng, ngày 23/10/2026"). Nếu dự thảo viết dài dạng "ngày 23 tháng 10 năm 2026" thì gắn nhãn [MUST_FIX] và đề xuất chỉnh về "ngày 23/10/2026".`,
     `- Đảm bảo logic giao nhiệm vụ 8 yếu tố: Chủ thể -> Hành động -> Phối hợp -> Sản phẩm -> Thời hạn -> Nơi nhận -> Nguồn dữ liệu -> Trách nhiệm.`,
     `=== KẾT THÚC SKILL RÀ SOÁT VĂN BẢN ===\n`
   ];

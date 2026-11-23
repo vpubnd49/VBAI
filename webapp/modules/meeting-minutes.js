@@ -840,14 +840,14 @@ Hãy nghe KỸ file ghi âm cuộc họp này và trích xuất theo cấu trúc
    - danh_gia: Đánh giá, nhận định tình hình hoặc bối cảnh (nếu có).
    - ket_luan: Mảng các kết luận/chỉ đạo CỤ THỂ. Mỗi kết luận nên bắt đầu bằng động từ mạnh (Giao, Yêu cầu, Đề nghị...) và xác định rõ đơn vị chủ trì, đơn vị phối hợp, thời hạn hoàn thành.
 
-LƯU Ý: Dùng đúng thuật ngữ hành chính VN (ví dụ: "Sở, ban, ngành", "địa phương", "quy định hiện hành"). Không cần xuất Transcript toàn văn để tiết kiệm thời gian.
+LƯU Ý: Dùng đúng thuật ngữ hành chính VN (ví dụ: "Sở, ban, ngành", "địa phương", "quy định hiện hành"). Mọi ngày tháng văn bản BẮT BUỘC định dạng "ngày DD/MM/YYYY" (ví dụ: "ngày 23/10/2026", "trước ngày 10/05/2026"), TUYỆT ĐỐI KHÔNG viết dài dạng "ngày 23 tháng 10 năm 2026". Không cần xuất Transcript toàn văn để tiết kiệm thời gian.
 
 Trả về JSON:
 {
   "chu_tri": "Đ/c Nguyễn Ngọc Phúc - Phó Chủ tịch UBND tỉnh",
   "thanh_phan": "Lãnh đạo các sở, ngành: Khoa học và Công nghệ, Tài chính, Nội vụ; Văn phòng UBND tỉnh.",
   "dia_diem": "Phòng họp số 1, UBND tỉnh",
-  "tom_tat": "Ngày 16/4/2026, đồng chí Nguyễn Ngọc Phúc - Phó Chủ tịch UBND tỉnh đã chủ trì buổi làm việc để nghe Sở Khoa học và Công nghệ báo cáo về một số nhiệm vụ trọng tâm...",
+  "tom_tat": "Ngày 16/04/2026, đồng chí Nguyễn Ngọc Phúc - Phó Chủ tịch UBND tỉnh đã chủ trì buổi làm việc để nghe Sở Khoa học và Công nghệ báo cáo về một số nhiệm vụ trọng tâm...",
   "noi_dung_cuoc_hop": [
     {
       "tieu_de": "I. ĐÁNH GIÁ CHUNG",
@@ -858,7 +858,7 @@ Trả về JSON:
       "tieu_de": "II. NHIỆM VỤ CỤ THỂ",
       "danh_gia": "",
       "ket_luan": [
-        "Giao Sở Khoa học và Công nghệ chủ trì, phối hợp với các đơn vị liên quan khẩn trương rà soát danh mục phần mềm, báo cáo UBND tỉnh trước ngày 10/5/2026.",
+        "Giao Sở Khoa học và Công nghệ chủ trì, phối hợp với các đơn vị liên quan khẩn trương rà soát danh mục phần mềm, báo cáo UBND tỉnh trước ngày 10/05/2026.",
         "Yêu cầu các sở, ngành chủ động đề xuất nhu cầu xây dựng cơ sở dữ liệu dùng chung của ngành mình."
       ]
     }
@@ -946,7 +946,12 @@ async function processAudioWithProxy(file, progressEl) {
     }
   } catch (e) {
     const endpoint = getTranscribeEndpointForError(transcribeContext);
-    throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): ${e.message}`);
+    const errMsg = String(e.message || '');
+    // Provide user-friendly message for API key issues
+    if (/API key not valid|invalid.*key|PERMISSION_DENIED|UNAUTHENTICATED|key.*invalid/i.test(errMsg)) {
+      throw new Error(`Lỗi phân tích audio: API key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra cấu hình "Meeting/Transcription API Key" hoặc "Gemini API Key" trong Cài đặt hệ thống.`);
+    }
+    throw new Error(`Khong the xu ly ghi am qua ${transcribeRouteLabel} (${endpoint}): ${errMsg}`);
   }
 
   // Audit logging is centralized in the authenticated proxy; never write app data from the browser.
@@ -956,7 +961,7 @@ async function reanalyzeTranscript() {
   const config = await ensureSystemConfig();
   const strictModel = String(config?.meeting_model || config?.transcribe_model || '').trim();
   if (!strictModel) throw new Error('Meeting analysis unavailable: AI model is not configured.');
-  const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON:
+  const prompt = `Đây là bản transcript cuộc họp hành chính đã chỉnh sửa. Phân tích lại và trả về JSON (mọi ngày tháng văn bản BẮT BUỘC định dạng "ngày DD/MM/YYYY", ví dụ: "ngày 23/10/2026", không viết "ngày 23 tháng 10 năm 2026"):
 {
   "chu_tri": "...",
   "thanh_phan": "...",
@@ -1017,7 +1022,13 @@ async function generateNotificationDocx() {
       rc.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: 'ĐẢNG CỘNG SẢN VIỆT NAM', font: L.FONT, size: 30, bold: true })] }));
       rc.push(new Paragraph({ spacing: { before: 20, after: 0 }, border: { top: { style: BorderStyle.SINGLE, size: 2, color: '000000', space: 1 } }, indent: { left: 928, right: 928 } }));
     }
-    rc.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: `${fs.dia_danh}, ngày ${fs.ngay || '...'} tháng ${fs.thang || '...'} năm ${fs.nam}`, font: L.FONT, size: 28, italics: true })] }));
+    const pad2 = (v) => {
+      const s = String(v ?? '').trim();
+      if (!s) return '...';
+      return /^\d$/.test(s) ? `0${s}` : s;
+    };
+    const formattedDate = `${pad2(fs.ngay)}/${pad2(fs.thang)}/${String(fs.nam ?? '2026').trim() || '2026'}`;
+    rc.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: [new TextRun({ text: `${fs.dia_danh}, ngày ${formattedDate}`, font: L.FONT, size: 28, italics: true })] }));
     ch.push(new Table({ width: { size: L.CW, type: WidthType.DXA }, borders: BN, columnWidths: [3500, 5571], rows: [new TableRow({ children: [new TableCell({ borders: BN, width: { size: 3500, type: WidthType.DXA }, verticalAlign: VerticalAlign.TOP, children: lc }), new TableCell({ borders: BN, width: { size: 5571, type: WidthType.DXA }, verticalAlign: VerticalAlign.TOP, children: rc })] })] }));
 
     // ===== TITLE =====
@@ -1029,7 +1040,7 @@ async function generateNotificationDocx() {
     ch.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 240 }, children: [new TextRun({ text: '_______________', font: L.FONT, size: 28 })] }));
 
     // ===== PHẦN MỞ ĐẦU =====
-    const introText = fs.tom_tat || `Ngày ${fs.ngay || '...'} tháng ${fs.thang || '...'} năm ${fs.nam}, tại ${fs.dia_diem || '[địa điểm]'}, ${fs.chu_tri} đã chủ trì cuộc họp.`;
+    const introText = fs.tom_tat || `Ngày ${formattedDate}, tại ${fs.dia_diem || '[địa điểm]'}, ${fs.chu_tri} đã chủ trì cuộc họp.`;
     ch.push(new Paragraph({ alignment: AlignmentType.JUSTIFIED, spacing: BS, indent: { firstLine: 567 }, children: [new TextRun({ text: introText, font: L.FONT, size: 28 })] }));
 
     if (fs.thanh_phan) {

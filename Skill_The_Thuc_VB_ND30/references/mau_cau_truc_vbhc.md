@@ -28,8 +28,8 @@ của [Tên cơ quan cấp trên]
 (Trích yếu: 12pt, CHỮ ĐỨNG THƯỜNG, căn giữa ô trái)
 
 [HÀNG 2, PHẢI]:
-Lâm Đồng, ngày       tháng [tháng] năm 2026
-(13-14pt, IN NGHIÊNG, căn giữa)
+Lâm Đồng, ngày 23/10/2026 (hoặc Lâm Đồng, ngày .../10/2026)
+(13-14pt, IN NGHIÊNG, căn giữa — BẮT BUỘC định dạng ngày DD/MM/YYYY)
 
 KÍNH GỬI:
 Kính gửi: Sở Khoa học và Công nghệ (14pt, đứng thường, không đậm)
@@ -86,7 +86,7 @@ V/v báo cáo nội dung xây dựng lộ trình, kế hoạch...
 (Trích yếu: 12pt, CHỮ ĐỨNG THƯỜNG, căn giữa ô trái)
 
 [HÀNG 2, PHẢI]:
-Lâm Đồng, ngày 05 tháng 10 năm 2026
+Lâm Đồng, ngày 05/10/2026
 (13-14pt, IN NGHIÊNG, căn giữa)
 
 KÍNH GỬI (BẮT BUỘC CĂN GIỮA TRANG):

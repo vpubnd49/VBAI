@@ -15,7 +15,7 @@ Dùng cho rà soát theo Nghị định 30/2020/NĐ-CP và quy tắc nội bộ 
 - Tên cơ quan ban hành.
 - Quốc hiệu - Tiêu ngữ.
 - Số, ký hiệu.
-- Địa danh, ngày tháng.
+- Địa danh, ngày tháng (**BẮT BUỘC định dạng `ngày DD/MM/YYYY`**, ví dụ: `Lâm Đồng, ngày 23/10/2026`; không viết `ngày 23 tháng 10 năm 2026`).
 - Trích yếu.
 - Kính gửi.
 - Nội dung.

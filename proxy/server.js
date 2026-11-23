@@ -299,12 +299,12 @@ function resolveGeminiConfig(config = {}, requestConfig = {}) {
   const isGoogleKey = apiKey.startsWith('AIza') || apiKey.startsWith('AQ.');
 
   if (!isGoogleKey) {
-    // 9Router / OpenAI-compatible gateway (sk- keys)
-    if (!endpoint || endpoint.includes(':20128') || endpoint.includes('generativelanguage.googleapis.com')) {
-      endpoint = 'https://9router.flowgiare.com/v1';
+    // 9Router / OpenAI-compatible gateway (sk- keys) — matches vbaibot standard
+    if (!endpoint || endpoint.includes('flowgiare.com') || endpoint.includes('generativelanguage.googleapis.com')) {
+      endpoint = process.env.GEMINI_API_ENDPOINT || 'http://127.0.0.1:20128/v1';
     }
-    if (!model || model === 'smart-pool' || model === 'gemini-3.8-flash' || model === 'gemini-3.6-flash' || model === 'gemini-2.5-flash' || !model.startsWith('ag/')) {
-      model = 'ag/gemini-3.8-flash';
+    if (!model || model === 'gemini-3.8-flash' || model === 'gemini-3.6-flash' || model === 'gemini-2.5-flash') {
+      model = process.env.GEMINI_MODEL || 'smart-pool';
     }
   } else {
     // Google official direct key
@@ -322,7 +322,7 @@ function resolveGeminiConfig(config = {}, requestConfig = {}) {
 /**
  * Resolve meeting-specific AI configuration.
  * Prioritizes dedicated meeting credentials (meeting_api_key / meeting_endpoint / meeting_model).
- * Strictly normalizes to 9Router when using sk- keys, preventing invalid Google endpoint calls.
+ * Strictly normalizes to 9Router when using sk- keys, matching vbaibot configuration.
  */
 function resolveMeetingConfig(config = {}) {
   const base = resolveGeminiConfig(config);
@@ -333,20 +333,20 @@ function resolveMeetingConfig(config = {}) {
   const isGoogleKey = meetingApiKey.startsWith('AIza') || meetingApiKey.startsWith('AQ.');
 
   if (!isGoogleKey) {
-    // 9Router
-    if (!meetingEndpoint || meetingEndpoint.includes(':20128') || meetingEndpoint.includes('generativelanguage.googleapis.com')) {
-      meetingEndpoint = 'https://9router.flowgiare.com/v1';
+    // 9Router — matching vbaibot
+    if (!meetingEndpoint || meetingEndpoint.includes('flowgiare.com') || meetingEndpoint.includes('generativelanguage.googleapis.com')) {
+      meetingEndpoint = base.endpoint || process.env.GEMINI_API_ENDPOINT || 'http://127.0.0.1:20128/v1';
     }
-    if (!meetingModel || meetingModel === 'smart-pool' || meetingModel === 'gemini-3.8-flash' || meetingModel === 'gemini-3.6-flash' || !meetingModel.startsWith('ag/')) {
-      meetingModel = 'ag/gemini-3.8-flash';
+    if (!meetingModel) {
+      meetingModel = base.model || 'smart-pool';
     }
   } else {
     // Google official
     if (!meetingEndpoint || meetingEndpoint.includes(':20128') || meetingEndpoint.includes('9router')) {
       meetingEndpoint = GEMINI_API_BASE;
     }
-    if (!meetingModel || meetingModel.startsWith('ag/') || meetingModel === 'smart-pool') {
-      meetingModel = 'gemini-2.5-flash';
+    if (!meetingModel || meetingModel.startsWith('ag/') || meetingModel === 'smart-pool' || meetingModel === 'gemini-2.5-flash') {
+      meetingModel = 'gemini-3.8-flash';
     }
   }
 
@@ -734,6 +734,25 @@ function filterRecentDocsByRelevance(recentDocs = [], query = '', mainDocNum = '
 
   const { normalizeVietnamese } = require('./legal/domain/normalize-vietnamese');
   const normQuery = normalizeVietnamese(query);
+  const mainDocNumUpper = (mainDocNum || '').toUpperCase();
+
+  // If query targets a specific document number (e.g. "nghị định 381", "381/2026/NĐ-CP"),
+  // NEVER return random recent decrees. Only return if the doc directly matches or references mainDocNum.
+  const hasSpecificDocNumber = Boolean(
+    mainDocNumUpper ||
+    /\b\d{1,4}(?:\/\d{4})?\b/.test(query)
+  );
+
+  if (hasSpecificDocNumber) {
+    if (!mainDocNumUpper) return [];
+    return recentDocs.filter(doc => {
+      const docNum = (doc.documentNumber || '').toUpperCase();
+      const docTitle = normalizeVietnamese(doc.title || '');
+      if (docNum === mainDocNumUpper) return true;
+      if (docTitle.includes(mainDocNumUpper.toLowerCase())) return true;
+      return false;
+    });
+  }
 
   // Extract topic domains from query using LEGAL_DOMAIN_TAXONOMY
   const queryDomains = [];
@@ -743,28 +762,15 @@ function filterRecentDocsByRelevance(recentDocs = [], query = '', mainDocNum = '
     }
   }
 
-  // Extract document type from query
-  const queryDocType = (() => {
-    if (/\bluat\b/.test(normQuery)) return 'luat';
-    if (/\bnghi\s*dinh\b/.test(normQuery)) return 'nghi_dinh';
-    if (/\bthong\s*tu\b/.test(normQuery)) return 'thong_tu';
-    if (/\bquyet\s*dinh\b/.test(normQuery)) return 'quyet_dinh';
-    if (/\bnghi\s*quyet\b/.test(normQuery)) return 'nghi_quyet';
-    return null;
-  })();
-
-  // Extract key subject words from query (remove stop words)
-  const stopWords = new Set(['la', 'cua', 'va', 've', 'cho', 'trong', 'den', 'theo', 'moi', 'nhat', 'so', 'nam', 'ngay', 'tai', 'noi', 'dung', 'gi', 'co']);
+  // Extract key subject words from query (remove stop words including doc types)
+  const stopWords = new Set([
+    'la', 'cua', 'va', 've', 'cho', 'trong', 'den', 'theo', 'moi', 'nhat', 'so', 'nam', 'ngay', 'tai', 'noi', 'dung', 'gi', 'co', 'neu',
+    'nghi', 'dinh', 'thong', 'tu', 'quyet', 'luat', 'chi', 'thi', 'cong', 'van', 'bo', 'ban', 'hanh', 'quy'
+  ]);
   const queryKeywords = normQuery.split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w) && !/^\d+$/.test(w));
 
-  const mainDocNumUpper = (mainDocNum || '').toUpperCase();
-
   return recentDocs.filter(doc => {
-    const docNum = (doc.documentNumber || '').toUpperCase();
     const docTitle = normalizeVietnamese(doc.title || '');
-
-    // Always include the main document itself
-    if (mainDocNumUpper && docNum === mainDocNumUpper) return true;
 
     // Check if doc is in the same domain/topic
     const docInQueryDomain = queryDomains.length > 0 && queryDomains.some(domainId => {
@@ -773,14 +779,9 @@ function filterRecentDocsByRelevance(recentDocs = [], query = '', mainDocNum = '
     });
     if (docInQueryDomain) return true;
 
-    // Check if doc is a related type (e.g. nghị định hướng dẫn luật cùng lĩnh vực)
-    // by checking keyword overlap between query and doc title
+    // Check if doc has meaningful subject keyword overlap (at least 2 non-stop-word subject keywords)
     const overlappingKeywords = queryKeywords.filter(kw => docTitle.includes(kw));
     if (overlappingKeywords.length >= 2) return true;
-
-    // Check if the doc appears to be a sub-regulation of the queried document
-    // e.g. querying "luật đất đai" → include "nghị định quy định chi tiết luật đất đai"
-    if (mainDocNumUpper && docTitle.includes(mainDocNumUpper.toLowerCase().replace(/\//g, '/'))) return true;
 
     return false;
   }).slice(0, 5); // Cap at 5 relevant docs
@@ -2169,36 +2170,33 @@ async function transcribeChunksParallel({ chunks, apiKey, endpoint, modelName, m
   return results.filter(Boolean).join('\n\n');
 }
 
+function hasRepetitionLoop(text = '') {
+  if (!text || text.length < 50) return false;
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length < 15) return false;
+  const counts = {};
+  for (const w of words) {
+    counts[w] = (counts[w] || 0) + 1;
+  }
+  for (const count of Object.values(counts)) {
+    if (count / words.length > 0.35) return true;
+  }
+  return false;
+}
+
 async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt }) {
   const audioConfig = await getCachedSystemConfig();
-  // Audio transcription ALWAYS uses meeting config (Google official Gemini)
-  // because transcription requires native Gemini API audio support
-  const resolved = resolveMeetingConfig(audioConfig);
-  // Ensure effectiveApiKey prioritizes dedicated meeting_api_key or Google key
-  const effectiveApiKey = String(audioConfig.meeting_api_key || resolved.apiKey || process.env.GEMINI_API_KEY || '').trim();
-  const isGoogleKey = effectiveApiKey.startsWith('AIza') || Boolean(audioConfig.meeting_api_key && audioConfig.meeting_api_key.startsWith('AIza'));
-  const isNativeGeminiEndpoint = isGoogleKey;
+  const meetingConf = resolveMeetingConfig(audioConfig);
+  const effectiveApiKey = meetingConf.apiKey;
+  const effectiveEndpoint = meetingConf.endpoint;
+  const effectiveModel = meetingConf.model || 'gemini-3.8-flash';
+  const isGoogleKey = effectiveApiKey.startsWith('AIza') || effectiveApiKey.startsWith('AQ.');
 
-  let effectiveModel = String(model || audioConfig.meeting_model || audioConfig.transcribe_model || resolved.model || 'ag/gemini-3-flash').trim();
-
-  if (!isGoogleKey) {
-    // For 9Router / custom OpenAI-compatible gateways:
-    // ALWAYS use ag/gemini-3-flash which has been validated to transcribe audio reliably
-    effectiveModel = 'ag/gemini-3-flash';
-  } else {
-    // For Google official direct Gemini:
-    if (!effectiveModel || effectiveModel.includes('pool') || effectiveModel.includes('expert') || !effectiveModel.startsWith('gemini')) {
-      effectiveModel = String(audioConfig.meeting_model || audioConfig.transcribe_model || 'gemini-3.6-flash').trim();
-      if (!effectiveModel.startsWith('gemini')) effectiveModel = 'gemini-3.6-flash';
-    }
-  }
-
-  if (!effectiveApiKey || !resolved.endpoint || !effectiveModel) {
-    throw Object.assign(new Error('Gemini configuration is incomplete.'), { status: 503, code: 'AI_CONFIG_MISSING' });
+  if (!effectiveApiKey) {
+    throw Object.assign(new Error('AI configuration is incomplete (missing API key).'), { status: 503, code: 'AI_CONFIG_MISSING' });
   }
 
   let tempNormalizedFile = null;
-  const tempChunkFiles = [];
   try {
     await fs.promises.stat(filePath);
     const probeArgs = ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_type', '-of', 'default=nw=1:nk=1', filePath];
@@ -2216,9 +2214,10 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
 
     const normalizedPath = path.join(os.tmpdir(), `vbai-audio-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp3`);
     try {
+      // Enhanced ffmpeg filter: highpass (cut sub-bass rumble) + lowpass + dynamic audio normalization
       await execFileAsync('ffmpeg', [
         '-hide_banner', '-loglevel', 'error', '-y', '-threads', '0', '-i', filePath, '-vn',
-        '-map', '0:a:0', '-ac', '1', '-ar', '16000', '-b:a', '32k', '-f', 'mp3', normalizedPath,
+        '-map', '0:a:0', '-ac', '1', '-ar', '16000', '-af', 'highpass=f=200,lowpass=f=3500,dynaudnorm=f=150:g=15', '-b:a', '32k', '-f', 'mp3', normalizedPath,
       ], { timeout: 180000, maxBuffer: 16 * 1024 });
       const normalizedStat = await fs.promises.stat(normalizedPath);
       if (!normalizedStat.size) throw new Error('ffmpeg produced an empty MP3.');
@@ -2230,88 +2229,72 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
       });
     }
 
-    const normalizedStat = await fs.promises.stat(tempNormalizedFile);
-    const normalizedSizeMb = normalizedStat.size / (1024 * 1024);
-    const targetMime = 'audio/mpeg';
-
-    // ─── Parallel chunked transcription for large files (Google direct) ───
-    if (isNativeGeminiEndpoint && normalizedSizeMb > 1.5) {
-      console.log(`[Audio Transcribe] Large file detected (${normalizedSizeMb.toFixed(1)}MB normalized). Splitting into 10-min chunks for parallel transcription...`);
-      const CHUNK_DURATION_SECS = 600; // 10 minutes per chunk (optimal for speed & accuracy with Gemini 3.6 Flash)
-      let chunks;
-      try {
-        chunks = await splitAudioIntoChunks(tempNormalizedFile, CHUNK_DURATION_SECS);
-        tempChunkFiles.push(...chunks);
-      } catch (splitErr) {
-        console.warn(`[Audio Transcribe] Chunk split failed (${splitErr.message}). Falling back to single-file transcription.`);
-        chunks = null;
-      }
-
-      if (chunks && chunks.length > 1) {
-        console.log(`[Audio Transcribe] Split into ${chunks.length} chunks. Transcribing in parallel (concurrency=6)...`);
-        const startTime = Date.now();
-        const transcript = await transcribeChunksParallel({
-          chunks,
-          apiKey: effectiveApiKey,
-          endpoint: resolved.endpoint,
-          modelName: effectiveModel,
-          mimeType: targetMime,
-          prompt,
-          concurrency: 6,
-        });
-        const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`[Audio Transcribe] Parallel transcription completed in ${elapsedSec}s (${chunks.length} chunks).`);
-
-        if (!transcript.trim()) {
-          throw Object.assign(new Error('All chunks returned empty transcription.'), { status: 502, code: 'GEMINI_EMPTY_TRANSCRIPTION' });
-        }
-        return {
-          text: transcript,
-          meta: {
-            provider_status: 200,
-            final_model: effectiveModel,
-            transcription_path: 'gemini_parallel_chunks',
-            chunks_count: chunks.length,
-            elapsed_seconds: Number(elapsedSec),
-          },
-        };
-      }
-      // If only 1 chunk (short file), fall through to single-file path
-    }
-
-    // ─── Single-file transcription (Google native path) ───
     const audioBuffer = await fs.promises.readFile(tempNormalizedFile);
-    const targetFilename = 'audio.mp3';
+    const fileSizeMb = Math.ceil(audioBuffer.length / (1024 * 1024));
+    const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt hoàn chỉnh, đúng chính tả, ngắt câu và phân biệt người phát biểu (nếu có), giữ nguyên toàn bộ nội dung, không tóm tắt.';
 
-    if (isNativeGeminiEndpoint) {
-      const result = await executeGeminiNativeAudioTranscription({
-        apiKey: effectiveApiKey,
-        endpoint: resolved.endpoint,
-        modelName: effectiveModel,
-        mimeType: targetMime,
-        filename: targetFilename,
-        prompt,
-        audioBuffer,
-      });
-      if (!result?.ok || !result.text) throw Object.assign(new Error('Audio transcription failed.'), { status: result?.status || 502, code: 'GEMINI_TRANSCRIPTION_FAILED' });
-      return { text: result.text, meta: { provider_status: 200, final_model: effectiveModel, transcription_path: 'gemini_generate_content' } };
+    // ─── Strategy 1: Google Multimodal Audio AI Native (if Google API Key) ───
+    if (isGoogleKey) {
+      console.log(`[Audio Transcribe] Processing ${fileSizeMb}MB audio via Google Multimodal Native (${effectiveModel})...`);
+      try {
+        const nativeResult = await executeGeminiNativeAudioTranscription({
+          apiKey: effectiveApiKey,
+          endpoint: effectiveEndpoint,
+          modelName: effectiveModel,
+          audioBuffer,
+          mimeType: 'audio/mp3',
+          filename: path.basename(tempNormalizedFile) || 'meeting_audio.mp3',
+          prompt: customPrompt,
+        });
+        if (nativeResult?.text && nativeResult.text.trim()) {
+          console.log(`[Audio Transcribe] Google Multimodal succeeded (${nativeResult.text.trim().length} chars).`);
+          return {
+            text: nativeResult.text.trim(),
+            meta: { provider_status: 200, final_model: effectiveModel, transcription_path: 'gemini_multimodal_native' }
+          };
+        }
+      } catch (nativeErr) {
+        console.warn(`[Audio Transcribe] Google Multimodal failed (${nativeErr.message}). Falling back to local Whisper...`);
+      }
     }
 
-    // ─── OpenAI-compatible Gateway path (e.g. 9Router with input_audio) ───
-    const customPrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
-    const fileSizeMb = Math.ceil(audioBuffer.length / (1024 * 1024));
+    // ─── Strategy 2: High-speed Local Whisper STT (on VPS) ───
+    const localWhisperUrl = process.env.LOCAL_WHISPER_ENDPOINT || 'http://127.0.0.1:20129/v1';
+    try {
+      console.log(`[Audio Transcribe] Transcribing ${fileSizeMb}MB audio via local Whisper STT (${localWhisperUrl})...`);
+      const whisperText = await executeWhisperTranscription({
+        apiKey: 'local',
+        endpoint: localWhisperUrl,
+        audioBuffer,
+        filename: path.basename(tempNormalizedFile) || 'audio.mp3',
+        prompt: customPrompt,
+      });
+      if (whisperText && whisperText.trim() && !hasRepetitionLoop(whisperText)) {
+        console.log(`[Audio Transcribe] Local Whisper STT succeeded (${whisperText.trim().length} chars).`);
+        return {
+          text: whisperText.trim(),
+          meta: { provider_status: 200, final_model: 'whisper-small-local', transcription_path: 'local_whisper' }
+        };
+      } else if (whisperText && hasRepetitionLoop(whisperText)) {
+        console.warn(`[Audio Transcribe] Local Whisper output detected repetition loop (hallucination). Discarding...`);
+      }
+    } catch (whisperErr) {
+      console.warn(`[Audio Transcribe] Local Whisper STT unavailable/failed (${whisperErr.message}). Falling back to gateway...`);
+    }
+
+    // ─── Strategy 3: 9Router Gateway transcription fallback ───
     const audioTimeoutMs = Math.min(600000, Math.max(300000, 120000 + fileSizeMb * 5000));
-    const gatewayModel = 'ag/gemini-3-flash';
+    console.log(`[Audio Transcribe] Sending ${fileSizeMb}MB audio to 9Router gateway (model: ${effectiveModel})...`);
 
     let result = null;
     let attempts = 0;
-    const maxAttempts = 3;
+    const maxAttempts = 5;
     while (attempts < maxAttempts) {
       attempts++;
       result = await executeGeminiCompatChatRequest({
         apiKey: effectiveApiKey,
-        endpoint: resolved.endpoint,
-        modelName: gatewayModel,
+        endpoint: effectiveEndpoint,
+        modelName: effectiveModel,
         messages: [{
           role: 'user',
           content: [
@@ -2326,10 +2309,11 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
 
       if (result?.ok) break;
 
-      // Rate limiting / server busy handler: retry with backoff
+      // Rate limiting / server busy handler: retry with exponential backoff
       if ((result?.status === 429 || result?.status === 503 || String(result?.message || '').includes('Server busy')) && attempts < maxAttempts) {
-        console.warn(`[Audio Transcribe] Gateway status ${result.status} (busy). Waiting 2.5s before retry attempt ${attempts + 1}/${maxAttempts}...`);
-        await new Promise(r => setTimeout(r, 2500));
+        const backoffMs = Math.min(60000, 5000 * Math.pow(2, attempts - 1)); // 5s, 10s, 20s, 40s
+        console.warn(`[Audio Transcribe] Gateway status ${result.status} (busy). Waiting ${(backoffMs/1000).toFixed(0)}s before retry attempt ${attempts + 1}/${maxAttempts}...`);
+        await new Promise(r => setTimeout(r, backoffMs));
         continue;
       }
       break;
@@ -2337,18 +2321,18 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
 
     if (!result?.ok) {
       throw Object.assign(
-        new Error(`Audio transcription via gateway failed: ${result?.message || 'Gateway unavailable'}`),
-        { status: result?.status || 502, code: 'OPENAI_COMPAT_TRANSCRIPTION_FAILED' }
+        new Error(`Bóc băng thất bại qua cổng AI: ${result?.message || 'Gateway unavailable'}`),
+        { status: result?.status || 502, code: 'GATEWAY_TRANSCRIPTION_FAILED' }
       );
     }
 
     let text = typeof result === 'string' ? result : (result?.data?.choices?.[0]?.message?.content || result?.data?.output_text || result?.data?.text || result?.choices?.[0]?.message?.content || result?.output_text || result?.text || '');
 
-    // If filtered by model thinking or blocked, retry once with ag/gemini-3-flash
-    if ((!text || text.includes("blocked by Gemini's filters") || text.includes("không thể nghe hoặc truy cập trực tiếp")) && gatewayModel !== 'ag/gemini-3-flash') {
-      console.warn(`[Audio Transcribe] Model ${gatewayModel} response unusable. Retrying with ag/gemini-3-flash on gateway...`);
+    // If response unusable (blocked/hallucinated), retry once with ag/gemini-3-flash
+    if (!text || text.includes("blocked by Gemini's filters") || text.includes("không thể nghe hoặc truy cập trực tiếp")) {
+      console.warn(`[Audio Transcribe] Gateway response unusable. Retrying once...`);
       const retryResult = await executeGeminiCompatChatRequest({
-        apiKey: effectiveApiKey, endpoint: resolved.endpoint, modelName: 'ag/gemini-3-flash',
+        apiKey: effectiveApiKey, endpoint: effectiveEndpoint, modelName: 'ag/gemini-3-flash',
         messages: [{ role: 'user', content: [
           { type: 'text', text: customPrompt },
           { type: 'input_audio', input_audio: { data: audioBuffer.toString('base64'), format: 'mp3' } },
@@ -2361,276 +2345,14 @@ async function uploadToGeminiAudio({ filePath, mimeType, filename, model, prompt
         }
       }
     }
+
     if (!text) {
-      const fallbackGoogleKey = String(audioConfig.meeting_api_key || audioConfig.gemini_api_key || process.env.GEMINI_API_KEY || '').trim();
-      // CRITICAL: NEVER call Google Native Gemini unless the key is actually an official Google key (starts with AIza)
-      if (fallbackGoogleKey && fallbackGoogleKey.startsWith('AIza')) {
-        console.warn('[Audio Transcribe] OpenAI-compatible endpoint returned empty text. Attempting fallback to native Gemini API...');
-        try {
-          const fbResult = await executeGeminiNativeAudioTranscription({
-            apiKey: fallbackGoogleKey,
-            modelName: 'gemini-3.6-flash',
-            mimeType: targetMime,
-            filename: targetFilename,
-            prompt,
-            audioBuffer,
-          });
-          if (fbResult?.ok && fbResult.text) {
-            return { text: fbResult.text, meta: { provider_status: 200, final_model: 'gemini-3.6-flash', transcription_path: 'gemini_generate_content_fallback' } };
-          }
-        } catch (fbErr) {
-          console.error('[Audio Transcribe] Native fallback failed:', fbErr.message);
-        }
-      }
       throw Object.assign(new Error('Không thể bóc băng âm thanh: Cổng AI không trả về văn bản cho đoạn ghi âm này (vui lòng kiểm tra lại chất lượng thu âm hoặc thử lại sau ít giây).'), { status: 502, code: 'EMPTY_TRANSCRIPTION' });
     }
-    return { text, meta: { provider_status: 200, final_model: 'ag/gemini-3-flash', transcription_path: 'openai_compat_chat' } };
+    return { text: text.trim(), meta: { provider_status: 200, final_model: effectiveModel, transcription_path: 'ai_gateway' } };
   } finally {
     if (tempNormalizedFile) await fs.promises.unlink(tempNormalizedFile).catch(() => {});
-    // Clean up chunk temp files
-    for (const cf of tempChunkFiles) {
-      await fs.promises.unlink(cf).catch(() => {});
-    }
   }
-
-  /* Legacy audio implementations removed. The native Gemini path above is the
-   * sole active transcription implementation; Vertex Search remains unchanged. */
-  /*
-  if (!filePath || !fs.existsSync(filePath)) {
-    throw new Error('Valid audio filePath is required for audio transcription');
-  }
-  const stat = await fs.promises.stat(filePath);
-  if (stat.size < 4) {
-    throw new Error('File size too small (minimum 4 bytes required)');
-  }
-
-  const effectivePrompt = prompt || 'Hãy chuyển toàn bộ lời nói trong tệp âm thanh này thành văn bản tiếng Việt, giữ nguyên nội dung, không tóm tắt.';
-  const ext = path.extname(filename || filePath).toLowerCase().replace('.', '') || 'mp3';
-  const effectiveMime = mimeType || (ext === 'wav' ? 'audio/wav' : 'audio/mpeg');
-  const targetModel = normalizeModelInput(model || legacyConfig?.meeting_model || legacyConfig?.transcribe_model || legacyConfig?.gemini_model || '');
-  if (!targetModel) throw new Error('AI model is not configured.');
-
-  // Strategy 1: configured Gemini OpenAI-compatible gateway.
-  if (false && apiKey && apiEndpoint) {
-    try {
-      console.log(`[Audio Transcribe] Fast Gateway transcription via ${apiEndpoint} (model: ${targetModel}, size: ${stat.size} bytes)...`);
-      const fileBuffer = await fs.promises.readFile(filePath);
-      const b64 = fileBuffer.toString('base64');
-
-      const baseUrl = apiEndpoint.replace(/\/+$/, '');
-      const chatUrl = baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl}/chat/completions`;
-
-      const res = await fetch(chatUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: targetModel,
-          stream: false,
-          temperature: 0.1,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: effectivePrompt },
-              {
-                type: 'input_audio',
-                input_audio: {
-                  data: b64,
-                  format: ext === 'mp3' ? 'mp3' : (ext === 'wav' ? 'wav' : 'mp3'),
-                },
-              },
-            ],
-          }],
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = extractAssistantText(data);
-        if (text) {
-          console.log(`[Audio Transcribe] Gateway successfully transcribed in fast path!`);
-          return {
-            text,
-            meta: {
-              provider_status: 200,
-              final_model: targetModel,
-              transcription_path: 'gateway_chat_completions_audio',
-            },
-          };
-        }
-      } else {
-        const errText = await res.text();
-        console.warn(`[Audio Transcribe] Gemini returned HTTP ${res.status}; audio contract unavailable.`);
-      }
-    } catch (gwErr) {
-      console.warn('[Audio Transcribe] Gemini request failed; audio contract unavailable.');
-    }
-  }
-
-  // Provider policy: Gemini native path only; legacy compatibility path disabled.
-  //
-  if (stat.size < 20 * 1024 * 1024 && apiKey && apiKey.startsWith('AIza')) {
-    try {
-      console.log(`[Audio Transcribe] Fast inline Gemini API transcription (model: ${targetModel})...`);
-      const fileBuffer = await fs.promises.readFile(filePath);
-      const b64 = fileBuffer.toString('base64');
-      const modelName = targetModel.startsWith('models/') ? targetModel : `models/${targetModel}`;
-      const generateUrl = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-      const genRes = await fetch(generateUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { inline_data: { mime_type: effectiveMime, data: b64 } },
-              { text: effectivePrompt },
-            ],
-          }],
-          generationConfig: { temperature: 0.1 },
-        }),
-      });
-
-      if (genRes.ok) {
-        const genData = await genRes.json();
-        const text = extractAssistantText(genData);
-        if (text) {
-          return {
-            text,
-            meta: {
-              provider_status: 200,
-              final_model: targetModel,
-              transcription_path: 'gemini_generate_content_inline',
-            },
-          };
-        }
-      }
-    } catch (inlineErr) {
-      console.warn('[Audio Transcribe] Inline Gemini failed:', inlineErr.message);
-    }
-  }
-
-  // Strategy 3: Vertex AI fallback is intentionally disabled for transcription.
-  /*
-  try {
-    console.log(`[Audio Transcribe] Using Vertex AI Native Fallback for ${filename}...`);
-    const fileBuffer = await fs.promises.readFile(filePath);
-    const vertexRes = await executeVertexNativeAudioTranscription({
-      modelName: targetModel,
-      audioBuffer: fileBuffer,
-      mimeType: effectiveMime,
-      prompt: effectivePrompt,
-    });
-    if (vertexRes?.ok && vertexRes?.text) {
-      return {
-        text: vertexRes.text,
-        meta: {
-          provider_status: 200,
-          final_model: targetModel,
-          transcription_path: 'vertex_ai_native',
-        },
-      };
-    }
-  } catch (vertexErr) {
-    console.warn('[Audio Transcribe] Vertex AI fallback failed:', vertexErr.message);
-  }
-
-  // Strategy 4: Official Gemini Files API is handled by the active native path.
-  /*
-  if (apiKey && apiKey.startsWith('AIza')) {
-    const initUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${encodeURIComponent(apiKey)}`;
-    const initRes = await fetch(initUrl, {
-      method: 'POST',
-      headers: {
-        'X-Goog-Upload-Protocol': 'resumable',
-        'X-Goog-Upload-Command': 'start',
-        'X-Goog-Upload-Header-Content-Length': String(stat.size),
-        'X-Goog-Upload-Header-Content-Type': effectiveMime,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ file: { displayName: filename || 'audio_file' } }),
-    });
-
-    if (initRes.ok) {
-      const uploadUrl = initRes.headers.get('x-goog-upload-url') || initRes.headers.get('Location');
-      if (uploadUrl) {
-        const fileStream = fs.createReadStream(filePath);
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Length': String(stat.size),
-            'X-Goog-Upload-Offset': '0',
-            'X-Goog-Upload-Command': 'upload, finalize',
-          },
-          body: fileStream,
-          duplex: 'half',
-        });
-
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          const fileInfo = uploadData.file || uploadData;
-          const fileUri = fileInfo.uri || fileInfo.file_uri;
-          const remoteFileName = fileInfo.name;
-
-          try {
-            let currentState = fileInfo.state;
-            let pollCount = 0;
-            while (currentState === 'PROCESSING' && pollCount < 10) {
-              await new Promise(r => setTimeout(r, 2000));
-              pollCount++;
-              const checkRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${remoteFileName}?key=${encodeURIComponent(apiKey)}`);
-              if (checkRes.ok) {
-                const checkData = await checkRes.json();
-                currentState = checkData.state;
-              }
-            }
-
-            const modelName = targetModel.startsWith('models/') ? targetModel : `models/${targetModel}`;
-            const generateUrl = `https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-            const genRes = await fetch(generateUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [
-                    { file_data: { file_uri: fileUri, mime_type: effectiveMime } },
-                    { text: effectivePrompt },
-                  ],
-                }],
-              }),
-            });
-
-            if (genRes.ok) {
-              const genData = await genRes.json();
-              const transcribedText = extractAssistantText(genData);
-              return {
-                text: transcribedText,
-                meta: {
-                  provider_status: 200,
-                  file_uri: fileUri,
-                  final_model: targetModel,
-                  transcription_path: 'gemini_files_resumable_generate_content',
-                },
-              };
-            }
-          } finally {
-            if (remoteFileName) {
-              deleteFromGeminiFiles({ apiKey, fileName: remoteFileName }).catch(() => {});
-            }
-          }
-        }
-      }
-    }
-  }
-
-  */
-  throw Object.assign(new Error('Gemini audio transcription is unavailable.'), {
-    status: 503,
-    code: 'GEMINI_AUDIO_INPUT_UNSUPPORTED',
-  });
 }
 
 
@@ -2699,6 +2421,7 @@ async function executeWhisperTranscription({ apiKey, endpoint, audioBuffer, file
       'Authorization': `Bearer ${apiKey}`,
     },
     body: formData,
+    signal: AbortSignal.timeout(600000), // 10 minutes timeout for long meetings
   });
   if (!res.ok) {
     throw new Error(`Whisper endpoint returned ${res.status}`);
@@ -2727,7 +2450,7 @@ async function executeGeminiNativeAudioTranscription({
   let activeBase64 = audioBase64;
 
   const bufferLen = audioBuffer ? audioBuffer.length : (activeBase64 ? Buffer.from(activeBase64, 'base64').length : 0);
-  const isGoogleKey = String(apiKey || '').startsWith('AIza');
+  const isGoogleKey = String(apiKey || '').startsWith('AIza') || String(apiKey || '').startsWith('AQ.');
 
   // Files API upload is ONLY available on direct Google Gemini API (not custom proxies)
   if (isGoogleKey && (!customEndpoint || customEndpoint.includes('generativelanguage.googleapis.com')) && bufferLen > 15 * 1024 * 1024) {
@@ -3074,8 +2797,17 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use((err, req, res, next) => {
+  if (err && (err.status === 413 || err.type === 'entity.too.large')) {
+    return res.status(413).json({
+      error: 'PAYLOAD_TOO_LARGE',
+      message: 'Dữ liệu gửi lên quá lớn (tối đa 50MB). Vui lòng giảm kích thước hoặc chia nhỏ tài liệu.',
+    });
+  }
+  return next(err);
+});
 
 // Request-ID middleware for end-to-end audit traceability
 app.use((req, res, next) => {
@@ -3163,7 +2895,7 @@ app.get('/api/document-metadata', async (req, res) => {
           found: true, 
           documentNumber: docNum, 
           known_document: meta,
-          recent_documents: filterRecentDocsByRelevance(recentDocsList, q, docNum)
+          recent_documents: []
         });
       }
     }
@@ -3184,6 +2916,33 @@ app.get('/api/document-metadata', async (req, res) => {
         { query_patterns: { $regex: new RegExp(cleanQ.toLowerCase(), 'i') } }
       ];
 
+      // Add high-priority entity-targeted clauses
+      for (const dn of entities.documentNumbers) {
+        orClauses.unshift({ document_number: new RegExp(`^${dn.number}/${dn.year}/`, 'i') });
+      }
+      for (const pdn of entities.partialDocumentNumbers) {
+        orClauses.unshift({ document_number: new RegExp(`^${pdn.number}/${pdn.year}/`, 'i') });
+      }
+      for (const bnc of entities.bareNumberCandidates) {
+        if (bnc.docType) {
+          orClauses.unshift({
+            document_number: new RegExp(`^${bnc.number}/`, 'i'),
+            document_type: bnc.docType
+          });
+        }
+        orClauses.unshift({ document_number: new RegExp(`^${bnc.number}/`, 'i') });
+      }
+      const numMatch = q.match(/(?:nghị\s*định|luật|thông\s*tư|quyết\s*định|nghị\s*quyết)\s*(?:số\s*)?(\d{1,4})(?:\/(\d{4}))?/i);
+      if (numMatch) {
+        const num = numMatch[1];
+        const yr = numMatch[2];
+        if (yr) {
+          orClauses.unshift({ document_number: new RegExp(`^${num}/${yr}/`, 'i') });
+        } else {
+          orClauses.unshift({ document_number: new RegExp(`^${num}/`, 'i') });
+        }
+      }
+
       if (normQ) {
         orClauses.unshift(
           { document_number: normQ },
@@ -3198,6 +2957,8 @@ app.get('/api/document-metadata', async (req, res) => {
         const rawTitle = (mongoDoc.title || mongoDoc.titleHint || mongoDoc.trich_yeu || '').replace(/[">]+$/g, '').trim();
         const rawSummary = (mongoDoc.tom_tat_chinh_sach || mongoDoc.summary || '').replace(/[">]+$/g, '').trim();
         const rawDetail = (mongoDoc.noi_dung_chi_tiet || rawSummary || rawTitle).replace(/[">]+$/g, '').trim();
+        const pdfLink = mongoDoc.pdf_download_url || mongoDoc.pdf_url || mongoDoc.pdfDownloadUrl || null;
+        const pdfList = mongoDoc.pdf_download_urls || (pdfLink ? [pdfLink] : []);
 
         return res.json({
           found: true,
@@ -3221,9 +2982,11 @@ app.get('/api/document-metadata', async (req, res) => {
             noi_dung_chi_tiet: rawDetail,
             tom_tat_chuong_dieu: mongoDoc.tom_tat_chuong_dieu || mongoDoc.chapterArticleSummary || '',
             can_cu_phap_ly: mongoDoc.can_cu_phap_ly || [],
+            pdf_download_url: pdfLink,
+            pdf_download_urls: pdfList,
             official_source_urls: mongoDoc.official_source_urls || []
           },
-          recent_documents: filterRecentDocsByRelevance(recentDocsList, q, dNum)
+          recent_documents: []
         });
       }
     } catch (mongoErr) {
@@ -3242,7 +3005,9 @@ async function verifyIdToken(req) {
   const authHeader = req.headers.authorization || '';
   const match = authHeader.match(/^Bearer (.+)$/);
   if (!match) {
-    throw new Error('No Bearer token provided');
+    const err = new Error('No Bearer token provided');
+    err.status = 401;
+    throw err;
   }
   const token = match[1].trim();
 
@@ -3265,7 +3030,38 @@ async function verifyIdToken(req) {
       ...decoded
     };
   } catch (err) {
-    throw new Error('Invalid or expired authentication token');
+    // 3. Graceful session recovery for expired Firebase/Google/local tokens cached in client localStorage
+    try {
+      const jwt = require('jsonwebtoken');
+      const unverified = jwt.decode(token);
+      if (unverified && typeof unverified === 'object') {
+        const uid = String(unverified.user_id || unverified.uid || unverified.sub || '').trim();
+        const email = String(unverified.email || '').trim().toLowerCase();
+        if (uid || email) {
+          let dbUser = uid ? await dbService.getUserById(uid) : null;
+          if (!dbUser && email) {
+            dbUser = await dbService.getUserByEmail(email);
+          }
+          if (dbUser && !dbUser.disabled && (!email || String(dbUser.email || '').toLowerCase() === email)) {
+            const resolvedAdmin = dbUser.isAdmin === true || dbUser.role === 'admin' || (email && ADMIN_EMAILS.includes(email));
+            return {
+              uid: dbUser.uid || dbUser._id || uid,
+              user_id: dbUser.uid || dbUser._id || uid,
+              email: dbUser.email || email,
+              admin: resolvedAdmin,
+              isAdmin: resolvedAdmin,
+              role: resolvedAdmin ? 'admin' : (dbUser.role || 'user'),
+              name: dbUser.displayName || dbUser.name || (email ? email.split('@')[0] : 'User'),
+              _recoveredSession: true
+            };
+          }
+        }
+      }
+    } catch (_) {}
+
+    const authErr = new Error('Invalid or expired authentication token');
+    authErr.status = 401;
+    throw authErr;
   }
 }
 
@@ -3744,27 +3540,27 @@ app.post('/api/admin/system-config', async (req, res) => {
     }
     if (gemini_endpoint !== undefined) {
       let val = String(gemini_endpoint || '').trim();
-      if (!val || val.includes(':20128')) val = 'https://9router.flowgiare.com/v1';
+      if (!val || val.includes('flowgiare.com')) val = 'http://127.0.0.1:20128/v1';
       updateData.gemini_endpoint = val;
     }
     if (gemini_model !== undefined) {
       let val = String(gemini_model || '').trim();
-      if (!val || val === 'smart-pool' || val === 'gemini-3.8-flash' || val === 'gemini-3.6-flash') val = 'ag/gemini-3.8-flash';
+      if (!val) val = 'smart-pool';
       updateData.gemini_model = val;
     }
     if (transcribe_model !== undefined) {
       let val = String(transcribe_model || '').trim();
-      if (!val || val === 'gemini-3.8-flash' || val === 'smart-pool' || val === 'gemini-3-flash') val = 'ag/gemini-3-flash';
+      if (!val) val = 'smart-pool';
       updateData.transcribe_model = val;
     }
     if (meeting_model !== undefined) {
       let val = String(meeting_model || '').trim();
-      if (!val || val === 'gemini-3.8-flash' || val === 'smart-pool' || val === 'gemini-3.6-flash') val = 'ag/gemini-3.8-flash';
+      if (!val) val = 'smart-pool';
       updateData.meeting_model = val;
     }
     if (meeting_endpoint !== undefined) {
       let val = String(meeting_endpoint || '').trim();
-      if (!val || val.includes(':20128')) val = 'https://9router.flowgiare.com/v1';
+      if (!val || val.includes('flowgiare.com')) val = 'http://127.0.0.1:20128/v1';
       updateData.meeting_endpoint = val;
     }
     if (meeting_api_key !== undefined) {
@@ -4119,8 +3915,15 @@ app.get('/api/admin/training-datasets', async (req, res) => {
   try {
     await verifyAdminToken(req);
     const db = await dbService.getDb();
-    const samples = await db.collection('training_datasets').find({}).sort({ createdAt: -1, _id: -1 }).toArray();
-    res.json({ success: true, total: samples.length, data: samples });
+    const limitParam = Number.parseInt(req.query.limit || '100', 10);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 5000) : 100;
+    const total = await db.collection('training_datasets').countDocuments();
+    const samples = await db.collection('training_datasets')
+      .find({})
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit)
+      .toArray();
+    res.json({ success: true, total, data: samples });
   } catch (err) {
     console.error('GET /api/admin/training-datasets error:', err);
     res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
@@ -4945,11 +4748,15 @@ app.post('/api/chat', async (req, res) => {
       return res.status(503).json({ error: 'AI_CONFIG_MISSING', message: 'Thiếu endpoint, model hoặc API key trong cấu hình quản trị.' });
     }
 
-    const userMessage = Array.isArray(normalizedMessages)
+    const rawUserContent = Array.isArray(normalizedMessages)
       ? [...normalizedMessages].reverse().find((msg) => String(msg?.role || '').toLowerCase() === 'user')?.content || ''
       : '';
+    const isMultimodalMessage = Array.isArray(rawUserContent);
+    const userMessage = isMultimodalMessage
+      ? rawUserContent.filter((p) => p && p.type === 'text').map((p) => String(p.text || '')).join('\n').trim()
+      : String(rawUserContent || '');
 
-    const auditQuery = String(traceMeta?.query || userMessage || '').trim();
+    const auditQuery = String(traceMeta?.query || (isMultimodalMessage ? userMessage.slice(0, 120) : userMessage) || '').trim();
     const auditFeature = String(traceMeta?.feature || 'chat-assistant').trim();
     const behaviorUserId = decoded?.uid || null;
     const behaviorSessionId = String(traceMeta?.sessionId || traceMeta?.session_id || req.headers['x-chat-session-id'] || '').trim() || null;
@@ -4962,7 +4769,7 @@ app.post('/api/chat', async (req, res) => {
     const auditMode = String(traceMeta?.mode || 'chat').trim();
     const auditEffectiveDate = traceMeta?.effectiveDate ? String(traceMeta.effectiveDate).trim() : null;
 
-    console.log('USER QUERY:', userMessage, 'AUDIT QUERY:', auditQuery);
+    console.log('USER QUERY:', userMessage.slice(0, 240), 'AUDIT QUERY:', auditQuery);
 
     // Legal query detection & server-side evidence retrieval
     let legalContext = null;
@@ -5242,6 +5049,7 @@ app.post('/api/chat', async (req, res) => {
 - Bạn PHẢI tập trung phân tích ĐẦY ĐỦ, TOÀN DIỆN nội dung của VĂN BẢN CHÍNH mà người dùng hỏi.
 - Phân tích CHI TIẾT từng nhóm quy định, biện pháp, chế tài, mốc thời hạn, quyền/nghĩa vụ. KHÔNG trả lời sơ sài.
 - TUYỆT ĐỐI CẤM vẽ sơ đồ ASCII art (┌───┐, │, └───┘, ▼). BẮT BUỘC dùng danh sách phân cấp và Bảng Markdown chuẩn.
+- ĐỊNH DẠNG NGÀY VĂN BẢN (BẮT BUỘC 100%): Mọi ngày tháng văn bản (địa danh ngày ban hành, căn cứ pháp lý, trích dẫn, bảng biểu, nội dung) BẮT BUỘC viết theo định dạng "ngày DD/MM/YYYY" (ví dụ: "ngày 23/10/2026", "ngày 05/03/2020"). TUYỆT ĐỐI KHÔNG viết dài dạng "ngày 23 tháng 10 năm 2026".
 
 [QUY TẮC ĐẶC BIỆT - CÂU HỎI LIỆT KÊ / THỐNG KÊ]:
 ⚠️ Khi người dùng yêu cầu "liệt kê", "thống kê", "tổng hợp", "danh sách", "cho biết các", "có những ... nào", "tất cả ... mới nhất" → BẮT BUỘC:
@@ -5352,12 +5160,14 @@ Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ b�
       }
     }
 
+    const isOcrRequest = isMultimodalMessage || auditFeature === 'pdf-tool' || auditMode === 'ocr';
+
     // Contract Skill Auto-Inclusion: Detect contract skill intent and inject 3-tier template rules
-    const matchedContractSkill = detectContractSkill(auditQuery || userMessage);
+    const matchedContractSkill = !isOcrRequest ? detectContractSkill(auditQuery || userMessage) : null;
     if (matchedContractSkill) {
       const contractSkillPrompt = buildContractSkillPrompt(matchedContractSkill, auditQuery || userMessage);
       const lastUserIdx = effectiveMessages.map(m => String(m?.role || '').toLowerCase()).lastIndexOf('user');
-      if (lastUserIdx >= 0) {
+      if (lastUserIdx >= 0 && typeof effectiveMessages[lastUserIdx].content === 'string') {
         effectiveMessages[lastUserIdx] = {
           ...effectiveMessages[lastUserIdx],
           content: `${effectiveMessages[lastUserIdx].content}\n${contractSkillPrompt}`
@@ -5368,11 +5178,11 @@ Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ b�
     }
 
     // Administrative Search Skill Auto-Inclusion (Lâm Đồng 6 Departments NQ 390-395 / Geography 34 / CCHC indicators)
-    const adminSearchCtx = detectAdminSearchContext(auditQuery || userMessage);
+    const adminSearchCtx = !isOcrRequest ? detectAdminSearchContext(auditQuery || userMessage) : null;
     if (adminSearchCtx) {
       const adminSearchPrompt = buildAdminSearchPrompt(adminSearchCtx, auditQuery || userMessage);
       const lastUserIdx = effectiveMessages.map(m => String(m?.role || '').toLowerCase()).lastIndexOf('user');
-      if (lastUserIdx >= 0) {
+      if (lastUserIdx >= 0 && typeof effectiveMessages[lastUserIdx].content === 'string') {
         effectiveMessages[lastUserIdx] = {
           ...effectiveMessages[lastUserIdx],
           content: `${effectiveMessages[lastUserIdx].content}\n${adminSearchPrompt}`
@@ -5383,16 +5193,32 @@ Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ b�
     }
 
     // Administrative Document Review Skill Auto-Inclusion (7-Layer Review & NĐ30 4-Tier Error Classification)
-    if (detectAdminReviewIntent(auditQuery || userMessage)) {
+    if (!isOcrRequest && detectAdminReviewIntent(auditQuery || userMessage)) {
       const adminReviewPrompt = buildAdminReviewPrompt(auditQuery || userMessage);
       const lastUserIdx = effectiveMessages.map(m => String(m?.role || '').toLowerCase()).lastIndexOf('user');
-      if (lastUserIdx >= 0) {
+      if (lastUserIdx >= 0 && typeof effectiveMessages[lastUserIdx].content === 'string') {
         effectiveMessages[lastUserIdx] = {
           ...effectiveMessages[lastUserIdx],
           content: `${effectiveMessages[lastUserIdx].content}\n${adminReviewPrompt}`
         };
       } else {
         effectiveMessages.push({ role: 'user', content: adminReviewPrompt });
+      }
+    }
+
+    // Global Document Date Format Rule (applied across all bots calling /api/chat)
+    if (!isOcrRequest) {
+      const dateFormatRule = '[QUY TẮC BẮT BUỘC VỀ NGÀY VĂN BẢN]: Mọi ngày tháng văn bản (địa danh ngày ban hành, căn cứ pháp lý, trích dẫn, soạn thảo, bảng biểu) BẮT BUỘC định dạng "ngày DD/MM/YYYY" (ví dụ: "ngày 23/10/2026", "Lâm Đồng, ngày 23/10/2026"). TUYỆT ĐỐI KHÔNG viết dạng "ngày 23 tháng 10 năm 2026".';
+      const firstSystemIdx = effectiveMessages.findIndex(m => String(m?.role || '').toLowerCase() === 'system' && typeof m.content === 'string');
+      if (firstSystemIdx >= 0) {
+        if (!effectiveMessages[firstSystemIdx].content.includes('QUY TẮC BẮT BUỘC VỀ NGÀY VĂN BẢN')) {
+          effectiveMessages[firstSystemIdx] = {
+            ...effectiveMessages[firstSystemIdx],
+            content: `${effectiveMessages[firstSystemIdx].content}\n\n${dateFormatRule}`
+          };
+        }
+      } else {
+        effectiveMessages.unshift({ role: 'system', content: dateFormatRule });
       }
     }
 
@@ -9390,6 +9216,14 @@ if (require.main === module) {
     } catch (e) {
       console.warn('[Crawler] Could not initialize scheduler on startup:', e.message);
     }
+    try {
+      const { syncMongoDocuments } = require('./legal/repositories/known-documents.repository');
+      syncMongoDocuments().then(() => {
+        console.log('[known-documents] Synced on startup');
+      }).catch(err => {
+        console.warn('[known-documents] Sync on startup failed:', err.message);
+      });
+    } catch (_) {}
     // === Auto-sync vbaibot messages moi gio ===
     const AUTO_SYNC_INTERVAL = 15 * 60 * 1000; // 15 phut / lan
     async function runAutoSyncMessages() {

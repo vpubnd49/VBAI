@@ -59,6 +59,7 @@ Tạo file JSON theo mẫu trong `assets/examples/`. Xem ví dụ:
 - [ ] **Dấu câu nơi nhận**: Giữa các CQ dùng **dấu chấm phẩy (;)**, cuối cùng dấu chấm (.) (HD05 9.2.5)?
 - [ ] **Kính gửi / Kính trình**: Công văn dùng "Kính gửi", Tờ trình dùng "Kính trình" (HD05 9.2.4)?
 - [ ] **Số ký hiệu**: Format `Số XX-NQ/TU` (dấu gạch nối `-` và gạch chéo `/`)?
+- [ ] **Ngày văn bản**: Bắt buộc định dạng `ngày DD/MM/YYYY` (ví dụ: `Đồng Văn, ngày 23/10/2026`, căn cứ `ngày 05/03/2020`), KHÔNG viết dạng `ngày 23 tháng 10 năm 2026`?
 - [ ] **4 dòng trống** cho chữ ký (KHÔNG dùng spacing)
 - [ ] **Căn cứ**: Kết thúc bằng dấu phẩy `,` (căn cứ cuối), chấm phẩy `;` (các căn cứ khác)?
 

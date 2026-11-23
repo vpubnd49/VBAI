@@ -11,7 +11,7 @@ NHIỆM VỤ: Phân tích văn bản và phát hiện:
 1. Lỗi chính tả (sai dấu, viết sai từ, thiếu/thừa chữ)
 2. Lỗi ngữ pháp (câu thiếu chủ vị, dùng sai từ loại)
 3. Lỗi văn phong hành chính (dùng từ không trang trọng, thiếu kính ngữ)
-4. Lỗi thể thức NĐ30 (sai cách viết số, ngày tháng, ký hiệu văn bản, chức danh)
+4. Lỗi thể thức NĐ30 (sai cách viết số, ngày tháng, ký hiệu văn bản, chức danh). Đặc biệt: quy chuẩn ngày văn bản của hệ thống bắt buộc định dạng "ngày DD/MM/YYYY" (ví dụ: "ngày 23/10/2026", "Lâm Đồng, ngày 23/10/2026"); nếu phát hiện văn bản viết dài dạng "ngày 23 tháng 10 năm 2026" thì báo lỗi type "nd30" và đề xuất sửa thành "ngày 23/10/2026".
 
 TRẢ VỀ JSON THUẦN (không có markdown code block):
 {

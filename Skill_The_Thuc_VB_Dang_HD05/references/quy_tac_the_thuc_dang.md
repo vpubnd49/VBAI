@@ -29,7 +29,7 @@
 | 2a | Tên cơ quan cấp trên | IN HOA | 14 | Đứng, thường | ĐẢNG BỘ TỈNH THÁI NGUYÊN |
 | 2b | Tên cơ quan ban hành | IN HOA | 14 | Đứng, **đậm** | **HUYỆN UỶ ĐỊNH HOÁ** |
 | 3 | Số và ký hiệu | In thường | 14 | Đứng | Số 127-QĐ/TW |
-| 4 | Địa danh, ngày tháng năm | In thường | 14 | *Nghiêng* | *Hà Nội, ngày 03 tháng 02 năm 2018* |
+| 4 | Địa danh, ngày tháng năm | In thường | 14 | *Nghiêng* | *Hà Nội, ngày 23/10/2026* (bắt buộc định dạng `ngày DD/MM/YYYY`) |
 | 5a | Tên loại VB | IN HOA | **15-16** | Đứng, **đậm** | **NGHỊ QUYẾT** |
 | 5b | Trích yếu nội dung (VB có tên loại) | In thường | 14-15 | Đứng, **đậm** | **về công tác cán bộ** |
 | 5c | Trích yếu nội dung (công văn) | In thường | 12 | *Nghiêng* | *Chế độ hội nghị và công tác phí* |
