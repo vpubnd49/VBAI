@@ -61,6 +61,7 @@ const PAGE_TITLES = {
   'spell-check': 'Kiểm tra Văn bản & Thể thức',
   'meeting-minutes': 'Xử lý Ghi âm & Biên bản',
   'nq57-tracker': 'Đôn đốc Nhiệm vụ NQ 57',
+  'multi-report': 'Tổng hợp Báo cáo Đa đơn vị',
   'pdf-publisher': 'Tóm tắt Hồ sơ & Xuất bản',
   'search-history': 'Lịch sử Tra cứu',
   'admin-panel': 'Quản trị Hệ thống',
@@ -237,6 +238,12 @@ async function renderPage(page, initialQuery = '', initialMode = '') {
         const { renderNq57Tracker } = await import('./modules/nq57-tracker.js');
         container.innerHTML = '';
         renderNq57Tracker(container);
+        break;
+      }
+      case 'multi-report': {
+        const { renderMultiReportSynthesizer } = await import('./modules/multi-report-synthesizer.js');
+        container.innerHTML = '';
+        renderMultiReportSynthesizer(container);
         break;
       }
       case 'zalo-bot': {
