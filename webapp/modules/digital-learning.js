@@ -2,6 +2,7 @@
  * Digital Learning Hub — Góc "Học tập số" & Cẩm nang AI Công vụ (Đầy đủ 5 phân hệ tương tác tại chỗ)
  * Hưởng ứng phong trào "Học tập số" toàn dân theo Nghị quyết 11/NQ-CP ngày 14/01/2026
  */
+import { marked } from 'marked';
 import { sendChatRequest } from './ai-proxy.js';
 import { showToast } from './ui-utils.js';
 
@@ -269,6 +270,16 @@ function analyzePromptQuality(promptText = '') {
   return { score: Math.min(100, score), warnings };
 }
 
+function renderSafeMarkdown(rawText = '') {
+  // Gỡ bỏ các thẻ HTML thô nếu AI lỡ xuất ra (như <table>, <div>, <br>) để không hiển thị rác
+  const cleaned = String(rawText || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?(?:div|table|thead|tbody|tr|td|th|p|span|b|strong|i|em)[^>]*>/gi, '')
+    .trim();
+  const html = marked.parse(cleaned, { breaks: true, gfm: true });
+  return html.replace(/<script[\s\S]*?<\/script>/gi, '');
+}
+
 export function renderDigitalLearning(container) {
   const state = {
     activeTab: 'courses', // courses | sandbox | quiz | prompts | handbook
@@ -397,12 +408,23 @@ export function renderDigitalLearning(container) {
         ` : ''}
 
         ${state.sandboxOutput ? `
-          <div style="margin-top:16px;padding:16px;border-radius:10px;background:var(--bg-secondary,#f8fafc);border:1px solid var(--border-color);">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <strong style="color:#0f766e;">✨ Kết quả thực hành từ Trợ lý AI:</strong>
+          <div style="margin-top:16px;padding:18px 20px;border-radius:10px;background:#ffffff;border:1px solid var(--border-color);box-shadow:0 1px 4px rgba(15,23,42,0.05);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border-color);">
+              <strong style="color:#0f766e;font-size:1rem;">✨ Kết quả thực hành từ Trợ lý AI:</strong>
               <button type="button" class="btn btn-sm btn-secondary" id="dl-sb-copy-out">📋 Sao chép kết quả</button>
             </div>
-            <div style="white-space:pre-wrap;line-height:1.65;font-size:0.94rem;">${escapeHtml(state.sandboxOutput)}</div>
+            <div class="dl-markdown-output" style="line-height:1.7;font-size:0.95rem;color:var(--text-main);">
+              <style>
+                .dl-markdown-output h1,.dl-markdown-output h2,.dl-markdown-output h3,.dl-markdown-output h4{margin:14px 0 8px;color:#0f766e;font-weight:700;}
+                .dl-markdown-output p{margin:6px 0;}
+                .dl-markdown-output ul,.dl-markdown-output ol{margin:6px 0 10px 20px;}
+                .dl-markdown-output table{width:100%;border-collapse:collapse;margin:12px 0;font-size:0.88rem;}
+                .dl-markdown-output th,.dl-markdown-output td{border:1px solid #cbd5e1;padding:8px 10px;text-align:left;vertical-align:top;}
+                .dl-markdown-output th{background:#f1f5f9;font-weight:700;}
+                .dl-markdown-output hr{border:none;border-top:1px solid #e2e8f0;margin:14px 0;}
+              </style>
+              ${renderSafeMarkdown(state.sandboxOutput)}
+            </div>
           </div>
         ` : ''}
       </div>
@@ -686,10 +708,26 @@ export function renderDigitalLearning(container) {
       state.sandboxOutput = '';
       render();
       try {
+        const groundTruth = `DỮ LIỆU PHÁP LÝ ĐÃ XÁC MINH (BẮT BUỘC DÙNG CHÍNH XÁC 100%, TUYỆT ĐỐI KHÔNG BỊA NGÀY KHÁC):
+- Nghị quyết số 57-NQ/TW ngày 22/12/2024 của Bộ Chính trị;
+- Nghị quyết số 71/NQ-CP ngày 01/04/2025 của Chính phủ (thay thế Nghị quyết số 03/NQ-CP ngày 09/01/2025);
+- Nghị quyết số 11/NQ-CP ngày 14/01/2026 của Chính phủ (sửa đổi, bổ sung Nghị quyết 71/NQ-CP);
+- Kế hoạch số 02-KH/BCĐTW ngày 19/06/2025 của Ban Chỉ đạo Trung ương;
+- Quyết định số 1425/QĐ-TTg ngày 29/07/2026 của Thủ tướng Chính phủ (Khung kiến trúc tổng thể quốc gia số phiên bản 1.0);
+- Nghị định số 179/2025/NĐ-CP ngày 01/07/2025 và Thông tư số 23/2025/TT-BKHCN ngày 20/10/2025;
+- Nghị quyết số 390–395/NQ-HĐND ngày 18/02/2025 của HĐND tỉnh Lâm Đồng (6 Sở mới đi vào hoạt động từ ngày 01/03/2025);
+- Cổng giám sát Nghị quyết 57 tỉnh Lâm Đồng: https://nq57.tracuu.lamdong.vn/.
+
+QUY TẮC TRÌNH BÀY BẮT BUỘC:
+- Trình bày sạch đẹp bằng Markdown thuần (tiêu đề ###, in đậm **, gạch đầu dòng, bảng Markdown chuẩn nếu cần).
+- TUYỆT ĐỐI KHÔNG xuất các thẻ HTML thô như <table>, <tr>, <td>, <div>, <br>.
+- Mọi ngày văn bản BẮT BUỘC viết theo định dạng "ngày DD/MM/YYYY" (VD: ngày 23/11/2026), không viết "ngày ... tháng ... năm ...".
+- Tập trung trả lời ĐÚNG yêu cầu của học viên; KHÔNG tự ý chèn bảng rà soát 7 lớp nếu học viên không yêu cầu rà soát.`;
+
         const modeSystemMap = {
-          soan_thao: 'Bạn là giảng viên hướng dẫn thực hành AI công vụ của Văn phòng UBND tỉnh Lâm Đồng. Hãy thực hiện yêu cầu soạn thảo chuẩn thể thức NĐ30/HD05, dùng định dạng ngày DD/MM/YYYY, không viết ngày ... tháng ... năm ..., và cuối bài có 2 dòng nhận xét ngắn về cách tối ưu câu lệnh.',
-          phan_tich: 'Bạn là chuyên gia đào tạo Nghị quyết 57-NQ/TW, NQ 11/NQ-CP và QĐ 1425/QĐ-TTg. Hãy phân tích súc tích, chính xác, trình bày rõ ràng theo gạch đầu dòng, dùng định dạng ngày DD/MM/YYYY.',
-          cham_diem: 'Bạn là huấn luyện viên viết Prompt công vụ. Hãy chấm điểm câu lệnh của học viên theo thang 100 (dựa trên 5 yếu tố: Vai trò, Loại văn bản, Căn cứ, Yêu cầu đầu ra, Thể thức & An toàn thông tin) và viết lại 1 phiên bản Prompt tối ưu hơn.',
+          soan_thao: `Bạn là giảng viên hướng dẫn thực hành soạn thảo văn bản hành chính của Văn phòng UBND tỉnh Lâm Đồng. Hãy soạn thảo văn bản rõ ràng, đúng thể thức NĐ30/HD05 (không dùng thẻ HTML), cuối bài có 2 gạch đầu dòng góp ý ngắn về câu lệnh.\n\n${groundTruth}`,
+          phan_tich: `Bạn là chuyên gia đào tạo Nghị quyết 57-NQ/TW, NQ 11/NQ-CP và QĐ 1425/QĐ-TTg. Hãy phân tích súc tích, chính xác, trình bày sạch bằng Markdown chuẩn.\n\n${groundTruth}`,
+          cham_diem: `Bạn là huấn luyện viên viết Prompt công vụ. Hãy chấm điểm câu lệnh của học viên theo thang 100 (5 yếu tố: Vai trò, Loại văn bản, Căn cứ, Yêu cầu đầu ra, Thể thức & An toàn thông tin) và viết lại 1 phiên bản Prompt tối ưu hơn.\n\n${groundTruth}`,
         };
         const resp = await sendChatRequest(
           [
@@ -697,7 +735,7 @@ export function renderDigitalLearning(container) {
             { role: 'user', content: prompt },
           ],
           null,
-          { temperature: 0.2, timeoutMs: 90000, provider: 'gemini' }
+          { temperature: 0.15, timeoutMs: 90000, provider: 'gemini', trace: { feature: 'digital-learning', mode: state.sandboxMode } }
         );
         state.sandboxOutput = resp;
         state.progress.sandboxRuns += 1;

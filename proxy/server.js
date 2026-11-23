@@ -5209,7 +5209,8 @@ Nếu bỏ qua bất kỳ phần nào từ I đến V, câu trả lời sẽ b�
     }
 
     // Administrative Document Review Skill Auto-Inclusion (7-Layer Review & NĐ30 4-Tier Error Classification)
-    if (!isOcrRequest && detectAdminReviewIntent(auditQuery || userMessage)) {
+    const isDigitalLearning = auditFeature === 'digital-learning';
+    if (!isOcrRequest && !isDigitalLearning && detectAdminReviewIntent(auditQuery || userMessage)) {
       const adminReviewPrompt = buildAdminReviewPrompt(auditQuery || userMessage);
       const lastUserIdx = effectiveMessages.map(m => String(m?.role || '').toLowerCase()).lastIndexOf('user');
       if (lastUserIdx >= 0 && typeof effectiveMessages[lastUserIdx].content === 'string') {
