@@ -318,9 +318,12 @@ export function renderMultiReportSynthesizer(container) {
     const res = state.result;
     container.innerHTML = `
       <div class="page-wrapper" style="max-width:1280px;margin:0 auto;padding:16px 20px;">
-        <div style="margin-bottom:18px;">
-          <h2 style="margin:0;font-size:1.4rem;color:var(--text-main);">📊 Tổng hợp Báo cáo Đa đơn vị (Sở + Xã/Phường)</h2>
-          <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.92rem;">Tải đồng loạt nhiều file báo cáo (.docx, .pdf, .xlsx, .csv) → AI tự chuẩn hóa số liệu, phát hiện đơn vị thiếu/lệch và xuất Báo cáo NĐ30 + Phụ lục <strong>nq57.vn</strong>.</p>
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;">
+          <div>
+            <h2 style="margin:0;font-size:1.4rem;color:var(--text-main);">📊 Tổng hợp Báo cáo Đa đơn vị (Sở + Xã/Phường)</h2>
+            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.92rem;">Tải đồng loạt nhiều file báo cáo (.docx, .pdf, .xlsx, .csv) → AI tự chuẩn hóa số liệu, phát hiện đơn vị thiếu/lệch và xuất Báo cáo NĐ30 + Phụ lục cho <a href="https://nq57.tracuu.lamdong.vn/" target="_blank" rel="noopener noreferrer" style="color:#0f766e;font-weight:700;">nq57.tracuu.lamdong.vn</a>.</p>
+          </div>
+          <a class="btn btn-secondary" href="https://nq57.tracuu.lamdong.vn/" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">🔗 Mở cổng NQ 57 Lâm Đồng</a>
         </div>
 
         <div class="panel-group" style="margin-bottom:16px;">

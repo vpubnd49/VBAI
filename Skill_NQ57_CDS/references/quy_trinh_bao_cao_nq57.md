@@ -1,4 +1,6 @@
-# Quy trình Báo cáo Giám sát `nq57.vn` & Xử lý Phản ánh Kiến nghị `pakn.nq57.vn`
+# Quy trình Báo cáo Giám sát NQ 57 (`https://nq57.tracuu.lamdong.vn/` & `nq57.vn`) & Xử lý PAKN (`pakn.nq57.vn`)
+
+> **Cổng giám sát Nghị quyết 57 tỉnh Lâm Đồng:** `https://nq57.tracuu.lamdong.vn/`
 
 ## 1. Cấu trúc chuẩn báo cáo định kỳ (Ngày / Tuần / Tháng / Quý) phục vụ nhập liệu `nq57.vn`
 Mọi báo cáo tổng hợp từ Sở/Ban/Ngành và UBND xã/phường/đặc khu cần chuẩn hóa đủ 5 mục sau (định dạng ngày `ngày DD/MM/YYYY`):

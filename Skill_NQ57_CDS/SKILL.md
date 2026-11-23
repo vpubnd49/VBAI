@@ -23,7 +23,7 @@ Bộ tri thức chuyên sâu phục vụ công tác tham mưu, chỉ đạo đi�
    - **Lớp 1:** Hạ tầng số và an ninh mạng dùng chung (*Security-by-design*).
    - **Lớp 2:** Dữ liệu và nền tảng lõi (*Data-Centric*: Đúng – Đủ – Sạch – Sống – Thống nhất – Dùng chung).
    - **Lớp 3:** Ứng dụng và nghiệp vụ dùng chung (*AI First có kiểm soát* — con người ra quyết định cuối cùng).
-   - **Lớp 4:** Kênh tương tác và đo lường hiệu quả (Cổng DVCQG, VNeID, `nq57.vn`, `pakn.nq57.vn`).
+   - **Lớp 4:** Kênh tương tác và đo lường hiệu quả (Cổng DVCQG, VNeID, cổng NQ 57 tỉnh Lâm Đồng `https://nq57.tracuu.lamdong.vn/`, cổng TW `nq57.vn`, `pakn.nq57.vn`).
 5. **An toàn thông tin:** Không đưa tài liệu có độ mật (`MẬT`, `TỐI MẬT`, `TUYỆT MẬT`) lên các mô hình AI công cộng; che ẩn dữ liệu cá nhân (CCCD, số điện thoại) khi tổng hợp báo cáo.
 
 ---

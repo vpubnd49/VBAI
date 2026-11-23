@@ -169,11 +169,12 @@ export function renderNq57Tracker(container) {
         <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;">
           <div>
             <h2 style="margin:0;font-size:1.4rem;color:var(--text-main);">🚀 Theo dõi & Đôn đốc Nhiệm vụ Nghị quyết 57-NQ/TW</h2>
-            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.92rem;">Đồng bộ nhiệm vụ từ Thông báo kết luận cuộc họp & Kế hoạch CĐS phục vụ báo cáo <strong>nq57.vn</strong></p>
+            <p style="margin:4px 0 0;color:var(--text-muted);font-size:0.92rem;">Đồng bộ nhiệm vụ từ Thông báo kết luận cuộc họp & Kế hoạch CĐS phục vụ báo cáo <a href="https://nq57.tracuu.lamdong.vn/" target="_blank" rel="noopener noreferrer" style="color:#0f766e;font-weight:700;">nq57.tracuu.lamdong.vn</a></p>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a class="btn btn-secondary" href="https://nq57.tracuu.lamdong.vn/" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">🔗 Mở cổng NQ 57 Lâm Đồng</a>
             <button class="btn btn-primary" id="nq57-toggle-add">+ Thêm nhiệm vụ</button>
-            <button class="btn btn-secondary" id="nq57-export-csv">⬇ Xuất Excel/CSV (nq57.vn)</button>
+            <button class="btn btn-secondary" id="nq57-export-csv">⬇ Xuất Excel/CSV (NQ 57)</button>
           </div>
         </div>
 

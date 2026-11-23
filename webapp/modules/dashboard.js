@@ -119,6 +119,7 @@ export function renderDashboard(container, navigateTo) {
             <div id="dash-nq57-stats" style="font-size:0.86rem;color:var(--text-muted);margin-top:3px;">Đang đồng bộ tiến độ nhiệm vụ NQ 57...</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="https://nq57.tracuu.lamdong.vn/" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-primary" style="text-decoration:none;">🔗 Cổng NQ 57 Lâm Đồng</a>
             <button type="button" class="btn btn-sm btn-secondary" id="dash-go-nq57">Bảng đôn đốc →</button>
             <button type="button" class="btn btn-sm btn-secondary" id="dash-go-pakn">Xử lý PAKN →</button>
             <button type="button" class="btn btn-sm btn-secondary" id="dash-go-learn">Học tập số →</button>
